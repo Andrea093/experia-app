@@ -3,34 +3,14 @@ import { supabase } from '../lib/supabaseClient.js'
 // =============================================
 // EXPERIA — State Store & Data (v12)
 // =============================================
-// Campos que pertenecen al progreso individual de cada estudiante
-const USER_PROGRESS_FIELDS = ['xp','completed','badges','selectedArea'];
 
 const createExpStore = (init) => {
   let state = { ...init }; const subs = new Set();
   return {
     get: () => state,
     set: (partial) => {
-      const next = { ...state, ...(typeof partial === 'function' ? partial(state) : partial) };
-      // Persistir progreso aislado por estudiante
-      if (next.user?.email && next.user?.role === 'student') {
-        next.userProgress = {
-          ...(next.userProgress || {}),
-          [next.user.email]: {
-            xp:          next.xp,
-            completed:   next.completed,
-            badges:      next.badges,
-            selectedArea:next.selectedArea,
-          }
-        };
-      }
-      state = next;
+      state = { ...state, ...(typeof partial === 'function' ? partial(state) : partial) };
       subs.forEach(fn => fn(state));
-      try {
-        const s = { ...state };
-        delete s.notifications;
-        localStorage.setItem('experia-v12', JSON.stringify(s));
-      } catch(e){}
     },
     sub: (fn) => { subs.add(fn); return () => subs.delete(fn); }
   };
@@ -331,7 +311,7 @@ const DEF = {
   isLoggedIn: false, user: null, page: 'landing', nodeId: null,
   xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
   submissions: [], challengeAttempts: [], studentMessages: [],
-  accounts: [], userProgress: {}, institutions: INITIAL_INSTITUTIONS,
+  accounts: [], institutions: INITIAL_INSTITUTIONS,
 };
 export const XS = createExpStore(DEF);
 

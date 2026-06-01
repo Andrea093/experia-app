@@ -13,12 +13,24 @@
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 
-// ── Configuración ────────────────────────────────────────────────────────────
-const SUPABASE_URL     = 'https://ttgycluzeyuxsmgcijgi.supabase.co'
-const SUPABASE_ANON    = 'sb_publishable_zKM7rS23yiTSsibbQpO5Hw_9eFtvf-i'
-const CONCURRENTES     = parseInt(process.argv[2] || '10')
-const PASS_BASE        = 'Test'   // contraseña base: Test{i}2024!
-const TOTAL_USUARIOS   = 50       // cuántos usuarios existen en Supabase
+// ── Configuración — lee desde .env ───────────────────────────────────────────
+import { readFileSync } from 'fs'
+const envVars = {}
+try {
+  readFileSync('.env','utf8').split('\n').forEach(l => {
+    const [k,...v] = l.split('='); if(k?.trim()) envVars[k.trim()] = v.join('=').trim()
+  })
+} catch {}
+
+const SUPABASE_URL  = envVars.VITE_SUPABASE_URL  || process.env.VITE_SUPABASE_URL  || ''
+const SUPABASE_ANON = envVars.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
+if (!SUPABASE_URL || !SUPABASE_ANON) {
+  console.error('❌ Faltan variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en .env')
+  process.exit(1)
+}
+
+const CONCURRENTES   = parseInt(process.argv[2] || '10')
+const TOTAL_USUARIOS = 50
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const ms = (t) => `${t}ms`
