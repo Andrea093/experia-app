@@ -438,7 +438,16 @@ const createAccount = (name, email, pass, role, area, institution) => {
     else if (data?.results?.[0]?.ok === false) console.error('createAccount failed:', data.results[0].error);
   });
 };
-const deleteAccount = (email) => XS.set(s => ({ accounts: s.accounts.filter(a => a.email !== email) }));
+const deleteAccount = (email) => {
+  // Optimistic: quitar de la UI inmediatamente
+  XS.set(s => ({ accounts: s.accounts.filter(a => a.email !== email) }));
+  // Borrar de Supabase Auth via Edge Function
+  supabase.functions.invoke('delete-user', { body: { email } })
+    .then(({ data, error }) => {
+      if (error) console.error('deleteAccount error:', error);
+      else if (data?.error) console.error('deleteAccount failed:', data.error);
+    });
+};
 
 const bulkCreateAccounts = (users) => {
   // Optimistic local update
