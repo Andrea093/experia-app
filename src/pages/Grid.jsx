@@ -161,7 +161,7 @@ const SubStatusBadge = ({ sub }) => {
 };
 
 // ---- Submission Table ----
-const SubTable = ({ subs, onGrade, onViewFile, saveFlash }) => (
+const SubTable = ({ subs, onGrade, onViewFile, saveFlash, onStudentClick }) => (
   <div style={{ borderRadius: 14, border: '1px solid var(--border)', background: 'var(--white)', overflow: 'hidden', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
@@ -186,7 +186,11 @@ const SubTable = ({ subs, onGrade, onViewFile, saveFlash }) => (
                     {sub.studentName.charAt(0)}
                   </div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)' }}>{sub.studentName}</div>
+                    <div onClick={() => onStudentClick?.({ name: sub.studentName, email: sub.studentEmail, avatar: sub.studentName?.charAt(0), area: sub.area })}
+                      style={{ fontSize: 13, fontWeight: 600, color: onStudentClick ? 'var(--orange)' : 'var(--dark)',
+                        cursor: onStudentClick ? 'pointer' : 'default', textDecoration: onStudentClick ? 'underline' : 'none' }}>
+                      {sub.studentName}
+                    </div>
                     <div style={{ fontSize: 11, color: 'var(--muted)' }}>{sub.studentEmail}</div>
                   </div>
                 </div>
@@ -480,7 +484,7 @@ const StudentProductUpload = () => {
 // =============================================
 // ---- Instructor Review Panel ----
 // =============================================
-export const InstructorDashboard = () => {
+export const InstructorDashboard = ({ onStudentClick }) => {
   const submissions = useStore(s => s.submissions);
   const isMobile = useMobile();
   const [activeInstitution, setActiveInstitution] = React.useState('all');

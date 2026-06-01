@@ -26,6 +26,9 @@ import ChallengeView from './pages/challenges.jsx'
 import ProfilePage from './pages/profile.jsx'
 import StudentProductUpload from './pages/Grid.jsx'
 import InstructorDashboard from './pages/InstructorDashboard.jsx'
+import AdminAnalytics from './pages/AdminAnalytics.jsx'
+import AdminCohorts from './pages/AdminCohorts.jsx'
+import { ActiveStudents, StudentProgressModal } from './pages/InstructorStudentView.jsx'
 // =============================================
 // EXPERIA — App Shell (responsive + optimized)
 // =============================================
@@ -117,14 +120,16 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
     { key: 'profile', label: 'Perfil', icon: <UserIc s={19} />, active: ['profile'] },
   ];
   const instructorItems = [
-    { key: 'instructor-dashboard', label: 'Entregas', icon: <FileIc s={19} />, active: ['instructor-dashboard'] },
-    { key: 'instructor-stats', label: 'Estadísticas', icon: <BarIc s={19} />, active: ['instructor-stats'] },
-    { key: 'profile', label: 'Perfil', icon: <UserIc s={19} />, active: ['profile'] },
+    { key: 'instructor-dashboard', label: 'Entregas',     icon: <FileIc s={19} />, active: ['instructor-dashboard'] },
+    { key: 'instructor-stats',     label: 'Estadísticas', icon: <BarIc s={19} />,  active: ['instructor-stats'] },
+    { key: 'profile',              label: 'Perfil',       icon: <UserIc s={19} />, active: ['profile'] },
   ];
   const adminItems = [
-    { key: 'admin-dashboard', label: 'Usuarios', icon: <UsersIc s={19} />, active: ['admin-dashboard'] },
-    { key: 'admin-schools', label: 'Colegios', icon: <SchoolIc s={19} />, active: ['admin-schools'] },
-    { key: 'profile', label: 'Perfil', icon: <UserIc s={19} />, active: ['profile'] },
+    { key: 'admin-dashboard',  label: 'Usuarios',   icon: <UsersIc s={19} />, active: ['admin-dashboard'] },
+    { key: 'admin-schools',    label: 'Colegios',   icon: <SchoolIc s={19} />, active: ['admin-schools'] },
+    { key: 'admin-analytics',  label: 'Analítica',  icon: <BarIc s={19} />,   active: ['admin-analytics'] },
+    { key: 'admin-cohorts',    label: 'Cohortes',   icon: <ClockIc s={19} />, active: ['admin-cohorts'] },
+    { key: 'profile',          label: 'Perfil',     icon: <UserIc s={19} />,  active: ['profile'] },
   ];
   const items = role === 'instructor' ? instructorItems : role === 'admin' ? adminItems : studentItems;
 
@@ -1477,21 +1482,35 @@ const App = () => {
   const fullPages = ['lesson', 'challenge'];
   const isFullPage = fullPages.includes(page);
 
+  const [studentView, setStudentView] = React.useState(null);
+
   const renderPage = () => {
     if (role === 'admin') {
       switch (page) {
-        case 'admin-dashboard': return <AdminPage />;
-        case 'admin-schools': return <SchoolsAdminPage />;
-        case 'profile': return <ProfilePage />;
-        default: return <AdminPage />;
+        case 'admin-dashboard':  return <AdminPage />;
+        case 'admin-schools':    return <SchoolsAdminPage />;
+        case 'admin-analytics':  return <AdminAnalytics />;
+        case 'admin-cohorts':    return <AdminCohorts />;
+        case 'profile':          return <ProfilePage />;
+        default:                 return <AdminPage />;
       }
     }
     if (role === 'instructor') {
       switch (page) {
-        case 'instructor-dashboard': return <InstructorDashboard />;
+        case 'instructor-dashboard':
+          return (
+            <>
+              <ActiveStudents />
+              <InstructorDashboard onStudentClick={setStudentView} />
+              <Modal open={!!studentView} onClose={()=>setStudentView(null)}
+                title={studentView?.name || 'Progreso del docente'} width={580}>
+                <StudentProgressModal student={studentView} onClose={()=>setStudentView(null)} />
+              </Modal>
+            </>
+          );
         case 'instructor-stats': return <InstructorStatsPage />;
-        case 'profile': return <ProfilePage />;
-        default: return <InstructorDashboard />;
+        case 'profile':          return <ProfilePage />;
+        default:                 return <InstructorDashboard />;
       }
     }
     switch (page) {

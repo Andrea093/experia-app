@@ -311,12 +311,21 @@ const DEF = {
   isLoggedIn: false, user: null, page: 'landing', nodeId: null,
   xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
   submissions: [], challengeAttempts: [], studentMessages: [],
-  accounts: [], institutions: INITIAL_INSTITUTIONS,
+  accounts: [], institutions: INITIAL_INSTITUTIONS, cohorts: [],
 };
 export const XS = createExpStore(DEF);
 
 // --- Actions ---
-const nav = (page, nodeId) => XS.set({page, nodeId: nodeId||null});
+const nav = (page, nodeId) => {
+  XS.set({ page, nodeId: nodeId || null });
+  const { user } = XS.get();
+  if (user?.id && user.role === 'student') {
+    supabase.from('profiles').update({
+      last_seen: new Date().toISOString(),
+      current_module: nodeId || page,
+    }).eq('id', user.id).then(() => {});
+  }
+};
 
 const doLogout = () => {
   supabase.auth.signOut();

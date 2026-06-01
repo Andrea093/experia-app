@@ -23,9 +23,10 @@ async function restoreSession() {
   const { data: { session } } = await supabase.auth.getSession()
 
   if (session) {
-    const [{ data: profile }, { data: institutions }] = await Promise.all([
+    const [{ data: profile }, { data: institutions }, { data: cohorts }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', session.user.id).single(),
       supabase.from('institutions').select('*').order('name'),
+      supabase.from('cohorts').select('*').order('created_at'),
     ])
 
     if (profile) {
@@ -72,6 +73,7 @@ async function restoreSession() {
         page, xp, completed, badges, notifications: [],
         selectedArea: profile.area || null, nodeId: null,
         institutions: institutions || [],
+        cohorts: cohorts || [],
         accounts, submissions, challengeAttempts,
       })
     }
