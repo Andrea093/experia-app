@@ -35,7 +35,7 @@ const LoginPage = () => {
 
       XS.set({
         isLoggedIn: true,
-        user: { name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role },
+        user: { id: data.user.id, name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role },
         page,
         xp: 0, completed: [], badges: [], notifications: [], selectedArea: profile.area || null, nodeId: null,
       });

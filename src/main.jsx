@@ -4,6 +4,7 @@ import './styles.css'
 import App from './app.jsx'
 import { supabase } from './lib/supabaseClient.js'
 import { XS, doLogout } from './store/store.jsx'
+import { mapSubmission, mapAttempt } from './lib/mappers.js'
 
 // Restaurar sesión de Supabase al arrancar
 supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -17,24 +18,47 @@ supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (profile.role === 'instructor') page = 'instructor-dashboard'
       if (profile.role === 'admin')      page = 'admin-dashboard'
 
-      // Cargar usuarios reales desde Supabase para admin/instructor
-      let accounts = []
+      // Cargar datos según rol
+      let accounts = [], submissions = [], challengeAttempts = [], allProfiles = []
+
       if (profile.role === 'admin' || profile.role === 'instructor') {
-        const { data: profiles } = await supabase.from('profiles').select('*').order('name')
-        accounts = (profiles || []).map(p => ({
+        const [
+          { data: profilesData },
+          { data: subsData },
+          { data: attemptsData },
+        ] = await Promise.all([
+          supabase.from('profiles').select('*').order('name'),
+          supabase.from('submissions').select('*').order('created_at', { ascending: false }),
+          supabase.from('challenge_attempts').select('*').order('created_at', { ascending: false }),
+        ])
+        allProfiles = profilesData || []
+        accounts = allProfiles.map(p => ({
           email: p.email, name: p.name, avatar: p.avatar,
           role: p.role, area: p.area || null, institution: '', pass: '',
         }))
+        submissions = (subsData || []).map(s => mapSubmission(s, allProfiles))
+        challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, allProfiles))
+      }
+
+      if (profile.role === 'student') {
+        const [{ data: subsData }, { data: attemptsData }] = await Promise.all([
+          supabase.from('submissions').select('*').eq('student_id', session.user.id),
+          supabase.from('challenge_attempts').select('*').eq('student_id', session.user.id),
+        ])
+        submissions = (subsData || []).map(s => mapSubmission(s, [{ id: session.user.id, ...profile }]))
+        challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, [{ id: session.user.id, ...profile }]))
       }
 
       XS.set({
         isLoggedIn: true,
-        user: { name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role },
+        user: { id: session.user.id, name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role },
         page,
         xp: 0, completed: [], badges: [], notifications: [],
         selectedArea: profile.area || null, nodeId: null,
         institutions: institutions || [],
         accounts,
+        submissions,
+        challengeAttempts,
       })
     }
   }

@@ -358,66 +358,100 @@ const completeNode = (id) => {
 };
 const recordAttempt = (challengeId, questions, score, maxScore) => {
   const s = XS.get();
-  // Solo guardar el primer intento por estudiante por reto
   if (s.challengeAttempts.some(a => a.studentEmail === s.user.email && a.challengeId === challengeId)) return;
-  const att = {id:'att_'+Date.now(),studentEmail:s.user.email,studentName:s.user.name,challengeId,area:s.selectedArea,
-    questions, score, maxScore, date:new Date().toISOString().split('T')[0]};
-  XS.set({challengeAttempts:[...s.challengeAttempts,att]});
+  const att = { id:'att_'+Date.now(), studentEmail:s.user.email, studentName:s.user.name,
+    challengeId, area:s.selectedArea, questions, score, maxScore,
+    date:new Date().toISOString().split('T')[0] };
+  XS.set({ challengeAttempts:[...s.challengeAttempts, att] });
+  supabase.from('challenge_attempts').insert({
+    student_id: s.user.id, challenge_id: challengeId, area: s.selectedArea,
+    questions, score, max_score: maxScore,
+  }).then(({ error }) => { if (error) console.error('recordAttempt:', error); });
 };
-const submitProduct = (rejillaName,preguntaName,rejillaData,preguntaData) => {
-  const s=XS.get();
-  const acc=s.accounts.find(a=>a.email===s.user.email);
-  const sub={id:'sub_'+Date.now(),studentName:s.user.name,studentEmail:s.user.email,
-    studentInstitution:acc?.institution||'',
-    area:s.selectedArea,
-    rejillaName,preguntaName,rejillaData:rejillaData||null,preguntaData:preguntaData||null,
-    date:new Date().toISOString().split('T')[0],grade:null,feedback:''};
-  XS.set({submissions:[...s.submissions,sub]});
-};
-const gradeSubmission = (subId,grade,feedback) => {
-  XS.set(s=>({submissions:s.submissions.map(sub=>sub.id===subId?{...sub,grade,feedback,status:'graded'}:sub)}));
-};
-const returnSubmission = (subId, returnNotes, instrRejillaName, instrRejillaData, instrPreguntaName, instrPreguntaData) => {
-  XS.set(s=>{
-    const sub=s.submissions.find(su=>su.id===subId);
-    const newMsg={id:'msg_'+Date.now(),toEmail:sub?.studentEmail,type:'return',returnNotes,
-      date:new Date().toISOString().split('T')[0],read:false,submissionId:subId};
-    return {
-      submissions:s.submissions.map(su=>
-        su.id===subId?{...su,status:'returned',returnCount:(su.returnCount||0)+1,returnNotes,grade:null,feedback:'',
-          instrRejillaName:instrRejillaName||null,instrRejillaData:instrRejillaData||null,
-          instrPreguntaName:instrPreguntaName||null,instrPreguntaData:instrPreguntaData||null}:su
-      ),
-      studentMessages:[...(s.studentMessages||[]),newMsg],
-    };
+
+const submitProduct = (rejillaName, preguntaName, rejillaData, preguntaData) => {
+  const s = XS.get();
+  const tempId = 'sub_' + Date.now();
+  const sub = { id:tempId, studentName:s.user.name, studentEmail:s.user.email,
+    studentInstitution:'', area:s.selectedArea,
+    rejillaName, preguntaName, rejillaData:rejillaData||null, preguntaData:preguntaData||null,
+    date:new Date().toISOString().split('T')[0], grade:null, feedback:'', status:'pending' };
+  XS.set({ submissions:[...s.submissions, sub] });
+  supabase.from('submissions').insert({
+    student_id: s.user.id, area: s.selectedArea,
+    rejilla_name: rejillaName, rejilla_data: rejillaData,
+    pregunta_name: preguntaName, pregunta_data: preguntaData,
+    status: 'pending',
+  }).select().single().then(({ data, error }) => {
+    if (error) { console.error('submitProduct:', error); return; }
+    XS.set(st => ({ submissions: st.submissions.map(su => su.id === tempId ? { ...su, id: data.id } : su) }));
   });
 };
-const approveSubmission = (subId, grade, feedback) => {
-  XS.set(s=>({submissions:s.submissions.map(sub=>
-    sub.id===subId?{...sub,grade,feedback,status:'approved'}:sub
-  )}));
+
+const gradeSubmission = (subId, grade, feedback) => {
+  XS.set(s => ({ submissions:s.submissions.map(sub=>sub.id===subId?{...sub,grade,feedback,status:'graded'}:sub) }));
+  supabase.from('submissions').update({ grade, feedback, status:'graded' }).eq('id', subId)
+    .then(({ error }) => { if (error) console.error('gradeSubmission:', error); });
 };
+
+const returnSubmission = (subId, returnNotes, instrRejillaName, instrRejillaData, instrPreguntaName, instrPreguntaData) => {
+  XS.set(s => {
+    const sub = s.submissions.find(su => su.id === subId);
+    const newMsg = { id:'msg_'+Date.now(), toEmail:sub?.studentEmail, type:'return',
+      returnNotes, date:new Date().toISOString().split('T')[0], read:false, submissionId:subId };
+    return {
+      submissions: s.submissions.map(su => su.id===subId ? {
+        ...su, status:'returned', returnCount:(su.returnCount||0)+1, returnNotes,
+        grade:null, feedback:'',
+        instrRejillaName:instrRejillaName||null, instrRejillaData:instrRejillaData||null,
+        instrPreguntaName:instrPreguntaName||null, instrPreguntaData:instrPreguntaData||null,
+      } : su),
+      studentMessages: [...(s.studentMessages||[]), newMsg],
+    };
+  });
+  const currentSub = XS.get().submissions.find(su => su.id === subId);
+  supabase.from('submissions').update({
+    status:'returned', return_notes:returnNotes,
+    return_count: (currentSub?.returnCount || 0), grade:null, feedback:'',
+    instr_rejilla_name:instrRejillaName||null, instr_rejilla_data:instrRejillaData||null,
+    instr_pregunta_name:instrPreguntaName||null, instr_pregunta_data:instrPreguntaData||null,
+  }).eq('id', subId).then(({ error }) => { if (error) console.error('returnSubmission:', error); });
+};
+
+const approveSubmission = (subId, grade, feedback) => {
+  XS.set(s => ({ submissions:s.submissions.map(sub=>sub.id===subId?{...sub,grade,feedback,status:'approved'}:sub) }));
+  supabase.from('submissions').update({ grade, feedback, status:'approved' }).eq('id', subId)
+    .then(({ error }) => { if (error) console.error('approveSubmission:', error); });
+};
+
 const resubmitProduct = (subId, rejillaName, preguntaName, rejillaData, preguntaData) => {
   XS.set(s => ({
     submissions: s.submissions.map(sub => {
       if (sub.id !== subId) return sub;
-      const historyEntry = {
-        rejillaName: sub.rejillaName,
-        rejillaData: sub.rejillaData,
-        preguntaName: sub.preguntaName,
-        preguntaData: sub.preguntaData,
-        date: sub.date,
-        version: (sub.history || []).length + 1,
-      };
-      return {
-        ...sub,
-        rejillaName, preguntaName, rejillaData, preguntaData,
-        status: 'pending',
-        date: new Date().toISOString().split('T')[0],
-        history: [...(sub.history || []), historyEntry],
-      };
+      const historyEntry = { rejillaName:sub.rejillaName, rejillaData:sub.rejillaData,
+        preguntaName:sub.preguntaName, preguntaData:sub.preguntaData,
+        date:sub.date, version:(sub.history||[]).length+1 };
+      return { ...sub, rejillaName, preguntaName, rejillaData, preguntaData,
+        status:'pending', date:new Date().toISOString().split('T')[0],
+        history:[...(sub.history||[]), historyEntry] };
     })
   }));
+  // Leer historial actual, luego actualizar
+  supabase.from('submissions').select('history, rejilla_name, rejilla_data, pregunta_name, pregunta_data, created_at')
+    .eq('id', subId).single().then(({ data, error }) => {
+      if (error) { console.error('resubmitProduct read:', error); return; }
+      const historyEntry = {
+        rejilla_name:data.rejilla_name, rejilla_data:data.rejilla_data,
+        pregunta_name:data.pregunta_name, pregunta_data:data.pregunta_data,
+        date:data.created_at?.split('T')[0], version:(data.history?.length||0)+1,
+      };
+      supabase.from('submissions').update({
+        rejilla_name:rejillaName, rejilla_data:rejillaData,
+        pregunta_name:preguntaName, pregunta_data:preguntaData,
+        status:'pending', grade:null, feedback:'',
+        history:[...(data.history||[]), historyEntry],
+      }).eq('id', subId).then(({ error:e }) => { if (e) console.error('resubmitProduct update:', e); });
+    });
 };
 const dismissNotif = id => XS.set(s=>({notifications:s.notifications.filter(n=>n.id!==id)}));
 const dismissStudentMessage = (msgId) => XS.set(s=>({studentMessages:(s.studentMessages||[]).map(m=>m.id===msgId?{...m,read:true}:m)}));
