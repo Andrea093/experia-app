@@ -44,17 +44,6 @@ const useStore = (sel) => {
   return v;
 };
 
-// --- Accounts (seed — dynamic via store) ---
-const INITIAL_ACCOUNTS = [
-  { email:'admin@ceinfes.com',      pass:'admin123', role:'admin',      name:'Administrador CEINFES', avatar:'A', institution:'' },
-  { email:'instructor@ceinfes.com', pass:'123456',   role:'instructor', name:'Instructor DCE',        avatar:'I', institution:'' },
-  { email:'estudiante@ceinfes.com', pass:'123456',   role:'student',    name:'Estudiante DCE',        avatar:'E', area:'lectura',      institution:'IED San Francisco' },
-  { email:'maria@ceinfes.com',      pass:'123456',   role:'student',    name:'María García',          avatar:'M', area:'ciudadanas',   institution:'Colegio Nacional Simón Bolívar' },
-  { email:'carlos@ceinfes.com',     pass:'123456',   role:'student',    name:'Carlos Ruiz',           avatar:'C', area:'matematicas',  institution:'IED San Francisco' },
-  { email:'ana@ceinfes.com',        pass:'123456',   role:'student',    name:'Ana López',             avatar:'A', area:'ciencias',     institution:'Liceo Los Andes' },
-  { email:'pedro@ceinfes.com',      pass:'123456',   role:'student',    name:'Pedro Martín',          avatar:'P', area:'ingles',       institution:'Liceo Los Andes' },
-];
-const ACCOUNTS = INITIAL_ACCOUNTS;
 
 // --- Areas ---
 const AREAS = [
@@ -338,73 +327,16 @@ const INITIAL_INSTITUTIONS = [
 const MOCK_SUBMISSIONS = [];
 const MOCK_ATTEMPTS = [];
 
-// --- Load state ---
-// Carga estado persistido — limpia versiones anteriores
-let saved=null;
-try{
-  localStorage.removeItem('experia-v7');
-  localStorage.removeItem('experia-v8');
-  localStorage.removeItem('experia-v9');
-  localStorage.removeItem('experia-v10');
-  localStorage.removeItem('experia-v11');
-  // experia-v12 es la versión actual — no borrar
-  const s=localStorage.getItem('experia-v12');
-  if(s) saved=JSON.parse(s);
-}catch(e){}
-const DEF={
-  isLoggedIn:false, user:null, page:'landing', nodeId:null,
-  xp:0, completed:[], badges:[], notifications:[], selectedArea:null,
-  submissions:[], challengeAttempts:[], studentMessages:[],
-  accounts:INITIAL_ACCOUNTS,
-  userProgress:{},   // { [email]: { xp, completed, badges, selectedArea } }
-  institutions:INITIAL_INSTITUTIONS,
-};
-export const XS = createExpStore(saved ? {
-  ...DEF, ...saved,
-  // Campos volátiles — siempre limpios al arrancar
+const DEF = {
   isLoggedIn: false, user: null, page: 'landing', nodeId: null,
   xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
-  // Datos globales persistidos
-  submissions:       saved.submissions       || [],
-  challengeAttempts: saved.challengeAttempts || [],
-  studentMessages:   saved.studentMessages   || [],
-  accounts:          saved.accounts          || INITIAL_ACCOUNTS,
-  userProgress:      saved.userProgress      || {},
-  institutions:      saved.institutions      || INITIAL_INSTITUTIONS,
-} : DEF);
+  submissions: [], challengeAttempts: [], studentMessages: [],
+  accounts: [], userProgress: {}, institutions: INITIAL_INSTITUTIONS,
+};
+export const XS = createExpStore(DEF);
 
 // --- Actions ---
 const nav = (page, nodeId) => XS.set({page, nodeId: nodeId||null});
-const doLogin = (e, p) => {
-  const s = XS.get();
-  const acc = s.accounts.find(a => a.email === e && a.pass === p);
-  if (!acc) return false;
-
-  let page = 'map';
-  if (acc.role === 'instructor') page = 'instructor-dashboard';
-  if (acc.role === 'admin')      page = 'admin-dashboard';
-
-  const newState = {
-    isLoggedIn: true,
-    user: { name:acc.name, email:acc.email, avatar:acc.avatar, role:acc.role },
-    page,
-    // Limpiar campos de sesión anterior
-    xp: 0, completed: [], badges: [], notifications: [], selectedArea: null, nodeId: null,
-  };
-
-  if (acc.role === 'student') {
-    // Restaurar progreso individual guardado, o partir de cero si cuenta nueva
-    const saved = s.userProgress?.[acc.email];
-    newState.xp          = saved?.xp          ?? 0;
-    newState.completed   = saved?.completed    ?? [];
-    newState.badges      = saved?.badges       ?? [];
-    // El área del account (asignada por admin) siempre tiene precedencia
-    newState.selectedArea = acc.area || saved?.selectedArea || null;
-  }
-
-  XS.set(newState);
-  return true;
-};
 
 const doLogout = () => {
   supabase.auth.signOut();
@@ -546,12 +478,12 @@ const deleteInstitution = (id) => {
 };
 
 export {
-  useStore,ACCOUNTS,INITIAL_ACCOUNTS,AREAS,BADGES,LEVELS,RUBRIC_CRITERIA,ALL_MODULES,AREA_CONTENT,
+  useStore, AREAS, BADGES, LEVELS, RUBRIC_CRITERIA, ALL_MODULES, AREA_CONTENT,
   INITIAL_INSTITUTIONS,
-  getStudentModules,findModule,
-  calcLevel,xpForNext,xpProgress,nodeStatus,progressPct,isRouteComplete,gradeTotal,gradeMax,
-  nav,doLogin,doLogout,selectArea,changeArea,completeNode,recordAttempt,
-  submitProduct,resubmitProduct,gradeSubmission,returnSubmission,approveSubmission,
-  dismissNotif,dismissStudentMessage,createAccount,deleteAccount,changeAccountArea,
-  bulkCreateAccounts,createInstitution,updateInstitution,deleteInstitution,
+  getStudentModules, findModule,
+  calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete, gradeTotal, gradeMax,
+  nav, doLogout, selectArea, changeArea, completeNode, recordAttempt,
+  submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
+  dismissNotif, dismissStudentMessage, createAccount, deleteAccount, changeAccountArea,
+  bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution,
 };
