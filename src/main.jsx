@@ -40,20 +40,25 @@ supabase.auth.getSession().then(async ({ data: { session } }) => {
         challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, allProfiles))
       }
 
+      let xp = 0, completed = [], badges = []
       if (profile.role === 'student') {
-        const [{ data: subsData }, { data: attemptsData }] = await Promise.all([
+        const [{ data: subsData }, { data: attemptsData }, { data: progressData }] = await Promise.all([
           supabase.from('submissions').select('*').eq('student_id', session.user.id),
           supabase.from('challenge_attempts').select('*').eq('student_id', session.user.id),
+          supabase.from('progress').select('*').eq('user_id', session.user.id).single(),
         ])
         submissions = (subsData || []).map(s => mapSubmission(s, [{ id: session.user.id, ...profile }]))
         challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, [{ id: session.user.id, ...profile }]))
+        xp        = progressData?.xp        || 0
+        completed = progressData?.completed  || []
+        badges    = progressData?.badges     || []
       }
 
       XS.set({
         isLoggedIn: true,
         user: { id: session.user.id, name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role },
         page,
-        xp: 0, completed: [], badges: [], notifications: [],
+        xp, completed, badges, notifications: [],
         selectedArea: profile.area || null, nodeId: null,
         institutions: institutions || [],
         accounts,

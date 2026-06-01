@@ -25,8 +25,10 @@ const LoginPage = () => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
       if (error) { setError('Correo o contraseña incorrectos'); setLoading(false); return; }
 
-      const { data: profile, error: profErr } = await supabase
-        .from('profiles').select('*').eq('id', data.user.id).single();
+      const [{ data: profile, error: profErr }, { data: progress }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', data.user.id).single(),
+        supabase.from('progress').select('*').eq('user_id', data.user.id).single(),
+      ]);
       if (profErr || !profile) { setError('No se encontró el perfil. Contacta al admin.'); setLoading(false); return; }
 
       let page = 'map';
@@ -37,7 +39,10 @@ const LoginPage = () => {
         isLoggedIn: true,
         user: { id: data.user.id, name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role },
         page,
-        xp: 0, completed: [], badges: [], notifications: [], selectedArea: profile.area || null, nodeId: null,
+        xp:        progress?.xp        || 0,
+        completed: progress?.completed  || [],
+        badges:    progress?.badges     || [],
+        notifications: [], selectedArea: profile.area || null, nodeId: null,
       });
     } catch (err) {
       setError('Error de conexión. Intenta de nuevo.');

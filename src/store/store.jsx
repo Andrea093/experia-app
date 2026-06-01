@@ -345,16 +345,38 @@ const doLogout = () => {
     xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
   });
 };
-const selectArea = (areaId) => XS.set({selectedArea:areaId,page:'map'});
-const changeArea = (areaId) => XS.set({selectedArea:areaId});
+const selectArea = (areaId) => {
+  const { user } = XS.get();
+  XS.set({ selectedArea: areaId, page: 'map' });
+  if (user?.id) {
+    supabase.from('profiles').update({ area: areaId }).eq('id', user.id)
+      .then(({ error }) => { if (error) console.error('selectArea:', error); });
+  }
+};
+const changeArea = (areaId) => {
+  const { user } = XS.get();
+  XS.set({ selectedArea: areaId });
+  if (user?.id) {
+    supabase.from('profiles').update({ area: areaId }).eq('id', user.id)
+      .then(({ error }) => { if (error) console.error('changeArea:', error); });
+  }
+};
 const completeNode = (id) => {
-  const s=XS.get(); if(s.completed.includes(id)) return;
-  const m=findModule(id); if(!m) return;
-  const nxp=s.xp+m.xp, nc=[...s.completed,id], nb=[...s.badges];
-  if(m.badge&&!nb.includes(m.badge)) nb.push(m.badge);
-  const notifs=[...s.notifications,{type:'xp',amount:m.xp,id:Date.now()}];
-  if(m.badge&&!s.badges.includes(m.badge)) notifs.push({type:'badge',bid:m.badge,id:Date.now()+1});
-  XS.set({xp:nxp,completed:nc,badges:nb,notifications:notifs});
+  const s = XS.get();
+  if (s.completed.includes(id)) return;
+  const m = findModule(id);
+  if (!m) return;
+  const nxp = s.xp + m.xp, nc = [...s.completed, id], nb = [...s.badges];
+  if (m.badge && !nb.includes(m.badge)) nb.push(m.badge);
+  const notifs = [...s.notifications, { type:'xp', amount:m.xp, id:Date.now() }];
+  if (m.badge && !s.badges.includes(m.badge)) notifs.push({ type:'badge', bid:m.badge, id:Date.now()+1 });
+  XS.set({ xp:nxp, completed:nc, badges:nb, notifications:notifs });
+  if (s.user?.id) {
+    supabase.from('progress')
+      .update({ xp:nxp, completed:nc, badges:nb, updated_at:new Date().toISOString() })
+      .eq('user_id', s.user.id)
+      .then(({ error }) => { if (error) console.error('completeNode:', error); });
+  }
 };
 const recordAttempt = (challengeId, questions, score, maxScore) => {
   const s = XS.get();
