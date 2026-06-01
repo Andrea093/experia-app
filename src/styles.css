@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --orange: #E8732C; --orange-light: #F09848; --orange-pale: #FADCBE;
+  --orange-bg: #FEF3E8; --orange-50: #FFF9F4;
+  --purple: #7B3FA0; --purple-deep: #5E2D82; --purple-light: #B07CC8; --purple-bg: #F3E8FA;
+  --dark: #1A1A2E; --text: #2D2D44; --text-sec: #4A4A5E;
+  --muted: #6B7280; --subtle: #9CA3AF;
+  --border: #E5E7EB; --bg-alt: #F3F4F6; --bg: #F9FAFB; --white: #FFFFFF;
+  --success: #10B981; --warn: #F59E0B; --error: #EF4444;
+  --gradient: linear-gradient(120deg, #7B3FA0 0%, #B84B8A 45%, #E87A48 100%);
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --sidebar-w: 260px; --header-h: 64px;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 24px; --r-full: 9999px;
+  --sh-sm: 0 1px 3px rgba(0,0,0,.06);
+  --sh-md: 0 4px 12px rgba(0,0,0,.08);
+  --sh-lg: 0 8px 24px rgba(0,0,0,.12);
+  --sh-xl: 0 20px 48px rgba(0,0,0,.15);
+}
+
+html,body,#root{height:100%;width:100%;overflow:hidden}
+body{font-family:var(--font);color:var(--dark);background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.55}
+a{color:inherit;text-decoration:none}
+button{font-family:var(--font)}
+img{display:block;max-width:100%}
+
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--subtle);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+@keyframes fadeIn{from{opacity:.01}to{opacity:1}}
+@keyframes fadeUp{from{transform:translateY(16px)}to{transform:translateY(0)}}
+@keyframes fadeDown{from{transform:translateY(-10px)}to{transform:translateY(0)}}
+@keyframes slideR{from{transform:translateX(24px)}to{transform:translateX(0)}}
+@keyframes slideL{from{transform:translateX(-24px)}to{transform:translateX(0)}}
+@keyframes scaleIn{from{transform:scale(.92)}to{transform:scale(1)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(232,115,44,.45)}50%{box-shadow:0 0 0 14px rgba(232,115,44,0)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes confetti{0%{transform:translateY(-10px) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+@keyframes xpPop{0%{opacity:0;transform:translateY(8px) scale(.8)}15%{opacity:1;transform:translateY(-8px) scale(1.1)}30%{transform:translateY(-16px) scale(1)}80%{opacity:1;transform:translateY(-32px)}100%{opacity:0;transform:translateY(-48px) scale(.9)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes nodePing{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.8);opacity:0}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
+@keyframes drawPath{from{stroke-dashoffset:500}to{stroke-dashoffset:0}}
+@keyframes badgePop{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.15) rotate(5deg);opacity:1}100%{transform:scale(1) rotate(0)}}
+@keyframes progressFill{from{width:0}to{width:var(--target-w,100%)}}
+@keyframes heroFloat{0%,100%{transform:translateY(0) rotate(0deg)}33%{transform:translateY(-12px) rotate(1deg)}66%{transform:translateY(4px) rotate(-1deg)}}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* =============================================
+   MOBILE RESPONSIVENESS
+   ============================================= */
+
+/* Touch improvements */
+* { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+input, textarea, select { touch-action: auto; }
+html { -webkit-text-size-adjust: 100%; }
+
+/* Smooth scroll on all scrollable areas */
+html { scroll-behavior: smooth; }
+
+/* Hide desktop sidebar space on mobile */
+@media (max-width: 767px) {
+  :root { --sidebar-w: 280px; --header-h: 56px; }
+  /* Ensure modals don't shift layout */
+  body.modal-open { overflow: hidden; }
+}
+
+/* Ensure tables don't overflow containers */
+table { min-width: 560px; }
+
+/* Better touch targets for buttons */
+@media (max-width: 767px) {
+  button { min-height: 40px; }
+  a { min-height: 40px; }
+}
+
+/* Print: certificate only */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white !important; overflow: visible !important; }
+  html, body, #root { height: auto !important; overflow: visible !important; }
+  #certificate { box-shadow: none !important; page-break-inside: avoid; }
+  #cert-wrap { padding: 0 !important; max-width: 100% !important; }
+  nav, aside, header, footer { display: none !important; }
+}
