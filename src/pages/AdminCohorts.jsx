@@ -16,11 +16,12 @@ const daysLeft = (deadline) => {
 
 // ── Cohort form ───────────────────────────────────────────────
 const CohortForm = ({ initial = {}, onSave, onCancel }) => {
+  const institutions = useStore(s => s.institutions || [])
   const [form, setForm] = React.useState({
-    name: initial.name || '',
-    area: initial.area || '',
-    deadline: initial.deadline ? initial.deadline.slice(0,16) : '',
-    notes: initial.notes || '',
+    name:           initial.name || '',
+    institution_id: initial.institution_id || '',
+    deadline:       initial.deadline ? initial.deadline.slice(0,16) : '',
+    notes:          initial.notes || '',
   })
   const [saving, setSaving] = React.useState(false)
   const [err, setErr] = React.useState('')
@@ -29,10 +30,10 @@ const CohortForm = ({ initial = {}, onSave, onCancel }) => {
     if (!form.name.trim()) { setErr('El nombre es obligatorio'); return }
     setSaving(true)
     const payload = {
-      name:     form.name.trim(),
-      area:     form.area || null,
-      deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
-      notes:    form.notes.trim() || null,
+      name:           form.name.trim(),
+      institution_id: form.institution_id || null,
+      deadline:       form.deadline ? new Date(form.deadline).toISOString() : null,
+      notes:          form.notes.trim() || null,
     }
     if (initial.id) {
       const { error } = await supabase.from('cohorts').update(payload).eq('id', initial.id)
@@ -65,11 +66,11 @@ const CohortForm = ({ initial = {}, onSave, onCancel }) => {
       </div>
       <div>
         <label style={{ fontSize:13, fontWeight:600, color:'var(--dark)', display:'block', marginBottom:6 }}>
-          Área (dejar vacío = todas las áreas)
+          Institución / Colegio <span style={{ color:'var(--error)' }}>*</span>
         </label>
-        <select value={form.area} onChange={e=>setForm(f=>({...f,area:e.target.value}))} style={inp(false)}>
-          <option value="">— Todas las áreas —</option>
-          {AREAS.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+        <select value={form.institution_id} onChange={e=>setForm(f=>({...f,institution_id:e.target.value}))} style={inp(!form.institution_id && !!err)}>
+          <option value="">— Seleccionar institución —</option>
+          {institutions.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
         </select>
       </div>
       <div>
@@ -98,8 +99,13 @@ const CohortForm = ({ initial = {}, onSave, onCancel }) => {
 
 // ── Assign students modal ────────────────────────────────────
 const AssignModal = ({ cohort, onClose }) => {
-  const accounts = useStore(s => s.accounts)
-  const students = accounts.filter(a => a.role === 'student')
+  const accounts      = useStore(s => s.accounts)
+  const institutions  = useStore(s => s.institutions || [])
+  const institution   = institutions.find(i => i.id === cohort.institution_id)
+  const students = accounts.filter(a =>
+    a.role === 'student' &&
+    (!cohort.institution_id || a.institution_id === cohort.institution_id)
+  )
   const [search, setSearch] = React.useState('')
   const [saving, setSaving] = React.useState(false)
   const [cohortStudents, setCohortStudents] = React.useState([])
@@ -125,14 +131,12 @@ const AssignModal = ({ cohort, onClose }) => {
     s.email.toLowerCase().includes(search.toLowerCase())
   )
 
-  const area = AREAS.find(a => a.id === cohort.area)
-
   return (
     <div>
       <div style={{ padding:'12px 16px', borderRadius:10, background:'var(--bg)',
         border:'1px solid var(--border)', marginBottom:16 }}>
         <div style={{ fontSize:14, fontWeight:700, color:'var(--dark)' }}>{cohort.name}</div>
-        {area && <div style={{ fontSize:12, color:area.color }}>{area.icon} {area.name}</div>}
+        {institution && <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>🏫 {institution.name}</div>}
         {cohort.deadline && <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
           Límite: {fmtDate(cohort.deadline)}
         </div>}
@@ -188,8 +192,9 @@ const AssignModal = ({ cohort, onClose }) => {
 
 // ── Main page ────────────────────────────────────────────────
 export default function AdminCohorts() {
-  const cohorts  = useStore(s => s.cohorts || [])
-  const accounts = useStore(s => s.accounts)
+  const cohorts      = useStore(s => s.cohorts || [])
+  const accounts     = useStore(s => s.accounts)
+  const institutions = useStore(s => s.institutions || [])
   const isMobile = useMobile()
   const [showCreate, setShowCreate] = React.useState(false)
   const [editing,    setEditing]    = React.useState(null)
@@ -232,7 +237,7 @@ export default function AdminCohorts() {
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           {cohorts.map(c => {
             const days  = daysLeft(c.deadline)
-            const area  = AREAS.find(a => a.id === c.area)
+            const inst  = institutions.find(i => i.id === c.institution_id)
             const isExpired = days !== null && days < 0
             const isUrgent  = days !== null && days >= 0 && days <= 3
             return (
@@ -245,10 +250,10 @@ export default function AdminCohorts() {
                       {c.name}
                     </div>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:6 }}>
-                      {area && (
+                      {inst && (
                         <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4,
-                          background:area.color+'18', color:area.color, fontWeight:700 }}>
-                          {area.icon} {area.name}
+                          background:'var(--bg-alt)', color:'var(--text-sec)', fontWeight:600 }}>
+                          🏫 {inst.name}
                         </span>
                       )}
                       {c.deadline && (

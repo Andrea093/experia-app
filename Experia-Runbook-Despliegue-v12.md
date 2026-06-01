@@ -1,57 +1,62 @@
-# Experia by CEINFES — Runbook de Despliegue (v12)
+# Experia by CEINFES — Runbook de Despliegue (v13)
 
 > Ajustado a la versión actual del proyecto: **3 roles (student / instructor / admin)**,
 > **instituciones (colegios)**, **carga masiva de usuarios por Excel**,
-> **historial de versiones en entregas**, y `localStorage` clave `experia-v12`.
+> **historial de versiones en entregas**, **cohortes vinculadas a instituciones**,
+> **presencia en tiempo real**, **analítica admin**, **recordatorios automáticos por email**.
 >
-> Stack objetivo: **Vite + Cloudflare Pages + Supabase (Postgres + Auth + RLS + Edge Functions)**
+> Stack objetivo: **Vite + Cloudflare Pages + Supabase (Postgres + Auth + RLS + Realtime + Edge Functions)**
 
 ---
 
 ## 1. Diagnóstico actualizado
 
-| Aspecto | Estado actual | Cambio vs versión anterior |
+| Aspecto | Estado actual | Cambio vs v12 |
 |---|---|---|
-| Tamaño | ~5,000 líneas (10 `.jsx` + css + html) | Creció ~30% |
-| Build | Babel Standalone en navegador + **XLSX 0.18.5 por CDN** | Nuevo: XLSX |
-| Módulos | Sin `import`/`export`; todo global vía `window` | Igual |
-| Roles | **3: `student`, `instructor`, `admin`** | **Nuevo: `admin`** |
-| Entidades | accounts, areas, submissions, attempts, messages + **institutions** | **Nuevo: institutions** |
-| Estado/datos | `localStorage` (clave `experia-v12`) + `userProgress[email]` | Parche multi-usuario por navegador (no resuelve cross-device) |
-| Auth | Array `INITIAL_ACCOUNTS` hardcodeado (`admin123`, `123456`) | Sigue inseguro |
-| Funcionalidad nueva | Carga masiva Excel, asignación de área, CRUD de colegios, historial de versiones en entregas | — |
+| Build | **Vite + React 18** en Cloudflare Pages | Migración completa |
+| Roles | **3: `student`, `instructor`, `admin`** | Sin cambio |
+| Auth | Supabase Auth (JWT) | Sin cambio |
+| Entidades principales | profiles, institutions, submissions, progress, challenge_attempts, messages | Sin cambio |
+| **Cohortes** | Tabla `cohorts` con FK a `institutions` | **Nuevo en v13** |
+| **Presencia** | `profiles.last_seen` + Realtime subscriptions | **Nuevo en v13** |
+| **Analítica admin** | Panel `AdminAnalytics` con métricas de progreso | **Nuevo en v13** |
+| **Recordatorios email** | Edge Function `send-reminders` (Resend API) | **Nuevo en v13** |
+| Carga masiva | Edge Function `bulk-create-users` | Sin cambio |
+| Estado/datos | Supabase Postgres + RLS (localStorage solo para sesión) | Sin cambio |
 
-**Conclusión:** el diagnóstico de fondo no cambia — `localStorage` no sirve para 200 estudiantes en distintos dispositivos. Pero ahora hay **4 transformaciones** (antes 3):
-1. Babel-en-navegador → **build con Vite**.
-2. `INITIAL_ACCOUNTS` → **Supabase Auth + tabla `profiles`** (con `admin`).
-3. `localStorage` → **Postgres** (con tabla `institutions` nueva).
-4. **`bulkCreateAccounts` → Edge Function** (porque crear usuarios requiere `service_role`, que NUNCA puede ir al frontend).
+**Estado de migración actual:** el proyecto está **en producción** en `https://experia-app.pages.dev`. Las fases 1–6 están completas. Este runbook documenta el estado real del código.
 
 ---
 
-## 2. Arquitectura recomendada (ajustada)
+## 2. Arquitectura actual
 
 ```
    Navegador (estudiante / instructor / admin)
             │  HTTPS
             ▼
    ┌──────────────────────────────────────────────────────────────┐
-   │  Cloudflare Pages (frontend estático, gratis)                  │
+   │  Cloudflare Pages  https://experia-app.pages.dev             │
+   │  Deploy automático con git push a main                        │
    └──────────────────────────────────────────────────────────────┘
-            │  REST + Realtime + Functions
+            │  REST + Realtime + Edge Functions
             ▼
    ┌──────────────────────────────────────────────────────────────┐
-   │  Supabase Pro ($25/mes)                                        │
-   │  ┌────────┐ ┌──────────────┐ ┌──────────────────────────────┐  │
-   │  │ Auth   │ │ Postgres+RLS │ │ Edge Function:               │  │
-   │  │ login  │ │ profiles,    │ │   bulk-create-users          │  │
-   │  │ JWT    │ │ institutions │ │   (usa service_role, solo    │  │
-   │  │        │ │ submissions… │ │    invocable por admin)      │  │
-   │  └────────┘ └──────────────┘ └──────────────────────────────┘  │
+   │  Supabase Pro  (ref: ttgycluzeyuxsmgcijgi)                    │
+   │  ┌────────┐ ┌───────────────────┐ ┌──────────────────────┐   │
+   │  │ Auth   │ │ Postgres + RLS    │ │ Edge Functions:      │   │
+   │  │ JWT    │ │ profiles          │ │  bulk-create-users   │   │
+   │  │        │ │ institutions      │ │  send-reminders      │   │
+   │  │        │ │ cohorts ──────────┤ │  (Resend API)        │   │
+   │  │        │ │   └─ institution_id│ └──────────────────────┘   │
+   │  │        │ │ submissions       │                             │
+   │  │        │ │ progress          │ ┌──────────────────────┐   │
+   │  │        │ │ challenge_attempts│ │ Realtime             │   │
+   │  │        │ │ messages          │ │ profiles.last_seen   │   │
+   │  └────────┘ └───────────────────┘ └──────────────────────┘   │
    └──────────────────────────────────────────────────────────────┘
 ```
 
-**Costo: ~$25/mes.** Frontend gratis.
+**Costo: ~$25/mes Supabase Pro + $0 Cloudflare.**
 
 ---
 
@@ -82,13 +87,13 @@ npm install @supabase/supabase-js xlsx
 ```
 > **xlsx ahora se instala como dependencia**, no se carga por CDN. Reemplaza `<script src=".../xlsx.full.min.js">` por `import * as XLSX from 'xlsx'`.
 
-**1.2 Estructura de carpetas (ajustada con admin)**
+**1.2 Estructura de carpetas actual**
 ```
 experia-app/
 ├─ public/
 │  ├─ _redirects                  # SPA routing
 │  ├─ _headers                    # seguridad
-│  └─ uploads/                    # imagen del proyecto original
+│  └─ uploads/
 ├─ src/
 │  ├─ components/                 # ui.jsx → componentes reutilizables
 │  ├─ pages/
@@ -97,27 +102,32 @@ experia-app/
 │  │  ├─ MapPage.jsx
 │  │  ├─ Lesson.jsx
 │  │  ├─ Challenges.jsx
-│  │  ├─ Games.jsx                # nuevo
+│  │  ├─ Games.jsx
 │  │  ├─ Profile.jsx
-│  │  ├─ Grid.jsx                 # entrega de productos
-│  │  ├─ InstructorDashboard.jsx
-│  │  ├─ InstructorStats.jsx      # nuevo
-│  │  ├─ AdminUsers.jsx           # ex AdminPage (gestión usuarios + bulk)
-│  │  └─ AdminSchools.jsx         # nuevo (CRUD instituciones)
+│  │  ├─ Grid.jsx                 # entrega de productos + InstructorDashboard
+│  │  ├─ InstructorStats.jsx
+│  │  ├─ AdminUsers.jsx           # gestión usuarios + bulk upload
+│  │  ├─ AdminSchools.jsx         # CRUD instituciones
+│  │  ├─ AdminCohorts.jsx         # cohortes vinculadas a instituciones (v13)
+│  │  └─ AdminAnalytics.jsx       # métricas de progreso (v13)
 │  ├─ store/
-│  │  └─ store.js
+│  │  └─ store.jsx
 │  ├─ lib/
 │  │  ├─ supabaseClient.js
-│  │  └─ api.js                   # capa única que habla con Supabase
+│  │  └─ mappers.js
 │  ├─ styles.css
-│  ├─ App.jsx
+│  ├─ app.jsx
 │  └─ main.jsx
 ├─ supabase/
 │  ├─ migrations/
-│  │  └─ 0001_init.sql            # schema (lo verás abajo)
+│  │  ├─ 0001_init.sql            # schema base
+│  │  ├─ 0002_features.sql        # presencia + cohortes (v13)
+│  │  └─ 0003_cohort_institution.sql  # FK cohorts → institutions (v13)
 │  └─ functions/
-│     └─ bulk-create-users/
-│        └─ index.ts              # Edge Function (carga masiva)
+│     ├─ bulk-create-users/
+│     │  └─ index.ts
+│     └─ send-reminders/          # recordatorios email (v13)
+│        └─ index.ts
 ├─ .env                           # NO se sube
 ├─ .env.example
 ├─ .gitignore
@@ -323,9 +333,69 @@ create trigger on_auth_user_created
 
 ---
 
-### FASE 3 — Edge Function para carga masiva (NUEVO)
+### FASE 2B — Migraciones adicionales v13
 
-**Por qué:** crear usuarios programáticamente requiere la `service_role` key. Esa clave **NUNCA** puede ir al frontend (cualquiera podría crear admins). La solución: una Edge Function que valida que quien llama es admin y entonces crea los usuarios usando la service_role en el servidor.
+Ejecutar en **SQL Editor** de Supabase en orden:
+
+**`0002_features.sql` — Presencia en tiempo real + Cohortes**
+```sql
+-- Presencia
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS last_seen timestamptz,
+  ADD COLUMN IF NOT EXISTS current_module text;
+
+-- Cohortes
+CREATE TABLE IF NOT EXISTS public.cohorts (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        text NOT NULL,
+  area        text,
+  deadline    timestamptz,
+  notes       text,
+  created_at  timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS cohort_id uuid REFERENCES public.cohorts(id);
+
+ALTER TABLE public.cohorts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "anyone read cohorts"
+  ON cohorts FOR SELECT USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "admin manage cohorts"
+  ON cohorts FOR ALL
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE INDEX IF NOT EXISTS idx_profiles_last_seen  ON public.profiles (last_seen);
+CREATE INDEX IF NOT EXISTS idx_profiles_cohort_id  ON public.profiles (cohort_id);
+
+-- Habilitar Realtime en profiles
+ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+```
+
+**`0003_cohort_institution.sql` — Relación cohorte → institución**
+```sql
+ALTER TABLE public.cohorts
+  ADD COLUMN IF NOT EXISTS institution_id uuid REFERENCES public.institutions(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_cohorts_institution_id ON public.cohorts (institution_id);
+```
+
+> **Modelo de datos clave:**
+> ```
+> institutions (id, name, logo)
+>     ↑                    ↑
+> profiles.institution_id  cohorts.institution_id
+>     ↑
+> profiles.cohort_id → cohorts (id)
+> ```
+> Una cohorte pertenece a una institución. Al asignar docentes a una cohorte, el modal filtra automáticamente solo los docentes de esa institución.
+
+---
+
+### FASE 3 — Edge Functions (carga masiva + recordatorios)
+
+**Por qué:** operaciones que requieren `service_role` o API keys de terceros nunca pueden ir al frontend. Ambas funciones validan que el llamador sea admin antes de ejecutar.
 
 **3.1 Inicializar Supabase en el proyecto**
 ```bash
@@ -432,6 +502,40 @@ const results = await bulkCreateUsers(
 
 ---
 
+### FASE 3B — Edge Function `send-reminders` (v13)
+
+Envía recordatorios por email a docentes con 3+ días sin avanzar, usando [Resend](https://resend.com).
+
+**Prerrequisito:** crear cuenta en Resend y agregar el secret `RESEND_API_KEY` en Supabase → Edge Functions → Secrets.
+
+**Desplegar:**
+```bash
+supabase functions deploy send-reminders --no-verify-jwt
+```
+
+**Invocar desde panel admin** (POST con Bearer token del admin):
+```js
+await supabase.functions.invoke('send-reminders')
+```
+El botón "Enviar recordatorios" en el panel admin ya lo invoca automáticamente.
+
+**Lógica:**
+1. Verifica que quien llama es admin.
+2. Busca `profiles` con `role='student'` y `last_seen <= ahora - 3 días` (o `last_seen IS NULL`).
+3. Excluye docentes con entregas aprobadas (ya terminaron).
+4. Envía email personalizado por área a cada docente inactivo (máx 50 por invocación).
+5. Devuelve `{ sent, total, results }`.
+
+**Variables necesarias** (ya inyectadas por Supabase automáticamente excepto RESEND_API_KEY):
+| Variable | Fuente |
+|---|---|
+| `SUPABASE_URL` | Auto |
+| `SUPABASE_ANON_KEY` | Auto |
+| `SUPABASE_SERVICE_ROLE_KEY` | Auto |
+| `RESEND_API_KEY` | Agregar manualmente en Secrets |
+
+---
+
 ### FASE 4 — Migración del store a Supabase
 
 **Patrón:** tu store sigue siendo el estado local de UI; **la persistencia se mueve a Supabase**. `userProgress[email]` en localStorage **desaparece** (cada login carga el progreso del usuario desde la BD).
@@ -519,38 +623,36 @@ Cloudflare Pages → conectar repo → Framework: **Vite**, build: `npm run buil
 
 ---
 
-## 4. Checklist actualizado
+## 4. Checklist actualizado (v13)
 
 ```
-PRE-DESPLIEGUE
-[ ] npm run build pasa sin errores
-[ ] .env NO está en Git
-[ ] xlsx instalado como dependencia npm (no por CDN)
-[ ] Schema con tabla institutions y enum user_role aplicado
-[ ] Helpers is_instructor() y is_admin() creados
-[ ] RLS activa en todas las tablas
-[ ] Trigger handle_new_user funcionando
-[ ] Primer admin creado y rol=admin asignado por SQL
-[ ] Edge Function bulk-create-users desplegada
-[ ] Probado: admin invoca → crea usuarios; no-admin → 403
+BASE (ya completo en producción)
+[x] npm run build pasa sin errores
+[x] .env NO está en Git
+[x] Schema 0001_init.sql aplicado (institutions, profiles, RLS, trigger)
+[x] Helpers is_instructor() y is_admin() creados
+[x] RLS activa en todas las tablas
+[x] Primer admin creado y rol=admin asignado por SQL
+[x] Edge Function bulk-create-users desplegada
+[x] Repo en GitHub + Cloudflare Pages con deploy automático
+[x] Vars VITE_* en Cloudflare
 
-DESPLIEGUE
-[ ] Repo en GitHub
-[ ] Cloudflare Pages conectado, build OK
-[ ] Vars VITE_* en Cloudflare
-[ ] public/_redirects y public/_headers presentes
-[ ] Dominio + HTTPS + Redirect URLs en Supabase
+MIGRACIONES v13 (aplicar si aún no se ha hecho)
+[ ] 0002_features.sql aplicado (last_seen, cohorts, realtime)
+[ ] 0003_cohort_institution.sql aplicado (cohorts.institution_id)
 
-POST-DESPLIEGUE
-[ ] Admin entra y ve dashboard de Usuarios + Colegios
-[ ] Admin descarga plantilla, la llena, sube y crea usuarios masivos
-[ ] Estudiante creado por admin puede iniciar sesión
-[ ] Estudiante NO ve datos de otros estudiantes
-[ ] Instructor ve y califica entregas, NO puede crear usuarios (403)
-[ ] Historial de versiones se acumula al re-entregar
-[ ] Recargar ruta interna NO da 404
-[ ] Sentry activo
-[ ] Prueba de carga con 20-30 sesiones
+EDGE FUNCTION send-reminders
+[ ] Cuenta Resend creada y dominio verificado
+[ ] RESEND_API_KEY agregado en Supabase → Edge Functions → Secrets
+[ ] supabase functions deploy send-reminders --no-verify-jwt ejecutado
+[ ] Probado desde panel admin: botón "Enviar recordatorios" → emails llegan
+
+FUNCIONALIDAD v13
+[ ] Admin puede crear cohorte asignando institución
+[ ] Modal "Asignar docentes" solo muestra docentes de esa institución
+[ ] Panel AdminAnalytics muestra métricas de progreso
+[ ] Presencia en tiempo real visible para admin/instructor
+[ ] Recordatorio no se envía a docentes con entrega aprobada
 ```
 
 ---
@@ -579,5 +681,5 @@ POST-DESPLIEGUE
 
 ---
 
-*Stack: Vite + React 18 · Cloudflare Pages · Supabase Pro (Postgres + Auth + RLS + Edge Functions) · ~$25/mes.*
-*Ajustado a Experia v12: 3 roles · instituciones · carga masiva · historial de versiones.*
+*Stack: Vite + React 18 · Cloudflare Pages · Supabase Pro (Postgres + Auth + RLS + Realtime + Edge Functions) · ~$25/mes.*
+*Experia v13: 3 roles · instituciones · cohortes por institución · carga masiva · historial de versiones · presencia en tiempo real · analítica · recordatorios email.*

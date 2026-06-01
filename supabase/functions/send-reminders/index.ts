@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Edge Function: send-reminders
 // Envía emails a docentes que llevan 3+ días sin avanzar
 // Requiere: secret RESEND_API_KEY en Supabase → Edge Functions → Secrets
