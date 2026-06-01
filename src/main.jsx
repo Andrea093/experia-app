@@ -16,6 +16,17 @@ supabase.auth.getSession().then(async ({ data: { session } }) => {
       let page = 'map'
       if (profile.role === 'instructor') page = 'instructor-dashboard'
       if (profile.role === 'admin')      page = 'admin-dashboard'
+
+      // Cargar usuarios reales desde Supabase para admin/instructor
+      let accounts = []
+      if (profile.role === 'admin' || profile.role === 'instructor') {
+        const { data: profiles } = await supabase.from('profiles').select('*').order('name')
+        accounts = (profiles || []).map(p => ({
+          email: p.email, name: p.name, avatar: p.avatar,
+          role: p.role, area: p.area || null, institution: '', pass: '',
+        }))
+      }
+
       XS.set({
         isLoggedIn: true,
         user: { name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role },
@@ -23,6 +34,7 @@ supabase.auth.getSession().then(async ({ data: { session } }) => {
         xp: 0, completed: [], badges: [], notifications: [],
         selectedArea: profile.area || null, nodeId: null,
         institutions: institutions || [],
+        accounts,
       })
     }
   }

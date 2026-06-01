@@ -154,42 +154,6 @@ const LoginPage = () => {
             </Btn>
           </form>
 
-          <div style={{
-            marginTop: 24, padding: 16, borderRadius: 'var(--r-md)',
-            background: 'var(--orange-bg)', border: '1px solid var(--orange-pale)',
-          }}>
-            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--orange)', marginBottom: 8 }}>
-              Credenciales de prueba (clave: 123456)
-            </p>
-            <div style={{ display:'flex', flexDirection:'column', gap: 6 }}>
-              <div style={{ padding:'6px 12px', borderRadius:8, background:'var(--white)', border:'1px solid var(--orange-pale)',
-                display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <span style={{ fontSize:12, color:'var(--text-sec)' }}>estudiante@ceinfes.com</span>
-                <span style={{ fontSize:10, fontWeight:700, color:'var(--purple)', textTransform:'uppercase' }}>Estudiante</span>
-              </div>
-              <div style={{ padding:'6px 12px', borderRadius:8, background:'var(--white)', border:'1px solid var(--orange-pale)',
-                display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <span style={{ fontSize:12, color:'var(--text-sec)' }}>maria@ceinfes.com</span>
-                <span style={{ fontSize:10, fontWeight:700, color:'var(--purple)', textTransform:'uppercase' }}>Estudiante</span>
-              </div>
-              <div style={{ padding:'6px 12px', borderRadius:8, background:'var(--white)', border:'1px solid var(--orange-pale)',
-                display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <span style={{ fontSize:12, color:'var(--text-sec)' }}>carlos@ceinfes.com</span>
-                <span style={{ fontSize:10, fontWeight:700, color:'var(--purple)', textTransform:'uppercase' }}>Estudiante</span>
-              </div>
-              <div style={{ padding:'6px 12px', borderRadius:8, background:'var(--white)', border:'1px solid var(--orange-pale)',
-                display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <span style={{ fontSize:12, color:'var(--text-sec)' }}>ana@ceinfes.com / pedro@ceinfes.com</span>
-                <span style={{ fontSize:10, fontWeight:700, color:'var(--purple)', textTransform:'uppercase' }}>Estudiante</span>
-              </div>
-              <div style={{ padding:'6px 12px', borderRadius:8, background:'var(--white)', border:'1px solid #BBF7D0',
-                display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <span style={{ fontSize:12, color:'var(--text-sec)' }}>instructor@ceinfes.com</span>
-                <span style={{ fontSize:10, fontWeight:700, color:'var(--success)', textTransform:'uppercase' }}>Instructor</span>
-              </div>
-            </div>
-          </div>
-
           <button onClick={() => nav('landing')}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
