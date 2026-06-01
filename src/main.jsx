@@ -8,8 +8,10 @@ import { XS, doLogout } from './store/store.jsx'
 // Restaurar sesión de Supabase al arrancar
 supabase.auth.getSession().then(async ({ data: { session } }) => {
   if (session) {
-    const { data: profile } = await supabase
-      .from('profiles').select('*').eq('id', session.user.id).single()
+    const [{ data: profile }, { data: institutions }] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', session.user.id).single(),
+      supabase.from('institutions').select('*').order('name'),
+    ])
     if (profile) {
       let page = 'map'
       if (profile.role === 'instructor') page = 'instructor-dashboard'
@@ -20,6 +22,7 @@ supabase.auth.getSession().then(async ({ data: { session } }) => {
         page,
         xp: 0, completed: [], badges: [], notifications: [],
         selectedArea: profile.area || null, nodeId: null,
+        institutions: institutions || [],
       })
     }
   }

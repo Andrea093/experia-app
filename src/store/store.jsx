@@ -496,36 +496,53 @@ const changeAccountArea = (email, newArea) => XS.set(s => ({
 
 const createAccount = (name, email, pass, role, area, institution) => {
   const avatar = name.trim().charAt(0).toUpperCase();
+  // Optimistic local update para que la UI responda de inmediato
   XS.set(s => ({ accounts: [...s.accounts, { email:email.trim(), pass, name:name.trim(), avatar, role, area:area||null, institution:institution||'' }] }));
+  // Crear en Supabase via Edge Function
+  supabase.functions.invoke('bulk-create-users', {
+    body: { users: [{ name: name.trim(), email: email.trim(), pass, role, area: area||null }] }
+  }).then(({ data, error }) => {
+    if (error) console.error('createAccount error:', error);
+    else if (data?.results?.[0]?.ok === false) console.error('createAccount failed:', data.results[0].error);
+  });
 };
 const deleteAccount = (email) => XS.set(s => ({ accounts: s.accounts.filter(a => a.email !== email) }));
 
 const bulkCreateAccounts = (users) => {
+  // Optimistic local update
   XS.set(s => {
     const existing = new Set(s.accounts.map(a => a.email));
-    const newAccounts = users
-      .filter(u => !existing.has(u.email.trim()))
-      .map(u => ({
-        email: u.email.trim(),
-        pass: u.pass.toString(),
-        name: u.name.trim(),
-        avatar: u.name.trim().charAt(0).toUpperCase(),
-        role: u.role || 'student',
-        area: u.area || null,
-        institution: u.institution || '',
-      }));
+    const newAccounts = users.filter(u => !existing.has(u.email.trim()))
+      .map(u => ({ email:u.email.trim(), pass:u.pass.toString(), name:u.name.trim(),
+        avatar:u.name.trim().charAt(0).toUpperCase(), role:u.role||'student', area:u.area||null, institution:u.institution||'' }));
     return { accounts: [...s.accounts, ...newAccounts] };
   });
+  // Crear en Supabase via Edge Function
+  supabase.functions.invoke('bulk-create-users', { body: { users } })
+    .then(({ data, error }) => {
+      if (error) console.error('bulkCreate error:', error);
+    });
 };
 
 const createInstitution = (name) => {
-  XS.set(s => ({ institutions: [...(s.institutions || INITIAL_INSTITUTIONS), { id: 'inst_' + Date.now(), name, logo: null }] }));
+  const tempId = 'inst_' + Date.now();
+  XS.set(s => ({ institutions: [...(s.institutions || INITIAL_INSTITUTIONS), { id: tempId, name, logo: null }] }));
+  supabase.from('institutions').insert({ name }).select().single().then(({ data, error }) => {
+    if (error) { console.error('createInstitution:', error); return; }
+    XS.set(s => ({ institutions: (s.institutions || []).map(i => i.id === tempId ? { ...i, id: data.id } : i) }));
+  });
 };
 const updateInstitution = (id, name) => {
   XS.set(s => ({ institutions: (s.institutions || []).map(i => i.id === id ? { ...i, name } : i) }));
+  supabase.from('institutions').update({ name }).eq('id', id).then(({ error }) => {
+    if (error) console.error('updateInstitution:', error);
+  });
 };
 const deleteInstitution = (id) => {
   XS.set(s => ({ institutions: (s.institutions || []).filter(i => i.id !== id) }));
+  supabase.from('institutions').delete().eq('id', id).then(({ error }) => {
+    if (error) console.error('deleteInstitution:', error);
+  });
 };
 
 export {
