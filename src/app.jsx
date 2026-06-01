@@ -18,6 +18,7 @@ import {
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
   Modal, BadgeCard, StatChip, Stagger,
 } from './components/ui.jsx'
+import { supabase } from './lib/supabaseClient.js'
 import LandingPage from './pages/landing.jsx'
 import LoginPage from './pages/login.jsx'
 import LearningMap from './pages/map.jsx'
@@ -1093,6 +1094,23 @@ const AdminPage = () => {
   const [errors, setErrors] = React.useState({});
   const [created, setCreated] = React.useState(false);
 
+  // --- Recordatorios ---
+  const [sendingReminders, setSendingReminders] = React.useState(false);
+  const [reminderResult, setReminderResult] = React.useState(null);
+  const handleSendReminders = async () => {
+    setSendingReminders(true);
+    setReminderResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-reminders', {});
+      if (error) setReminderResult({ ok: false, msg: error.message });
+      else setReminderResult({ ok: true, msg: `✅ ${data?.sent ?? 0} recordatorio${data?.sent !== 1 ? 's' : ''} enviado${data?.sent !== 1 ? 's' : ''} de ${data?.total ?? 0} docentes inactivos` });
+    } catch (e) {
+      setReminderResult({ ok: false, msg: e.message });
+    }
+    setSendingReminders(false);
+    setTimeout(() => setReminderResult(null), 6000);
+  };
+
   // --- Delete ---
   const [deleteConfirm, setDeleteConfirm] = React.useState(null);
 
@@ -1167,9 +1185,28 @@ const AdminPage = () => {
 
   return (
     <div style={{ height:'100%', overflow:'auto', WebkitOverflowScrolling:'touch', padding: isMobile ? '0 16px 40px' : '0 24px 40px' }}>
-      <div style={{ marginBottom:20 }}>
-        <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight:800, color:'var(--dark)', marginBottom:4 }}>Gestión de Usuarios</h2>
-        <p style={{ fontSize:14, color:'var(--muted)' }}>Crea, busca y administra cuentas de la plataforma</p>
+      <div style={{ marginBottom:20, display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight:800, color:'var(--dark)', marginBottom:4 }}>Gestión de Usuarios</h2>
+          <p style={{ fontSize:14, color:'var(--muted)' }}>Crea, busca y administra cuentas de la plataforma</p>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
+          <button onClick={handleSendReminders} disabled={sendingReminders}
+            style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 16px', borderRadius:10,
+              border:'1.5px solid var(--purple)', background: sendingReminders ? 'var(--purple-bg)' : 'var(--white)',
+              color:'var(--purple)', fontFamily:'var(--font)', fontSize:13, fontWeight:600,
+              cursor: sendingReminders ? 'not-allowed' : 'pointer', transition:'all .2s', opacity: sendingReminders ? .7 : 1 }}>
+            {sendingReminders ? '⏳ Enviando...' : '📧 Enviar recordatorios'}
+          </button>
+          {reminderResult && (
+            <div style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, maxWidth:280, textAlign:'right',
+              background: reminderResult.ok ? '#D1FAE5' : '#FEE2E2',
+              color: reminderResult.ok ? 'var(--success)' : 'var(--error)',
+              border: `1px solid ${reminderResult.ok ? '#6EE7B7' : '#FCA5A5'}` }}>
+              {reminderResult.msg}
+            </div>
+          )}
+        </div>
       </div>
 
       {created && (
