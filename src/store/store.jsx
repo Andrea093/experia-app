@@ -422,9 +422,11 @@ const resubmitProduct = (subId, rejillaName, preguntaName, rejillaData, pregunta
 const dismissNotif = id => XS.set(s=>({notifications:s.notifications.filter(n=>n.id!==id)}));
 const dismissStudentMessage = (msgId) => XS.set(s=>({studentMessages:(s.studentMessages||[]).map(m=>m.id===msgId?{...m,read:true}:m)}));
 
-const changeAccountArea = (email, newArea) => XS.set(s => ({
-  accounts: s.accounts.map(a => a.email === email ? { ...a, area: newArea } : a)
-}));
+const changeAccountArea = (email, newArea) => {
+  XS.set(s => ({ accounts: s.accounts.map(a => a.email === email ? { ...a, area: newArea } : a) }));
+  supabase.from('profiles').update({ area: newArea }).eq('email', email)
+    .then(({ error }) => { if (error) console.error('changeAccountArea:', error); });
+};
 
 const createAccount = (name, email, pass, role, area, institution) => {
   const avatar = name.trim().charAt(0).toUpperCase();
