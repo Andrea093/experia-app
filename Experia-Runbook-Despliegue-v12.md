@@ -1,9 +1,10 @@
-# Experia by CEINFES — Runbook de Despliegue (v13)
+# Experia by CEINFES — Runbook de Despliegue (v14)
 
 > Ajustado a la versión actual del proyecto: **3 roles (student / instructor / admin)**,
 > **instituciones (colegios)**, **carga masiva de usuarios por Excel**,
 > **historial de versiones en entregas**, **cohortes vinculadas a instituciones**,
-> **presencia en tiempo real**, **analítica admin**, **recordatorios automáticos por email**.
+> **presencia en tiempo real**, **analítica admin**, **recordatorios automáticos por email**,
+> **eliminación de usuarios vía Edge Function**.
 >
 > Stack objetivo: **Vite + Cloudflare Pages + Supabase (Postgres + Auth + RLS + Realtime + Edge Functions)**
 
@@ -11,18 +12,20 @@
 
 ## 1. Diagnóstico actualizado
 
-| Aspecto | Estado actual | Cambio vs v12 |
+| Aspecto | Estado actual | Cambio vs v13 |
 |---|---|---|
-| Build | **Vite + React 18** en Cloudflare Pages | Migración completa |
+| Build | **Vite + React 18** en Cloudflare Pages | Sin cambio |
 | Roles | **3: `student`, `instructor`, `admin`** | Sin cambio |
 | Auth | Supabase Auth (JWT) | Sin cambio |
-| Entidades principales | profiles, institutions, submissions, progress, challenge_attempts, messages | Sin cambio |
-| **Cohortes** | Tabla `cohorts` con FK a `institutions` | **Nuevo en v13** |
-| **Presencia** | `profiles.last_seen` + Realtime subscriptions | **Nuevo en v13** |
-| **Analítica admin** | Panel `AdminAnalytics` con métricas de progreso | **Nuevo en v13** |
-| **Recordatorios email** | Edge Function `send-reminders` (Resend API) | **Nuevo en v13** |
+| Entidades principales | profiles, institutions, cohorts, submissions, progress, challenge_attempts, messages | Sin cambio |
+| Cohortes | Tabla `cohorts` con FK a `institutions` | Sin cambio |
+| Presencia | `profiles.last_seen` + Realtime subscriptions | Sin cambio |
+| Analítica admin | Panel `AdminAnalytics` con métricas de progreso | Sin cambio |
+| Recordatorios email | Edge Function `send-reminders` (Resend API) | Sin cambio |
 | Carga masiva | Edge Function `bulk-create-users` | Sin cambio |
-| Estado/datos | Supabase Postgres + RLS (localStorage solo para sesión) | Sin cambio |
+| **Eliminación de usuarios** | Edge Function `delete-user` | **Nuevo en v14** |
+| **Cohortes sin campo área** | `cohorts.area` eliminado — sólo `institution_id` | **Nuevo en v14** |
+| Estado/datos | Supabase Postgres + RLS | Sin cambio |
 
 **Estado de migración actual:** el proyecto está **en producción** en `https://experia-app.pages.dev`. Las fases 1–6 están completas. Este runbook documenta el estado real del código.
 
@@ -120,13 +123,16 @@ experia-app/
 │  └─ main.jsx
 ├─ supabase/
 │  ├─ migrations/
-│  │  ├─ 0001_init.sql            # schema base
-│  │  ├─ 0002_features.sql        # presencia + cohortes (v13)
-│  │  └─ 0003_cohort_institution.sql  # FK cohorts → institutions (v13)
+│  │  ├─ 0001_init.sql                  # schema base
+│  │  ├─ 0002_features.sql              # presencia + cohortes (v13)
+│  │  ├─ 0003_cohort_institution.sql    # FK cohorts → institutions (v13)
+│  │  └─ 0004_cohort_drop_area.sql      # eliminar campo área de cohorts (v14)
 │  └─ functions/
 │     ├─ bulk-create-users/
 │     │  └─ index.ts
-│     └─ send-reminders/          # recordatorios email (v13)
+│     ├─ delete-user/                   # eliminar usuario (v14)
+│     │  └─ index.ts
+│     └─ send-reminders/                # recordatorios email (v13)
 │        └─ index.ts
 ├─ .env                           # NO se sube
 ├─ .env.example
@@ -333,7 +339,7 @@ create trigger on_auth_user_created
 
 ---
 
-### FASE 2B — Migraciones adicionales v13
+### FASE 2B — Migraciones adicionales (v13 + v14)
 
 Ejecutar en **SQL Editor** de Supabase en orden:
 
@@ -380,6 +386,12 @@ ALTER TABLE public.cohorts
 
 CREATE INDEX IF NOT EXISTS idx_cohorts_institution_id ON public.cohorts (institution_id);
 ```
+
+**`0004_cohort_drop_area.sql` — Eliminar campo área de cohortes (v14)**
+```sql
+ALTER TABLE public.cohorts DROP COLUMN IF EXISTS area;
+```
+> Simplificación del modelo: la clasificación por área quedó redundante una vez que cada cohorte se vincula a una institución. Los filtros por área se resuelven a través del perfil del docente (`profiles.area`).
 
 > **Modelo de datos clave:**
 > ```
@@ -502,7 +514,31 @@ const results = await bulkCreateUsers(
 
 ---
 
-### FASE 3B — Edge Function `send-reminders` (v13)
+### FASE 3B — Edge Function `delete-user` (v14)
+
+Elimina un usuario de Supabase Auth y sus datos asociados. Solo accesible por admin.
+
+**Desplegar:**
+```bash
+supabase functions new delete-user
+supabase functions deploy delete-user --no-verify-jwt
+```
+
+**Llamarla desde la app** (en `AdminUsers.jsx`):
+```js
+await supabase.functions.invoke('delete-user', {
+  body: { userId: profile.id },
+});
+```
+
+**Lógica:**
+1. Verifica que quien llama tiene `role = 'admin'`.
+2. Elimina el usuario de `auth.users` con `service_role` → el trigger `on_auth_user_created` y el `ON DELETE CASCADE` limpian `profiles`, `progress`, `submissions` y `messages` automáticamente.
+3. Devuelve `{ ok: true }` o un error descriptivo.
+
+---
+
+### FASE 3C — Edge Function `send-reminders` (v13)
 
 Envía recordatorios por email a docentes con 3+ días sin avanzar, usando [Resend](https://resend.com).
 
@@ -545,7 +581,7 @@ El botón "Enviar recordatorios" en el panel admin ya lo invoca automáticamente
 | `doLogin(e,p)` | `supabase.auth.signInWithPassword` + `select` de `profiles` |
 | `createAccount` | `supabase.functions.invoke('bulk-create-users', { body:{ users:[u] } })` |
 | `bulkCreateAccounts` | misma Edge Function |
-| `deleteAccount` | Edge Function adicional `delete-user` (o admin lo hace desde dashboard de Supabase) |
+| `deleteAccount` | Edge Function `delete-user` (desplegada en v14) |
 | `changeAccountArea(email, area)` | `update profiles set area=… where email=…` (RLS permite solo admin) |
 | `createInstitution / update / delete` | `insert/update/delete on public.institutions` (RLS: solo admin) |
 | `completeNode` | `update progress set xp, completed, badges where user_id=auth.uid()` |
@@ -623,10 +659,10 @@ Cloudflare Pages → conectar repo → Framework: **Vite**, build: `npm run buil
 
 ---
 
-## 4. Checklist actualizado (v13)
+## 4. Checklist actualizado (v14)
 
 ```
-BASE (ya completo en producción)
+BASE (completo en producción)
 [x] npm run build pasa sin errores
 [x] .env NO está en Git
 [x] Schema 0001_init.sql aplicado (institutions, profiles, RLS, trigger)
@@ -637,22 +673,29 @@ BASE (ya completo en producción)
 [x] Repo en GitHub + Cloudflare Pages con deploy automático
 [x] Vars VITE_* en Cloudflare
 
-MIGRACIONES v13 (aplicar si aún no se ha hecho)
-[ ] 0002_features.sql aplicado (last_seen, cohorts, realtime)
-[ ] 0003_cohort_institution.sql aplicado (cohorts.institution_id)
+MIGRACIONES v13 (verificar que estén aplicadas)
+[x] 0002_features.sql aplicado (last_seen, cohorts, realtime)
+[x] 0003_cohort_institution.sql aplicado (cohorts.institution_id)
 
-EDGE FUNCTION send-reminders
+MIGRACIÓN v14
+[ ] 0004_cohort_drop_area.sql aplicado (DROP COLUMN area en cohorts)
+
+EDGE FUNCTIONS v13
 [ ] Cuenta Resend creada y dominio verificado
 [ ] RESEND_API_KEY agregado en Supabase → Edge Functions → Secrets
 [ ] supabase functions deploy send-reminders --no-verify-jwt ejecutado
-[ ] Probado desde panel admin: botón "Enviar recordatorios" → emails llegan
+[ ] Probado: botón "Enviar recordatorios" → emails llegan a docentes inactivos
 
-FUNCIONALIDAD v13
-[ ] Admin puede crear cohorte asignando institución
-[ ] Modal "Asignar docentes" solo muestra docentes de esa institución
-[ ] Panel AdminAnalytics muestra métricas de progreso
-[ ] Presencia en tiempo real visible para admin/instructor
-[ ] Recordatorio no se envía a docentes con entrega aprobada
+EDGE FUNCTION v14
+[ ] supabase functions deploy delete-user --no-verify-jwt ejecutado
+[ ] Probado: admin elimina usuario desde AdminUsers → desaparece de la lista
+
+FUNCIONALIDAD v13 (verificar en producción)
+[x] Admin puede crear cohorte asignando institución
+[x] Modal "Asignar docentes" solo muestra docentes de esa institución
+[x] Panel AdminAnalytics muestra métricas de progreso
+[x] Presencia en tiempo real visible para admin/instructor
+[x] Recordatorio no se envía a docentes con entrega aprobada
 ```
 
 ---
@@ -682,4 +725,4 @@ FUNCIONALIDAD v13
 ---
 
 *Stack: Vite + React 18 · Cloudflare Pages · Supabase Pro (Postgres + Auth + RLS + Realtime + Edge Functions) · ~$25/mes.*
-*Experia v13: 3 roles · instituciones · cohortes por institución · carga masiva · historial de versiones · presencia en tiempo real · analítica · recordatorios email.*
+*Experia v14: 3 roles · instituciones · cohortes por institución · carga masiva · eliminación de usuarios · historial de versiones · presencia en tiempo real · analítica · recordatorios email.*
