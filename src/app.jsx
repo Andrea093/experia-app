@@ -4,7 +4,7 @@ import {
   useStore, XS, nav, doLogout, selectArea, changeArea,
   createAccount, deleteAccount, changeAccountArea,
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution,
-  dismissStudentMessage,
+  dismissStudentMessage, resetStudentProgress,
   AREAS, BADGES, INITIAL_INSTITUTIONS,
   getStudentModules, findModule, nodeStatus,
   calcLevel, gradeTotal, gradeMax,
@@ -27,6 +27,7 @@ import ChallengeView from './pages/challenges.jsx'
 import ProfilePage from './pages/profile.jsx'
 import StudentProductUpload from './pages/Grid.jsx'
 import InstructorDashboard from './pages/InstructorDashboard.jsx'
+import InstructorRouteEditor from './pages/InstructorRouteEditor.jsx'
 import AdminAnalytics from './pages/AdminAnalytics.jsx'
 import AdminCohorts from './pages/AdminCohorts.jsx'
 import { ActiveStudents, StudentProgressModal } from './pages/InstructorStudentView.jsx'
@@ -123,6 +124,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   const instructorItems = [
     { key: 'instructor-dashboard', label: 'Entregas',     icon: <FileIc s={19} />, active: ['instructor-dashboard'] },
     { key: 'instructor-stats',     label: 'Estadísticas', icon: <BarIc s={19} />,  active: ['instructor-stats'] },
+    { key: 'instructor-route',     label: 'Ruta',         icon: <MapIc s={19} />,  active: ['instructor-route'] },
     { key: 'profile',              label: 'Perfil',       icon: <UserIc s={19} />, active: ['profile'] },
   ];
   const adminItems = [
@@ -1128,6 +1130,17 @@ const AdminPage = () => {
   // --- Delete ---
   const [deleteConfirm, setDeleteConfirm] = React.useState(null);
 
+  // --- Reset progress ---
+  const [resetConfirm, setResetConfirm] = React.useState(null);
+  const [resetting, setResetting] = React.useState(false);
+  const handleResetProgress = async () => {
+    if (!resetConfirm) return;
+    setResetting(true);
+    await resetStudentProgress(resetConfirm.id, resetConfirm.email);
+    setResetting(false);
+    setResetConfirm(null);
+  };
+
   // --- Edit area ---
   const [editAreaEmail, setEditAreaEmail] = React.useState(null);
   const [editAreaValue, setEditAreaValue] = React.useState('');
@@ -1353,6 +1366,14 @@ const AdminPage = () => {
                             <EditIc s={12} c="var(--orange)" /> Área
                           </button>
                         )}
+                        {isStudent && (
+                          <button onClick={() => setResetConfirm(acc)}
+                            style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
+                              border:'1.5px solid var(--purple)', background:'var(--purple-bg)', color:'var(--purple)',
+                              cursor:'pointer', fontFamily:'var(--font)', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
+                            🔄 Progreso
+                          </button>
+                        )}
                         <button onClick={() => setDeleteConfirm(acc.email)}
                           style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
                             border:'1.5px solid var(--error)', background:'none', color:'var(--error)',
@@ -1506,6 +1527,29 @@ const AdminPage = () => {
         </div>
       </Modal>
 
+      {/* Reset progress modal */}
+      <Modal open={!!resetConfirm} onClose={() => setResetConfirm(null)} title="Resetear progreso" width={420}>
+        {resetConfirm && (
+          <div style={{ textAlign:'center', padding:'8px 0' }}>
+            <div style={{ fontSize:44, marginBottom:12 }}>🔄</div>
+            <p style={{ fontSize:14, color:'var(--text-sec)', marginBottom:8, lineHeight:1.6 }}>
+              ¿Resetear todo el progreso de <strong>{resetConfirm.name}</strong>?
+            </p>
+            <div style={{ padding:'12px 16px', borderRadius:10, background:'#FEF3C7', border:'1px solid #FDE68A', marginBottom:16, textAlign:'left' }}>
+              <p style={{ fontSize:12, color:'#92400E', lineHeight:1.6, margin:0 }}>
+                ⚠️ Se eliminarán sus <strong>módulos completados</strong>, <strong>XP</strong>, <strong>insignias</strong>, <strong>entregas</strong> e <strong>intentos de retos</strong>. Esta acción no se puede deshacer.
+              </p>
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <Btn variant="secondary" full onClick={() => setResetConfirm(null)}>Cancelar</Btn>
+              <Btn variant="danger" full disabled={resetting} onClick={handleResetProgress}>
+                {resetting ? '⏳ Reseteando...' : 'Resetear progreso'}
+              </Btn>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       <BulkUploadModal open={showBulk} onClose={() => setShowBulk(false)} />
     </div>
   );
@@ -1559,6 +1603,7 @@ const App = () => {
             </>
           );
         case 'instructor-stats': return <InstructorStatsPage />;
+        case 'instructor-route': return <InstructorRouteEditor />;
         case 'profile':          return <ProfilePage />;
         default:                 return <InstructorDashboard />;
       }

@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   useStore, nav, completeNode, AREAS, BADGES, LEVELS,
-  getStudentModules, findModule,
+  getStudentModules, getRouteModules, findModule,
   calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete,
   gradeTotal, gradeMax,
 } from '../store/store.jsx'
@@ -156,9 +156,10 @@ const LearningMap = () => {
   const completed = useStore(s => s.completed);
   const xp = useStore(s => s.xp);
   const selectedArea = useStore(s => s.selectedArea);
+  const routeConfigs = useStore(s => s.routeConfigs);
   const isMobile = useMobile();
 
-  const studentModules = React.useMemo(() => getStudentModules(selectedArea), [selectedArea]);
+  const studentModules = React.useMemo(() => getRouteModules(selectedArea, routeConfigs), [selectedArea, routeConfigs]);
   const level = React.useMemo(() => calcLevel(xp), [xp]);
   const pct = React.useMemo(() => progressPct(completed, selectedArea), [completed, selectedArea]);
 

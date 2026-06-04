@@ -37,7 +37,7 @@ const FileDrop = ({ label, fileName, onFile, accept }) => {
       </>) : (<>
         <div style={{width:44,height:44,borderRadius:12,background:'var(--bg-alt)',display:'flex',alignItems:'center',justifyContent:'center'}}><PlusIc s={22} c="var(--muted)"/></div>
         <span style={{fontSize:14,fontWeight:600,color:'var(--dark)'}}>{label}</span>
-        <span style={{fontSize:12,color:'var(--muted)'}}>Arrastra o haz clic · Solo Word (.doc / .docx)</span>
+        <span style={{fontSize:12,color:'var(--muted)'}}>Arrastra o haz clic · Word (.doc / .docx) · Excel (.xls / .xlsx)</span>
       </>)}
     </div>
   );
@@ -60,9 +60,9 @@ const downloadFile = (name, data) => {
   document.body.removeChild(link);
 };
 
-const isWordFile = (file) => {
+const isValidFile = (file) => {
   const ext = file.name.split('.').pop().toLowerCase();
-  return ext === 'doc' || ext === 'docx';
+  return ['doc', 'docx', 'xls', 'xlsx'].includes(ext);
 };
 
 // ---- Certificate ----
@@ -259,14 +259,14 @@ const StudentProductUpload = () => {
   const existingSub = submissions.find(s => s.studentEmail === user?.email && s.area === selectedArea);
 
   const handleRejilla = async (f) => {
-    if (!isWordFile(f)) { setRejillaError('Solo se aceptan archivos Word (.doc o .docx)'); return; }
+    if (!isValidFile(f)) { setRejillaError('Solo se aceptan archivos Word (.doc, .docx) o Excel (.xls, .xlsx)'); return; }
     setRejillaError('');
     setRejillaFile(f);
     const data = await readFileAsDataURL(f);
     setRejillaData(data);
   };
   const handlePregunta = async (f) => {
-    if (!isWordFile(f)) { setPreguntaError('Solo se aceptan archivos Word (.doc o .docx)'); return; }
+    if (!isValidFile(f)) { setPreguntaError('Solo se aceptan archivos Word (.doc, .docx) o Excel (.xls, .xlsx)'); return; }
     setPreguntaError('');
     setPreguntaFile(f);
     const data = await readFileAsDataURL(f);
@@ -290,8 +290,8 @@ const StudentProductUpload = () => {
 
   const WordNotice = () => (
     <div style={{ padding: '12px 16px', borderRadius: 10, background: '#EFF6FF', border: '1px solid #BFDBFE', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 16 }}>📝</span>
-      <span style={{ fontSize: 13, color: '#1D4ED8', fontWeight: 500 }}>Solo se aceptan archivos en formato <strong>Word (.doc / .docx)</strong></span>
+      <span style={{ fontSize: 16 }}>📎</span>
+      <span style={{ fontSize: 13, color: '#1D4ED8', fontWeight: 500 }}>Se aceptan archivos <strong>Word (.doc / .docx)</strong> y <strong>Excel (.xls / .xlsx)</strong></span>
     </div>
   );
 
@@ -349,7 +349,7 @@ const StudentProductUpload = () => {
                 <span style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--orange)', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</span>
                 Archivo de la Rejilla (corregido) {rejillaFile && <CheckIc s={16} c="var(--success)" />}
               </div>
-              <FileDrop label="Archivo de la Rejilla" fileName={rejillaFile?.name} onFile={handleRejilla} accept=".doc,.docx" />
+              <FileDrop label="Archivo de la Rejilla" fileName={rejillaFile?.name} onFile={handleRejilla} accept=".doc,.docx,.xls,.xlsx" />
               {rejillaError && <p style={{ fontSize: 12, color: 'var(--error)', marginTop: 6, fontWeight: 500 }}>{rejillaError}</p>}
             </div>
             <div>
@@ -357,7 +357,7 @@ const StudentProductUpload = () => {
                 <span style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--purple)', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>2</span>
                 Archivo de la Pregunta (corregido) {preguntaFile && <CheckIc s={16} c="var(--success)" />}
               </div>
-              <FileDrop label="Archivo de la Pregunta" fileName={preguntaFile?.name} onFile={handlePregunta} accept=".doc,.docx" />
+              <FileDrop label="Archivo de la Pregunta" fileName={preguntaFile?.name} onFile={handlePregunta} accept=".doc,.docx,.xls,.xlsx" />
               {preguntaError && <p style={{ fontSize: 12, color: 'var(--error)', marginTop: 6, fontWeight: 500 }}>{preguntaError}</p>}
             </div>
           </div>
@@ -461,7 +461,7 @@ const StudentProductUpload = () => {
               <span style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--orange)', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</span>
               Archivo de la Rejilla {rejillaFile && <CheckIc s={16} c="var(--success)" />}
             </div>
-            <FileDrop label="Archivo de la Rejilla" fileName={rejillaFile?.name} onFile={handleRejilla} accept=".doc,.docx" />
+            <FileDrop label="Archivo de la Rejilla" fileName={rejillaFile?.name} onFile={handleRejilla} accept=".doc,.docx,.xls,.xlsx" />
             {rejillaError && <p style={{ fontSize: 12, color: 'var(--error)', marginTop: 6, fontWeight: 500 }}>{rejillaError}</p>}
           </div>
           <div>
@@ -469,7 +469,7 @@ const StudentProductUpload = () => {
               <span style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--purple)', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>2</span>
               Archivo de la Pregunta {preguntaFile && <CheckIc s={16} c="var(--success)" />}
             </div>
-            <FileDrop label="Archivo de la Pregunta" fileName={preguntaFile?.name} onFile={handlePregunta} accept=".doc,.docx" />
+            <FileDrop label="Archivo de la Pregunta" fileName={preguntaFile?.name} onFile={handlePregunta} accept=".doc,.docx,.xls,.xlsx" />
             {preguntaError && <p style={{ fontSize: 12, color: 'var(--error)', marginTop: 6, fontWeight: 500 }}>{preguntaError}</p>}
           </div>
         </div>
@@ -733,12 +733,12 @@ export const InstructorDashboard = ({ onStudentClick }) => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div>
                       <div style={{ fontSize: 11, color: '#92400E', marginBottom: 4 }}>Rejilla corregida</div>
-                      <FileDrop label="Rejilla (corregida)" fileName={instrRejillaFile?.name} accept=".doc,.docx"
+                      <FileDrop label="Rejilla (corregida)" fileName={instrRejillaFile?.name} accept=".doc,.docx,.xls,.xlsx"
                         onFile={async (f) => { if (!isWordFile(f)) return; setInstrRejillaFile(f); setInstrRejillaData(await readFileAsDataURL(f)); }} />
                     </div>
                     <div>
                       <div style={{ fontSize: 11, color: '#92400E', marginBottom: 4 }}>Pregunta corregida</div>
-                      <FileDrop label="Pregunta (corregida)" fileName={instrPreguntaFile?.name} accept=".doc,.docx"
+                      <FileDrop label="Pregunta (corregida)" fileName={instrPreguntaFile?.name} accept=".doc,.docx,.xls,.xlsx"
                         onFile={async (f) => { if (!isWordFile(f)) return; setInstrPreguntaFile(f); setInstrPreguntaData(await readFileAsDataURL(f)); }} />
                     </div>
                   </div>

@@ -324,6 +324,7 @@ const DEF = {
   xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
   submissions: [], challengeAttempts: [], studentMessages: [],
   accounts: [], institutions: INITIAL_INSTITUTIONS, cohorts: [],
+  routeConfigs: {},
 };
 export const XS = createExpStore(DEF);
 
@@ -497,6 +498,84 @@ const resubmitProduct = (subId, rejillaName, preguntaName, rejillaData, pregunta
       }).eq('id', subId).then(({ error:e }) => { if (e) console.error('resubmitProduct update:', e); });
     });
 };
+const resetStudentProgress = async (userId, userEmail) => {
+  await supabase.from('progress')
+    .update({ xp: 0, completed: [], badges: [], updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .then(({ error }) => { if (error) console.error('resetProgress:', error); });
+  await supabase.from('submissions').delete().eq('student_id', userId)
+    .then(({ error }) => { if (error) console.error('resetSubmissions:', error); });
+  await supabase.from('challenge_attempts').delete().eq('student_id', userId)
+    .then(({ error }) => { if (error) console.error('resetAttempts:', error); });
+  XS.set(s => ({
+    submissions: s.submissions.filter(su => su.studentEmail !== userEmail),
+    challengeAttempts: s.challengeAttempts.filter(a => a.studentEmail !== userEmail),
+  }));
+};
+
+// ---- Route Config ----
+const loadRouteConfigs = async () => {
+  const { data, error } = await supabase.from('route_configs').select('*');
+  if (error) { console.error('loadRouteConfigs:', error); return; }
+  const configs = {};
+  (data || []).forEach(row => {
+    configs[row.area] = { modules: row.modules || [], customModules: row.custom_modules || [] };
+  });
+  XS.set({ routeConfigs: configs });
+};
+
+const saveRouteConfig = async (area, modules, customModules) => {
+  XS.set(s => ({ routeConfigs: { ...s.routeConfigs, [area]: { modules, customModules } } }));
+  const { error } = await supabase.from('route_configs').upsert(
+    { area, modules, custom_modules: customModules, updated_at: new Date().toISOString() },
+    { onConflict: 'area' }
+  );
+  if (error) console.error('saveRouteConfig:', error);
+};
+
+const getRouteModules = (areaId, routeConfigs) => {
+  const defaultMods = getStudentModules(areaId);
+  const config = routeConfigs?.[areaId];
+  if (!config || (!config.modules?.length && !config.customModules?.length)) return defaultMods;
+
+  const configMap = {};
+  (config.modules || []).forEach(mc => { configMap[mc.id] = mc; });
+
+  const sorted = [...defaultMods]
+    .sort((a, b) => (configMap[a.id]?.order ?? 999) - (configMap[b.id]?.order ?? 999))
+    .filter(m => configMap[m.id] ? configMap[m.id].enabled !== false : true)
+    .map(m => ({ ...m, extras: configMap[m.id]?.extras || [] }));
+
+  (config.customModules || [])
+    .filter(cm => cm.enabled !== false)
+    .forEach(cm => {
+      const mod = {
+        id: cm.id, type: 'lesson', title: cm.title, subtitle: 'Módulo adicional',
+        desc: cm.desc || '', xp: cm.xp || 50, req: [], area: areaId,
+        content: cm.content || [], isCustom: true, badge: null,
+        pos: { x: 50, y: cm.order || 0 }, side: 'right',
+        task: cm.task || '', extras: [],
+      };
+      const insertAt = sorted.findIndex(m => (configMap[m.id]?.order ?? 999) > (cm.order ?? 999));
+      if (insertAt === -1) sorted.push(mod); else sorted.splice(insertAt, 0, mod);
+    });
+
+  return sorted;
+};
+
+const findModuleInConfig = (id) => {
+  const configs = XS.get().routeConfigs;
+  for (const area of Object.keys(configs)) {
+    const found = (configs[area].customModules || []).find(m => m.id === id);
+    if (found) return {
+      id: found.id, type: 'lesson', title: found.title, subtitle: 'Módulo adicional',
+      desc: found.desc || '', xp: found.xp || 50, req: [], content: found.content || [],
+      isCustom: true, task: found.task || '', extras: [],
+    };
+  }
+  return null;
+};
+
 const updateAvatar = (url) => {
   XS.set(s => ({ user: s.user ? { ...s.user, avatar: url } : null }));
   const { user } = XS.get();
@@ -581,7 +660,8 @@ export {
   calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete, gradeTotal, gradeMax,
   nav, doLogout, selectArea, changeArea, completeNode, recordAttempt,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
-  dismissNotif, dismissStudentMessage, updateAvatar,
+  dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
+  loadRouteConfigs, saveRouteConfig, getRouteModules, findModuleInConfig,
   createAccount, deleteAccount, changeAccountArea,
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution,
 };
