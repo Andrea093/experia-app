@@ -459,6 +459,13 @@ const InstructorStatsPage = () => {
   const filteredAttempts = React.useMemo(() =>
     activeArea === 'all' ? attempts : attempts.filter(a => a.area === activeArea), [attempts, activeArea]);
 
+  const attemptCountByArea = React.useMemo(() => {
+    const map = {};
+    AREAS.forEach(a => { map[a.id] = 0; });
+    attempts.forEach(att => { if (map[att.area] !== undefined) map[att.area]++; });
+    return map;
+  }, [attempts]);
+
   const byChallengeList = React.useMemo(() => {
     const byChallengeMap = {};
     filteredAttempts.forEach(a => {
@@ -522,7 +529,7 @@ const InstructorStatsPage = () => {
           Todas
         </button>
         {AREAS.map(a => {
-          const count = attempts.filter(att => att.area === a.id).length;
+          const count = attemptCountByArea[a.id] ?? 0;
           return (
             <button key={a.id} onClick={() => setActiveArea(a.id)} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
               fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600,
@@ -931,7 +938,7 @@ const SchoolsAdminPage = () => {
     return map;
   }, [accounts]);
 
-  const totalStudents = accounts.filter(a => a.role === 'student').length;
+  const totalStudents = React.useMemo(() => accounts.filter(a => a.role === 'student').length, [accounts]);
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -1175,8 +1182,8 @@ const AdminPage = () => {
     });
   }, [accounts, filterRole, search]);
 
-  const students    = accounts.filter(a => a.role === 'student');
-  const instructors = accounts.filter(a => a.role === 'instructor');
+  const students    = React.useMemo(() => accounts.filter(a => a.role === 'student'), [accounts]);
+  const instructors = React.useMemo(() => accounts.filter(a => a.role === 'instructor'), [accounts]);
 
   const inputSt = (hasErr) => ({
     width:'100%', padding:'10px 14px', borderRadius:10, boxSizing:'border-box',

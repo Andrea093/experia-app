@@ -21,6 +21,7 @@ const DragDropEditorContent = ({ mod, onChange }) => {
   React.useEffect(() => {
     const init = mod?.dragItems || mod?.override?.dragItems || ['Empatizar','Definir','Idear','Prototipar','Evaluar']
     setItems(init); onChange({ dragItems: init })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mod?.id])
   const update = (next) => { setItems(next); onChange({ dragItems: next }) }
   const drop = (i) => {
@@ -76,6 +77,7 @@ const EmpathyEditorContent = ({ mod, onChange }) => {
   React.useEffect(() => {
     const init = mod?.empathyCards || mod?.override?.empathyCards || DEFAULT.map(c => ({ ...c }))
     setCards(init); onChange({ empathyCards: init })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mod?.id])
   const upd = (next) => { setCards(next); onChange({ empathyCards: next }) }
   const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none' }
@@ -118,6 +120,7 @@ const MatchingEditorContent = ({ mod, onChange }) => {
       {id:3,concept:'',def:'',color:'#3B82F6'},{id:4,concept:'',def:'',color:'#10B981'},
     ]).map(p => ({ ...p }))
     setPairs(init); onChange({ matchPairs: init })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mod?.id])
   const upd = (next) => { setPairs(next); onChange({ matchPairs: next }) }
   const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }
@@ -169,6 +172,7 @@ const SimulationEditorContent = ({ mod, onChange }) => {
   React.useEffect(() => {
     const init = mod?.simTree || mod?.override?.simTree || DEFAULT_TREE
     setNodes(init); onChange({ simTree: init })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mod?.id])
   const upd = (next) => { setNodes(next); onChange({ simTree: next }) }
   const nodeIds = Object.keys(nodes)
