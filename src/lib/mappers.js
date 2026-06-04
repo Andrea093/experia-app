@@ -1,12 +1,12 @@
 // Transforma filas de Supabase al formato que usa el store
 
-export const mapSubmission = (row, profiles = []) => {
+export const mapSubmission = (row, profiles = [], instById = {}) => {
   const profile = profiles.find(p => p.id === row.student_id) || {}
   return {
     id:                 row.id,
     studentName:        profile.name  || 'Desconocido',
     studentEmail:       profile.email || '',
-    studentInstitution: profile.institution || '',
+    studentInstitution: instById[profile.institution_id] || '',
     area:               row.area,
     rejillaName:        row.rejilla_name,
     rejillaData:        row.rejilla_data,

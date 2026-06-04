@@ -85,11 +85,15 @@ async function restoreSession() {
       supabase.from('challenge_attempts').select('*').order('created_at', { ascending: false }),
     ])
     const allProfiles = profilesData || []
+    const instById = {}
+    ;(institutionsRes.data || []).forEach(i => { instById[i.id] = i.name })
     accounts = allProfiles.map(p => ({
       id: p.id, email: p.email, name: p.name, avatar: p.avatar,
-      role: p.role, area: p.area || null, institution: p.institution || '', pass: '',
+      role: p.role, area: p.area || null,
+      institution: instById[p.institution_id] || '',
+      pass: '',
     }))
-    submissions       = (subsData     || []).map(s => mapSubmission(s, allProfiles))
+    submissions       = (subsData     || []).map(s => mapSubmission(s, allProfiles, instById))
     challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, allProfiles))
   }
 
