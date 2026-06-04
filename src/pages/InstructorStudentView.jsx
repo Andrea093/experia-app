@@ -259,13 +259,15 @@ export function StudentProgressModal({ student, onClose }) {
 
 // ── Default export: página completa de entregas para instructor ──
 const InstructorStudentViewPage = ({ studentView, setStudentView }) => (
-  <>
+  <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
     <ActiveStudents />
-    <InstructorDashboard onStudentClick={setStudentView} />
+    <div style={{ flex: 1, overflow: 'hidden' }}>
+      <InstructorDashboard onStudentClick={setStudentView} />
+    </div>
     <Modal open={!!studentView} onClose={() => setStudentView(null)} title={studentView?.name || ''} width={600}>
       <StudentProgressModal student={studentView} onClose={() => setStudentView(null)} />
     </Modal>
-  </>
+  </div>
 )
 
 export default InstructorStudentViewPage

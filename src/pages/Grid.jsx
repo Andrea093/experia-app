@@ -499,6 +499,7 @@ export const InstructorDashboard = ({ onStudentClick }) => {
   const [instrRejillaData, setInstrRejillaData] = React.useState(null);
   const [instrPreguntaFile, setInstrPreguntaFile] = React.useState(null);
   const [instrPreguntaData, setInstrPreguntaData] = React.useState(null);
+  const [showApproved, setShowApproved] = React.useState(false);
 
   const institutions = React.useMemo(() => {
     const set = new Set(submissions.map(s => s.studentInstitution || 'Sin institución'));
@@ -514,23 +515,27 @@ export const InstructorDashboard = ({ onStudentClick }) => {
     activeArea === 'all' ? byInstitution : byInstitution.filter(s => s.area === activeArea),
   [byInstitution, activeArea]);
 
+  const visible = React.useMemo(() =>
+    showApproved ? filtered : filtered.filter(s => s.status !== 'approved'),
+  [filtered, showApproved]);
+
   const grouped = React.useMemo(() => {
     const g = {};
     AREAS.forEach(a => { g[a.id] = []; });
-    filtered.forEach(s => { if (g[s.area]) g[s.area].push(s); });
+    visible.forEach(s => { if (g[s.area]) g[s.area].push(s); });
     return g;
-  }, [filtered]);
+  }, [visible]);
 
   const byInstGroup = React.useMemo(() => {
     if (activeInstitution !== 'all') return null;
     const g = {};
-    submissions.forEach(s => {
+    visible.forEach(s => {
       const inst = s.studentInstitution || 'Sin institución';
       if (!g[inst]) { g[inst] = {}; AREAS.forEach(a => { g[inst][a.id] = []; }); }
       if (g[inst][s.area]) g[inst][s.area].push(s);
     });
     return g;
-  }, [submissions, activeInstitution]);
+  }, [visible, activeInstitution]);
 
   const totalCount    = filtered.length;
   const approvedCount = filtered.filter(s => s.status === 'approved').length;
@@ -582,7 +587,7 @@ export const InstructorDashboard = ({ onStudentClick }) => {
         <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>Panel del Instructor</h2>
         <p style={{ fontSize: 14, color: 'var(--muted)' }}>Revisa entregas, califica rúbricas y da retroalimentación</p>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(148px, 1fr))', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(148px, 1fr))', gap: 12, marginBottom: 16 }}>
         {[
           { label: 'Total entregas', value: totalCount, color: 'var(--purple)', icon: <UsersIc s={18} c="var(--purple)" /> },
           { label: 'Aprobadas', value: approvedCount, color: 'var(--success)', icon: <CheckIc s={18} c="var(--success)" /> },
@@ -595,6 +600,16 @@ export const InstructorDashboard = ({ onStudentClick }) => {
             <div style={{ fontSize: 28, fontWeight: 800, color: st.color }}>{st.value}</div>
           </div>
         ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <button onClick={() => setShowApproved(v => !v)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8,
+            border: showApproved ? '1.5px solid var(--success)' : '1.5px solid var(--border)',
+            background: showApproved ? '#D1FAE5' : 'var(--white)', cursor: 'pointer',
+            fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600,
+            color: showApproved ? 'var(--success)' : 'var(--muted)' }}>
+          {showApproved ? '✅ Ocultar aprobadas' : `✅ Mostrar aprobadas (${approvedCount})`}
+        </button>
       </div>
       {institutions.length > 0 && (
         <div style={{ marginBottom: 16 }}>
@@ -628,6 +643,17 @@ export const InstructorDashboard = ({ onStudentClick }) => {
           </button>;
         })}
       </div>
+      {visible.length === 0 && !showApproved && approvedCount > 0 && (
+        <div style={{ textAlign: 'center', padding: '32px 24px', color: 'var(--muted)', fontSize: 14,
+          background: 'var(--white)', borderRadius: 14, border: '1px solid var(--border)', marginBottom: 16 }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+          Todas las entregas están aprobadas.{' '}
+          <button onClick={() => setShowApproved(true)}
+            style={{ color: 'var(--orange)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 14 }}>
+            Ver historial
+          </button>
+        </div>
+      )}
       {activeInstitution === 'all' && activeArea === 'all' ? (
         byInstGroup && Object.keys(byInstGroup).length > 0
           ? Object.entries(byInstGroup).map(([inst, areaMap]) => {
@@ -674,7 +700,7 @@ export const InstructorDashboard = ({ onStudentClick }) => {
           );
         })
       ) : (
-        <SubTable subs={filtered} onGrade={openGradeModal} onViewFile={openFile} saveFlash={saveFlash} />
+        <SubTable subs={visible} onGrade={openGradeModal} onViewFile={openFile} saveFlash={saveFlash} />
       )}
       <Modal open={!!gradeModal} onClose={() => setGradeModal(null)} title="Evaluar Entrega" width={580}>
         {currentSub && (

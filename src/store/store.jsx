@@ -634,6 +634,10 @@ const deleteAccount = (email) => {
 };
 
 const bulkCreateAccounts = (users) => {
+  const { institutions } = XS.get();
+  const instByName = {};
+  (institutions || []).forEach(i => { instByName[i.name.toLowerCase().trim()] = i.id; });
+
   // Optimistic local update
   XS.set(s => {
     const existing = new Set(s.accounts.map(a => a.email));
@@ -642,8 +646,12 @@ const bulkCreateAccounts = (users) => {
         avatar:u.name.trim().charAt(0).toUpperCase(), role:u.role||'student', area:u.area||null, institution:u.institution||'' }));
     return { accounts: [...s.accounts, ...newAccounts] };
   });
-  // Crear en Supabase via Edge Function
-  supabase.functions.invoke('bulk-create-users', { body: { users } })
+  // Resolver institution_id antes de llamar al edge function
+  const usersWithIds = users.map(u => ({
+    ...u,
+    institution_id: instByName[(u.institution || '').toLowerCase().trim()] || null,
+  }));
+  supabase.functions.invoke('bulk-create-users', { body: { users: usersWithIds } })
     .then(({ data, error }) => {
       if (error) console.error('bulkCreate error:', error);
     });
