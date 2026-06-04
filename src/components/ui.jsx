@@ -228,8 +228,8 @@ const LogoImg = ({ h=34, onDark=false }) => (
     src="/logo-ceinfes.png"
     alt="CEINFES"
     style={{
-      height: h,
-      width: 'auto',
+      width: h * 4,
+      height: 'auto',
       display: 'block',
       userSelect: 'none',
       filter: onDark ? 'brightness(0) invert(1)' : 'none',
