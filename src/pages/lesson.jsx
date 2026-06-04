@@ -216,7 +216,6 @@ const LessonView = () => {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}><ClockIc s={14} c="var(--muted)" /> {mod.duration}</span>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>+{mod.xp} XP</span>
         </div>
       </div>

@@ -93,7 +93,6 @@ const MapCard = React.memo(({ mod, status, onClick }) => {
           background: mod.type === 'lesson' ? 'var(--orange-bg)' : 'var(--purple-bg)',
           padding: '3px 8px', borderRadius: 4, letterSpacing: .8,
         }}>{TYPE_LABELS[mod.type] || 'MÓDULO'}</span>
-        <span style={{ fontSize: 12, color: 'var(--subtle)' }}>· {mod.duration}</span>
         {status === 'completed' && <CheckIc s={14} c="var(--success)" />}
       </div>
       <h4 style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', marginBottom: 4, lineHeight: 1.3 }}>{mod.title}</h4>
@@ -143,7 +142,7 @@ const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
         <div style={{ fontSize: 10, fontWeight: 800, color: TYPE_COLORS[mod.type],
           textTransform: 'uppercase', letterSpacing: .8, marginBottom: 2 }}>{TYPE_LABELS[mod.type]}</div>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', lineHeight: 1.3 }}>{mod.title}</div>
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{mod.duration} · +{mod.xp} XP</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>+{mod.xp} XP</div>
       </div>
       {status === 'available' && <ChevRIc s={18} c="var(--orange)" />}
       {status === 'completed' && <CheckIc s={18} c="var(--success)" />}

@@ -422,8 +422,6 @@ const GamesPage = () => {
                 <h3 style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 4 }}>{ch.title}</h3>
                 {!isMobile && <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>{ch.desc}</p>}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: isMobile ? 4 : 12 }}>
-                  <ClockIc s={14} c="var(--subtle)" />
-                  <span style={{ fontSize: 12, color: 'var(--subtle)' }}>{ch.duration}</span>
                   <ZapIc s={14} c="var(--orange)" />
                   <span style={{ fontSize: 12, color: 'var(--orange)', fontWeight: 600 }}>+{ch.xp} XP</span>
                   {status === 'completed' && <CheckIc s={14} c="var(--success)" />}
