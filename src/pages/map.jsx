@@ -106,6 +106,7 @@ const MapCard = React.memo(({ mod, status, onClick }) => {
       {status === 'completed' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>
           Completado · +{mod.xp} XP
+          <span style={{ marginLeft: 4, fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>· Clic para revisar</span>
         </div>
       )}
     </div>

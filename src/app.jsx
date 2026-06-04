@@ -117,7 +117,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   const studentItems = [
     { key: 'map', label: 'Mi formación', icon: <MapIc s={19} />, active: ['map','lesson','challenge'] },
     { key: 'games', label: 'Juegos', icon: <GameIc s={19} />, active: ['games'] },
-    { key: 'grid', label: 'Producto final', icon: <FileIc s={19} />, active: ['grid'] },
+    { key: 'grid', label: 'Entrega final', icon: <FileIc s={19} />, active: ['grid'] },
     { key: 'profile', label: 'Perfil', icon: <UserIc s={19} />, active: ['profile'] },
   ];
   const instructorItems = [
@@ -314,36 +314,49 @@ const Header = React.memo(({ onMenuClick }) => {
                   </div>
                 ) : (
                   <div style={{ maxHeight: 380, overflow: 'auto' }}>
-                    {myUnread.map(msg => (
-                      <div key={msg.id} style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)',
-                        background: 'var(--orange-50)' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)' }}>
-                            ↩️ Tu instructor devolvió tu entrega
+                    {myUnread.map(msg => {
+                      const isReturn = msg.type === 'return';
+                      const isGraded = msg.type === 'graded';
+                      const isApproved = msg.type === 'approved';
+                      const msgLabel = isApproved ? '✅ ¡Tu entrega fue aprobada!'
+                        : isGraded ? '📝 Tu instructor calificó tu entrega'
+                        : '↩️ Tu instructor devolvió tu entrega';
+                      const msgBg = isApproved ? '#F0FDF4' : isGraded ? '#EFF6FF' : 'var(--orange-50)';
+                      return (
+                        <div key={msg.id} style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', background: msgBg }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)' }}>{msgLabel}</div>
+                            <span style={{ fontSize: 10, color: 'var(--subtle)', whiteSpace: 'nowrap', flexShrink: 0 }}>{msg.date}</span>
                           </div>
-                          <span style={{ fontSize: 10, color: 'var(--subtle)', whiteSpace: 'nowrap', flexShrink: 0 }}>{msg.date}</span>
+                          {(isGraded || isApproved) && msg.feedback && (
+                            <p style={{ fontSize: 12, color: 'var(--text-sec)', lineHeight: 1.5, marginBottom: 10,
+                              padding: '8px 10px', borderRadius: 8, background: 'var(--white)', border: '1px solid var(--border)',
+                              fontStyle: 'italic' }}>
+                              "{msg.feedback}"
+                            </p>
+                          )}
+                          {isReturn && msg.returnNotes && (
+                            <p style={{ fontSize: 12, color: 'var(--text-sec)', lineHeight: 1.5, marginBottom: 10,
+                              padding: '8px 10px', borderRadius: 8, background: 'var(--white)', border: '1px solid var(--border)',
+                              fontStyle: 'italic' }}>
+                              "{msg.returnNotes}"
+                            </p>
+                          )}
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            <button onClick={() => { dismissStudentMessage(msg.id); nav('grid'); setShowNotifs(false); }}
+                              style={{ fontSize: 12, fontWeight: 700, color: isApproved ? 'var(--success)' : 'var(--orange)',
+                                background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font)' }}>
+                              {isApproved ? 'Ver certificado →' : isGraded ? 'Ver calificación →' : 'Ver y corregir →'}
+                            </button>
+                            <button onClick={() => dismissStudentMessage(msg.id)}
+                              style={{ fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none',
+                                cursor: 'pointer', padding: 0, fontFamily: 'var(--font)' }}>
+                              Marcar leída
+                            </button>
+                          </div>
                         </div>
-                        {msg.returnNotes && (
-                          <p style={{ fontSize: 12, color: 'var(--text-sec)', lineHeight: 1.5, marginBottom: 10,
-                            padding: '8px 10px', borderRadius: 8, background: 'var(--white)', border: '1px solid var(--border)',
-                            fontStyle: 'italic' }}>
-                            "{msg.returnNotes}"
-                          </p>
-                        )}
-                        <div style={{ display: 'flex', gap: 10 }}>
-                          <button onClick={() => { dismissStudentMessage(msg.id); nav('grid'); setShowNotifs(false); }}
-                            style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange)', background: 'none',
-                              border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font)' }}>
-                            Ver y corregir →
-                          </button>
-                          <button onClick={() => dismissStudentMessage(msg.id)}
-                            style={{ fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none',
-                              cursor: 'pointer', padding: 0, fontFamily: 'var(--font)' }}>
-                            Marcar leída
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -354,8 +367,13 @@ const Header = React.memo(({ onMenuClick }) => {
         <div style={{ width: 36, height: 36, borderRadius: '50%',
           background: user.role === 'instructor' ? 'var(--success)' : 'var(--orange)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', flexShrink: 0 }}
-          onClick={() => nav('profile')}>{user.avatar}</div>
+          color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', flexShrink: 0,
+          overflow: 'hidden' }}
+          onClick={() => nav('profile')}>
+          {user.avatar?.startsWith('http')
+            ? <img src={user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : user.avatar}
+        </div>
         {!isMobile && (
           <button onClick={doLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4,
             borderRadius: 6, display: 'flex', minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center' }}

@@ -208,6 +208,21 @@ const LessonView = () => {
             <p style={{ fontSize: 14, color: 'rgba(255,255,255,.75)', marginTop: 8 }}>{mod.desc}</p>
           </div>
 
+          {/* Task instruction */}
+          {mod.task && (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 14, padding: '16px 20px',
+              borderRadius: 14, background: '#FFF7ED', border: '1.5px solid #FDBA74',
+              marginBottom: 28, animation: 'fadeUp .4s ease',
+            }}>
+              <span style={{ fontSize: 22, flexShrink: 0 }}>📋</span>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#C2410C', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>¿Qué debes hacer?</div>
+                <p style={{ fontSize: 14, color: '#7C2D12', lineHeight: 1.6, margin: 0 }}>{mod.task}</p>
+              </div>
+            </div>
+          )}
+
           {/* Sections */}
           {mod.content.map((sec, i) => <LessonSection key={i} section={sec} index={i} />)}
 

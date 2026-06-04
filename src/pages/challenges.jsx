@@ -552,14 +552,28 @@ const ChallengeView = () => {
         <span style={{fontSize:12,color:'var(--muted)',flexShrink:0,marginLeft:8}}>+{mod.xp} XP</span>
       </div>
       <div style={{flex:1,overflow:'auto',WebkitOverflowScrolling:'touch',padding:isMobile?'20px 16px':'32px 28px'}}>
-        {isCompleted?(
-          <div style={{maxWidth:480,margin:'60px auto',textAlign:'center'}}>
-            <span style={{fontSize:48}}>✅</span>
-            <h3 style={{fontSize:20,fontWeight:700,color:'var(--success)',marginTop:12}}>Reto completado</h3>
-            <p style={{fontSize:14,color:'var(--muted)',marginTop:8,marginBottom:20}}>Ya completaste este reto.</p>
-            <Btn variant="secondary" onClick={()=>nav('map')}>Volver al mapa</Btn>
+        {isCompleted && (
+          <div style={{maxWidth:560,margin:'0 auto 20px',display:'flex',alignItems:'center',gap:12,
+            padding:'12px 18px',borderRadius:12,background:'#F0FDF4',border:'1.5px solid #6EE7B7'}}>
+            <CheckIc s={18} c="var(--success)" />
+            <span style={{fontSize:13,fontWeight:600,color:'var(--success)'}}>Ya completaste este reto · Puedes volver a practicarlo</span>
+            <button onClick={()=>nav('map')} style={{marginLeft:'auto',fontSize:12,color:'var(--success)',
+              background:'none',border:'none',cursor:'pointer',fontFamily:'var(--font)',fontWeight:600,flexShrink:0}}>
+              Volver al mapa →
+            </button>
           </div>
-        ):(<ChallengeComp mod={mod} onComplete={handleComplete}/>)}
+        )}
+        {mod.task && (
+          <div style={{maxWidth:560,margin:'0 auto 24px',display:'flex',alignItems:'flex-start',gap:12,
+            padding:'14px 18px',borderRadius:12,background:'#FFF7ED',border:'1.5px solid #FDBA74'}}>
+            <span style={{fontSize:20,flexShrink:0}}>📋</span>
+            <div>
+              <div style={{fontSize:11,fontWeight:800,color:'#C2410C',textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>¿Qué debes hacer?</div>
+              <p style={{fontSize:13,color:'#7C2D12',lineHeight:1.6,margin:0}}>{mod.task}</p>
+            </div>
+          </div>
+        )}
+        <ChallengeComp mod={mod} onComplete={handleComplete}/>
       </div>
     </div>
   );

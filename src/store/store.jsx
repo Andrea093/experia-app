@@ -60,6 +60,7 @@ const RUBRIC_CRITERIA = [
 const SHARED_MODULES = [
   { id:'mod1', type:'lesson', area:null, title:'Introducción al DCE', subtitle:'Módulo 1',
     desc:'Fundamentos del Diseño Centrado en Experiencias y su relevancia educativa.',
+    task:'Lee todo el contenido del módulo. Cuando hayas avanzado más del 85% de la lectura, aparecerá el botón "Completar lección" para ganar 100 XP y desbloquear el primer reto.',
     duration:'45 min', xp:100, badge:'explorer', req:[], pos:{x:42,y:0}, side:'right',
     content:[
       {type:'intro',title:'¿Qué es el Diseño Centrado en Experiencias?',text:'El DCE sitúa la experiencia del estudiante como eje central del proceso educativo, creando momentos de aprendizaje significativos y transformadores.'},
@@ -77,9 +78,11 @@ const SHARED_MODULES = [
     ]
   },
   { id:'ch1', type:'challenge', ctype:'dragdrop', area:null, title:'Evaluación: Introducción al DCE', subtitle:'Reto',
-    desc:'Ordena las fases del DCE correctamente.', duration:'15 min', xp:150, badge:'challenger', req:['mod1'], pos:{x:62,y:1}, side:'left' },
+    desc:'Ordena las fases del DCE correctamente.', duration:'15 min', xp:150, badge:'challenger', req:['mod1'], pos:{x:62,y:1}, side:'left',
+    task:'Arrastra las 5 fases del DCE y colócalas en el orden correcto: Empatizar → Definir → Idear → Prototipar → Evaluar. Haz clic en "Verificar orden" cuando estés listo.' },
   { id:'mod2', type:'lesson', area:null, title:'Empatía Educativa', subtitle:'Módulo 2',
     desc:'Técnicas para comprender las experiencias y emociones de los estudiantes.',
+    task:'Lee el módulo completo sobre las 3 dimensiones de la empatía (cognitiva, emocional, contextual) y el Mapa de Empatía. Desplázate hasta el final para habilitar el botón de completar.',
     duration:'50 min', xp:120, badge:'empathist', req:['ch1'], pos:{x:36,y:2}, side:'right',
     content:[
       {type:'intro',title:'La Empatía como Competencia Docente',text:'La empatía educativa permite comprender y conectar con las experiencias y perspectivas de los estudiantes para diseñar desde esa comprensión.'},
@@ -92,7 +95,8 @@ const SHARED_MODULES = [
     ]
   },
   { id:'ch2', type:'challenge', ctype:'empathy', area:null, title:'Mapa de Empatía Interactivo', subtitle:'Reto',
-    desc:'Construye un mapa de empatía para un estudiante tipo.', duration:'20 min', xp:180, req:['mod2'], pos:{x:66,y:3}, side:'left' },
+    desc:'Construye un mapa de empatía para un estudiante tipo.', duration:'20 min', xp:180, req:['mod2'], pos:{x:66,y:3}, side:'left',
+    task:'Arrastra las 8 tarjetas al cuadrante correcto del Mapa de Empatía: Piensa, Siente, Dice o Hace. Coloca todas las tarjetas antes de hacer clic en "Verificar mapa".' },
 ];
 
 // --- Area-specific content ---
@@ -251,23 +255,28 @@ const makeAreaModules = (areaId) => {
   return [
     { id:`mod3_${areaId}`, type:'lesson', area:areaId, title:ac.m3.title, subtitle:'Módulo 3',
       desc:ac.m3.desc, duration:'50 min', xp:140, badge:'designer', req:['ch2'],
+      task:'Lee cómo se aplica el DCE en tu área de formación. Explora las estrategias y ejemplos del módulo. Desplázate hasta el final para habilitar el botón de completar.',
       pos:{x:38,y:4}, side:'right', content:ac.m3.content },
     { id:`ch3_${areaId}`, type:'challenge', ctype:'simulation', area:areaId,
       title:'Simulación: '+ac.m3.title.replace('DCE en ',''), subtitle:'Reto',
       desc:'Toma decisiones pedagógicas en '+area.name+'.',
+      task:'Recorre el árbol de decisiones pedagógicas. Hay 2 o 3 decisiones encadenadas. Elige la opción que mejor aplique el enfoque DCE en cada situación del escenario.',
       duration:'25 min', xp:200, req:[`mod3_${areaId}`], pos:{x:60,y:5}, side:'left',
       simContext: ac.simContext },
     { id:`mod4_${areaId}`, type:'lesson', area:areaId, title:ac.m4.title, subtitle:'Módulo 4',
       desc:ac.m4.desc, duration:'50 min', xp:140, badge:'innovator', req:[`ch3_${areaId}`],
+      task:'Estudia los instrumentos de evaluación experiencial para tu área. Lee todo el contenido y completa la lección para desbloquear el último reto antes de la evaluación final.',
       pos:{x:34,y:6}, side:'right', content:ac.m4.content },
     { id:`ch4_${areaId}`, type:'challenge', ctype:'matching', area:areaId,
       title:'Conecta Conceptos: '+area.name, subtitle:'Reto',
       desc:'Conecta cada concepto con su definición correcta.',
+      task:'Haz clic en un concepto (columna izquierda) y luego en su definición correcta (columna derecha) para emparejarlos. Debes conectar los 6 pares correctamente para completar el reto.',
       duration:'15 min', xp:200, badge:'speedster', req:[`mod4_${areaId}`], pos:{x:64,y:7}, side:'left',
       matchPairs: ac.matchPairs },
     { id:`final_${areaId}`, type:'evaluation', ctype:'designlab', area:areaId,
       title:'Lab DCE: '+area.name, subtitle:'Evaluación Final',
       desc:'Diseña una experiencia de aprendizaje para '+area.name+'.',
+      task:'Diseña una experiencia de aprendizaje DCE completa respondiendo 5 preguntas (una por cada fase: Empatizar, Definir, Idear, Prototipar, Evaluar). Tus elecciones determinan tu nivel de alineación con el DCE.',
       duration:'30 min', xp:300, badge:'master', req:[`ch4_${areaId}`], pos:{x:50,y:8}, side:'center' },
   ];
 };
@@ -400,7 +409,17 @@ const submitProduct = (rejillaName, preguntaName, rejillaData, preguntaData) => 
 };
 
 const gradeSubmission = (subId, grade, feedback) => {
-  XS.set(s => ({ submissions:s.submissions.map(sub=>sub.id===subId?{...sub,grade,feedback,status:'graded'}:sub) }));
+  XS.set(s => {
+    const sub = s.submissions.find(su => su.id === subId);
+    const newMsg = sub ? {
+      id: 'msg_' + Date.now(), toEmail: sub.studentEmail, type: 'graded',
+      grade, feedback, date: new Date().toISOString().split('T')[0], read: false, submissionId: subId,
+    } : null;
+    return {
+      submissions: s.submissions.map(su => su.id === subId ? { ...su, grade, feedback, status: 'graded' } : su),
+      studentMessages: newMsg ? [...(s.studentMessages || []), newMsg] : (s.studentMessages || []),
+    };
+  });
   supabase.from('submissions').update({ grade, feedback, status:'graded' }).eq('id', subId)
     .then(({ error }) => { if (error) console.error('gradeSubmission:', error); });
 };
@@ -430,7 +449,17 @@ const returnSubmission = (subId, returnNotes, instrRejillaName, instrRejillaData
 };
 
 const approveSubmission = (subId, grade, feedback) => {
-  XS.set(s => ({ submissions:s.submissions.map(sub=>sub.id===subId?{...sub,grade,feedback,status:'approved'}:sub) }));
+  XS.set(s => {
+    const sub = s.submissions.find(su => su.id === subId);
+    const newMsg = sub ? {
+      id: 'msg_' + Date.now(), toEmail: sub.studentEmail, type: 'approved',
+      grade, feedback, date: new Date().toISOString().split('T')[0], read: false, submissionId: subId,
+    } : null;
+    return {
+      submissions: s.submissions.map(su => su.id === subId ? { ...su, grade, feedback, status: 'approved' } : su),
+      studentMessages: newMsg ? [...(s.studentMessages || []), newMsg] : (s.studentMessages || []),
+    };
+  });
   supabase.from('submissions').update({ grade, feedback, status:'approved' }).eq('id', subId)
     .then(({ error }) => { if (error) console.error('approveSubmission:', error); });
 };
@@ -463,6 +492,14 @@ const resubmitProduct = (subId, rejillaName, preguntaName, rejillaData, pregunta
         history:[...(data.history||[]), historyEntry],
       }).eq('id', subId).then(({ error:e }) => { if (e) console.error('resubmitProduct update:', e); });
     });
+};
+const updateAvatar = (url) => {
+  XS.set(s => ({ user: s.user ? { ...s.user, avatar: url } : null }));
+  const { user } = XS.get();
+  if (user?.id) {
+    supabase.from('profiles').update({ avatar: url }).eq('id', user.id)
+      .then(({ error }) => { if (error) console.error('updateAvatar:', error); });
+  }
 };
 const dismissNotif = id => XS.set(s=>({notifications:s.notifications.filter(n=>n.id!==id)}));
 const dismissStudentMessage = (msgId) => XS.set(s=>({studentMessages:(s.studentMessages||[]).map(m=>m.id===msgId?{...m,read:true}:m)}));
@@ -540,6 +577,7 @@ export {
   calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete, gradeTotal, gradeMax,
   nav, doLogout, selectArea, changeArea, completeNode, recordAttempt,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
-  dismissNotif, dismissStudentMessage, createAccount, deleteAccount, changeAccountArea,
+  dismissNotif, dismissStudentMessage, updateAvatar,
+  createAccount, deleteAccount, changeAccountArea,
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution,
 };
