@@ -544,7 +544,11 @@ const getRouteModules = (areaId, routeConfigs) => {
   const sorted = [...defaultMods]
     .sort((a, b) => (configMap[a.id]?.order ?? 999) - (configMap[b.id]?.order ?? 999))
     .filter(m => configMap[m.id] ? configMap[m.id].enabled !== false : true)
-    .map(m => ({ ...m, extras: configMap[m.id]?.extras || [] }));
+    .map(m => ({
+      ...m,
+      ...(configMap[m.id]?.override || {}),
+      extras: configMap[m.id]?.extras || [],
+    }));
 
   (config.customModules || [])
     .filter(cm => cm.enabled !== false)

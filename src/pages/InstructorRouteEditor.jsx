@@ -96,7 +96,7 @@ const SECTION_TYPES = [
   { id: 'video',   label: '🎬 Video YouTube',  icon: '🎬' },
 ]
 
-const CustomModuleModal = ({ open, initial, onClose, onSave }) => {
+const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => {
   const [title, setTitle]     = React.useState('')
   const [desc, setDesc]       = React.useState('')
   const [task, setTask]       = React.useState('')
@@ -247,7 +247,8 @@ const CustomModuleModal = ({ open, initial, onClose, onSave }) => {
 
         {err && <p style={{ fontSize: 12, color: 'var(--error)', margin: 0 }}>{err}</p>}
 
-        <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+        <div style={{ display: 'flex', gap: 10, paddingTop: 4, flexWrap: 'wrap' }}>
+          {extraActions}
           <Btn variant="secondary" full onClick={onClose}>Cancelar</Btn>
           <Btn variant="gradient" full onClick={handleSave}>
             {initial ? 'Guardar cambios' : 'Crear módulo'}
@@ -273,6 +274,7 @@ const InstructorRouteEditor = () => {
   const [showAddExtra, setShowAddExtra] = React.useState(null)
   const [showAddModule, setShowAddModule] = React.useState(false)
   const [editingModule, setEditingModule] = React.useState(null)
+  const [editingBaseModule, setEditingBaseModule] = React.useState(null)
 
   // Load config for selected area
   React.useEffect(() => {
@@ -284,7 +286,13 @@ const InstructorRouteEditor = () => {
       config.modules.forEach(mc => { cm[mc.id] = mc })
       const sorted = [...defaults]
         .sort((a, b) => (cm[a.id]?.order ?? 999) - (cm[b.id]?.order ?? 999))
-        .map(m => ({ ...m, enabled: cm[m.id]?.enabled !== false, extras: cm[m.id]?.extras || [] }))
+        .map(m => ({
+          ...m,
+          enabled: cm[m.id]?.enabled !== false,
+          extras: cm[m.id]?.extras || [],
+          ...(cm[m.id]?.override || {}),
+          override: cm[m.id]?.override || null,
+        }))
       setModuleList(sorted)
     } else {
       setModuleList(defaults.map(m => ({ ...m, enabled: true, extras: [] })))
@@ -319,9 +327,30 @@ const InstructorRouteEditor = () => {
   const saveEditedModule = (mod) => setCustomModules(l => l.map(m => m.id === editingModule.id ? { ...m, ...mod } : m))
   const deleteCustom     = (id) => setCustomModules(l => l.filter(m => m.id !== id))
 
+  const saveBaseModuleOverride = (mod) => {
+    const { title, desc, task, xp, content } = mod
+    setModuleList(l => l.map(m => m.id === editingBaseModule.id
+      ? { ...m, title, desc, task, xp, content, override: { title, desc, task, xp, content } }
+      : m
+    ))
+    setEditingBaseModule(null)
+  }
+
+  const clearOverride = (modId) => {
+    const original = getStudentModules(activeArea).find(m => m.id === modId)
+    if (!original) return
+    setModuleList(l => l.map(m => m.id === modId
+      ? { ...m, title: original.title, desc: original.desc, task: original.task, xp: original.xp, content: original.content, override: null }
+      : m
+    ))
+  }
+
   const handleSave = async () => {
     setSaving(true)
-    const modulesConfig = moduleList.map((m, i) => ({ id: m.id, enabled: m.enabled, order: i, extras: m.extras || [] }))
+    const modulesConfig = moduleList.map((m, i) => ({
+      id: m.id, enabled: m.enabled, order: i, extras: m.extras || [],
+      ...(m.override ? { override: m.override } : {}),
+    }))
     await saveRouteConfig(activeArea, modulesConfig, customModules)
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -398,12 +427,25 @@ const InstructorRouteEditor = () => {
                       <span style={{ fontSize: 13, fontWeight: 600, color: mod.enabled ? 'var(--dark)' : 'var(--subtle)' }}>
                         {mod.title}
                       </span>
+                      {mod.override && (
+                        <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
+                          background: 'var(--orange-bg)', color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8 }}>
+                          EDITADO
+                        </span>
+                      )}
                     </div>
                     {(mod.extras?.length > 0) && (
                       <span style={{ fontSize: 11, color: 'var(--orange)', fontWeight: 600, flexShrink: 0 }}>
                         +{mod.extras.length}
                       </span>
                     )}
+                    {/* Edit base module */}
+                    <button onClick={() => setEditingBaseModule(mod)}
+                      title="Editar contenido del módulo"
+                      style={{ background: mod.override ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
+                        width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <EditIc s={13} c={mod.override ? 'var(--orange)' : 'var(--muted)'} />
+                    </button>
                     <button onClick={() => setExpandedExtras(e => ({ ...e, [mod.id]: !e[mod.id] }))}
                       style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26,
                         borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -545,6 +587,19 @@ const InstructorRouteEditor = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit base module */}
+      <CustomModuleModal
+        open={!!editingBaseModule}
+        initial={editingBaseModule}
+        extraActions={editingBaseModule?.override ? (
+          <Btn variant="secondary" onClick={() => { clearOverride(editingBaseModule.id); setEditingBaseModule(null) }}>
+            Restablecer original
+          </Btn>
+        ) : null}
+        onClose={() => setEditingBaseModule(null)}
+        onSave={saveBaseModuleOverride}
+      />
 
       <AddExtraModal
         open={!!showAddExtra}
