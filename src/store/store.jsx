@@ -340,11 +340,12 @@ const nav = (page, nodeId) => {
 };
 
 const doLogout = () => {
-  supabase.auth.signOut();
+  const wasLoggedIn = XS.get().isLoggedIn;
   XS.set({
     isLoggedIn: false, user: null, page: 'landing', nodeId: null,
     xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
   });
+  if (wasLoggedIn) supabase.auth.signOut();
 };
 const selectArea = (areaId) => {
   const { user } = XS.get();
