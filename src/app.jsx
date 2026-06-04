@@ -144,10 +144,8 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
       width: 'var(--sidebar-w)', height: '100%', background: 'var(--white)',
       borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 22px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <LogoImg h={32} />
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'space-between' : 'center', padding: '20px 22px 16px' }}>
+        <LogoImg h={28} />
         {isMobile && (
           <button onClick={onMobileClose} style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer',
             width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
