@@ -782,6 +782,82 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
 }
 
 // ---- Main Editor ----
+// ---- New Challenge Modal (type selector + basic info) ----
+const CHALLENGE_TYPES = [
+  { id:'dragdrop',   label:'Arrastrar y ordenar', emoji:'🧩', desc:'Ordena elementos en secuencia correcta' },
+  { id:'empathy',    label:'Mapa de empatía',     emoji:'🗺️', desc:'Clasifica tarjetas en cuadrantes' },
+  { id:'simulation', label:'Simulación',           emoji:'🎭', desc:'Árbol de decisiones pedagógicas' },
+  { id:'matching',   label:'Conectar conceptos',  emoji:'🔗', desc:'Empareja conceptos con definiciones' },
+  { id:'designlab',  label:'Lab de diseño',        emoji:'🏗️', desc:'Diseña una experiencia paso a paso' },
+  { id:'quiz',       label:'Quiz',                 emoji:'📝', desc:'Preguntas de opción múltiple' },
+]
+
+const NewChallengeModal = ({ open, onClose, onCreate }) => {
+  const [ctype, setCtype] = React.useState(null)
+  const [title, setTitle] = React.useState('')
+  const [desc, setDesc]   = React.useState('')
+  const [task, setTask]   = React.useState('')
+  const [xp, setXp]       = React.useState(100)
+  const [err, setErr]     = React.useState('')
+
+  React.useEffect(() => {
+    if (open) { setCtype(null); setTitle(''); setDesc(''); setTask(''); setXp(100); setErr('') }
+  }, [open])
+
+  const inp = { padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Crear nuevo reto" width={560}>
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 10 }}>Tipo de reto *</label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          {CHALLENGE_TYPES.map(t => (
+            <button key={t.id} onClick={() => { setCtype(t.id); setErr('') }}
+              style={{ padding: '12px 8px', borderRadius: 10, cursor: 'pointer', fontFamily: 'var(--font)', textAlign: 'center', transition: 'all .15s', border: 'none',
+                border: ctype === t.id ? '2px solid var(--orange)' : '1.5px solid var(--border)',
+                background: ctype === t.id ? 'var(--orange-bg)' : 'var(--white)' }}>
+              <div style={{ fontSize: 26, marginBottom: 4 }}>{t.emoji}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: ctype === t.id ? 'var(--orange)' : 'var(--dark)' }}>{t.label}</div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2, lineHeight: 1.4 }}>{t.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Título *</label>
+            <input value={title} onChange={e => { setTitle(e.target.value); setErr('') }} placeholder="Ej: Evaluación de comprensión lectora" style={inp} autoFocus />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>XP</label>
+            <input type="number" value={xp} onChange={e => setXp(e.target.value)} min={0} style={inp} />
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Descripción breve</label>
+          <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Resumen para el mapa de aprendizaje" style={inp} />
+        </div>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Instrucción al estudiante</label>
+          <input value={task} onChange={e => setTask(e.target.value)} placeholder="Ej: Lee cada situación y elige la mejor opción" style={inp} />
+        </div>
+      </div>
+      {err && <p style={{ fontSize: 12, color: 'var(--error)', marginTop: 10 }}>{err}</p>}
+      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        <Btn variant="secondary" full onClick={onClose}>Cancelar</Btn>
+        <Btn variant="gradient" full onClick={() => {
+          if (!ctype) { setErr('Selecciona un tipo de reto'); return }
+          if (!title.trim()) { setErr('El título es obligatorio'); return }
+          onCreate({ ctype, title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100 })
+        }}>
+          Continuar → editar contenido
+        </Btn>
+      </div>
+    </Modal>
+  )
+}
+
 const InstructorRouteEditor = () => {
   const routeConfigs = useStore(s => s.routeConfigs)
   const isMobile = useMobile()
@@ -792,91 +868,97 @@ const InstructorRouteEditor = () => {
   const [saved, setSaved] = React.useState(false)
   const [dragIdx, setDragIdx] = React.useState(null)
   const [overIdx, setOverIdx] = React.useState(null)
-  const [expandedExtras, setExpandedExtras] = React.useState({})
-  const [showAddExtra, setShowAddExtra] = React.useState(null)
   const [showAddModule, setShowAddModule] = React.useState(false)
   const [editingModule, setEditingModule] = React.useState(null)
   const [editingBaseModule, setEditingBaseModule] = React.useState(null)
-  const [editingMatching, setEditingMatching] = React.useState(null)
+  const [editingChallenge, setEditingChallenge] = React.useState(null)
   const [editingQuiz, setEditingQuiz] = React.useState(null)
-  const [showQuizCreator, setShowQuizCreator] = React.useState(false)
+  const [showNewChallenge, setShowNewChallenge] = React.useState(false)
 
-  // Load config for selected area
   React.useEffect(() => {
     const defaults = getStudentModules(activeArea)
     const config = routeConfigs?.[activeArea]
-
     if (config?.modules?.length) {
       const cm = {}
       config.modules.forEach(mc => { cm[mc.id] = mc })
       const sorted = [...defaults]
         .sort((a, b) => (cm[a.id]?.order ?? 999) - (cm[b.id]?.order ?? 999))
         .map(m => ({
-          ...m,
-          enabled: cm[m.id]?.enabled !== false,
-          extras: cm[m.id]?.extras || [],
-          ...(cm[m.id]?.override || {}),
-          override: cm[m.id]?.override || null,
+          ...m, enabled: cm[m.id]?.enabled !== false,
+          ...(cm[m.id]?.override || {}), override: cm[m.id]?.override || null,
         }))
       setModuleList(sorted)
     } else {
-      setModuleList(defaults.map(m => ({ ...m, enabled: true, extras: [] })))
+      setModuleList(defaults.map(m => ({ ...m, enabled: true })))
     }
     setCustomModules(config?.customModules || [])
-    setExpandedExtras({})
   }, [activeArea, routeConfigs])
 
-  // Drag & drop
   const handleDrop = (i) => {
     if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return }
-    const next = [...moduleList]
-    const [moved] = next.splice(dragIdx, 1)
-    next.splice(i, 0, moved)
-    setModuleList(next)
-    setDragIdx(null); setOverIdx(null)
+    const next = [...moduleList]; const [moved] = next.splice(dragIdx, 1); next.splice(i, 0, moved)
+    setModuleList(next); setDragIdx(null); setOverIdx(null)
   }
 
   const toggleEnabled = (id) => setModuleList(l => l.map(m => m.id === id ? { ...m, enabled: !m.enabled } : m))
 
-  const addExtra = (moduleId, extra) => {
-    const e = { id: 'ext_' + Date.now(), ...extra }
-    setModuleList(l => l.map(m => m.id === moduleId ? { ...m, extras: [...(m.extras || []), e] } : m))
-    setCustomModules(l => l.map(m => m.id === moduleId ? { ...m, extras: [...(m.extras || []), e] } : m))
-  }
-  const removeExtra = (moduleId, extraId) => {
-    setModuleList(l => l.map(m => m.id === moduleId ? { ...m, extras: (m.extras || []).filter(e => e.id !== extraId) } : m))
-    setCustomModules(l => l.map(m => m.id === moduleId ? { ...m, extras: (m.extras || []).filter(e => e.id !== extraId) } : m))
-  }
-
-  const addCustomModule  = (mod) => setCustomModules(l => [...l, { id: 'custom_' + Date.now(), ...mod, enabled: true, extras: [], order: moduleList.length + l.length }])
+  const addCustomModule  = (mod) => setCustomModules(l => [...l, { id: 'custom_' + Date.now(), ...mod, enabled: true, order: moduleList.length + l.length }])
   const saveEditedModule = (mod) => setCustomModules(l => l.map(m => m.id === editingModule.id ? { ...m, ...mod } : m))
   const deleteCustom     = (id) => setCustomModules(l => l.filter(m => m.id !== id))
 
-  const saveChallengeOverride = (override) => {
-    setModuleList(l => l.map(m => m.id === editingMatching.id
-      ? { ...m, ...override, override: { ...(m.override || {}), ...override } }
-      : m
-    ))
-    setEditingMatching(null)
+  const duplicateModule = (mod) => {
+    setCustomModules(l => [...l, {
+      id: 'custom_' + Date.now(),
+      title: 'Copia — ' + mod.title,
+      desc: mod.desc || '', task: mod.task || '', xp: mod.xp || 0,
+      type: mod.type || 'lesson', ctype: mod.ctype || null,
+      content: mod.content ? [...mod.content] : [],
+      questions: mod.questions ? [...mod.questions] : [],
+      dragItems: mod.dragItems || mod.override?.dragItems,
+      empathyCards: mod.empathyCards || mod.override?.empathyCards,
+      simTree: mod.simTree || mod.override?.simTree,
+      designSteps: mod.designSteps || mod.override?.designSteps,
+      matchPairs: mod.matchPairs || mod.override?.matchPairs,
+      enabled: true, order: moduleList.length + l.length,
+    }])
   }
-  // alias for backwards compat
-  const saveMatchingOverride = saveChallengeOverride
+
+  const saveChallengeOverride = (override) => {
+    if (editingChallenge?.isNew) {
+      setCustomModules(l => [...l, {
+        id: 'challenge_' + Date.now(), type: 'challenge',
+        ctype: editingChallenge.ctype, title: editingChallenge.title,
+        desc: editingChallenge.desc, task: editingChallenge.task, xp: editingChallenge.xp,
+        ...override, enabled: true, order: moduleList.length + l.length,
+      }])
+    } else {
+      setModuleList(l => l.map(m => m.id === editingChallenge?.id
+        ? { ...m, ...override, override: { ...(m.override || {}), ...override } } : m
+      ))
+    }
+    setEditingChallenge(null)
+  }
 
   const saveQuizCustom = (mod) => {
-    if (editingQuiz) {
-      setCustomModules(l => l.map(m => m.id === editingQuiz.id ? { ...m, ...mod } : m))
-      setEditingQuiz(null)
+    if (editingQuiz?.isNew || !editingQuiz?.id) {
+      setCustomModules(l => [...l, { id: 'quiz_' + Date.now(), ...mod, enabled: true, order: moduleList.length + l.length }])
     } else {
-      setCustomModules(l => [...l, { id: 'quiz_' + Date.now(), ...mod, enabled: true, extras: [], order: moduleList.length + l.length }])
-      setShowQuizCreator(false)
+      setCustomModules(l => l.map(m => m.id === editingQuiz.id ? { ...m, ...mod } : m))
     }
+    setEditingQuiz(null)
+  }
+
+  const handleNewChallenge = ({ ctype, title, desc, task, xp }) => {
+    setShowNewChallenge(false)
+    const template = { isNew: true, type: 'challenge', ctype, title, desc, task, xp }
+    if (ctype === 'quiz') setEditingQuiz({ ...template, questions: [] })
+    else setEditingChallenge(template)
   }
 
   const saveBaseModuleOverride = (mod) => {
     const { title, desc, task, xp, content } = mod
     setModuleList(l => l.map(m => m.id === editingBaseModule.id
-      ? { ...m, title, desc, task, xp, content, override: { title, desc, task, xp, content } }
-      : m
+      ? { ...m, title, desc, task, xp, content, override: { title, desc, task, xp, content } } : m
     ))
     setEditingBaseModule(null)
   }
@@ -885,15 +967,14 @@ const InstructorRouteEditor = () => {
     const original = getStudentModules(activeArea).find(m => m.id === modId)
     if (!original) return
     setModuleList(l => l.map(m => m.id === modId
-      ? { ...m, title: original.title, desc: original.desc, task: original.task, xp: original.xp, content: original.content, override: null }
-      : m
+      ? { ...m, title: original.title, desc: original.desc, task: original.task, xp: original.xp, content: original.content, override: null } : m
     ))
   }
 
   const handleSave = async () => {
     setSaving(true)
     const modulesConfig = moduleList.map((m, i) => ({
-      id: m.id, enabled: m.enabled, order: i, extras: m.extras || [],
+      id: m.id, enabled: m.enabled, order: i,
       ...(m.override ? { override: m.override } : {}),
     }))
     await saveRouteConfig(activeArea, modulesConfig, customModules)
@@ -903,9 +984,16 @@ const InstructorRouteEditor = () => {
 
   const activeCount = moduleList.filter(m => m.enabled).length
 
+  const btnRow = (onClick, color, bg, hoverBg, icon, label) => ({
+    onClick, onMouseEnter: e => e.currentTarget.style.background = hoverBg,
+    onMouseLeave: e => e.currentTarget.style.background = bg,
+    style: { marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px', borderRadius: 12,
+      border: `2px dashed ${color}`, background: bg, color, cursor: 'pointer',
+      fontFamily: 'var(--font)', fontSize: 14, fontWeight: 600, width: '100%', justifyContent: 'center', transition: 'all .2s' }
+  })
+
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: isMobile ? '0 16px 40px' : '0 24px 40px' }}>
-      {/* Header */}
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>Editor de Ruta de Formación</h2>
@@ -929,9 +1017,7 @@ const InstructorRouteEditor = () => {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 300px', gap: 20, alignItems: 'start' }}>
-
-        {/* Module list */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 280px', gap: 20, alignItems: 'start' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)' }}>
@@ -940,101 +1026,54 @@ const InstructorRouteEditor = () => {
             <span style={{ fontSize: 11, color: 'var(--subtle)' }}>⋮⋮ Arrastra para reordenar</span>
           </div>
 
+          {/* Base modules */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {moduleList.map((mod, i) => {
-              const isExpanded = expandedExtras[mod.id]
               const isOver = overIdx === i
               return (
-                <div key={mod.id}
-                  draggable
-                  onDragStart={() => setDragIdx(i)}
-                  onDragOver={e => { e.preventDefault(); setOverIdx(i) }}
-                  onDrop={() => handleDrop(i)}
-                  onDragEnd={() => { setDragIdx(null); setOverIdx(null) }}
+                <div key={mod.id} draggable
+                  onDragStart={() => setDragIdx(i)} onDragOver={e => { e.preventDefault(); setOverIdx(i) }}
+                  onDrop={() => handleDrop(i)} onDragEnd={() => { setDragIdx(null); setOverIdx(null) }}
                   style={{ borderRadius: 14, background: mod.enabled ? 'var(--white)' : 'var(--bg)',
                     border: isOver ? '2px dashed var(--orange)' : mod.enabled ? '1px solid var(--border)' : '1px dashed var(--border)',
                     opacity: dragIdx === i ? .4 : mod.enabled ? 1 : .55, transition: 'all .15s' }}>
-
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px' }}>
                     <GripIc s={16} c="var(--subtle)" />
                     <div style={{ width: 24, height: 24, borderRadius: 7, flexShrink: 0,
-                      background: TYPE_BG[mod.type] || 'var(--bg-alt)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 10, fontWeight: 800, color: TYPE_COLORS[mod.type] || 'var(--muted)' }}>
-                      {i + 1}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                      background: TYPE_BG[mod.type] || 'var(--bg-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 800, color: TYPE_COLORS[mod.type] || 'var(--muted)' }}>{i + 1}</div>
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
                         background: TYPE_BG[mod.type] || 'var(--bg-alt)', color: TYPE_COLORS[mod.type] || 'var(--muted)',
-                        textTransform: 'uppercase', letterSpacing: .8, marginRight: 6 }}>
-                        {TYPE_LABELS[mod.type] || 'MÓDULO'}
-                      </span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: mod.enabled ? 'var(--dark)' : 'var(--subtle)' }}>
-                        {mod.title}
-                      </span>
+                        textTransform: 'uppercase', letterSpacing: .8 }}>{TYPE_LABELS[mod.type] || 'MÓDULO'}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: mod.enabled ? 'var(--dark)' : 'var(--subtle)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mod.title}</span>
                       {mod.override && (
                         <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
-                          background: 'var(--orange-bg)', color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8 }}>
-                          EDITADO
-                        </span>
+                          background: 'var(--orange-bg)', color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8 }}>EDITADO</span>
                       )}
                     </div>
-                    {(mod.extras?.length > 0) && (
-                      <span style={{ fontSize: 11, color: 'var(--orange)', fontWeight: 600, flexShrink: 0 }}>
-                        +{mod.extras.length}
-                      </span>
-                    )}
-                    {/* Edit button — all types */}
-                    <button
-                      onClick={() => mod.type === 'lesson' ? setEditingBaseModule(mod) : setEditingMatching(mod)}
-                      title={mod.type === 'lesson' ? 'Editar contenido' : 'Editar reto'}
-                      style={{ background: mod.override ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
+                    {/* Edit */}
+                    <button onClick={() => mod.type === 'lesson' ? setEditingBaseModule(mod) : setEditingChallenge(mod)}
+                      title="Editar contenido" style={{ background: mod.override ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
                         width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <EditIc s={13} c={mod.override ? 'var(--orange)' : 'var(--muted)'} />
                     </button>
-                    <button onClick={() => setExpandedExtras(e => ({ ...e, [mod.id]: !e[mod.id] }))}
-                      style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26,
-                        borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                        transition: 'transform .2s', transform: isExpanded ? 'rotate(90deg)' : 'none' }}>
-                      <ChevRIc s={14} c="var(--muted)" />
+                    {/* Duplicate */}
+                    <button onClick={() => duplicateModule(mod)} title="Duplicar"
+                      style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer',
+                        width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        fontSize: 13 }}>
+                      ⧉
                     </button>
                     {/* Toggle */}
                     <div onClick={() => toggleEnabled(mod.id)}
                       style={{ width: 38, height: 20, borderRadius: 10, flexShrink: 0, cursor: 'pointer',
                         background: mod.enabled ? 'var(--success)' : 'var(--border)', position: 'relative', transition: 'background .2s' }}>
-                      <div style={{ position: 'absolute', top: 2, width: 16, height: 16, borderRadius: '50%',
-                        background: '#fff', left: mod.enabled ? 20 : 2, transition: 'left .2s',
-                        boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
+                      <div style={{ position: 'absolute', top: 2, width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                        left: mod.enabled ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
                     </div>
                   </div>
-
-                  {/* Extras panel */}
-                  {isExpanded && (
-                    <div style={{ padding: '0 14px 14px 44px', borderTop: '1px solid var(--border)' }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, margin: '10px 0 8px' }}>Recursos adicionales</p>
-                      {!(mod.extras?.length) && <p style={{ fontSize: 12, color: 'var(--subtle)', fontStyle: 'italic', marginBottom: 8 }}>Ninguno aún</p>}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-                        {(mod.extras || []).map(extra => (
-                          <div key={extra.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
-                            borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                            <span style={{ fontSize: 14 }}>{extra.type === 'video' ? '🎬' : '📝'}</span>
-                            <span style={{ fontSize: 12, color: 'var(--dark)', fontWeight: 500, flex: 1,
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{extra.title}</span>
-                            <button onClick={() => removeExtra(mod.id, extra.id)}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0 }}>
-                              <XIc s={13} c="var(--error)" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <button onClick={() => setShowAddExtra(mod.id)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
-                          border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)',
-                          cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600 }}>
-                        <PlusIc s={13} c="var(--orange)" /> Agregar recurso
-                      </button>
-                    </div>
-                  )}
                 </div>
               )
             })}
@@ -1043,154 +1082,93 @@ const InstructorRouteEditor = () => {
           {/* Custom modules */}
           {customModules.length > 0 && (
             <div style={{ marginTop: 20 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>
-                Módulos personalizados ({customModules.length})
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', marginBottom: 10 }}>
+                Personalizados ({customModules.length})
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {customModules.map(mod => {
-                  const isExpanded = expandedExtras[mod.id]
-                  return (
-                    <div key={mod.id} style={{ borderRadius: 14, background: 'var(--white)', border: '2px solid #D1FAE5' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px' }}>
-                        <span style={{ fontSize: 16, flexShrink: 0 }}>✨</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4, background: '#D1FAE5',
-                            color: 'var(--success)', textTransform: 'uppercase', letterSpacing: .8, marginRight: 6 }}>PERSONALIZADO</span>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)' }}>{mod.title}</span>
-                        </div>
-                        {mod.ctype === 'quiz'
-                          ? <button onClick={() => setEditingQuiz(mod)}
-                              style={{ background: 'var(--purple-bg)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <EditIc s={14} c="var(--purple)" />
-                            </button>
-                          : <button onClick={() => setEditingModule(mod)}
-                              style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <EditIc s={14} c="var(--muted)" />
-                            </button>
-                        }
-                        <button onClick={() => setExpandedExtras(e => ({ ...e, [mod.id]: !e[mod.id] }))}
-                          style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }}>
-                          <ChevRIc s={14} c="var(--muted)" />
-                        </button>
-                        <button onClick={() => deleteCustom(mod.id)}
-                          style={{ background: '#FEE2E2', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <TrashIc s={13} c="var(--error)" />
-                        </button>
+                {customModules.map(mod => (
+                  <div key={mod.id} style={{ borderRadius: 14, background: 'var(--white)',
+                    border: mod.type === 'challenge' ? '2px solid var(--purple-bg)' : '2px solid #D1FAE5' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px' }}>
+                      <span style={{ fontSize: 15, flexShrink: 0 }}>{mod.type === 'challenge' ? '⚡' : '✨'}</span>
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
+                          background: mod.type === 'challenge' ? 'var(--purple-bg)' : '#D1FAE5',
+                          color: mod.type === 'challenge' ? 'var(--purple)' : 'var(--success)',
+                          textTransform: 'uppercase', letterSpacing: .8 }}>
+                          {mod.type === 'challenge' ? (CHALLENGE_TYPES.find(t => t.id === mod.ctype)?.label || 'Reto') : 'Módulo'}
+                        </span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mod.title}</span>
                       </div>
-                      {isExpanded && (
-                        <div style={{ padding: '0 14px 14px', borderTop: '1px solid #D1FAE5' }}>
-                          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, margin: '10px 0 8px' }}>Recursos adicionales</p>
-                          {!(mod.extras?.length) && <p style={{ fontSize: 12, color: 'var(--subtle)', fontStyle: 'italic', marginBottom: 8 }}>Ninguno aún</p>}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-                            {(mod.extras || []).map(extra => (
-                              <div key={extra.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                                <span style={{ fontSize: 14 }}>{extra.type === 'video' ? '🎬' : '📝'}</span>
-                                <span style={{ fontSize: 12, color: 'var(--dark)', fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{extra.title}</span>
-                                <button onClick={() => removeExtra(mod.id, extra.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
-                                  <XIc s={13} c="var(--error)" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                          <button onClick={() => setShowAddExtra(mod.id)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600 }}>
-                            <PlusIc s={13} c="var(--orange)" /> Agregar recurso
-                          </button>
-                        </div>
-                      )}
+                      {/* Edit */}
+                      <button
+                        onClick={() => mod.ctype === 'quiz' ? setEditingQuiz(mod) : mod.type === 'challenge' ? setEditingChallenge(mod) : setEditingModule(mod)}
+                        style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <EditIc s={14} c="var(--muted)" />
+                      </button>
+                      {/* Duplicate */}
+                      <button onClick={() => duplicateModule(mod)} title="Duplicar"
+                        style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>⧉</button>
+                      {/* Delete */}
+                      <button onClick={() => deleteCustom(mod.id)}
+                        style={{ background: '#FEE2E2', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <TrashIc s={13} c="var(--error)" />
+                      </button>
                     </div>
-                  )
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Add buttons */}
-          <button onClick={() => setShowQuizCreator(true)}
-            style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12,
-              border: '2px dashed var(--purple)', background: 'var(--purple-bg)', color: 'var(--purple)',
-              cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 14, fontWeight: 600, width: '100%', justifyContent: 'center', transition: 'all .2s' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#EDE9FE'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--purple-bg)'}>
-            <PlusIc s={18} c="var(--purple)" /> Crear reto Quiz
+          {/* Action buttons */}
+          <button {...btnRow(() => setShowNewChallenge(true), 'var(--purple)', 'var(--purple-bg)', '#EDE9FE')}>
+            <PlusIc s={18} c="var(--purple)" /> Crear nuevo reto
           </button>
-
-          {/* Add custom module button */}
-          <button onClick={() => setShowAddModule(true)}
-            style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12,
-              border: '2px dashed var(--success)', background: '#F0FDF4', color: 'var(--success)',
-              cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 14, fontWeight: 600, width: '100%', justifyContent: 'center', transition: 'all .2s' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#D1FAE5'}
-            onMouseLeave={e => e.currentTarget.style.background = '#F0FDF4'}>
+          <button {...btnRow(() => setShowAddModule(true), 'var(--success)', '#F0FDF4', '#D1FAE5')}>
             <PlusIc s={18} c="var(--success)" /> Crear módulo personalizado
           </button>
         </div>
 
         {/* Right: tips */}
-        <div style={{ padding: '20px', borderRadius: 16, background: 'var(--white)', border: '1px solid var(--border)' }}>
-          <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', marginBottom: 14 }}>Cómo usar el editor</h4>
+        <div style={{ padding: '18px', borderRadius: 16, background: 'var(--white)', border: '1px solid var(--border)' }}>
+          <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>Cómo usar el editor</h4>
           {[
-            { icon: '⋮⋮', text: 'Arrastra los módulos para cambiar el orden en que los estudiantes los ven.' },
-            { icon: '🟢', text: 'Usa el toggle para activar o desactivar módulos específicos.' },
-            { icon: '🎬', text: 'Agrega videos de YouTube o notas de texto como recursos extra.' },
-            { icon: '✨', text: 'Crea módulos completamente nuevos con tu propio contenido.' },
-            { icon: '💾', text: 'Guarda siempre los cambios para que se apliquen a los estudiantes.' },
+            { icon: '⋮⋮', text: 'Arrastra para cambiar el orden de los módulos.' },
+            { icon: '✏️', text: 'Edita el contenido de cualquier módulo o reto.' },
+            { icon: '⧉',  text: 'Duplica un módulo o reto para reutilizarlo.' },
+            { icon: '🟢', text: 'Activa o desactiva módulos con el toggle.' },
+            { icon: '⚡', text: 'Crea retos nuevos de cualquier tipo desde cero.' },
+            { icon: '✨', text: 'Crea módulos personalizados con tu contenido.' },
+            { icon: '💾', text: 'Guarda para que los estudiantes vean los cambios.' },
           ].map((tip, i) => (
-            <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-              <span style={{ fontSize: 17, flexShrink: 0 }}>{tip.icon}</span>
+            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 15, flexShrink: 0 }}>{tip.icon}</span>
               <p style={{ fontSize: 12, color: 'var(--text-sec)', lineHeight: 1.6, margin: 0 }}>{tip.text}</p>
             </div>
           ))}
-          <div style={{ marginTop: 16, padding: '12px', borderRadius: 10, background: 'var(--orange-bg)', border: '1px solid var(--orange-pale)' }}>
-            <p style={{ fontSize: 12, color: 'var(--orange)', fontWeight: 600, margin: 0, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 14, padding: '10px', borderRadius: 10, background: 'var(--orange-bg)', border: '1px solid var(--orange-pale)' }}>
+            <p style={{ fontSize: 11, color: 'var(--orange)', fontWeight: 600, margin: 0, lineHeight: 1.5 }}>
               Los cambios afectan a todos los estudiantes del área seleccionada.
             </p>
           </div>
         </div>
       </div>
 
-      <ChallengeEditorModal
-        open={!!editingMatching}
-        mod={editingMatching}
-        onClose={() => setEditingMatching(null)}
-        onSave={saveChallengeOverride}
-      />
-      <QuizCreatorModal
-        open={showQuizCreator || !!editingQuiz}
-        initial={editingQuiz}
-        onClose={() => { setShowQuizCreator(false); setEditingQuiz(null) }}
-        onSave={saveQuizCustom}
-      />
-
-      {/* Edit base module */}
-      <CustomModuleModal
-        open={!!editingBaseModule}
-        initial={editingBaseModule}
+      {/* Modals */}
+      <NewChallengeModal open={showNewChallenge} onClose={() => setShowNewChallenge(false)} onCreate={handleNewChallenge} />
+      <ChallengeEditorModal open={!!editingChallenge} mod={editingChallenge} onClose={() => setEditingChallenge(null)} onSave={saveChallengeOverride} />
+      <QuizCreatorModal open={!!editingQuiz} initial={editingQuiz?.isNew ? null : editingQuiz} onClose={() => setEditingQuiz(null)} onSave={saveQuizCustom} />
+      <CustomModuleModal open={!!editingBaseModule} initial={editingBaseModule}
         extraActions={editingBaseModule?.override ? (
-          <Btn variant="secondary" onClick={() => { clearOverride(editingBaseModule.id); setEditingBaseModule(null) }}>
-            Restablecer original
-          </Btn>
+          <Btn variant="secondary" onClick={() => { clearOverride(editingBaseModule.id); setEditingBaseModule(null) }}>Restablecer original</Btn>
         ) : null}
-        onClose={() => setEditingBaseModule(null)}
-        onSave={saveBaseModuleOverride}
-      />
-
-      <AddExtraModal
-        open={!!showAddExtra}
-        onClose={() => setShowAddExtra(null)}
-        onAdd={extra => { addExtra(showAddExtra, extra); setShowAddExtra(null) }}
-      />
-      <CustomModuleModal
-        open={showAddModule || !!editingModule}
-        initial={editingModule}
+        onClose={() => setEditingBaseModule(null)} onSave={saveBaseModuleOverride} />
+      <CustomModuleModal open={showAddModule || !!editingModule} initial={editingModule}
         onClose={() => { setShowAddModule(false); setEditingModule(null) }}
-        onSave={mod => {
-          if (editingModule) saveEditedModule(mod)
-          else addCustomModule(mod)
-          setShowAddModule(false); setEditingModule(null)
-        }}
-      />
+        onSave={mod => { if (editingModule) saveEditedModule(mod); else addCustomModule(mod); setShowAddModule(false); setEditingModule(null) }} />
     </div>
   )
 }
