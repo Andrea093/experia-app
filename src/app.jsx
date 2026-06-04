@@ -1,5 +1,4 @@
 import React from 'react'
-import * as XLSX from 'xlsx'
 import {
   useStore, XS, nav, doLogout, selectArea, changeArea,
   createAccount, deleteAccount, changeAccountArea,
@@ -19,18 +18,27 @@ import {
   Modal, BadgeCard, StatChip, Stagger,
 } from './components/ui.jsx'
 import { supabase } from './lib/supabaseClient.js'
-import LandingPage from './pages/landing.jsx'
-import LoginPage from './pages/login.jsx'
-import LearningMap from './pages/map.jsx'
-import LessonView from './pages/lesson.jsx'
-import ChallengeView from './pages/challenges.jsx'
-import ProfilePage from './pages/profile.jsx'
-import StudentProductUpload from './pages/Grid.jsx'
-import InstructorDashboard from './pages/InstructorDashboard.jsx'
-import InstructorRouteEditor from './pages/InstructorRouteEditor.jsx'
-import AdminAnalytics from './pages/AdminAnalytics.jsx'
-import AdminCohorts from './pages/AdminCohorts.jsx'
-import { ActiveStudents, StudentProgressModal } from './pages/InstructorStudentView.jsx'
+
+// Páginas con carga diferida — cada rol solo descarga lo que necesita
+const LandingPage           = React.lazy(() => import('./pages/landing.jsx'))
+const LoginPage             = React.lazy(() => import('./pages/login.jsx'))
+const LearningMap           = React.lazy(() => import('./pages/map.jsx'))
+const LessonView            = React.lazy(() => import('./pages/lesson.jsx'))
+const ChallengeView         = React.lazy(() => import('./pages/challenges.jsx'))
+const ProfilePage           = React.lazy(() => import('./pages/profile.jsx'))
+const StudentProductUpload  = React.lazy(() => import('./pages/Grid.jsx'))
+const InstructorDashboard   = React.lazy(() => import('./pages/InstructorDashboard.jsx'))
+const InstructorRouteEditor = React.lazy(() => import('./pages/InstructorRouteEditor.jsx'))
+const AdminAnalytics        = React.lazy(() => import('./pages/AdminAnalytics.jsx'))
+const AdminCohorts          = React.lazy(() => import('./pages/AdminCohorts.jsx'))
+const InstructorStudentView = React.lazy(() => import('./pages/InstructorStudentView.jsx'))
+
+const PageSpinner = () => (
+  <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--orange)',
+      borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+  </div>
+)
 // =============================================
 // EXPERIA — App Shell (responsive + optimized)
 // =============================================
@@ -668,10 +676,10 @@ const BulkUploadModal = ({ open, onClose }) => {
   const nrm = (str) => str.toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 
   const processFile = (file) => {
-    if (typeof XLSX === 'undefined') { alert('Librería Excel no cargada. Recarga la página.'); return; }
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
+        const XLSX = await import('xlsx');
         const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const jsonRows = XLSX.utils.sheet_to_json(ws, { defval: '' });
@@ -712,8 +720,8 @@ const BulkUploadModal = ({ open, onClose }) => {
     reader.readAsArrayBuffer(file);
   };
 
-  const downloadTemplate = () => {
-    if (typeof XLSX === 'undefined') { alert('Librería no cargada.'); return; }
+  const downloadTemplate = async () => {
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.aoa_to_sheet([
       ['Nombre', 'Email', 'Contraseña', 'Rol', 'Área', 'Institución'],
       ['María García', 'maria@colegio.com', 'pass1234', 'student', 'lectura', 'IED San Francisco'],
@@ -1568,8 +1576,8 @@ const App = () => {
   // Close mobile sidebar on page change
   React.useEffect(() => { setMobileSidebarOpen(false); }, [page]);
 
-  if (page === 'landing' && !isLoggedIn) return <LandingPage />;
-  if (page === 'login' && !isLoggedIn) return <LoginPage />;
+  if (page === 'landing' && !isLoggedIn) return <React.Suspense fallback={null}><LandingPage /></React.Suspense>;
+  if (page === 'login'   && !isLoggedIn) return <React.Suspense fallback={null}><LoginPage /></React.Suspense>;
   if (!isLoggedIn) { setTimeout(() => nav('landing'), 0); return null; }
 
   const role = user?.role;
@@ -1593,14 +1601,10 @@ const App = () => {
       switch (page) {
         case 'instructor-dashboard':
           return (
-            <>
-              <ActiveStudents />
-              <InstructorDashboard onStudentClick={setStudentView} />
-              <Modal open={!!studentView} onClose={()=>setStudentView(null)}
-                title={studentView?.name || 'Progreso del docente'} width={580}>
-                <StudentProgressModal student={studentView} onClose={()=>setStudentView(null)} />
-              </Modal>
-            </>
+            <InstructorStudentView
+              studentView={studentView}
+              setStudentView={setStudentView}
+            />
           );
         case 'instructor-stats': return <InstructorStatsPage />;
         case 'instructor-route': return <InstructorRouteEditor />;
@@ -1609,13 +1613,13 @@ const App = () => {
       }
     }
     switch (page) {
-      case 'map': return <LearningMap />;
-      case 'lesson': return <LessonView />;
-      case 'challenge': return <ChallengeView />;
-      case 'games': return <GamesPage />;
-      case 'grid': return <StudentProductUpload />;
-      case 'profile': return <ProfilePage />;
-      default: return <LearningMap />;
+      case 'map':      return <LearningMap />;
+      case 'lesson':   return <LessonView />;
+      case 'challenge':return <ChallengeView />;
+      case 'games':    return <GamesPage />;
+      case 'grid':     return <StudentProductUpload />;
+      case 'profile':  return <ProfilePage />;
+      default:         return <LearningMap />;
     }
   };
 
@@ -1623,17 +1627,14 @@ const App = () => {
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <NotifManager />
       {!isFullPage && (
-        <Sidebar
-          mobileOpen={mobileSidebarOpen}
-          onMobileClose={() => setMobileSidebarOpen(false)}
-        />
+        <Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
       )}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        {!isFullPage && (
-          <Header onMenuClick={() => setMobileSidebarOpen(o => !o)} />
-        )}
+        {!isFullPage && <Header onMenuClick={() => setMobileSidebarOpen(o => !o)} />}
         <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }} key={page + (nodeId || '')}>
-          {renderPage()}
+          <React.Suspense fallback={<PageSpinner />}>
+            {renderPage()}
+          </React.Suspense>
         </main>
       </div>
     </div>
