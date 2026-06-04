@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  useStore, nav, completeNode, recordAttempt, findModule, AREAS, BADGES, LEVELS,
+  useStore, nav, completeNode, recordAttempt, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
   getStudentModules, nodeStatus, calcLevel,
 } from '../store/store.jsx'
 import {
@@ -509,13 +509,128 @@ const DesignLabChallenge = ({ mod, onComplete }) => {
   );
 };
 
+// ---- QUIZ ----
+const QuizChallenge = ({ mod, onComplete }) => {
+  const isMobile = useMobile();
+  const questions = mod.questions || [];
+  const [current, setCurrent] = React.useState(0);
+  const [answers, setAnswers] = React.useState([]);
+  const [selected, setSelected] = React.useState(null);
+  const [confirmed, setConfirmed] = React.useState(false);
+  const [done, setDone] = React.useState(false);
+
+  if (!questions.length) return (
+    <div style={{textAlign:'center',padding:40}}>
+      <p style={{color:'var(--muted)',marginBottom:16}}>Este reto no tiene preguntas configuradas aún.</p>
+      <Btn variant="secondary" onClick={onComplete}>Continuar</Btn>
+    </div>
+  );
+
+  const q = questions[current];
+  const correctCount = answers.filter((a,i) => a === questions[i]?.correct).length;
+  const pct = Math.round((correctCount / questions.length) * 100);
+
+  const handleConfirm = () => {
+    if (selected === null) return;
+    setAnswers(a => [...a, selected]);
+    setConfirmed(true);
+  };
+
+  const handleNext = () => {
+    if (current < questions.length - 1) {
+      setCurrent(c => c + 1); setSelected(null); setConfirmed(false);
+    } else {
+      const allAnswers = [...answers];
+      const qs = questions.map((q, i) => ({ q: q.question, correct: allAnswers[i] === q.correct }));
+      recordAttempt(mod.id, qs, correctCount, questions.length);
+      setDone(true);
+    }
+  };
+
+  if (done) {
+    const rating = pct >= 80 ? { emoji:'🌟', text:'¡Excelente dominio del tema!' }
+      : pct >= 60 ? { emoji:'👍', text:'¡Buen trabajo!' }
+      : { emoji:'💪', text:'¡Sigue practicando!' };
+    return (
+      <div style={{maxWidth:520,margin:'0 auto',textAlign:'center'}}>
+        <span style={{fontSize:56}}>{rating.emoji}</span>
+        <h3 style={{fontSize:22,fontWeight:800,color:'var(--dark)',marginTop:10,marginBottom:6}}>{rating.text}</h3>
+        <div style={{display:'flex',justifyContent:'center',alignItems:'baseline',gap:6,marginBottom:16}}>
+          <span style={{fontSize:36,fontWeight:800,color:pct>=80?'var(--success)':'var(--orange)'}}>{pct}%</span>
+          <span style={{fontSize:14,color:'var(--muted)'}}>{correctCount}/{questions.length} correctas</span>
+        </div>
+        <ProgressBar pct={pct} h={10} color={pct>=80?'var(--success)':pct>=60?'var(--warn)':'var(--error)'}/>
+        <div style={{marginTop:24,textAlign:'left',display:'flex',flexDirection:'column',gap:8}}>
+          {questions.map((q,i) => {
+            const ok = answers[i] === q.correct;
+            return (
+              <div key={i} style={{padding:'12px 16px',borderRadius:12,background:ok?'#F0FDF4':'#FEF2F2',border:`1px solid ${ok?'#BBF7D0':'#FECACA'}`}}>
+                <p style={{fontSize:13,fontWeight:600,color:'var(--dark)',marginBottom:4}}>{q.question}</p>
+                <p style={{fontSize:12,color:ok?'var(--success)':'var(--error)',fontWeight:500,margin:0}}>
+                  {ok?'✓ ':'✗ '}{q.options[answers[i]]}
+                  {!ok&&<span style={{color:'var(--success)',marginLeft:8}}>→ Correcta: {q.options[q.correct]}</span>}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{marginTop:20}}><Btn variant="gradient" size="lg" onClick={onComplete}>Continuar <ArrowRIc s={18} c="#fff"/></Btn></div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{maxWidth:560,margin:'0 auto'}}>
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:24}}>
+        <ProgressBar pct={(current/questions.length)*100} h={6} color="var(--orange)"/>
+        <span style={{fontSize:12,color:'var(--muted)',whiteSpace:'nowrap',fontWeight:600}}>{current+1}/{questions.length}</span>
+      </div>
+      <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
+        <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.question}</h4>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {(q.options||[]).map((opt,i) => {
+            const isSel=selected===i, isOk=confirmed&&i===q.correct, isWrong=confirmed&&isSel&&i!==q.correct;
+            return (
+              <button key={i} onClick={()=>!confirmed&&setSelected(i)} disabled={confirmed}
+                style={{display:'flex',alignItems:'center',gap:12,padding:'13px 16px',borderRadius:12,
+                  border:isOk?'2px solid var(--success)':isWrong?'2px solid var(--error)':isSel?'2px solid var(--orange)':'1.5px solid var(--border)',
+                  background:isOk?'#F0FDF4':isWrong?'#FEF2F2':isSel?'var(--orange-bg)':'var(--bg)',
+                  cursor:confirmed?'default':'pointer',fontFamily:'var(--font)',transition:'all .2s',textAlign:'left'}}>
+                <span style={{width:28,height:28,borderRadius:8,flexShrink:0,fontWeight:700,fontSize:12,
+                  background:isOk?'var(--success)':isWrong?'var(--error)':isSel?'var(--orange)':'var(--bg-alt)',
+                  color:(isSel||isOk||isWrong)?'#fff':'var(--muted)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  {String.fromCharCode(65+i)}
+                </span>
+                <span style={{fontSize:14,color:'var(--dark)',fontWeight:500,lineHeight:1.5,flex:1}}>{opt}</span>
+                {isOk&&<CheckIc s={18} c="var(--success)"/>}
+                {isWrong&&<XIc s={18} c="var(--error)"/>}
+              </button>
+            );
+          })}
+        </div>
+        {confirmed&&(
+          <p style={{fontSize:13,fontWeight:600,marginTop:14,color:answers[answers.length-1]===q.correct?'var(--success)':'var(--error)'}}>
+            {answers[answers.length-1]===q.correct?'✓ ¡Correcto!':'✗ Respuesta correcta: '+q.options[q.correct]}
+          </p>
+        )}
+      </div>
+      {!confirmed
+        ?<Btn variant="primary" size="lg" disabled={selected===null} onClick={handleConfirm} full>Confirmar respuesta</Btn>
+        :<Btn variant="gradient" size="lg" onClick={handleNext} full>
+          {current<questions.length-1?<>Siguiente <ArrowRIc s={18} c="#fff"/></>:<>Ver resultados <TrophyIc s={18} c="#fff"/></>}
+        </Btn>
+      }
+    </div>
+  );
+};
+
 // ---- Challenge Router ----
 const ChallengeView = () => {
   const nodeId=useStore(s=>s.nodeId);
   const completed=useStore(s=>s.completed);
   const selectedArea=useStore(s=>s.selectedArea);
   const isMobile=useMobile();
-  const mod=findModule(nodeId);
+  const mod=findModule(nodeId)||findModuleInConfig(nodeId);
   const [showConfetti,setShowConfetti]=React.useState(false);
   const isCompleted=completed.includes(nodeId);
 
@@ -532,7 +647,7 @@ const ChallengeView = () => {
   if(!mod)return <div style={{padding:40,textAlign:'center'}}><Btn variant="secondary" onClick={()=>nav('map')}><ArrowLIc s={16}/>Volver</Btn></div>;
 
   const ChallengeComp={dragdrop:DragDropChallenge,empathy:EmpathyMapChallenge,simulation:SimulationChallenge,
-    matching:ConceptMatchingChallenge,designlab:DesignLabChallenge}[mod.ctype]||DesignLabChallenge;
+    matching:ConceptMatchingChallenge,designlab:DesignLabChallenge,quiz:QuizChallenge}[mod.ctype]||DesignLabChallenge;
 
   return (
     <div style={{height:'100%',display:'flex',flexDirection:'column'}}>

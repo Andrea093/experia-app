@@ -553,10 +553,17 @@ const getRouteModules = (areaId, routeConfigs) => {
   (config.customModules || [])
     .filter(cm => cm.enabled !== false)
     .forEach(cm => {
+      const isChallenge = cm.type === 'challenge';
       const mod = {
-        id: cm.id, type: 'lesson', title: cm.title, subtitle: 'Módulo adicional',
+        id: cm.id,
+        type: cm.type || 'lesson',
+        ctype: cm.ctype || null,
+        title: cm.title,
+        subtitle: isChallenge ? 'Reto' : 'Módulo adicional',
         desc: cm.desc || '', xp: cm.xp || 50, req: [], area: areaId,
-        content: cm.content || [], isCustom: true, badge: null,
+        content: cm.content || [],
+        questions: cm.questions || [],
+        isCustom: true, badge: null,
         pos: { x: 50, y: cm.order || 0 }, side: 'right',
         task: cm.task || '', extras: [],
       };
@@ -572,9 +579,19 @@ const findModuleInConfig = (id) => {
   for (const area of Object.keys(configs)) {
     const found = (configs[area].customModules || []).find(m => m.id === id);
     if (found) return {
-      id: found.id, type: 'lesson', title: found.title, subtitle: 'Módulo adicional',
-      desc: found.desc || '', xp: found.xp || 50, req: [], content: found.content || [],
-      isCustom: true, task: found.task || '', extras: [],
+      id: found.id,
+      type: found.type || 'lesson',
+      ctype: found.ctype || null,
+      title: found.title,
+      subtitle: found.type === 'challenge' ? 'Reto' : 'Módulo adicional',
+      desc: found.desc || '',
+      xp: found.xp || 50,
+      req: [],
+      content: found.content || [],
+      questions: found.questions || [],
+      isCustom: true,
+      task: found.task || '',
+      extras: [],
     };
   }
   return null;

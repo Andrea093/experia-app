@@ -10,6 +10,192 @@ const TYPE_LABELS = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUAC
 const TYPE_COLORS = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: '#10B981' }
 const TYPE_BG    = { lesson: 'var(--orange-bg)', challenge: 'var(--purple-bg)', evaluation: '#D1FAE5' }
 
+const PAIR_COLORS = ['#E8732C','#7B3FA0','#3B82F6','#10B981','#F59E0B','#EC4899']
+
+// ---- Matching Editor Modal ----
+const MatchingEditorModal = ({ open, mod, onClose, onSave }) => {
+  const [pairs, setPairs] = React.useState([])
+
+  React.useEffect(() => {
+    if (open && mod) {
+      setPairs(mod.matchPairs?.length
+        ? mod.matchPairs.map(p => ({ ...p }))
+        : Array.from({ length: 4 }, (_, i) => ({ id: i + 1, concept: '', def: '', color: PAIR_COLORS[i] }))
+      )
+    }
+  }, [open, mod])
+
+  const update = (id, key, val) => setPairs(p => p.map(x => x.id === id ? { ...x, [key]: val } : x))
+  const addPair = () => setPairs(p => [...p, { id: Date.now(), concept: '', def: '', color: PAIR_COLORS[p.length % PAIR_COLORS.length] }])
+  const remove  = (id) => setPairs(p => p.filter(x => x.id !== id))
+  const cycleColor = (id) => {
+    setPairs(p => p.map(x => {
+      if (x.id !== id) return x
+      const idx = PAIR_COLORS.indexOf(x.color)
+      return { ...x, color: PAIR_COLORS[(idx + 1) % PAIR_COLORS.length] }
+    }))
+  }
+
+  const inp = { padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }
+
+  return (
+    <Modal open={open} onClose={onClose} title={`Editar pares: ${mod?.title || ''}`} width={600}>
+      <div style={{ maxHeight: '60vh', overflow: 'auto', paddingRight: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '16px 1fr 1fr 28px', gap: 8, marginBottom: 8, padding: '0 2px' }}>
+          {['', 'Concepto', 'Definición', ''].map((h, i) => (
+            <span key={i} style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8 }}>{h}</span>
+          ))}
+        </div>
+        {pairs.map((pair, i) => (
+          <div key={pair.id} style={{ display: 'grid', gridTemplateColumns: '16px 1fr 1fr 28px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+            <div onClick={() => cycleColor(pair.id)} title="Clic para cambiar color"
+              style={{ width: 14, height: 14, borderRadius: '50%', background: pair.color, cursor: 'pointer', flexShrink: 0 }} />
+            <input value={pair.concept} onChange={e => update(pair.id, 'concept', e.target.value)}
+              placeholder={`Concepto ${i + 1}`} style={inp} />
+            <input value={pair.def} onChange={e => update(pair.id, 'def', e.target.value)}
+              placeholder={`Definición ${i + 1}`} style={inp} />
+            <button onClick={() => remove(pair.id)} disabled={pairs.length <= 2}
+              style={{ width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer',
+                background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: pairs.length <= 2 ? .3 : 1 }}>
+              <XIc s={13} c="var(--error)" />
+            </button>
+          </div>
+        ))}
+        <button onClick={addPair}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, marginTop: 8,
+            border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)',
+            cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600 }}>
+          <PlusIc s={13} c="var(--orange)" /> Agregar par
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        <Btn variant="secondary" full onClick={onClose}>Cancelar</Btn>
+        <Btn variant="gradient" full onClick={() => onSave({ matchPairs: pairs })}>Guardar cambios</Btn>
+      </div>
+    </Modal>
+  )
+}
+
+// ---- Quiz Creator Modal ----
+const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
+  const [title, setTitle]   = React.useState('')
+  const [desc, setDesc]     = React.useState('')
+  const [task, setTask]     = React.useState('')
+  const [xp, setXp]         = React.useState(100)
+  const [questions, setQs]  = React.useState([])
+  const [err, setErr]       = React.useState('')
+
+  React.useEffect(() => {
+    if (open) {
+      setTitle(initial?.title || '')
+      setDesc(initial?.desc || '')
+      setTask(initial?.task || '')
+      setXp(initial?.xp || 100)
+      setQs(initial?.questions || [{ id: 1, question: '', options: ['', '', '', ''], correct: 0 }])
+      setErr('')
+    }
+  }, [open, initial])
+
+  const addQ = () => setQs(q => [...q, { id: Date.now(), question: '', options: ['', '', '', ''], correct: 0 }])
+  const removeQ = (id) => setQs(q => q.filter(x => x.id !== id))
+  const updateQ = (id, key, val) => setQs(q => q.map(x => x.id === id ? { ...x, [key]: val } : x))
+  const updateOpt = (qId, optIdx, val) => setQs(q => q.map(x => {
+    if (x.id !== qId) return x
+    const opts = [...x.options]; opts[optIdx] = val
+    return { ...x, options: opts }
+  }))
+
+  const handleSave = () => {
+    if (!title.trim()) { setErr('El título es obligatorio'); return }
+    if (!questions.length) { setErr('Agrega al menos una pregunta'); return }
+    const incomplete = questions.find(q => !q.question.trim() || q.options.some(o => !o.trim()))
+    if (incomplete) { setErr('Completa todas las preguntas y opciones'); return }
+    onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100, questions, type: 'challenge', ctype: 'quiz' })
+  }
+
+  const inp = { padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }
+
+  return (
+    <Modal open={open} onClose={onClose} title={initial ? 'Editar reto Quiz' : 'Crear reto Quiz'} width={600}>
+      <div style={{ maxHeight: '72vh', overflow: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Título *</label>
+            <input value={title} onChange={e => { setTitle(e.target.value); setErr('') }} placeholder="Ej: Evaluación de conceptos clave" style={inp} autoFocus />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>XP</label>
+            <input type="number" value={xp} onChange={e => setXp(e.target.value)} min={0} style={inp} />
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Descripción breve</label>
+          <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Resumen para el mapa de aprendizaje" style={inp} />
+        </div>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Instrucción al estudiante</label>
+          <input value={task} onChange={e => setTask(e.target.value)} placeholder="Ej: Responde todas las preguntas y confirma cada respuesta" style={inp} />
+        </div>
+
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 12 }}>
+            Preguntas ({questions.length})
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {questions.map((q, qi) => (
+              <div key={q.id} style={{ padding: '14px', borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)' }}>Pregunta {qi + 1}</span>
+                  <button onClick={() => removeQ(q.id)} disabled={questions.length <= 1}
+                    style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: questions.length <= 1 ? .3 : 1 }}>
+                    <XIc s={13} c="var(--error)" />
+                  </button>
+                </div>
+                <input value={q.question} onChange={e => updateQ(q.id, 'question', e.target.value)}
+                  placeholder="Escribe la pregunta aquí..." style={{ ...inp, marginBottom: 10 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {q.options.map((opt, oi) => (
+                    <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button onClick={() => updateQ(q.id, 'correct', oi)}
+                        title="Marcar como correcta"
+                        style={{ width: 24, height: 24, borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0,
+                          background: q.correct === oi ? 'var(--success)' : 'var(--bg-alt)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {q.correct === oi
+                          ? <CheckIc s={13} c="#fff" />
+                          : <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{String.fromCharCode(65 + oi)}</span>}
+                      </button>
+                      <input value={opt} onChange={e => updateOpt(q.id, oi, e.target.value)}
+                        placeholder={`Opción ${String.fromCharCode(65 + oi)}${q.correct === oi ? ' (correcta)' : ''}`}
+                        style={{ ...inp, border: q.correct === oi ? '1.5px solid var(--success)' : '1.5px solid var(--border)' }} />
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--subtle)', marginTop: 8 }}>Haz clic en el círculo para marcar la opción correcta</p>
+              </div>
+            ))}
+          </div>
+          <button onClick={addQ}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 10, marginTop: 12,
+              border: '1.5px dashed var(--purple)', background: 'var(--purple-bg)', color: 'var(--purple)',
+              cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600 }}>
+            <PlusIc s={14} c="var(--purple)" /> Agregar pregunta
+          </button>
+        </div>
+
+        {err && <p style={{ fontSize: 12, color: 'var(--error)', margin: 0 }}>{err}</p>}
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Btn variant="secondary" full onClick={onClose}>Cancelar</Btn>
+          <Btn variant="gradient" full onClick={handleSave}>{initial ? 'Guardar cambios' : 'Crear reto'}</Btn>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 // ---- Add Extra Modal ----
 const AddExtraModal = ({ open, onClose, onAdd }) => {
   const [type, setType]   = React.useState('video')
@@ -275,6 +461,9 @@ const InstructorRouteEditor = () => {
   const [showAddModule, setShowAddModule] = React.useState(false)
   const [editingModule, setEditingModule] = React.useState(null)
   const [editingBaseModule, setEditingBaseModule] = React.useState(null)
+  const [editingMatching, setEditingMatching] = React.useState(null)
+  const [editingQuiz, setEditingQuiz] = React.useState(null)
+  const [showQuizCreator, setShowQuizCreator] = React.useState(false)
 
   // Load config for selected area
   React.useEffect(() => {
@@ -326,6 +515,24 @@ const InstructorRouteEditor = () => {
   const addCustomModule  = (mod) => setCustomModules(l => [...l, { id: 'custom_' + Date.now(), ...mod, enabled: true, extras: [], order: moduleList.length + l.length }])
   const saveEditedModule = (mod) => setCustomModules(l => l.map(m => m.id === editingModule.id ? { ...m, ...mod } : m))
   const deleteCustom     = (id) => setCustomModules(l => l.filter(m => m.id !== id))
+
+  const saveMatchingOverride = (override) => {
+    setModuleList(l => l.map(m => m.id === editingMatching.id
+      ? { ...m, ...override, override: { ...(m.override || {}), ...override } }
+      : m
+    ))
+    setEditingMatching(null)
+  }
+
+  const saveQuizCustom = (mod) => {
+    if (editingQuiz) {
+      setCustomModules(l => l.map(m => m.id === editingQuiz.id ? { ...m, ...mod } : m))
+      setEditingQuiz(null)
+    } else {
+      setCustomModules(l => [...l, { id: 'quiz_' + Date.now(), ...mod, enabled: true, extras: [], order: moduleList.length + l.length }])
+      setShowQuizCreator(false)
+    }
+  }
 
   const saveBaseModuleOverride = (mod) => {
     const { title, desc, task, xp, content } = mod
@@ -439,13 +646,23 @@ const InstructorRouteEditor = () => {
                         +{mod.extras.length}
                       </span>
                     )}
-                    {/* Edit base module */}
-                    <button onClick={() => setEditingBaseModule(mod)}
-                      title="Editar contenido del módulo"
-                      style={{ background: mod.override ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
-                        width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <EditIc s={13} c={mod.override ? 'var(--orange)' : 'var(--muted)'} />
-                    </button>
+                    {/* Edit button — lesson vs challenge */}
+                    {mod.type === 'lesson' && (
+                      <button onClick={() => setEditingBaseModule(mod)}
+                        title="Editar contenido del módulo"
+                        style={{ background: mod.override ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
+                          width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <EditIc s={13} c={mod.override ? 'var(--orange)' : 'var(--muted)'} />
+                      </button>
+                    )}
+                    {mod.type === 'challenge' && mod.ctype === 'matching' && (
+                      <button onClick={() => setEditingMatching(mod)}
+                        title="Editar pares de conceptos"
+                        style={{ background: mod.override?.matchPairs ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
+                          width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <EditIc s={13} c={mod.override?.matchPairs ? 'var(--orange)' : 'var(--muted)'} />
+                      </button>
+                    )}
                     <button onClick={() => setExpandedExtras(e => ({ ...e, [mod.id]: !e[mod.id] }))}
                       style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26,
                         borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -512,10 +729,16 @@ const InstructorRouteEditor = () => {
                             color: 'var(--success)', textTransform: 'uppercase', letterSpacing: .8, marginRight: 6 }}>PERSONALIZADO</span>
                           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)' }}>{mod.title}</span>
                         </div>
-                        <button onClick={() => setEditingModule(mod)}
-                          style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <EditIc s={14} c="var(--muted)" />
-                        </button>
+                        {mod.ctype === 'quiz'
+                          ? <button onClick={() => setEditingQuiz(mod)}
+                              style={{ background: 'var(--purple-bg)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <EditIc s={14} c="var(--purple)" />
+                            </button>
+                          : <button onClick={() => setEditingModule(mod)}
+                              style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <EditIc s={14} c="var(--muted)" />
+                            </button>
+                        }
                         <button onClick={() => setExpandedExtras(e => ({ ...e, [mod.id]: !e[mod.id] }))}
                           style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
                             transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform .2s' }}>
@@ -554,6 +777,16 @@ const InstructorRouteEditor = () => {
             </div>
           )}
 
+          {/* Add buttons */}
+          <button onClick={() => setShowQuizCreator(true)}
+            style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12,
+              border: '2px dashed var(--purple)', background: 'var(--purple-bg)', color: 'var(--purple)',
+              cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 14, fontWeight: 600, width: '100%', justifyContent: 'center', transition: 'all .2s' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#EDE9FE'}
+            onMouseLeave={e => e.currentTarget.style.background = 'var(--purple-bg)'}>
+            <PlusIc s={18} c="var(--purple)" /> Crear reto Quiz
+          </button>
+
           {/* Add custom module button */}
           <button onClick={() => setShowAddModule(true)}
             style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 12,
@@ -587,6 +820,19 @@ const InstructorRouteEditor = () => {
           </div>
         </div>
       </div>
+
+      <MatchingEditorModal
+        open={!!editingMatching}
+        mod={editingMatching}
+        onClose={() => setEditingMatching(null)}
+        onSave={saveMatchingOverride}
+      />
+      <QuizCreatorModal
+        open={showQuizCreator || !!editingQuiz}
+        initial={editingQuiz}
+        onClose={() => { setShowQuizCreator(false); setEditingQuiz(null) }}
+        onSave={saveQuizCustom}
+      />
 
       {/* Edit base module */}
       <CustomModuleModal
