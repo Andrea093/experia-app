@@ -78,6 +78,33 @@ const LessonSection = React.memo(({ section, index }) => {
     );
   }
 
+  if (section.type === 'video') {
+    const videoId = section.url?.includes('youtube.com/watch?v=')
+      ? section.url.split('v=')[1]?.split('&')[0]
+      : section.url?.includes('youtu.be/')
+        ? section.url.split('youtu.be/')[1]?.split('?')[0]
+        : section.url;
+    return (
+      <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
+        {section.title && (
+          <h3 style={{ fontSize: 19, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>{section.title}</h3>
+        )}
+        {section.desc && (
+          <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.6 }}>{section.desc}</p>
+        )}
+        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--sh-lg)' }}>
+          <iframe
+            src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+            title={section.title || 'Video'}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (section.type === 'compare') {
     return (
       <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
