@@ -86,8 +86,8 @@ async function restoreSession() {
     ])
     const allProfiles = profilesData || []
     accounts = allProfiles.map(p => ({
-      email: p.email, name: p.name, avatar: p.avatar,
-      role: p.role, area: p.area || null, institution: '', pass: '',
+      id: p.id, email: p.email, name: p.name, avatar: p.avatar,
+      role: p.role, area: p.area || null, institution: p.institution || '', pass: '',
     }))
     submissions       = (subsData     || []).map(s => mapSubmission(s, allProfiles))
     challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, allProfiles))

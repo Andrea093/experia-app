@@ -500,8 +500,8 @@ const resubmitProduct = (subId, rejillaName, preguntaName, rejillaData, pregunta
 };
 const resetStudentProgress = async (userId, userEmail) => {
   await supabase.from('progress')
-    .update({ xp: 0, completed: [], badges: [], updated_at: new Date().toISOString() })
-    .eq('user_id', userId)
+    .upsert({ user_id: userId, xp: 0, completed: [], badges: [], updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' })
     .then(({ error }) => { if (error) console.error('resetProgress:', error); });
   await supabase.from('submissions').delete().eq('student_id', userId)
     .then(({ error }) => { if (error) console.error('resetSubmissions:', error); });
