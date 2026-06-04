@@ -12,16 +12,363 @@ const TYPE_BG    = { lesson: 'var(--orange-bg)', challenge: 'var(--purple-bg)', 
 
 const PAIR_COLORS = ['#E8732C','#7B3FA0','#3B82F6','#10B981','#F59E0B','#EC4899']
 
-// ---- Generic Challenge Editor Modal ----
-// Routes to the right sub-editor based on ctype
+// ---- Inline content components (no Modal wrapper, call onChange on data change) ----
+
+const DragDropEditorContent = ({ mod, onChange }) => {
+  const [items, setItems] = React.useState([])
+  const [dIdx, setDIdx] = React.useState(null)
+  const [oIdx, setOIdx] = React.useState(null)
+  React.useEffect(() => {
+    const init = mod?.dragItems || mod?.override?.dragItems || ['Empatizar','Definir','Idear','Prototipar','Evaluar']
+    setItems(init); onChange({ dragItems: init })
+  }, [mod?.id])
+  const update = (next) => { setItems(next); onChange({ dragItems: next }) }
+  const drop = (i) => {
+    if (dIdx === null || dIdx === i) { setDIdx(null); setOIdx(null); return }
+    const next = [...items]; const [m] = next.splice(dIdx, 1); next.splice(i, 0, m)
+    update(next); setDIdx(null); setOIdx(null)
+  }
+  const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', flex: 1 }
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Escribe los elementos en el <strong>orden correcto</strong>. Arrastra para reordenar.</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {items.map((item, i) => (
+          <div key={i} draggable onDragStart={() => setDIdx(i)} onDragOver={e => { e.preventDefault(); setOIdx(i) }}
+            onDrop={() => drop(i)} onDragEnd={() => { setDIdx(null); setOIdx(null) }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 10,
+              background: 'var(--white)', border: oIdx === i ? '2px dashed var(--orange)' : '1px solid var(--border)',
+              opacity: dIdx === i ? .4 : 1, transition: 'all .15s' }}>
+            <GripIc s={15} c="var(--subtle)" />
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange)', minWidth: 18 }}>{i + 1}.</span>
+            <input value={item} onChange={e => { const n = [...items]; n[i] = e.target.value; update(n) }} style={inp} />
+            <button onClick={() => { if (items.length > 2) update(items.filter((_, j) => j !== i)) }}
+              disabled={items.length <= 2}
+              style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: items.length <= 2 ? .3 : 1 }}>
+              <XIc s={12} c="var(--error)" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button onClick={() => update([...items, 'Nuevo elemento'])}
+        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, marginTop: 8,
+          border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)',
+          cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600 }}>
+        <PlusIc s={12} c="var(--orange)" /> Agregar elemento
+      </button>
+    </div>
+  )
+}
+
+const EmpathyEditorContent = ({ mod, onChange }) => {
+  const DEFAULT = [
+    {id:1,text:'"No entiendo para qué sirve esto"',correct:'dice'},
+    {id:2,text:'Se siente frustrado en las evaluaciones',correct:'siente'},
+    {id:3,text:'Cree que las matemáticas son difíciles',correct:'piensa'},
+    {id:4,text:'Copia las respuestas de su compañero',correct:'hace'},
+    {id:5,text:'Ansiedad antes de los exámenes',correct:'siente'},
+    {id:6,text:'"Me gustan las clases con experimentos"',correct:'dice'},
+    {id:7,text:'Piensa que el profesor va muy rápido',correct:'piensa'},
+    {id:8,text:'Participa cuando trabaja en grupo',correct:'hace'},
+  ]
+  const [cards, setCards] = React.useState([])
+  React.useEffect(() => {
+    const init = mod?.empathyCards || mod?.override?.empathyCards || DEFAULT.map(c => ({ ...c }))
+    setCards(init); onChange({ empathyCards: init })
+  }, [mod?.id])
+  const upd = (next) => { setCards(next); onChange({ empathyCards: next }) }
+  const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none' }
+  const sel = { ...inp, background: 'var(--white)', cursor: 'pointer' }
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 28px', gap: 8, marginBottom: 6 }}>
+        {['Texto de la tarjeta','Cuadrante',''].map((h, i) => (
+          <span key={i} style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8 }}>{h}</span>
+        ))}
+      </div>
+      {cards.map(c => (
+        <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1fr 130px 28px', gap: 8, marginBottom: 7, alignItems: 'center' }}>
+          <input value={c.text} onChange={e => upd(cards.map(x => x.id === c.id ? { ...x, text: e.target.value } : x))} style={inp} />
+          <select value={c.correct} onChange={e => upd(cards.map(x => x.id === c.id ? { ...x, correct: e.target.value } : x))} style={sel}>
+            {['piensa','siente','dice','hace'].map(q => <option key={q} value={q}>{q.charAt(0).toUpperCase()+q.slice(1)}</option>)}
+          </select>
+          <button onClick={() => { if (cards.length > 4) upd(cards.filter(x => x.id !== c.id)) }} disabled={cards.length <= 4}
+            style={{ width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: cards.length <= 4 ? .3 : 1 }}>
+            <XIc s={13} c="var(--error)" />
+          </button>
+        </div>
+      ))}
+      <button onClick={() => upd([...cards, { id: Date.now(), text: '', correct: 'piensa' }])}
+        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, marginTop: 4,
+          border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)',
+          cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600 }}>
+        <PlusIc s={12} c="var(--orange)" /> Agregar tarjeta
+      </button>
+    </div>
+  )
+}
+
+const MatchingEditorContent = ({ mod, onChange }) => {
+  const [pairs, setPairs] = React.useState([])
+  React.useEffect(() => {
+    const init = (mod?.matchPairs || mod?.override?.matchPairs || [
+      {id:1,concept:'',def:'',color:'#E8732C'},{id:2,concept:'',def:'',color:'#7B3FA0'},
+      {id:3,concept:'',def:'',color:'#3B82F6'},{id:4,concept:'',def:'',color:'#10B981'},
+    ]).map(p => ({ ...p }))
+    setPairs(init); onChange({ matchPairs: init })
+  }, [mod?.id])
+  const upd = (next) => { setPairs(next); onChange({ matchPairs: next }) }
+  const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: '16px 1fr 1fr 28px', gap: 8, marginBottom: 6 }}>
+        {['','Concepto','Definición',''].map((h, i) => (
+          <span key={i} style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8 }}>{h}</span>
+        ))}
+      </div>
+      {pairs.map((p, i) => (
+        <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '16px 1fr 1fr 28px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+          <div onClick={() => { const idx = PAIR_COLORS.indexOf(p.color); upd(pairs.map(x => x.id === p.id ? { ...x, color: PAIR_COLORS[(idx+1)%PAIR_COLORS.length] } : x)) }}
+            title="Clic para cambiar color"
+            style={{ width: 14, height: 14, borderRadius: '50%', background: p.color, cursor: 'pointer' }} />
+          <input value={p.concept} onChange={e => upd(pairs.map(x => x.id === p.id ? { ...x, concept: e.target.value } : x))}
+            placeholder={`Concepto ${i+1}`} style={inp} />
+          <input value={p.def} onChange={e => upd(pairs.map(x => x.id === p.id ? { ...x, def: e.target.value } : x))}
+            placeholder={`Definición ${i+1}`} style={inp} />
+          <button onClick={() => { if (pairs.length > 2) upd(pairs.filter(x => x.id !== p.id)) }} disabled={pairs.length <= 2}
+            style={{ width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: pairs.length <= 2 ? .3 : 1 }}>
+            <XIc s={13} c="var(--error)" />
+          </button>
+        </div>
+      ))}
+      <button onClick={() => upd([...pairs, { id: Date.now(), concept: '', def: '', color: PAIR_COLORS[pairs.length % PAIR_COLORS.length] }])}
+        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, marginTop: 4,
+          border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)',
+          cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600 }}>
+        <PlusIc s={12} c="var(--orange)" /> Agregar par
+      </button>
+    </div>
+  )
+}
+
+const SimulationEditorContent = ({ mod, onChange }) => {
+  const DEFAULT_TREE = {
+    start:{ text:'Describe la situación inicial...', options:[
+      {text:'Opción A (mejor enfoque DCE)',next:'end_high',points:3},
+      {text:'Opción B (enfoque parcial)',next:'end_mid',points:2},
+      {text:'Opción C (enfoque tradicional)',next:'end_low',points:1},
+    ]},
+    end_high:{ text:'🌟 ¡Excelente decisión pedagógica!', end:true },
+    end_mid: { text:'👍 Buena decisión. Aplica más principios DCE.', end:true },
+    end_low: { text:'💪 Enfoque tradicional. El DCE sugiere escuchar primero.', end:true },
+  }
+  const [nodes, setNodes] = React.useState({})
+  React.useEffect(() => {
+    const init = mod?.simTree || mod?.override?.simTree || DEFAULT_TREE
+    setNodes(init); onChange({ simTree: init })
+  }, [mod?.id])
+  const upd = (next) => { setNodes(next); onChange({ simTree: next }) }
+  const nodeIds = Object.keys(nodes)
+  const nonEnd = nodeIds.filter(k => !nodes[k]?.end)
+  const ends   = nodeIds.filter(k =>  nodes[k]?.end)
+  const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 12, outline: 'none', width: '100%', boxSizing: 'border-box' }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {nonEnd.map(nid => (
+        <div key={nid} style={{ padding: 12, borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8 }}>
+              {nid === 'start' ? '🟢 Inicio' : `📍 ${nid}`}
+            </span>
+            {nid !== 'start' && (
+              <button onClick={() => { const n = { ...nodes }; delete n[nid]; upd(n) }}
+                style={{ width: 24, height: 24, borderRadius: 6, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <XIc s={11} c="var(--error)" />
+              </button>
+            )}
+          </div>
+          <textarea value={nodes[nid]?.text||''} onChange={e => upd({ ...nodes, [nid]: { ...nodes[nid], text: e.target.value } })}
+            placeholder="Describe la situación..." rows={2} style={{ ...inp, resize: 'vertical', marginBottom: 8 }} />
+          {(nodes[nid]?.options||[]).map((opt, oi) => (
+            <div key={oi} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 46px 24px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+              <input value={opt.text} onChange={e => upd({ ...nodes, [nid]: { ...nodes[nid], options: nodes[nid].options.map((o,i)=>i===oi?{...o,text:e.target.value}:o) } })}
+                placeholder={`Opción ${oi+1}`} style={inp} />
+              <select value={opt.next} onChange={e => upd({ ...nodes, [nid]: { ...nodes[nid], options: nodes[nid].options.map((o,i)=>i===oi?{...o,next:e.target.value}:o) } })}
+                style={{ ...inp, cursor: 'pointer', fontSize: 11 }}>
+                {nodeIds.filter(k=>k!==nid).map(k=><option key={k} value={k}>{nodes[k]?.end?`✅ ${k}`:k}</option>)}
+              </select>
+              <select value={opt.points} onChange={e => upd({ ...nodes, [nid]: { ...nodes[nid], options: nodes[nid].options.map((o,i)=>i===oi?{...o,points:Number(e.target.value)}:o) } })}
+                style={{ ...inp, cursor: 'pointer' }}>
+                {[1,2,3].map(p=><option key={p} value={p}>{p}pts</option>)}
+              </select>
+              <button onClick={() => { if ((nodes[nid]?.options||[]).length>1) upd({ ...nodes, [nid]: { ...nodes[nid], options: nodes[nid].options.filter((_,i)=>i!==oi) } }) }}
+                style={{ width: 24, height: 24, borderRadius: 6, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <XIc s={11} c="var(--error)" />
+              </button>
+            </div>
+          ))}
+          <button onClick={() => upd({ ...nodes, [nid]: { ...nodes[nid], options: [...(nodes[nid].options||[]), { text:'', next: ends[0]||'end_high', points:2 }] } })}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11, fontWeight: 600 }}>
+            <PlusIc s={10} c="var(--orange)" /> Opción
+          </button>
+        </div>
+      ))}
+      <div>
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 8 }}>Resultados finales</p>
+        {ends.map(nid => (
+          <div key={nid} style={{ display: 'flex', gap: 8, marginBottom: 7, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', minWidth: 70, flexShrink: 0 }}>{nid}</span>
+            <input value={nodes[nid]?.text||''} onChange={e => upd({ ...nodes, [nid]: { ...nodes[nid], text: e.target.value } })}
+              placeholder="Texto del resultado..." style={{ ...inp, flex: 1 }} />
+            <button onClick={() => { if (ends.length > 1) { const n = { ...nodes }; delete n[nid]; upd(n) } }} disabled={ends.length <= 1}
+              style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: ends.length<=1?.3:1 }}>
+              <XIc s={12} c="var(--error)" />
+            </button>
+          </div>
+        ))}
+        <button onClick={() => { const id='end_'+Date.now(); upd({ ...nodes, [id]: { text:'📝 Resultado...', end:true } }) }}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 7, border: '1.5px dashed var(--success)', background: '#F0FDF4', color: 'var(--success)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11, fontWeight: 600 }}>
+          <PlusIc s={10} c="var(--success)" /> Resultado
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const DesignLabEditorContent = ({ mod, onChange }) => {
+  const DEFAULT = [
+    { phase:'Empatizar',icon:'❤️',question:'¿Cómo conocerás a tus estudiantes antes de diseñar?',
+      options:[{id:'a',text:'Entrevistas y observación',emoji:'🎤',score:3,tag:'Investigación empática'},
+               {id:'b',text:'Encuesta breve',emoji:'📋',score:2,tag:'Diagnóstico parcial'},
+               {id:'c',text:'Asumir por experiencia previa',emoji:'🤔',score:1,tag:'Sin investigación'}]},
+  ]
+  const [steps, setSteps] = React.useState([])
+  React.useEffect(() => {
+    const init = (mod?.designSteps || mod?.override?.designSteps || DEFAULT).map(s => ({ ...s, options: s.options.map(o => ({ ...o })) }))
+    setSteps(init); onChange({ designSteps: init })
+  }, [mod?.id])
+  const upd = (next) => { setSteps(next); onChange({ designSteps: next }) }
+  const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 12, outline: 'none', boxSizing: 'border-box' }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {steps.map((step, si) => (
+        <div key={si} style={{ padding: 12, borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+            <input value={step.icon} onChange={e => upd(steps.map((s,i)=>i===si?{...s,icon:e.target.value}:s))}
+              style={{ ...inp, width: 46, textAlign: 'center', fontSize: 18 }} />
+            <input value={step.phase} onChange={e => upd(steps.map((s,i)=>i===si?{...s,phase:e.target.value}:s))}
+              placeholder="Fase" style={{ ...inp, flex: 1, fontWeight: 700 }} />
+            <button onClick={() => { if (steps.length>1) upd(steps.filter((_,i)=>i!==si)) }} disabled={steps.length<=1}
+              style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: steps.length<=1?.3:1 }}>
+              <XIc s={12} c="var(--error)" />
+            </button>
+          </div>
+          <input value={step.question} onChange={e => upd(steps.map((s,i)=>i===si?{...s,question:e.target.value}:s))}
+            placeholder="Pregunta de diseño..." style={{ ...inp, width: '100%', marginBottom: 8 }} />
+          {step.options.map((opt, oi) => (
+            <div key={oi} style={{ display: 'grid', gridTemplateColumns: '34px 1fr 1fr 44px', gap: 5, marginBottom: 6, alignItems: 'center' }}>
+              <input value={opt.emoji} onChange={e => upd(steps.map((s,i)=>i!==si?s:{...s,options:s.options.map((o,j)=>j===oi?{...o,emoji:e.target.value}:o)}))}
+                style={{ ...inp, textAlign: 'center', fontSize: 15, padding: '5px' }} />
+              <input value={opt.text} onChange={e => upd(steps.map((s,i)=>i!==si?s:{...s,options:s.options.map((o,j)=>j===oi?{...o,text:e.target.value}:o)}))}
+                placeholder={`Opción ${String.fromCharCode(65+oi)}`} style={inp} />
+              <input value={opt.tag} onChange={e => upd(steps.map((s,i)=>i!==si?s:{...s,options:s.options.map((o,j)=>j===oi?{...o,tag:e.target.value}:o)}))}
+                placeholder="Etiqueta" style={inp} />
+              <select value={opt.score} onChange={e => upd(steps.map((s,i)=>i!==si?s:{...s,options:s.options.map((o,j)=>j===oi?{...o,score:Number(e.target.value)}:o)}))}
+                style={{ ...inp, cursor: 'pointer' }}>
+                {[1,2,3].map(p=><option key={p} value={p}>{p}pts</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+      ))}
+      <button onClick={() => upd([...steps,{phase:'Nueva fase',icon:'📝',question:'',options:[{id:'a',text:'',emoji:'✅',score:3,tag:''},{id:'b',text:'',emoji:'⚠️',score:2,tag:''},{id:'c',text:'',emoji:'❌',score:1,tag:''}]}])}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 10, border: '2px dashed var(--success)', background: '#F0FDF4', color: 'var(--success)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, justifyContent: 'center' }}>
+        <PlusIc s={14} c="var(--success)" /> Agregar fase
+      </button>
+    </div>
+  )
+}
+
+// ---- Full Challenge Editor Modal (common fields + type-specific content) ----
+const TYPE_CONTENT_MAP = {
+  dragdrop:   DragDropEditorContent,
+  empathy:    EmpathyEditorContent,
+  matching:   MatchingEditorContent,
+  simulation: SimulationEditorContent,
+  designlab:  DesignLabEditorContent,
+}
+const TYPE_TITLE = {
+  dragdrop:   'Arrastrar y ordenar',
+  empathy:    'Mapa de empatía',
+  matching:   'Conectar conceptos',
+  simulation: 'Simulación',
+  designlab:  'Lab de diseño',
+}
+
 const ChallengeEditorModal = ({ open, mod, onClose, onSave }) => {
+  const [title, setTitle] = React.useState('')
+  const [desc, setDesc]   = React.useState('')
+  const [task, setTask]   = React.useState('')
+  const [xp, setXp]       = React.useState(0)
+  const typeDataRef = React.useRef({})
+
+  React.useEffect(() => {
+    if (open && mod) {
+      setTitle(mod.title || '')
+      setDesc(mod.desc || '')
+      setTask(mod.task || '')
+      setXp(mod.xp || 0)
+      typeDataRef.current = {}
+    }
+  }, [open, mod?.id])
+
   if (!mod) return null
-  if (mod.ctype === 'matching')  return <MatchingEditorModal  open={open} mod={mod} onClose={onClose} onSave={onSave} />
-  if (mod.ctype === 'dragdrop')  return <DragDropEditorModal  open={open} mod={mod} onClose={onClose} onSave={onSave} />
-  if (mod.ctype === 'empathy')   return <EmpathyEditorModal   open={open} mod={mod} onClose={onClose} onSave={onSave} />
-  if (mod.ctype === 'simulation')return <SimulationEditorModal open={open} mod={mod} onClose={onClose} onSave={onSave} />
-  if (mod.ctype === 'designlab') return <DesignLabEditorModal  open={open} mod={mod} onClose={onClose} onSave={onSave} />
-  return null
+
+  const TypeContent = TYPE_CONTENT_MAP[mod.ctype]
+  const inp = { padding: '9px 12px', borderRadius: 10, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }
+
+  return (
+    <Modal open={open} onClose={onClose}
+      title={`Editar ${TYPE_TITLE[mod.ctype] || 'reto'}: ${mod.isNew ? '' : mod.title}`}
+      width={620}>
+      <div style={{ maxHeight: '72vh', overflow: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* Common fields */}
+        <div style={{ padding: '14px', borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>Información general</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: 10 }}>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título del reto *" style={inp} />
+            <input type="number" value={xp} onChange={e => setXp(e.target.value)} placeholder="XP" min={0} style={inp} />
+          </div>
+          <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Descripción breve (aparece en el mapa)" style={inp} />
+          <input value={task} onChange={e => setTask(e.target.value)} placeholder="Instrucción al estudiante: ¿qué debe hacer?" style={inp} />
+        </div>
+
+        {/* Type-specific content */}
+        {TypeContent && (
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--purple)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+              Contenido del reto — {TYPE_TITLE[mod.ctype]}
+            </p>
+            <TypeContent mod={mod} onChange={data => { typeDataRef.current = data }} />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+          {!mod.isNew && mod.override && (
+            <Btn variant="secondary" onClick={() => onSave({ __clearOverride: true })}>Restablecer original</Btn>
+          )}
+          <Btn variant="secondary" full onClick={onClose}>Cancelar</Btn>
+          <Btn variant="gradient" full onClick={() => onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 0, ...typeDataRef.current })}>
+            Guardar cambios
+          </Btn>
+        </div>
+      </div>
+    </Modal>
+  )
 }
 
 // ---- DragDrop Editor ----
@@ -874,6 +1221,7 @@ const InstructorRouteEditor = () => {
   const [editingChallenge, setEditingChallenge] = React.useState(null)
   const [editingQuiz, setEditingQuiz] = React.useState(null)
   const [showNewChallenge, setShowNewChallenge] = React.useState(false)
+  const [showPreview, setShowPreview] = React.useState(false)
 
   React.useEffect(() => {
     const defaults = getStudentModules(activeArea)
@@ -924,11 +1272,13 @@ const InstructorRouteEditor = () => {
   }
 
   const saveChallengeOverride = (override) => {
-    if (editingChallenge?.isNew) {
+    if (override.__clearOverride) {
+      const original = getStudentModules(activeArea).find(m => m.id === editingChallenge?.id)
+      if (original) setModuleList(l => l.map(m => m.id === editingChallenge.id ? { ...original, enabled: m.enabled, override: null } : m))
+    } else if (editingChallenge?.isNew) {
       setCustomModules(l => [...l, {
         id: 'challenge_' + Date.now(), type: 'challenge',
-        ctype: editingChallenge.ctype, title: editingChallenge.title,
-        desc: editingChallenge.desc, task: editingChallenge.task, xp: editingChallenge.xp,
+        ctype: editingChallenge.ctype,
         ...override, enabled: true, order: moduleList.length + l.length,
       }])
     } else {
@@ -999,9 +1349,12 @@ const InstructorRouteEditor = () => {
           <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>Editor de Ruta de Formación</h2>
           <p style={{ fontSize: 14, color: 'var(--muted)' }}>Personaliza el orden, contenido y módulos de cada área</p>
         </div>
-        <Btn variant={saved ? 'secondary' : 'gradient'} disabled={saving} onClick={handleSave}>
-          {saving ? '⏳ Guardando...' : saved ? '✅ Guardado' : '💾 Guardar cambios'}
-        </Btn>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Btn variant="secondary" onClick={() => setShowPreview(true)}>👁 Vista previa</Btn>
+          <Btn variant={saved ? 'secondary' : 'gradient'} disabled={saving} onClick={handleSave}>
+            {saving ? '⏳ Guardando...' : saved ? '✅ Guardado' : '💾 Guardar cambios'}
+          </Btn>
+        </div>
       </div>
 
       {/* Area tabs */}
@@ -1169,7 +1522,435 @@ const InstructorRouteEditor = () => {
       <CustomModuleModal open={showAddModule || !!editingModule} initial={editingModule}
         onClose={() => { setShowAddModule(false); setEditingModule(null) }}
         onSave={mod => { if (editingModule) saveEditedModule(mod); else addCustomModule(mod); setShowAddModule(false); setEditingModule(null) }} />
+      <RoutePreviewModal
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+        area={AREAS.find(a => a.id === activeArea)}
+        moduleList={moduleList}
+        customModules={customModules}
+      />
     </div>
+  )
+}
+
+// ---- Route Preview ----
+const CTYPE_EMOJI = { dragdrop:'🧩', empathy:'🗺️', simulation:'🎭', matching:'🔗', designlab:'🏗️', quiz:'📝' }
+
+// ---- Lesson content renderer (pure display, no interactivity) ----
+const LessonPreviewContent = ({ mod }) => {
+  const renderSection = (sec, i) => {
+    if (sec.type === 'intro') return (
+      <div key={i} style={{ marginBottom: 24 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--dark)', marginBottom: 10 }}>{sec.title}</h3>
+        <p style={{ fontSize: 15, color: 'var(--text-sec)', lineHeight: 1.8 }}>{sec.text}</p>
+      </div>
+    )
+    if (sec.type === 'text') return (
+      <div key={i} style={{ marginBottom: 24 }}>
+        <h4 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 8 }}>{sec.title}</h4>
+        <p style={{ fontSize: 14, color: 'var(--text-sec)', lineHeight: 1.8 }}>{sec.text}</p>
+      </div>
+    )
+    if (sec.type === 'callout') return (
+      <div key={i} style={{ padding: '16px 20px', borderRadius: 12, background: 'var(--purple-bg)', borderLeft: '4px solid var(--purple)', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 18 }}>{sec.icon || '💡'}</span>
+          <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--purple-deep)' }}>{sec.title}</h4>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.7, margin: 0 }}>{sec.text}</p>
+      </div>
+    )
+    if (sec.type === 'concepts') return (
+      <div key={i} style={{ marginBottom: 24 }}>
+        <h4 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>{sec.title}</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 10 }}>
+          {(sec.items || []).map((item, j) => (
+            <div key={j} style={{ padding: '14px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--white)' }}>
+              <h5 style={{ fontSize: 13, fontWeight: 700, color: 'var(--orange)', marginBottom: 4 }}>{item.t}</h5>
+              <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, margin: 0 }}>{item.d}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+    if (sec.type === 'compare') return (
+      <div key={i} style={{ marginBottom: 24 }}>
+        <h4 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 4 }}>{sec.title}</h4>
+        <p style={{ fontSize: 12, color: 'var(--subtle)', marginBottom: 10 }}>{sec.label}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ padding: '14px 16px', borderRadius: 12, background: '#FEF2F2', border: '1px solid #FECACA' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--error)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Enfoque Tradicional</div>
+            <p style={{ fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.6, margin: 0 }}>{sec.trad}</p>
+          </div>
+          <div style={{ padding: '14px 16px', borderRadius: 12, background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Enfoque DCE</div>
+            <p style={{ fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.6, margin: 0 }}>{sec.dce}</p>
+          </div>
+        </div>
+      </div>
+    )
+    if (sec.type === 'video') {
+      const vid = sec.url?.includes('v=') ? sec.url.split('v=')[1]?.split('&')[0] : sec.url?.split('youtu.be/')[1]?.split('?')[0] || sec.url
+      return (
+        <div key={i} style={{ marginBottom: 24 }}>
+          {sec.title && <h4 style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', marginBottom: 8 }}>{sec.title}</h4>}
+          <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--sh-md)' }}>
+            <iframe src={`https://www.youtube.com/embed/${vid}?rel=0`} title={sec.title || 'Video'}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
+          </div>
+        </div>
+      )
+    }
+    return null
+  }
+
+  return (
+    <div>
+      {mod.task && (
+        <div style={{ display: 'flex', gap: 12, padding: '14px 16px', borderRadius: 12,
+          background: '#FFF7ED', border: '1.5px solid #FDBA74', marginBottom: 24 }}>
+          <span style={{ fontSize: 20 }}>📋</span>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: '#C2410C', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>¿Qué debe hacer el estudiante?</div>
+            <p style={{ fontSize: 13, color: '#7C2D12', lineHeight: 1.6, margin: 0 }}>{mod.task}</p>
+          </div>
+        </div>
+      )}
+      {(mod.content || []).map((sec, i) => renderSection(sec, i))}
+      {!(mod.content?.length) && (
+        <p style={{ color: 'var(--muted)', fontStyle: 'italic', fontSize: 13 }}>Este módulo no tiene contenido configurado aún.</p>
+      )}
+    </div>
+  )
+}
+
+// ---- Challenge answer-key previews ----
+const ChallengePreviewContent = ({ mod }) => {
+  if (mod.ctype === 'dragdrop') {
+    const items = mod.dragItems || mod.override?.dragItems || ['Empatizar','Definir','Idear','Prototipar','Evaluar']
+    const colors = ['#E8732C','#7B3FA0','#3B82F6','#10B981','#F59E0B']
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>El estudiante arrastrará estos elementos y deberá colocarlos en este orden:</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12,
+              background: 'var(--white)', border: `2px solid ${colors[i % colors.length]}30` }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: colors[i % colors.length] + '20',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14,
+                color: colors[i % colors.length], flexShrink: 0 }}>{i + 1}</div>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--dark)' }}>{item}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>✓ Posición correcta</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (mod.ctype === 'empathy') {
+    const cards = mod.empathyCards || mod.override?.empathyCards || []
+    const quadrants = ['piensa','siente','dice','hace']
+    const qIcons = { piensa:'🧠', siente:'❤️', dice:'💬', hace:'🤲' }
+    const qColors = { piensa:'#3B82F6', siente:'#EF4444', dice:'#10B981', hace:'#F59E0B' }
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>El estudiante clasificará estas tarjetas en los cuadrantes del Mapa de Empatía:</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {quadrants.map(q => {
+            const qCards = cards.filter(c => c.correct === q)
+            return (
+              <div key={q} style={{ padding: '12px 14px', borderRadius: 12, background: qColors[q] + '10', border: `1.5px solid ${qColors[q]}30` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <span style={{ fontSize: 16 }}>{qIcons[q]}</span>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: qColors[q] }}>{q.charAt(0).toUpperCase() + q.slice(1)}</span>
+                </div>
+                {qCards.length === 0 ? <p style={{ fontSize: 11, color: 'var(--subtle)', fontStyle: 'italic', margin: 0 }}>Sin tarjetas</p>
+                  : qCards.map((c, i) => (
+                    <div key={i} style={{ fontSize: 12, color: 'var(--dark)', padding: '6px 8px', borderRadius: 8,
+                      background: 'var(--white)', marginBottom: 4, border: '1px solid ' + qColors[q] + '30' }}>{c.text}</div>
+                  ))}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  if (mod.ctype === 'matching') {
+    const pairs = mod.matchPairs || mod.override?.matchPairs || []
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>El estudiante conectará cada concepto con su definición correcta:</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {pairs.map((p, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 10, alignItems: 'center' }}>
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--white)', border: `2px solid ${p.color}`, fontWeight: 700, fontSize: 13, color: p.color }}>{p.concept}</div>
+              <span style={{ fontSize: 18, color: 'var(--success)' }}>↔</span>
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: p.color + '10', border: `1.5px solid ${p.color}50`, fontSize: 13, color: 'var(--dark)' }}>{p.def}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (mod.ctype === 'simulation') {
+    const tree = mod.simTree || mod.override?.simTree || {}
+    const nodeIds = Object.keys(tree)
+    if (!nodeIds.length) return <p style={{ color: 'var(--muted)', fontStyle: 'italic' }}>Sin árbol de decisiones configurado.</p>
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>El estudiante navegará por este árbol de decisiones pedagógicas:</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {nodeIds.map(nid => {
+            const node = tree[nid]
+            return (
+              <div key={nid} style={{ padding: '12px 14px', borderRadius: 12,
+                background: node.end ? '#F0FDF4' : 'var(--white)',
+                border: node.end ? '1px solid #BBF7D0' : '1px solid var(--border)' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: node.end ? 'var(--success)' : 'var(--orange)',
+                  textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>
+                  {nid === 'start' ? '🟢 INICIO' : node.end ? '✅ RESULTADO' : `📍 ${nid}`}
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--dark)', lineHeight: 1.6, margin: 0, marginBottom: node.options?.length ? 8 : 0 }}>{node.text}</p>
+                {node.options?.map((opt, oi) => (
+                  <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8,
+                    background: 'var(--bg)', marginBottom: 4, border: '1px solid var(--border)' }}>
+                    <span style={{ width: 22, height: 22, borderRadius: 6, background: opt.points===3?'var(--success)':opt.points===2?'var(--warn)':'var(--error)',
+                      color:'#fff', fontWeight: 800, fontSize: 11, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      {opt.points}
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--dark)', flex: 1 }}>{opt.text}</span>
+                    <span style={{ fontSize: 10, color: 'var(--muted)' }}>→ {opt.next}</span>
+                  </div>
+                ))}
+              </div>
+            )
+          })}
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--subtle)', marginTop: 8 }}>El color del badge indica los puntos: 🟢 3pts · 🟡 2pts · 🔴 1pt</p>
+      </div>
+    )
+  }
+
+  if (mod.ctype === 'designlab') {
+    const steps = mod.designSteps || mod.override?.designSteps || []
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>El estudiante tomará decisiones de diseño en {steps.length} fases:</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {steps.map((step, si) => (
+            <div key={si} style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--white)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 20 }}>{step.icon}</span>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8 }}>{step.phase}</div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)', margin: 0 }}>{step.question}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {(step.options || []).map((opt, oi) => (
+                  <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10,
+                    background: opt.score===3?'#F0FDF4':opt.score===2?'#FFFBEB':'#FEF2F2',
+                    border: `1px solid ${opt.score===3?'#BBF7D0':opt.score===2?'#FDE68A':'#FECACA'}` }}>
+                    <span style={{ fontSize: 18 }}>{opt.emoji}</span>
+                    <span style={{ fontSize: 13, color: 'var(--dark)', flex: 1 }}>{opt.text}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                      background: opt.score===3?'var(--success)':opt.score===2?'var(--warn)':'var(--error)', color:'#fff' }}>
+                      {opt.score}pts
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (mod.ctype === 'quiz') {
+    const qs = mod.questions || []
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>El estudiante responderá {qs.length} pregunta{qs.length !== 1 ? 's' : ''} de opción múltiple:</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {qs.map((q, qi) => (
+            <div key={qi} style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--white)', border: '1px solid var(--border)' }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--dark)', marginBottom: 10 }}>{qi + 1}. {q.question}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {(q.options || []).map((opt, oi) => (
+                  <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10,
+                    background: oi === q.correct ? '#F0FDF4' : 'var(--bg)',
+                    border: oi === q.correct ? '1.5px solid var(--success)' : '1px solid var(--border)' }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 7, background: oi === q.correct ? 'var(--success)' : 'var(--bg-alt)',
+                      color: oi === q.correct ? '#fff' : 'var(--muted)', fontWeight: 700, fontSize: 12,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {String.fromCharCode(65 + oi)}
+                    </span>
+                    <span style={{ fontSize: 13, color: 'var(--dark)', fontWeight: oi === q.correct ? 600 : 400 }}>{opt}</span>
+                    {oi === q.correct && <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--success)', fontWeight: 700 }}>✓ Correcta</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return <p style={{ color: 'var(--muted)', fontStyle: 'italic', fontSize: 13 }}>Vista previa no disponible para este tipo de reto.</p>
+}
+
+// ---- Route Preview Modal (list + drill-down) ----
+const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules }) => {
+  const [viewing, setViewing] = React.useState(null)
+
+  React.useEffect(() => { if (!open) setViewing(null) }, [open])
+
+  const merged = React.useMemo(() => {
+    if (!moduleList) return []
+    const base = moduleList.map((m, i) => ({ ...m, _order: i }))
+    const customs = (customModules || []).map(m => ({ ...m, isCustom: true, _order: (m.order ?? 999) + 0.5 }))
+    return [...base, ...customs].sort((a, b) => a._order - b._order)
+  }, [moduleList, customModules])
+
+  const enabled  = merged.filter(m => m.enabled !== false)
+
+  // ---- Detail view ----
+  if (viewing) {
+    const isLesson = viewing.type === 'lesson'
+    return (
+      <Modal open={open} onClose={onClose} title={viewing.title} width={680}>
+        <div style={{ maxHeight: '78vh', overflow: 'auto', paddingRight: 4 }}>
+          {/* Back + meta */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <button onClick={() => setViewing(null)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
+                border: '1.5px solid var(--border)', background: 'var(--white)', cursor: 'pointer',
+                fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+              ← Volver a la ruta
+            </button>
+            {viewing.xp > 0 && (
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--orange)', background: 'var(--orange-bg)', padding: '4px 10px', borderRadius: 8 }}>
+                +{viewing.xp} XP
+              </span>
+            )}
+            {viewing.isCustom && (
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 8px', borderRadius: 8, background: '#D1FAE5', color: 'var(--success)' }}>PERSONALIZADO</span>
+            )}
+          </div>
+
+          {/* Hero */}
+          <div style={{ padding: '20px 24px', borderRadius: 14, background: 'var(--gradient)', marginBottom: 24 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.7)', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 }}>
+              {viewing.subtitle || (isLesson ? 'Módulo' : 'Reto')}
+            </div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 6 }}>{viewing.title}</h2>
+            {viewing.desc && <p style={{ fontSize: 13, color: 'rgba(255,255,255,.75)' }}>{viewing.desc}</p>}
+            <div style={{ marginTop: 10, padding: '6px 12px', borderRadius: 8, background: 'rgba(0,0,0,.2)', display: 'inline-block' }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.8)', fontWeight: 600 }}>
+                👁 MODO VISTA PREVIA — Solo visible para el instructor
+              </span>
+            </div>
+          </div>
+
+          {/* Content */}
+          {isLesson
+            ? <LessonPreviewContent mod={viewing} />
+            : <ChallengePreviewContent mod={viewing} />
+          }
+        </div>
+      </Modal>
+    )
+  }
+
+  // ---- List view ----
+  return (
+    <Modal open={open} onClose={onClose} title="Vista previa de la ruta" width={600}>
+      <div style={{ maxHeight: '75vh', overflow: 'auto', paddingRight: 4 }}>
+        {area && (
+          <div style={{ padding: '14px 18px', borderRadius: 14, marginBottom: 18,
+            background: `linear-gradient(135deg, ${area.color}18, ${area.color}06)`,
+            border: `2px solid ${area.color}25`, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 32 }}>{area.icon}</span>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--dark)' }}>{area.name}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                {enabled.length} activo{enabled.length !== 1 ? 's' : ''}
+                {' · '}{enabled.reduce((s, m) => s + (m.xp || 0), 0)} XP total
+                {' · '}<span style={{ color: 'var(--orange)' }}>Haz clic en cualquier tarjeta para ver su contenido</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {merged.map((mod, i) => {
+            const isChallenge = mod.type === 'challenge' || mod.type === 'evaluation'
+            const isDisabled = mod.enabled === false
+            const color = isChallenge ? 'var(--purple)' : 'var(--orange)'
+            const bg    = isChallenge ? 'var(--purple-bg)' : 'var(--orange-bg)'
+            const emoji = isChallenge ? (CTYPE_EMOJI[mod.ctype] || '⚡') : '📖'
+            return (
+              <React.Fragment key={mod.id || i}>
+                <div onClick={() => !isDisabled && setViewing(mod)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                    borderRadius: 12, background: isDisabled ? 'var(--bg)' : 'var(--white)',
+                    border: isDisabled ? '1px dashed var(--border)' : mod.isCustom ? '2px solid #D1FAE5' : '1px solid var(--border)',
+                    opacity: isDisabled ? .45 : 1, cursor: isDisabled ? 'default' : 'pointer', transition: 'all .15s' }}
+                  onMouseEnter={e => !isDisabled && (e.currentTarget.style.boxShadow = 'var(--sh-md)')}
+                  onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
+                  <div style={{ width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+                    background: isDisabled ? 'var(--bg-alt)' : bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
+                    {isDisabled ? '🔒' : emoji}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4, background: bg, color, textTransform: 'uppercase', letterSpacing: .8 }}>
+                        {isChallenge ? (CHALLENGE_TYPES.find(t => t.id === mod.ctype)?.label || 'RETO') : 'MÓDULO'}
+                      </span>
+                      {mod.isCustom && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4, background: '#D1FAE5', color: 'var(--success)', textTransform: 'uppercase', letterSpacing: .8 }}>PERSONALIZADO</span>}
+                      {mod.override && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4, background: 'var(--orange-bg)', color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8 }}>EDITADO</span>}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: isDisabled ? 'var(--subtle)' : 'var(--dark)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mod.title}</div>
+                  </div>
+                  {mod.xp > 0 && !isDisabled && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', background: 'var(--orange-bg)', padding: '3px 7px', borderRadius: 7, flexShrink: 0 }}>+{mod.xp}</span>}
+                  {!isDisabled && <span style={{ fontSize: 16, color: 'var(--muted)', flexShrink: 0 }}>›</span>}
+                </div>
+                {i < merged.length - 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <div style={{ width: 2, height: 10, background: isDisabled ? 'var(--border)' : 'var(--orange)', borderRadius: 2, opacity: .4 }} />
+                  </div>
+                )}
+              </React.Fragment>
+            )
+          })}
+        </div>
+
+        {!merged.length && <p style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontSize: 14 }}>No hay módulos configurados.</p>}
+
+        <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border)',
+          display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'space-around' }}>
+          {[
+            { label: 'Módulos', value: enabled.filter(m => m.type === 'lesson').length, color: 'var(--orange)' },
+            { label: 'Retos',   value: enabled.filter(m => m.type !== 'lesson').length, color: 'var(--purple)' },
+            { label: 'Custom',  value: merged.filter(m => m.isCustom).length,           color: 'var(--success)' },
+            { label: 'XP',      value: enabled.reduce((s, m) => s + (m.xp || 0), 0),  color: 'var(--warn)' },
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 500 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Modal>
   )
 }
 
