@@ -238,74 +238,18 @@ const SimulationEditorContent = ({ mod, onChange }) => {
   )
 }
 
-const DesignLabEditorContent = ({ mod, onChange }) => {
-  const DEFAULT = [
-    { phase:'Empatizar',icon:'❤️',question:'¿Cómo conocerás a tus estudiantes antes de diseñar?',
-      options:[{id:'a',text:'Entrevistas y observación',emoji:'🎤',score:3,tag:'Investigación empática'},
-               {id:'b',text:'Encuesta breve',emoji:'📋',score:2,tag:'Diagnóstico parcial'},
-               {id:'c',text:'Asumir por experiencia previa',emoji:'🤔',score:1,tag:'Sin investigación'}]},
-  ]
-  const [steps, setSteps] = React.useState([])
-  React.useEffect(() => {
-    const init = (mod?.designSteps || mod?.override?.designSteps || DEFAULT).map(s => ({ ...s, options: s.options.map(o => ({ ...o })) }))
-    setSteps(init); onChange({ designSteps: init })
-  }, [mod?.id])
-  const upd = (next) => { setSteps(next); onChange({ designSteps: next }) }
-  const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 12, outline: 'none', boxSizing: 'border-box' }
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {steps.map((step, si) => (
-        <div key={si} style={{ padding: 12, borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-            <input value={step.icon} onChange={e => upd(steps.map((s,i)=>i===si?{...s,icon:e.target.value}:s))}
-              style={{ ...inp, width: 46, textAlign: 'center', fontSize: 18 }} />
-            <input value={step.phase} onChange={e => upd(steps.map((s,i)=>i===si?{...s,phase:e.target.value}:s))}
-              placeholder="Fase" style={{ ...inp, flex: 1, fontWeight: 700 }} />
-            <button onClick={() => { if (steps.length>1) upd(steps.filter((_,i)=>i!==si)) }} disabled={steps.length<=1}
-              style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: steps.length<=1?.3:1 }}>
-              <XIc s={12} c="var(--error)" />
-            </button>
-          </div>
-          <input value={step.question} onChange={e => upd(steps.map((s,i)=>i===si?{...s,question:e.target.value}:s))}
-            placeholder="Pregunta de diseño..." style={{ ...inp, width: '100%', marginBottom: 8 }} />
-          {step.options.map((opt, oi) => (
-            <div key={oi} style={{ display: 'grid', gridTemplateColumns: '34px 1fr 1fr 44px', gap: 5, marginBottom: 6, alignItems: 'center' }}>
-              <input value={opt.emoji} onChange={e => upd(steps.map((s,i)=>i!==si?s:{...s,options:s.options.map((o,j)=>j===oi?{...o,emoji:e.target.value}:o)}))}
-                style={{ ...inp, textAlign: 'center', fontSize: 15, padding: '5px' }} />
-              <input value={opt.text} onChange={e => upd(steps.map((s,i)=>i!==si?s:{...s,options:s.options.map((o,j)=>j===oi?{...o,text:e.target.value}:o)}))}
-                placeholder={`Opción ${String.fromCharCode(65+oi)}`} style={inp} />
-              <input value={opt.tag} onChange={e => upd(steps.map((s,i)=>i!==si?s:{...s,options:s.options.map((o,j)=>j===oi?{...o,tag:e.target.value}:o)}))}
-                placeholder="Etiqueta" style={inp} />
-              <select value={opt.score} onChange={e => upd(steps.map((s,i)=>i!==si?s:{...s,options:s.options.map((o,j)=>j===oi?{...o,score:Number(e.target.value)}:o)}))}
-                style={{ ...inp, cursor: 'pointer' }}>
-                {[1,2,3].map(p=><option key={p} value={p}>{p}pts</option>)}
-              </select>
-            </div>
-          ))}
-        </div>
-      ))}
-      <button onClick={() => upd([...steps,{phase:'Nueva fase',icon:'📝',question:'',options:[{id:'a',text:'',emoji:'✅',score:3,tag:''},{id:'b',text:'',emoji:'⚠️',score:2,tag:''},{id:'c',text:'',emoji:'❌',score:1,tag:''}]}])}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 10, border: '2px dashed var(--success)', background: '#F0FDF4', color: 'var(--success)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, justifyContent: 'center' }}>
-        <PlusIc s={14} c="var(--success)" /> Agregar fase
-      </button>
-    </div>
-  )
-}
-
 // ---- Full Challenge Editor Modal (common fields + type-specific content) ----
 const TYPE_CONTENT_MAP = {
   dragdrop:   DragDropEditorContent,
   empathy:    EmpathyEditorContent,
   matching:   MatchingEditorContent,
   simulation: SimulationEditorContent,
-  designlab:  DesignLabEditorContent,
 }
 const TYPE_TITLE = {
   dragdrop:   'Arrastrar y ordenar',
   empathy:    'Mapa de empatía',
   matching:   'Conectar conceptos',
   simulation: 'Simulación',
-  designlab:  'Lab de diseño',
 }
 
 const ChallengeEditorModal = ({ open, mod, onClose, onSave }) => {
@@ -623,77 +567,6 @@ const SimulationEditorModal = ({ open, mod, onClose, onSave }) => {
 
 // ---- DesignLab Editor ----
 const STEP_EMOJIS = ['❤️','🎯','💡','🔧','📊','🧪','🌍','🎭','📋','🤔']
-
-const DesignLabEditorModal = ({ open, mod, onClose, onSave }) => {
-  const DEFAULT_STEPS = [
-    { phase:'Empatizar', icon:'❤️', question:'¿Cómo conocerás a tus estudiantes antes de diseñar?',
-      options:[{id:'a',text:'Entrevistas y observación',emoji:'🎤',score:3,tag:'Investigación empática'},
-               {id:'b',text:'Encuesta breve',emoji:'📋',score:2,tag:'Diagnóstico parcial'},
-               {id:'c',text:'Asumir por experiencia previa',emoji:'🤔',score:1,tag:'Sin investigación'}]},
-  ]
-  const [steps, setSteps] = React.useState([])
-  React.useEffect(() => {
-    if (open && mod) setSteps(mod.designSteps ? mod.designSteps.map(s => ({ ...s, options: s.options.map(o => ({ ...o })) })) : DEFAULT_STEPS.map(s => ({ ...s })))
-  }, [open, mod])
-
-  const updateStep = (si, key, val) => setSteps(s => s.map((st, i) => i === si ? { ...st, [key]: val } : st))
-  const updateOpt  = (si, oi, key, val) => setSteps(s => s.map((st, i) => i !== si ? st : { ...st, options: st.options.map((o, j) => j !== oi ? o : { ...o, [key]: val }) }))
-  const addStep    = () => setSteps(s => [...s, { phase: 'Nueva fase', icon: '📝', question: '', options: [
-    {id:'a',text:'',emoji:'✅',score:3,tag:''}, {id:'b',text:'',emoji:'⚠️',score:2,tag:''}, {id:'c',text:'',emoji:'❌',score:1,tag:''}
-  ]}])
-  const removeStep = (si) => setSteps(s => s.filter((_, i) => i !== si))
-
-  const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }
-
-  return (
-    <Modal open={open} onClose={onClose} title="Editar fases del Laboratorio DCE" width={620}>
-      <div style={{ maxHeight: '65vh', overflow: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {steps.map((step, si) => (
-          <div key={si} style={{ padding: 16, borderRadius: 14, background: 'var(--bg)', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
-              <input value={step.icon} onChange={e => updateStep(si, 'icon', e.target.value)}
-                style={{ ...inp, width: 50, textAlign: 'center', fontSize: 20 }} />
-              <input value={step.phase} onChange={e => updateStep(si, 'phase', e.target.value)}
-                placeholder="Nombre de la fase" style={{ ...inp, flex: 1, fontWeight: 700 }} />
-              <button onClick={() => removeStep(si)} disabled={steps.length <= 1}
-                style={{ width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: steps.length <= 1 ? .3 : 1 }}>
-                <XIc s={13} c="var(--error)" />
-              </button>
-            </div>
-            <input value={step.question} onChange={e => updateStep(si, 'question', e.target.value)}
-              placeholder="Pregunta de diseño para esta fase..." style={{ ...inp, width: '100%', marginBottom: 10 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {(step.options || []).map((opt, oi) => (
-                <div key={oi} style={{ display: 'grid', gridTemplateColumns: '36px 1fr 1fr 44px', gap: 6, alignItems: 'center' }}>
-                  <input value={opt.emoji} onChange={e => updateOpt(si, oi, 'emoji', e.target.value)}
-                    style={{ ...inp, textAlign: 'center', fontSize: 16, padding: '6px' }} />
-                  <input value={opt.text} onChange={e => updateOpt(si, oi, 'text', e.target.value)}
-                    placeholder={`Opción ${String.fromCharCode(65+oi)}`} style={inp} />
-                  <input value={opt.tag} onChange={e => updateOpt(si, oi, 'tag', e.target.value)}
-                    placeholder="Etiqueta" style={inp} />
-                  <select value={opt.score} onChange={e => updateOpt(si, oi, 'score', Number(e.target.value))}
-                    style={{ ...inp, cursor: 'pointer' }}>
-                    {[1,2,3].map(p => <option key={p} value={p}>{p}pts</option>)}
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-        <button onClick={addStep} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10,
-          border: '2px dashed var(--success)', background: '#F0FDF4', color: 'var(--success)',
-          cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, justifyContent: 'center' }}>
-          <PlusIc s={16} c="var(--success)" /> Agregar fase
-        </button>
-      </div>
-      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-        <Btn variant="secondary" full onClick={onClose}>Cancelar</Btn>
-        <Btn variant="gradient" full onClick={() => onSave({ designSteps: steps })}>Guardar</Btn>
-      </div>
-    </Modal>
-  )
-}
 
 // ---- Matching Editor Modal ----
 const MatchingEditorModal = ({ open, mod, onClose, onSave }) => {
@@ -1135,7 +1008,6 @@ const CHALLENGE_TYPES = [
   { id:'empathy',    label:'Mapa de empatía',     emoji:'🗺️', desc:'Clasifica tarjetas en cuadrantes' },
   { id:'simulation', label:'Simulación',           emoji:'🎭', desc:'Árbol de decisiones pedagógicas' },
   { id:'matching',   label:'Conectar conceptos',  emoji:'🔗', desc:'Empareja conceptos con definiciones' },
-  { id:'designlab',  label:'Lab de diseño',        emoji:'🏗️', desc:'Diseña una experiencia paso a paso' },
   { id:'quiz',       label:'Quiz',                 emoji:'📝', desc:'Preguntas de opción múltiple' },
 ]
 
@@ -1534,7 +1406,7 @@ const InstructorRouteEditor = () => {
 }
 
 // ---- Route Preview ----
-const CTYPE_EMOJI = { dragdrop:'🧩', empathy:'🗺️', simulation:'🎭', matching:'🔗', designlab:'🏗️', quiz:'📝' }
+const CTYPE_EMOJI = { dragdrop:'🧩', empathy:'🗺️', simulation:'🎭', matching:'🔗', quiz:'📝' }
 
 // ---- Lesson content renderer (pure display, no interactivity) ----
 const LessonPreviewContent = ({ mod }) => {
@@ -1732,42 +1604,6 @@ const ChallengePreviewContent = ({ mod }) => {
           })}
         </div>
         <p style={{ fontSize: 11, color: 'var(--subtle)', marginTop: 8 }}>El color del badge indica los puntos: 🟢 3pts · 🟡 2pts · 🔴 1pt</p>
-      </div>
-    )
-  }
-
-  if (mod.ctype === 'designlab') {
-    const steps = mod.designSteps || mod.override?.designSteps || []
-    return (
-      <div>
-        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>El estudiante tomará decisiones de diseño en {steps.length} fases:</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {steps.map((step, si) => (
-            <div key={si} style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--white)', border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 20 }}>{step.icon}</span>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8 }}>{step.phase}</div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)', margin: 0 }}>{step.question}</p>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {(step.options || []).map((opt, oi) => (
-                  <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10,
-                    background: opt.score===3?'#F0FDF4':opt.score===2?'#FFFBEB':'#FEF2F2',
-                    border: `1px solid ${opt.score===3?'#BBF7D0':opt.score===2?'#FDE68A':'#FECACA'}` }}>
-                    <span style={{ fontSize: 18 }}>{opt.emoji}</span>
-                    <span style={{ fontSize: 13, color: 'var(--dark)', flex: 1 }}>{opt.text}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
-                      background: opt.score===3?'var(--success)':opt.score===2?'var(--warn)':'var(--error)', color:'#fff' }}>
-                      {opt.score}pts
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     )
   }
