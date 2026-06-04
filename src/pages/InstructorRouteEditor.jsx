@@ -12,6 +12,342 @@ const TYPE_BG    = { lesson: 'var(--orange-bg)', challenge: 'var(--purple-bg)', 
 
 const PAIR_COLORS = ['#E8732C','#7B3FA0','#3B82F6','#10B981','#F59E0B','#EC4899']
 
+// ---- Generic Challenge Editor Modal ----
+// Routes to the right sub-editor based on ctype
+const ChallengeEditorModal = ({ open, mod, onClose, onSave }) => {
+  if (!mod) return null
+  if (mod.ctype === 'matching')  return <MatchingEditorModal  open={open} mod={mod} onClose={onClose} onSave={onSave} />
+  if (mod.ctype === 'dragdrop')  return <DragDropEditorModal  open={open} mod={mod} onClose={onClose} onSave={onSave} />
+  if (mod.ctype === 'empathy')   return <EmpathyEditorModal   open={open} mod={mod} onClose={onClose} onSave={onSave} />
+  if (mod.ctype === 'simulation')return <SimulationEditorModal open={open} mod={mod} onClose={onClose} onSave={onSave} />
+  if (mod.ctype === 'designlab') return <DesignLabEditorModal  open={open} mod={mod} onClose={onClose} onSave={onSave} />
+  return null
+}
+
+// ---- DragDrop Editor ----
+const DragDropEditorModal = ({ open, mod, onClose, onSave }) => {
+  const [items, setItems] = React.useState([])
+  const [dragIdx, setDragIdx] = React.useState(null)
+  const [overIdx, setOverIdx] = React.useState(null)
+
+  React.useEffect(() => {
+    if (open && mod) setItems(mod.dragItems || ['Empatizar','Definir','Idear','Prototipar','Evaluar'])
+  }, [open, mod])
+
+  const handleDrop = (i) => {
+    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return }
+    const next = [...items]; const [moved] = next.splice(dragIdx, 1); next.splice(i, 0, moved)
+    setItems(next); setDragIdx(null); setOverIdx(null)
+  }
+  const update = (i, val) => setItems(it => it.map((x, idx) => idx === i ? val : x))
+  const remove = (i) => setItems(it => it.filter((_, idx) => idx !== i))
+  const add    = () => setItems(it => [...it, 'Nuevo elemento'])
+
+  const inp = { padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', flex: 1, boxSizing: 'border-box' }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Editar orden de arrastre" width={480}>
+      <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>
+        El orden en que escribas los elementos es el orden <strong>correcto</strong> que el estudiante debe reproducir. Arrastra para reordenar.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+        {items.map((item, i) => (
+          <div key={i} draggable
+            onDragStart={() => setDragIdx(i)} onDragOver={e => { e.preventDefault(); setOverIdx(i) }}
+            onDrop={() => handleDrop(i)} onDragEnd={() => { setDragIdx(null); setOverIdx(null) }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: dragIdx === i ? .4 : 1,
+              border: overIdx === i ? '2px dashed var(--orange)' : '1px solid var(--border)',
+              borderRadius: 10, padding: '8px 10px', background: 'var(--white)', transition: 'all .15s' }}>
+            <GripIc s={16} c="var(--subtle)" />
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange)', minWidth: 20 }}>{i + 1}.</span>
+            <input value={item} onChange={e => update(i, e.target.value)} style={inp} />
+            <button onClick={() => remove(i)} disabled={items.length <= 2}
+              style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: items.length <= 2 ? .3 : 1 }}>
+              <XIc s={13} c="var(--error)" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button onClick={add} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8,
+        border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)',
+        cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600, marginBottom: 16 }}>
+        <PlusIc s={13} c="var(--orange)" /> Agregar elemento
+      </button>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <Btn variant="secondary" full onClick={onClose}>Cancelar</Btn>
+        <Btn variant="gradient" full onClick={() => onSave({ dragItems: items })}>Guardar</Btn>
+      </div>
+    </Modal>
+  )
+}
+
+// ---- Empathy Editor ----
+const QUADRANTS = ['piensa','siente','dice','hace']
+const QUADRANT_LABELS = { piensa:'🧠 Piensa', siente:'❤️ Siente', dice:'💬 Dice', hace:'🤲 Hace' }
+
+const EmpathyEditorModal = ({ open, mod, onClose, onSave }) => {
+  const DEFAULT_CARDS = [
+    {id:1,text:'"No entiendo para qué sirve esto"',correct:'dice'},
+    {id:2,text:'Se siente frustrado en las evaluaciones',correct:'siente'},
+    {id:3,text:'Cree que las matemáticas son difíciles',correct:'piensa'},
+    {id:4,text:'Copia las respuestas de su compañero',correct:'hace'},
+    {id:5,text:'Ansiedad antes de los exámenes',correct:'siente'},
+    {id:6,text:'"Me gustan las clases con experimentos"',correct:'dice'},
+    {id:7,text:'Piensa que el profesor va muy rápido',correct:'piensa'},
+    {id:8,text:'Participa cuando trabaja en grupo',correct:'hace'},
+  ]
+  const [cards, setCards] = React.useState([])
+
+  React.useEffect(() => {
+    if (open && mod) setCards(mod.empathyCards || DEFAULT_CARDS.map(c => ({ ...c })))
+  }, [open, mod])
+
+  const update  = (id, key, val) => setCards(c => c.map(x => x.id === id ? { ...x, [key]: val } : x))
+  const remove  = (id) => setCards(c => c.filter(x => x.id !== id))
+  const addCard = () => setCards(c => [...c, { id: Date.now(), text: '', correct: 'piensa' }])
+
+  const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', flex: 1, boxSizing: 'border-box' }
+  const sel = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', background: 'var(--white)', cursor: 'pointer' }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Editar tarjetas del mapa de empatía" width={560}>
+      <div style={{ maxHeight: '60vh', overflow: 'auto', paddingRight: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 28px', gap: 8, marginBottom: 8 }}>
+          {['Texto de la tarjeta','Cuadrante correcto',''].map((h, i) => (
+            <span key={i} style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8 }}>{h}</span>
+          ))}
+        </div>
+        {cards.map(card => (
+          <div key={card.id} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 28px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+            <input value={card.text} onChange={e => update(card.id, 'text', e.target.value)}
+              placeholder='Ej: "No entiendo para qué sirve esto"' style={inp} />
+            <select value={card.correct} onChange={e => update(card.id, 'correct', e.target.value)} style={sel}>
+              {QUADRANTS.map(q => <option key={q} value={q}>{QUADRANT_LABELS[q]}</option>)}
+            </select>
+            <button onClick={() => remove(card.id)} disabled={cards.length <= 4}
+              style={{ width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: cards.length <= 4 ? .3 : 1 }}>
+              <XIc s={13} c="var(--error)" />
+            </button>
+          </div>
+        ))}
+        <button onClick={addCard} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, marginTop: 8,
+          border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)',
+          cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600 }}>
+          <PlusIc s={13} c="var(--orange)" /> Agregar tarjeta
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        <Btn variant="secondary" full onClick={onClose}>Cancelar</Btn>
+        <Btn variant="gradient" full onClick={() => onSave({ empathyCards: cards })}>Guardar</Btn>
+      </div>
+    </Modal>
+  )
+}
+
+// ---- Simulation Editor (tree) ----
+const SimulationEditorModal = ({ open, mod, onClose, onSave }) => {
+  const DEFAULT_TREE = {
+    start:{ text:'Describe la situación inicial...', options:[
+      {text:'Opción A (mejor enfoque DCE)',next:'end_high',points:3},
+      {text:'Opción B (enfoque parcial)',next:'end_mid',points:2},
+      {text:'Opción C (enfoque tradicional)',next:'end_low',points:1},
+    ]},
+    end_high:{ text:'🌟 ¡Excelente decisión pedagógica!', end:true },
+    end_mid: { text:'👍 Buena decisión. Considera aplicar más principios DCE.', end:true },
+    end_low: { text:'💪 Esta decisión refleja un enfoque tradicional. El DCE sugiere escuchar primero.', end:true },
+  }
+  const [nodes, setNodes] = React.useState({})
+  const inp = { padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }
+
+  React.useEffect(() => {
+    if (open && mod) setNodes(mod.simTree || DEFAULT_TREE)
+  }, [open, mod])
+
+  const nodeIds = Object.keys(nodes)
+  const nonEndNodes = nodeIds.filter(k => !nodes[k]?.end)
+  const endNodes    = nodeIds.filter(k =>  nodes[k]?.end)
+
+  const updateNodeText = (id, text) => setNodes(n => ({ ...n, [id]: { ...n[id], text } }))
+  const updateOpt  = (nodeId, oi, key, val) => setNodes(n => ({
+    ...n, [nodeId]: { ...n[nodeId], options: n[nodeId].options.map((o, i) => i === oi ? { ...o, [key]: val } : o) }
+  }))
+  const addOpt     = (nodeId) => setNodes(n => ({
+    ...n, [nodeId]: { ...n[nodeId], options: [...(n[nodeId].options || []), { text: '', next: endNodes[0] || 'end_high', points: 2 }] }
+  }))
+  const removeOpt  = (nodeId, oi) => setNodes(n => ({
+    ...n, [nodeId]: { ...n[nodeId], options: n[nodeId].options.filter((_, i) => i !== oi) }
+  }))
+  const addEndNode = () => {
+    const id = 'end_' + Date.now()
+    setNodes(n => ({ ...n, [id]: { text: '📝 Resultado...', end: true } }))
+  }
+  const removeNode = (id) => {
+    if (id === 'start') return
+    const next = { ...nodes }; delete next[id]; setNodes(next)
+  }
+  const updateEndText = (id, text) => setNodes(n => ({ ...n, [id]: { ...n[id], text } }))
+
+  return (
+    <Modal open={open} onClose={onClose} title="Editar árbol de simulación" width={600}>
+      <div style={{ maxHeight: '65vh', overflow: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* Decision nodes */}
+        {nonEndNodes.map(nodeId => (
+          <div key={nodeId} style={{ padding: 16, borderRadius: 14, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8 }}>
+                {nodeId === 'start' ? '🟢 Inicio' : `📍 Nodo: ${nodeId}`}
+              </span>
+              {nodeId !== 'start' && (
+                <button onClick={() => removeNode(nodeId)}
+                  style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <XIc s={13} c="var(--error)" />
+                </button>
+              )}
+            </div>
+            <textarea value={nodes[nodeId]?.text || ''} onChange={e => updateNodeText(nodeId, e.target.value)}
+              placeholder="Describe la situación o pregunta..." rows={2}
+              style={{ ...inp, resize: 'vertical', marginBottom: 10 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(nodes[nodeId]?.options || []).map((opt, oi) => (
+                <div key={oi} style={{ display: 'grid', gridTemplateColumns: '1fr 160px 50px 26px', gap: 6, alignItems: 'center' }}>
+                  <input value={opt.text} onChange={e => updateOpt(nodeId, oi, 'text', e.target.value)}
+                    placeholder={`Opción ${oi + 1}`} style={inp} />
+                  <select value={opt.next} onChange={e => updateOpt(nodeId, oi, 'next', e.target.value)}
+                    style={{ ...inp, cursor: 'pointer' }}>
+                    {nodeIds.filter(k => k !== nodeId).map(k => (
+                      <option key={k} value={k}>{nodes[k]?.end ? `✅ ${k}` : k}</option>
+                    ))}
+                  </select>
+                  <select value={opt.points} onChange={e => updateOpt(nodeId, oi, 'points', Number(e.target.value))}
+                    style={{ ...inp, cursor: 'pointer' }}>
+                    {[1,2,3].map(p => <option key={p} value={p}>{p} pts</option>)}
+                  </select>
+                  <button onClick={() => removeOpt(nodeId, oi)} disabled={(nodes[nodeId]?.options||[]).length <= 1}
+                    style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (nodes[nodeId]?.options||[]).length <= 1 ? .3 : 1 }}>
+                    <XIc s={12} c="var(--error)" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => addOpt(nodeId)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, marginTop: 8,
+                border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)',
+                cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11, fontWeight: 600 }}>
+              <PlusIc s={11} c="var(--orange)" /> Opción
+            </button>
+          </div>
+        ))}
+
+        {/* End nodes */}
+        <div>
+          <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 10 }}>Resultados finales</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {endNodes.map(nodeId => (
+              <div key={nodeId} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', minWidth: 80 }}>{nodeId}</span>
+                <input value={nodes[nodeId]?.text || ''} onChange={e => updateEndText(nodeId, e.target.value)}
+                  placeholder="Texto del resultado..." style={{ ...inp }} />
+                <button onClick={() => removeNode(nodeId)} disabled={endNodes.length <= 1}
+                  style={{ width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: endNodes.length <= 1 ? .3 : 1 }}>
+                  <XIc s={13} c="var(--error)" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button onClick={addEndNode} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 7, marginTop: 8,
+            border: '1.5px dashed var(--success)', background: '#F0FDF4', color: 'var(--success)',
+            cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11, fontWeight: 600 }}>
+            <PlusIc s={11} c="var(--success)" /> Agregar resultado
+          </button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        <Btn variant="secondary" full onClick={onClose}>Cancelar</Btn>
+        <Btn variant="gradient" full onClick={() => onSave({ simTree: nodes })}>Guardar</Btn>
+      </div>
+    </Modal>
+  )
+}
+
+// ---- DesignLab Editor ----
+const STEP_EMOJIS = ['❤️','🎯','💡','🔧','📊','🧪','🌍','🎭','📋','🤔']
+
+const DesignLabEditorModal = ({ open, mod, onClose, onSave }) => {
+  const DEFAULT_STEPS = [
+    { phase:'Empatizar', icon:'❤️', question:'¿Cómo conocerás a tus estudiantes antes de diseñar?',
+      options:[{id:'a',text:'Entrevistas y observación',emoji:'🎤',score:3,tag:'Investigación empática'},
+               {id:'b',text:'Encuesta breve',emoji:'📋',score:2,tag:'Diagnóstico parcial'},
+               {id:'c',text:'Asumir por experiencia previa',emoji:'🤔',score:1,tag:'Sin investigación'}]},
+  ]
+  const [steps, setSteps] = React.useState([])
+  React.useEffect(() => {
+    if (open && mod) setSteps(mod.designSteps ? mod.designSteps.map(s => ({ ...s, options: s.options.map(o => ({ ...o })) })) : DEFAULT_STEPS.map(s => ({ ...s })))
+  }, [open, mod])
+
+  const updateStep = (si, key, val) => setSteps(s => s.map((st, i) => i === si ? { ...st, [key]: val } : st))
+  const updateOpt  = (si, oi, key, val) => setSteps(s => s.map((st, i) => i !== si ? st : { ...st, options: st.options.map((o, j) => j !== oi ? o : { ...o, [key]: val }) }))
+  const addStep    = () => setSteps(s => [...s, { phase: 'Nueva fase', icon: '📝', question: '', options: [
+    {id:'a',text:'',emoji:'✅',score:3,tag:''}, {id:'b',text:'',emoji:'⚠️',score:2,tag:''}, {id:'c',text:'',emoji:'❌',score:1,tag:''}
+  ]}])
+  const removeStep = (si) => setSteps(s => s.filter((_, i) => i !== si))
+
+  const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Editar fases del Laboratorio DCE" width={620}>
+      <div style={{ maxHeight: '65vh', overflow: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {steps.map((step, si) => (
+          <div key={si} style={{ padding: 16, borderRadius: 14, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+              <input value={step.icon} onChange={e => updateStep(si, 'icon', e.target.value)}
+                style={{ ...inp, width: 50, textAlign: 'center', fontSize: 20 }} />
+              <input value={step.phase} onChange={e => updateStep(si, 'phase', e.target.value)}
+                placeholder="Nombre de la fase" style={{ ...inp, flex: 1, fontWeight: 700 }} />
+              <button onClick={() => removeStep(si)} disabled={steps.length <= 1}
+                style={{ width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: steps.length <= 1 ? .3 : 1 }}>
+                <XIc s={13} c="var(--error)" />
+              </button>
+            </div>
+            <input value={step.question} onChange={e => updateStep(si, 'question', e.target.value)}
+              placeholder="Pregunta de diseño para esta fase..." style={{ ...inp, width: '100%', marginBottom: 10 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(step.options || []).map((opt, oi) => (
+                <div key={oi} style={{ display: 'grid', gridTemplateColumns: '36px 1fr 1fr 44px', gap: 6, alignItems: 'center' }}>
+                  <input value={opt.emoji} onChange={e => updateOpt(si, oi, 'emoji', e.target.value)}
+                    style={{ ...inp, textAlign: 'center', fontSize: 16, padding: '6px' }} />
+                  <input value={opt.text} onChange={e => updateOpt(si, oi, 'text', e.target.value)}
+                    placeholder={`Opción ${String.fromCharCode(65+oi)}`} style={inp} />
+                  <input value={opt.tag} onChange={e => updateOpt(si, oi, 'tag', e.target.value)}
+                    placeholder="Etiqueta" style={inp} />
+                  <select value={opt.score} onChange={e => updateOpt(si, oi, 'score', Number(e.target.value))}
+                    style={{ ...inp, cursor: 'pointer' }}>
+                    {[1,2,3].map(p => <option key={p} value={p}>{p}pts</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        <button onClick={addStep} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 10,
+          border: '2px dashed var(--success)', background: '#F0FDF4', color: 'var(--success)',
+          cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, justifyContent: 'center' }}>
+          <PlusIc s={16} c="var(--success)" /> Agregar fase
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        <Btn variant="secondary" full onClick={onClose}>Cancelar</Btn>
+        <Btn variant="gradient" full onClick={() => onSave({ designSteps: steps })}>Guardar</Btn>
+      </div>
+    </Modal>
+  )
+}
+
 // ---- Matching Editor Modal ----
 const MatchingEditorModal = ({ open, mod, onClose, onSave }) => {
   const [pairs, setPairs] = React.useState([])
@@ -516,13 +852,15 @@ const InstructorRouteEditor = () => {
   const saveEditedModule = (mod) => setCustomModules(l => l.map(m => m.id === editingModule.id ? { ...m, ...mod } : m))
   const deleteCustom     = (id) => setCustomModules(l => l.filter(m => m.id !== id))
 
-  const saveMatchingOverride = (override) => {
+  const saveChallengeOverride = (override) => {
     setModuleList(l => l.map(m => m.id === editingMatching.id
       ? { ...m, ...override, override: { ...(m.override || {}), ...override } }
       : m
     ))
     setEditingMatching(null)
   }
+  // alias for backwards compat
+  const saveMatchingOverride = saveChallengeOverride
 
   const saveQuizCustom = (mod) => {
     if (editingQuiz) {
@@ -646,23 +984,14 @@ const InstructorRouteEditor = () => {
                         +{mod.extras.length}
                       </span>
                     )}
-                    {/* Edit button — lesson vs challenge */}
-                    {mod.type === 'lesson' && (
-                      <button onClick={() => setEditingBaseModule(mod)}
-                        title="Editar contenido del módulo"
-                        style={{ background: mod.override ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
-                          width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <EditIc s={13} c={mod.override ? 'var(--orange)' : 'var(--muted)'} />
-                      </button>
-                    )}
-                    {mod.type === 'challenge' && mod.ctype === 'matching' && (
-                      <button onClick={() => setEditingMatching(mod)}
-                        title="Editar pares de conceptos"
-                        style={{ background: mod.override?.matchPairs ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
-                          width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <EditIc s={13} c={mod.override?.matchPairs ? 'var(--orange)' : 'var(--muted)'} />
-                      </button>
-                    )}
+                    {/* Edit button — all types */}
+                    <button
+                      onClick={() => mod.type === 'lesson' ? setEditingBaseModule(mod) : setEditingMatching(mod)}
+                      title={mod.type === 'lesson' ? 'Editar contenido' : 'Editar reto'}
+                      style={{ background: mod.override ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
+                        width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <EditIc s={13} c={mod.override ? 'var(--orange)' : 'var(--muted)'} />
+                    </button>
                     <button onClick={() => setExpandedExtras(e => ({ ...e, [mod.id]: !e[mod.id] }))}
                       style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26,
                         borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -821,11 +1150,11 @@ const InstructorRouteEditor = () => {
         </div>
       </div>
 
-      <MatchingEditorModal
+      <ChallengeEditorModal
         open={!!editingMatching}
         mod={editingMatching}
         onClose={() => setEditingMatching(null)}
-        onSave={saveMatchingOverride}
+        onSave={saveChallengeOverride}
       />
       <QuizCreatorModal
         open={showQuizCreator || !!editingQuiz}

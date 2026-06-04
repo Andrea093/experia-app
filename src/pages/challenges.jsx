@@ -18,7 +18,7 @@ import {
 
 // ---- DRAG & DROP: Order DCE phases ----
 const DragDropChallenge = ({ mod, onComplete }) => {
-  const correctOrder = ['Empatizar','Definir','Idear','Prototipar','Evaluar'];
+  const correctOrder = mod.dragItems || ['Empatizar','Definir','Idear','Prototipar','Evaluar'];
   const [items, setItems] = React.useState(() => {
     const arr = [...correctOrder];
     for (let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
@@ -92,7 +92,7 @@ const EmpathyMapChallenge = ({ mod, onComplete }) => {
     {key:'dice',label:'Dice',icon:'💬',color:'#10B981',bg:'#F0FDF4'},
     {key:'hace',label:'Hace',icon:'🤲',color:'#F59E0B',bg:'#FFFBEB'},
   ];
-  const allCards=[
+  const allCards = mod.empathyCards || [
     {id:1,text:'"No entiendo para qué sirve esto"',correct:'dice'},
     {id:2,text:'Se siente frustrado en las evaluaciones',correct:'siente'},
     {id:3,text:'Cree que las matemáticas son difíciles',correct:'piensa'},
@@ -203,10 +203,11 @@ const SIM_TREE = {
 };
 
 const SimulationChallenge = ({ mod, onComplete }) => {
+  const SIM_TREE_ACTIVE = mod.simTree || SIM_TREE;
   const [node,setNode]=React.useState('start');
   const [totalPts,setTotalPts]=React.useState(0);
   const [history,setHistory]=React.useState([]);
-  const current=SIM_TREE[node];
+  const current=SIM_TREE_ACTIVE[node];
   const choose=(opt)=>{setTotalPts(p=>p+opt.points);setHistory(h=>[...h,{text:current.text,chosen:opt.text}]);setNode(opt.next);};
   const maxPts=6, pct=Math.round((totalPts/maxPts)*100);
 
@@ -398,23 +399,24 @@ const DESIGN_STEPS=[
 ];
 
 const DesignLabChallenge = ({ mod, onComplete }) => {
+  const STEPS = mod.designSteps || DESIGN_STEPS;
   const [step,setStep]=React.useState(0);
   const [choices,setChoices]=React.useState([]);
   const [hovOpt,setHovOpt]=React.useState(null);
   const [done,setDone]=React.useState(false);
   const totalScore=choices.reduce((s,c)=>s+c.score,0);
-  const maxScore=DESIGN_STEPS.length*3;
+  const maxScore=STEPS.length*3;
   const pct=Math.round((totalScore/maxScore)*100);
 
   const handleChoose=(option)=>{
-    const nc=[...choices,{...option,phase:DESIGN_STEPS[step].phase}];
+    const nc=[...choices,{...option,phase:STEPS[step].phase}];
     setChoices(nc);
-    if(step<DESIGN_STEPS.length-1){setTimeout(()=>setStep(s=>s+1),400);}
+    if(step<STEPS.length-1){setTimeout(()=>setStep(s=>s+1),400);}
     else{
       setTimeout(()=>{
         setDone(true);
         const qs=nc.map(c=>({q:`${c.phase}: ${c.tag}`,correct:c.score===3}));
-        recordAttempt(mod.id,qs,nc.reduce((a,c)=>a+c.score,0),DESIGN_STEPS.length*3);
+        recordAttempt(mod.id,qs,nc.reduce((a,c)=>a+c.score,0),STEPS.length*3);
       },500);
     }
   };
@@ -456,7 +458,7 @@ const DesignLabChallenge = ({ mod, onComplete }) => {
     );
   }
 
-  const current=DESIGN_STEPS[step];
+  const current=STEPS[step];
   return (
     <div style={{maxWidth:660,margin:'0 auto'}}>
       <div style={{textAlign:'center',marginBottom:24}}>
@@ -465,7 +467,7 @@ const DesignLabChallenge = ({ mod, onComplete }) => {
         <p style={{fontSize:14,color:'var(--muted)',marginTop:6}}>Diseña una experiencia paso a paso.</p>
       </div>
       <div style={{display:'flex',gap:6,marginBottom:28}}>
-        {DESIGN_STEPS.map((s,i)=>(
+        {STEPS.map((s,i)=>(
           <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
             <div style={{height:6,width:'100%',borderRadius:3,
               background:i<step?'var(--success)':i===step?'var(--orange)':'var(--border)',transition:'background .4s ease'}}/>
@@ -487,7 +489,7 @@ const DesignLabChallenge = ({ mod, onComplete }) => {
           <div style={{width:40,height:40,borderRadius:12,background:'var(--orange-bg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>{current.icon}</div>
           <div>
             <div style={{fontSize:11,fontWeight:700,color:'var(--orange)',textTransform:'uppercase',letterSpacing:1}}>Fase: {current.phase}</div>
-            <div style={{fontSize:13,color:'var(--muted)'}}>Paso {step+1} de {DESIGN_STEPS.length}</div>
+            <div style={{fontSize:13,color:'var(--muted)'}}>Paso {step+1} de {STEPS.length}</div>
           </div>
         </div>
         <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',marginBottom:18,lineHeight:1.4}}>{current.question}</h4>
