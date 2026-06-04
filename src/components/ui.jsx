@@ -223,12 +223,12 @@ const Stagger = ({children, delay=60}) =>
   )}</>;
 
 // --- Logo component (CSS — no image file needed) ---
-const LogoImg = ({ h=34, onDark=false }) => (
+const LogoImg = ({ h=34, w=null, onDark=false }) => (
   <img
     src="/logo-ceinfes.png"
     alt="CEINFES"
     style={{
-      width: h * 4,
+      width: w || h * 3,
       height: 'auto',
       display: 'block',
       userSelect: 'none',
