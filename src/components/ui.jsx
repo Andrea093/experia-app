@@ -223,31 +223,19 @@ const Stagger = ({children, delay=60}) =>
   )}</>;
 
 // --- Logo component (CSS — no image file needed) ---
-const LogoImg = ({ h=34, onDark=false }) => {
-  const fs = Math.round(h * 0.78);
-  return (
-    <div style={{ display:'inline-flex', alignItems:'center', gap: Math.round(h * 0.18), userSelect:'none' }}>
-      <div style={{
-        width: Math.round(h * 0.9), height: Math.round(h * 0.9),
-        borderRadius: Math.round(h * 0.22),
-        background: onDark ? 'rgba(255,255,255,0.25)' : '#E8732C',
-        display:'flex', alignItems:'center', justifyContent:'center',
-        flexShrink: 0,
-      }}>
-        <span style={{ color:'#fff', fontWeight:900, fontSize: Math.round(h * 0.52),
-          fontFamily:"'DM Sans', sans-serif", lineHeight:1, letterSpacing:'-1px' }}>C</span>
-      </div>
-      <span style={{
-        fontFamily:"'DM Sans', sans-serif",
-        fontWeight: 800,
-        fontSize: fs,
-        color: onDark ? '#fff' : '#E8732C',
-        letterSpacing: '-0.3px',
-        lineHeight: 1,
-      }}>ceinfes</span>
-    </div>
-  );
-};
+const LogoImg = ({ h=34, onDark=false }) => (
+  <img
+    src="/logo-ceinfes.png"
+    alt="CEINFES"
+    style={{
+      height: h,
+      width: 'auto',
+      display: 'block',
+      userSelect: 'none',
+      filter: onDark ? 'brightness(0) invert(1)' : 'none',
+    }}
+  />
+);
 
 export {
   useMobile, LogoImg,
