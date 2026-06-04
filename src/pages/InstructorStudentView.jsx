@@ -8,6 +8,7 @@ import {
   ProgressBar, ProgressRing, BadgeCard, Modal,
 } from '../components/ui.jsx'
 import { supabase } from '../lib/supabaseClient.js'
+import { InstructorDashboard } from './Grid.jsx'
 
 // ── Active students (presencia en tiempo real) ─────────────
 export function ActiveStudents() {
@@ -255,3 +256,16 @@ export function StudentProgressModal({ student, onClose }) {
     </div>
   )
 }
+
+// ── Default export: página completa de entregas para instructor ──
+const InstructorStudentViewPage = ({ studentView, setStudentView }) => (
+  <>
+    <ActiveStudents />
+    <InstructorDashboard onStudentClick={setStudentView} />
+    <Modal open={!!studentView} onClose={() => setStudentView(null)} title={studentView?.name || ''} width={600}>
+      <StudentProgressModal student={studentView} onClose={() => setStudentView(null)} />
+    </Modal>
+  </>
+)
+
+export default InstructorStudentViewPage
