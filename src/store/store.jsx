@@ -499,14 +499,10 @@ const resubmitProduct = (subId, rejillaName, preguntaName, rejillaData, pregunta
     });
 };
 const resetStudentProgress = async (userId, userEmail) => {
-  await supabase.from('progress')
-    .upsert({ user_id: userId, xp: 0, completed: [], badges: [], updated_at: new Date().toISOString() },
-      { onConflict: 'user_id' })
-    .then(({ error }) => { if (error) console.error('resetProgress:', error); });
-  await supabase.from('submissions').delete().eq('student_id', userId)
-    .then(({ error }) => { if (error) console.error('resetSubmissions:', error); });
-  await supabase.from('challenge_attempts').delete().eq('student_id', userId)
-    .then(({ error }) => { if (error) console.error('resetAttempts:', error); });
+  const { error } = await supabase.functions.invoke('reset-student-progress', {
+    body: { userId },
+  });
+  if (error) { console.error('resetStudentProgress:', error); return; }
   XS.set(s => ({
     submissions: s.submissions.filter(su => su.studentEmail !== userEmail),
     challengeAttempts: s.challengeAttempts.filter(a => a.studentEmail !== userEmail),
