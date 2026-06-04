@@ -1505,6 +1505,7 @@ const App = () => {
   const user = useStore(s => s.user);
   const selectedArea = useStore(s => s.selectedArea);
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
+  const [studentView, setStudentView] = React.useState(null);
 
   // Close mobile sidebar on page change
   React.useEffect(() => { setMobileSidebarOpen(false); }, [page]);
@@ -1518,8 +1519,6 @@ const App = () => {
 
   const fullPages = ['lesson', 'challenge'];
   const isFullPage = fullPages.includes(page);
-
-  const [studentView, setStudentView] = React.useState(null);
 
   const renderPage = () => {
     if (role === 'admin') {
