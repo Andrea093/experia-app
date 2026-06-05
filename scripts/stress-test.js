@@ -14,7 +14,6 @@ import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 
 // ── Configuración — lee desde .env ───────────────────────────────────────────
-import { readFileSync } from 'fs'
 const envVars = {}
 try {
   readFileSync('.env','utf8').split('\n').forEach(l => {

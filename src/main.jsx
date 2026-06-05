@@ -4,7 +4,7 @@ import './styles.css'
 import App from './app.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient.js'
-import { XS, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, loadCourseModules } from './store/store.jsx'
+import { XS, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, loadCourseModules, dbModToAppMod } from './store/store.jsx'
 import { mapSubmission, mapAttempt } from './lib/mappers.js'
 
 const root = ReactDOM.createRoot(document.getElementById('root'))
@@ -120,9 +120,8 @@ async function restoreSession() {
       // Cargar módulos del curso en el store ANTES de set()
       const { data: modulesData } = await supabase.from('course_modules')
         .select('*').eq('course_id', enrolledCourseId).eq('is_enabled', true).order('"order"')
-      const { dbModToAppMod: toApp } = await import('./store/store.jsx')
       XS.set({
-        courseModules: (modulesData || []).map(toApp),
+        courseModules: (modulesData || []).map(dbModToAppMod),
         enrolledCourseId,
       })
     } else {

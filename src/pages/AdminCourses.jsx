@@ -89,24 +89,36 @@ const CourseModulesPanel = ({ course, onClose }) => {
 
   React.useEffect(() => { loadModules() }, [loadModules])
 
+  const [opError, setOpError] = React.useState('')
+
   const toggleEnabled = async (mod) => {
-    await supabase.from('course_modules').update({ is_enabled: !mod.is_enabled }).eq('id', mod.id)
+    setOpError('')
+    const { error } = await supabase.from('course_modules')
+      .update({ is_enabled: !mod.is_enabled }).eq('id', mod.id)
+    if (error) { setOpError('Error al actualizar módulo: ' + error.message); return; }
     setModules(ms => ms.map(m => m.id === mod.id ? { ...m, is_enabled: !m.is_enabled } : m))
   }
 
   const deleteModule = async (id) => {
-    await supabase.from('course_modules').delete().eq('id', id)
+    setOpError('')
+    const { error } = await supabase.from('course_modules').delete().eq('id', id)
+    if (error) { setOpError('Error al eliminar módulo: ' + error.message); return; }
     setModules(ms => ms.filter(m => m.id !== id))
   }
 
   const saveModule = async (form) => {
     setSaving(true)
+    setOpError('')
+    let error
     if (editMod) {
-      await supabase.from('course_modules').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editMod.id)
+      ({ error } = await supabase.from('course_modules')
+        .update({ ...form, updated_at: new Date().toISOString() }).eq('id', editMod.id))
     } else {
       const maxOrder = modules.reduce((max, m) => Math.max(max, m.order || 0), 0)
-      await supabase.from('course_modules').insert({ ...form, course_id: course.id, order: maxOrder + 1 })
+      ;({ error } = await supabase.from('course_modules')
+        .insert({ ...form, course_id: course.id, order: maxOrder + 1 }))
     }
+    if (error) { setOpError('Error al guardar: ' + error.message); setSaving(false); return; }
     await loadModules()
     setSaving(false)
     setShowAdd(false)
@@ -126,6 +138,11 @@ const CourseModulesPanel = ({ course, onClose }) => {
         <Btn variant="gradient" size="sm" onClick={() => setShowAdd(true)}><PlusIc s={14} c="#fff" /> Agregar módulo</Btn>
       </div>
 
+      {opError && (
+        <div style={{ padding: '8px 12px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', fontSize: 12, color: 'var(--error)', marginBottom: 8 }}>
+          ⚠️ {opError}
+        </div>
+      )}
       {(showAdd || editMod) && (
         <ModuleForm initial={editMod} onSave={saveModule} saving={saving} onCancel={() => { setShowAdd(false); setEditMod(null) }} />
       )}

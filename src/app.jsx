@@ -116,24 +116,17 @@ const AreaSelection = () => {
 
 // ---- Course Selection (nueva pantalla multi-curso) ----
 const CourseSelection = () => {
-  const user             = useStore(s => s.user);
-  const courses          = useStore(s => s.courses || []);
+  const user               = useStore(s => s.user);
+  const courses            = useStore(s => s.courses || []);
   const institutionCourses = useStore(s => s.institutionCourses || []);
-  const institutions     = useStore(s => s.institutions || []);
-  const isMobile         = useMobile();
+  const isMobile           = useMobile();
   const [pending, setPending]   = React.useState(null);
   const [enrolling, setEnrolling] = React.useState(false);
 
-  // Detectar institution_id del usuario
-  const userInstitution = React.useMemo(() => {
-    const acct = useStore.getState?.()?.accounts?.find(a => a.id === user?.id);
-    return acct?.institution_id || null;
-  }, [user]);
-
-  // Cursos disponibles para la institución del estudiante (o todos si no tiene institución)
+  // Cursos disponibles: activos globalmente + habilitados para alguna institución
   const availableCourses = React.useMemo(() => {
-    const enabled = institutionCourses.filter(ic => ic.is_active).map(ic => ic.course_id);
-    return courses.filter(c => c.is_active && (enabled.length === 0 || enabled.includes(c.id)));
+    const enabledIds = institutionCourses.filter(ic => ic.is_active).map(ic => ic.course_id);
+    return courses.filter(c => c.is_active && (enabledIds.length === 0 || enabledIds.includes(c.id)));
   }, [courses, institutionCourses]);
 
   const handleConfirm = async () => {
