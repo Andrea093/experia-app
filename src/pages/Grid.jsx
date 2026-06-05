@@ -76,11 +76,11 @@ const CertificatePage = ({ submission, area }) => {
   return (
     <div style={{ height: '100%', overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '16px 12px 48px' : '32px 24px 60px', background: 'var(--bg)' }}>
       <style dangerouslySetInnerHTML={{ __html: `
-        @page { size: A4 portrait; margin: 12mm; }
+        @page { size: A4 portrait; margin: 0; }
         @media print {
           html, body { height: auto !important; overflow: visible !important; margin: 0 !important; }
           .no-print { display: none !important; }
-          #cert-wrap { padding: 0 !important; max-width: 100% !important; }
+          #cert-wrap { padding: 12mm !important; max-width: 100% !important; box-sizing: border-box; }
           #certificate {
             box-shadow: none !important;
             width: 100% !important;
