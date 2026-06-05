@@ -852,7 +852,7 @@ const createCourse = async ({ name, description, color, coverImage }) => {
     name, description, color: color || '#E8732C',
     cover_image: coverImage || null, is_active: true,
   }).select().single();
-  if (error) { console.error('createCourse:', error); return null; }
+  if (error) { console.error('createCourse:', error); throw new Error(error.message); }
   await loadCourses();
   return data;
 };

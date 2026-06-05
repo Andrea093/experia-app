@@ -12,6 +12,7 @@ const CourseForm = ({ initial, onSave, onCancel }) => {
     coverImage: initial?.cover_image || '',
   })
   const [saving, setSaving] = React.useState(false)
+  const [error, setError]   = React.useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const inp = { padding: '9px 12px', borderRadius: 9, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', background: 'var(--white)' }
   const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }
@@ -19,7 +20,13 @@ const CourseForm = ({ initial, onSave, onCancel }) => {
   const handleSave = async () => {
     if (!form.name.trim()) return
     setSaving(true)
-    await onSave(form)
+    setError('')
+    try {
+      const result = await onSave(form)
+      if (result === false) setError('Error al guardar. Verifica que las migraciones de BD estén aplicadas.')
+    } catch (e) {
+      setError(e.message || 'Error desconocido')
+    }
     setSaving(false)
   }
 
@@ -50,6 +57,11 @@ const CourseForm = ({ initial, onSave, onCancel }) => {
             placeholder="https://..." style={inp} />
         </div>
       </div>
+      {error && (
+        <div style={{ padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', fontSize: 13, color: 'var(--error)', marginBottom: 4 }}>
+          ⚠️ {error}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
         <Btn variant="secondary" onClick={onCancel}>Cancelar</Btn>
         <Btn variant="gradient" disabled={saving || !form.name.trim()} onClick={handleSave}>
@@ -294,6 +306,7 @@ const AdminCourses = () => {
   const handleCreate = async (form) => {
     await createCourse({ name: form.name, description: form.description, color: form.color, coverImage: form.coverImage })
     setShowCreate(false)
+    // Si createCourse lanza, CourseForm lo captura y muestra el error
   }
 
   const handleUpdate = async (form) => {
