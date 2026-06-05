@@ -13,13 +13,17 @@ import { InstructorDashboard } from './Grid.jsx'
 // ── Active students (presencia en tiempo real) ─────────────
 export function ActiveStudents() {
   const accounts = useStore(s => s.accounts)
+  const role     = useStore(s => s.user?.role)
   const [active, setActive] = React.useState([])
 
+  const institutions           = useStore(s => s.institutions || [])
+  const instructorInstitutions = useStore(s => s.instructorInstitutions || [])
+
   const load = React.useCallback(async () => {
-    const since = new Date(Date.now() - 10 * 60 * 1000).toISOString() // últimos 10 min
+    const since = new Date(Date.now() - 10 * 60 * 1000).toISOString()
     const { data } = await supabase
       .from('profiles')
-      .select('email, name, avatar, current_module, last_seen, area')
+      .select('email, name, avatar, current_module, last_seen, area, institution_id')
       .eq('role', 'student')
       .gte('last_seen', since)
       .order('last_seen', { ascending: false })
@@ -46,20 +50,29 @@ export function ActiveStudents() {
     return Math.floor((Date.now() - new Date(iso)) / 60000)
   }
 
+  // Solo el admin puede ver esta sección
+  if (role !== 'admin') return null
+
   if (active.length === 0) return (
     <div style={{ padding:'16px 20px', borderRadius:12, background:'var(--bg)',
       border:'1px solid var(--border)', marginBottom:20,
       display:'flex', alignItems:'center', gap:10 }}>
       <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--subtle)' }} />
-      <span style={{ fontSize:13, color:'var(--muted)' }}>
-        Sin docentes activos en este momento
-      </span>
+      <span style={{ fontSize:13, color:'var(--muted)' }}>Sin docentes activos en este momento</span>
     </div>
   )
 
+  // Agrupar por área
+  const byArea = {}
+  active.forEach(s => {
+    const key = s.area || '__sin_area__'
+    if (!byArea[key]) byArea[key] = []
+    byArea[key].push(s)
+  })
+
   return (
     <div style={{ marginBottom:20 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
         <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--success)',
           animation:'pulse 2s infinite', boxShadow:'0 0 0 0 rgba(16,185,129,.4)' }} />
         <style>{`@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.4)}70%{box-shadow:0 0 0 8px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}`}</style>
@@ -67,26 +80,40 @@ export function ActiveStudents() {
           {active.length} docente{active.length !== 1 ? 's' : ''} activo{active.length !== 1 ? 's' : ''} ahora
         </span>
       </div>
-      <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-        {active.map(s => {
-          const area = AREAS.find(a => a.id === s.area)
-          const min  = minutesAgo(s.last_seen)
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {Object.entries(byArea).map(([areaKey, students]) => {
+          const area = AREAS.find(a => a.id === areaKey)
           return (
-            <div key={s.email} style={{ display:'flex', alignItems:'center', gap:8,
-              padding:'8px 14px', borderRadius:20, background:'var(--white)',
-              border:'1.5px solid var(--success)', fontSize:12 }}>
-              <div style={{ width:26, height:26, borderRadius:'50%', background:'var(--success)',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:11, fontWeight:700, color:'#fff', flexShrink:0 }}>
-                {s.avatar || s.name?.charAt(0)}
+            <div key={areaKey}>
+              <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:1,
+                color: area?.color || 'var(--muted)', marginBottom:6 }}>
+                {area ? `${area.icon} ${area.name}` : 'Sin área asignada'}
               </div>
-              <span style={{ fontWeight:600, color:'var(--dark)' }}>{s.name}</span>
-              {area && <span style={{ color:area.color }}>{area.icon}</span>}
-              {min !== null && (
-                <span style={{ color:'var(--muted)', fontSize:10 }}>
-                  {min === 0 ? 'ahora' : `${min}m`}
-                </span>
-              )}
+              <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                {students.map(s => {
+                  const min = minutesAgo(s.last_seen)
+                  const isUrl = s.avatar?.startsWith('http')
+                  return (
+                    <div key={s.email} style={{ display:'flex', alignItems:'center', gap:8,
+                      padding:'8px 14px', borderRadius:20, background:'var(--white)',
+                      border:'1.5px solid var(--success)', fontSize:12 }}>
+                      <div style={{ width:26, height:26, borderRadius:'50%', background:'var(--success)',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontSize:11, fontWeight:700, color:'#fff', flexShrink:0, overflow:'hidden' }}>
+                        {isUrl
+                          ? <img src={s.avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                          : (s.name?.charAt(0) || '?')}
+                      </div>
+                      <span style={{ fontWeight:600, color:'var(--dark)' }}>{s.name}</span>
+                      {min !== null && (
+                        <span style={{ color:'var(--muted)', fontSize:10 }}>
+                          {min === 0 ? 'ahora' : `${min}m`}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )
         })}

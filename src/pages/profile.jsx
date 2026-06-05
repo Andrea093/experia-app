@@ -37,6 +37,12 @@ const ProfilePage = () => {
   const [uploadError, setUploadError] = React.useState('');
   const fileInputRef = React.useRef(null);
 
+  if (!user) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid var(--orange)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
+
   const isAvatarUrl = user?.avatar?.startsWith('http');
 
   const handleAvatarUpload = async (file) => {

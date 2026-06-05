@@ -1,5 +1,6 @@
 import React from 'react'
 import { useStore, AREAS, getStudentModules, saveRouteConfig } from '../store/store.jsx'
+// namedRoutes y institutions vienen del store
 import {
   useMobile,
   ChevRIc, XIc, PlusIc, TrashIc, EditIc, GripIc, CheckIc,
@@ -1082,13 +1083,17 @@ const NewChallengeModal = ({ open, onClose, onCreate }) => {
 }
 
 const InstructorRouteEditor = () => {
-  const routeConfigs = useStore(s => s.routeConfigs)
+  const routeConfigs  = useStore(s => s.routeConfigs)
+  const namedRoutes   = useStore(s => s.namedRoutes)
+  const institutions  = useStore(s => s.institutions)
   const isMobile = useMobile()
   const [activeArea, setActiveArea] = React.useState(AREAS[0].id)
   const [moduleList, setModuleList] = React.useState([])
   const [customModules, setCustomModules] = React.useState([])
   const [saving, setSaving] = React.useState(false)
   const [saved, setSaved] = React.useState(false)
+  const [routeName, setRouteName] = React.useState('')
+  const [routeInstitution, setRouteInstitution] = React.useState('')
   const [dragIdx, setDragIdx] = React.useState(null)
   const [overIdx, setOverIdx] = React.useState(null)
   const [showAddModule, setShowAddModule] = React.useState(false)
@@ -1116,7 +1121,10 @@ const InstructorRouteEditor = () => {
       setModuleList(defaults.map(m => ({ ...m, enabled: true })))
     }
     setCustomModules(config?.customModules || [])
-  }, [activeArea, routeConfigs])
+    const namedRoute = namedRoutes.find(r => r.area === activeArea)
+    setRouteName(namedRoute?.name || AREAS.find(a => a.id === activeArea)?.name || '')
+    setRouteInstitution(namedRoute?.institution_id || '')
+  }, [activeArea, routeConfigs, namedRoutes])
 
   const handleDrop = (i) => {
     if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return }
@@ -1203,7 +1211,13 @@ const InstructorRouteEditor = () => {
       id: m.id, enabled: m.enabled, order: i,
       ...(m.override ? { override: m.override } : {}),
     }))
-    await saveRouteConfig(activeArea, modulesConfig, customModules)
+    const existingRoute = namedRoutes.find(r => r.area === activeArea)
+    await saveRouteConfig(
+      activeArea, modulesConfig, customModules,
+      routeName || AREAS.find(a => a.id === activeArea)?.name,
+      routeInstitution || null,
+      existingRoute?.id,
+    )
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
@@ -1220,16 +1234,34 @@ const InstructorRouteEditor = () => {
 
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: isMobile ? '0 16px 40px' : '0 24px 40px' }}>
-      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>Editor de Ruta de Formación</h2>
-          <p style={{ fontSize: 14, color: 'var(--muted)' }}>Personaliza el orden, contenido y módulos de cada área</p>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+          <div>
+            <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>Editor de Ruta de Formación</h2>
+            <p style={{ fontSize: 14, color: 'var(--muted)' }}>Personaliza el orden, contenido y módulos de cada área</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn variant="secondary" onClick={() => setShowPreview(true)}>👁 Vista previa</Btn>
+            <Btn variant={saved ? 'secondary' : 'gradient'} disabled={saving} onClick={handleSave}>
+              {saving ? '⏳ Guardando...' : saved ? '✅ Guardado' : '💾 Guardar cambios'}
+            </Btn>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Btn variant="secondary" onClick={() => setShowPreview(true)}>👁 Vista previa</Btn>
-          <Btn variant={saved ? 'secondary' : 'gradient'} disabled={saving} onClick={handleSave}>
-            {saving ? '⏳ Guardando...' : saved ? '✅ Guardado' : '💾 Guardar cambios'}
-          </Btn>
+        {/* Nombre de ruta y asignación a colegio */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', padding: '14px 18px', borderRadius: 12, background: 'var(--bg-alt)', border: '1px solid var(--border)' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>Nombre de la ruta</label>
+            <input value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="Ej: Ruta DCE — Colegio San Francisco"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>Asignar a colegio</label>
+            <select value={routeInstitution} onChange={e => setRouteInstitution(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', background: 'var(--white)', boxSizing: 'border-box' }}>
+              <option value="">— Sin asignar —</option>
+              {institutions.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 

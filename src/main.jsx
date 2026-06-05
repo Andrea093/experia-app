@@ -4,7 +4,7 @@ import './styles.css'
 import App from './app.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient.js'
-import { XS, doLogout, loadRouteConfigs } from './store/store.jsx'
+import { XS, doLogout, loadRouteConfigs, loadInstructorInstitutions } from './store/store.jsx'
 import { mapSubmission, mapAttempt } from './lib/mappers.js'
 
 const root = ReactDOM.createRoot(document.getElementById('root'))
@@ -112,6 +112,7 @@ async function restoreSession() {
   }
 
   loadRouteConfigs()
+  if (profile.role === 'admin' || profile.role === 'instructor') loadInstructorInstitutions()
   XS.set({
     isLoggedIn: true,
     user: { id: session.user.id, name: profile.name, email: profile.email,

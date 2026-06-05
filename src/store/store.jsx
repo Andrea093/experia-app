@@ -325,6 +325,8 @@ const DEF = {
   submissions: [], challengeAttempts: [], studentMessages: [],
   accounts: [], institutions: INITIAL_INSTITUTIONS, cohorts: [],
   routeConfigs: {},
+  namedRoutes: [],           // [{ id, name, area, institution_id, modules, customModules }]
+  instructorInstitutions: [], // [{ instructor_id, institution_id }]
 };
 export const XS = createExpStore(DEF);
 
@@ -514,19 +516,63 @@ const loadRouteConfigs = async () => {
   const { data, error } = await supabase.from('route_configs').select('*');
   if (error) { console.error('loadRouteConfigs:', error); return; }
   const configs = {};
+  const namedRoutes = [];
   (data || []).forEach(row => {
     configs[row.area] = { modules: row.modules || [], customModules: row.custom_modules || [] };
+    namedRoutes.push({
+      id: row.id, name: row.name || row.area, area: row.area,
+      institution_id: row.institution_id || null,
+      modules: row.modules || [], customModules: row.custom_modules || [],
+    });
   });
-  XS.set({ routeConfigs: configs });
+  XS.set({ routeConfigs: configs, namedRoutes });
 };
 
-const saveRouteConfig = async (area, modules, customModules) => {
+// Guarda una ruta con nombre y opcionalmente la asigna a un colegio
+const saveRouteConfig = async (area, modules, customModules, name, institutionId, existingId) => {
   XS.set(s => ({ routeConfigs: { ...s.routeConfigs, [area]: { modules, customModules } } }));
-  const { error } = await supabase.from('route_configs').upsert(
-    { area, modules, custom_modules: customModules, updated_at: new Date().toISOString() },
-    { onConflict: 'area' }
-  );
-  if (error) console.error('saveRouteConfig:', error);
+  const payload = {
+    area, modules, custom_modules: customModules,
+    updated_at: new Date().toISOString(),
+    ...(name !== undefined ? { name } : {}),
+    ...(institutionId !== undefined ? { institution_id: institutionId || null } : {}),
+  };
+  let error;
+  if (existingId) {
+    ({ error } = await supabase.from('route_configs').update(payload).eq('id', existingId));
+  } else {
+    ({ error } = await supabase.from('route_configs').upsert(payload, { onConflict: 'area' }));
+  }
+  if (error) { console.error('saveRouteConfig:', error); return; }
+  await loadRouteConfigs();
+};
+
+// ---- Instructor Institutions ----
+const loadInstructorInstitutions = async () => {
+  const { data, error } = await supabase.from('instructor_institutions').select('*');
+  if (error) { console.error('loadInstructorInstitutions:', error); return; }
+  XS.set({ instructorInstitutions: data || [] });
+};
+
+const assignInstructorInstitution = async (instructorId, institutionId) => {
+  const { error } = await supabase.from('instructor_institutions')
+    .insert({ instructor_id: instructorId, institution_id: institutionId });
+  if (error) { console.error('assignInstructorInstitution:', error); return; }
+  await loadInstructorInstitutions();
+};
+
+const removeInstructorInstitution = async (instructorId, institutionId) => {
+  const { error } = await supabase.from('instructor_institutions')
+    .delete().eq('instructor_id', instructorId).eq('institution_id', institutionId);
+  if (error) { console.error('removeInstructorInstitution:', error); return; }
+  await loadInstructorInstitutions();
+};
+
+const assignRouteToInstitution = async (routeId, institutionId) => {
+  const { error } = await supabase.from('route_configs')
+    .update({ institution_id: institutionId || null }).eq('id', routeId);
+  if (error) { console.error('assignRouteToInstitution:', error); return; }
+  await loadRouteConfigs();
 };
 
 const getRouteModules = (areaId, routeConfigs) => {
@@ -594,8 +640,11 @@ const findModuleInConfig = (id) => {
 };
 
 const updateAvatar = (url) => {
-  XS.set(s => ({ user: s.user ? { ...s.user, avatar: url } : null }));
   const { user } = XS.get();
+  XS.set(s => ({
+    user: s.user ? { ...s.user, avatar: url } : null,
+    accounts: s.accounts.map(a => a.id === s.user?.id ? { ...a, avatar: url } : a),
+  }));
   if (user?.id) {
     supabase.from('profiles').update({ avatar: url }).eq('id', user.id)
       .then(({ error }) => { if (error) console.error('updateAvatar:', error); });
@@ -687,6 +736,8 @@ export {
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
   loadRouteConfigs, saveRouteConfig, getRouteModules, findModuleInConfig,
+  loadInstructorInstitutions, assignInstructorInstitution, removeInstructorInstitution,
+  assignRouteToInstitution,
   createAccount, deleteAccount, changeAccountArea,
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution,
 };

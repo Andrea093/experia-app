@@ -4,6 +4,7 @@ import {
   createAccount, deleteAccount, changeAccountArea,
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution,
   dismissStudentMessage, resetStudentProgress,
+  assignInstructorInstitution, removeInstructorInstitution, assignRouteToInstitution,
   AREAS, BADGES, INITIAL_INSTITUTIONS,
   getStudentModules, findModule, nodeStatus,
   calcLevel, gradeTotal, gradeMax,
@@ -1113,6 +1114,128 @@ const SchoolsAdminPage = () => {
 // =============================================
 // ADMIN PANEL
 // =============================================
+// ---- Instructor Assignment Panel ----
+const InstructorAssignmentPanel = () => {
+  const accounts              = useStore(s => s.accounts);
+  const institutions          = useStore(s => s.institutions || []);
+  const instructorInstitutions = useStore(s => s.instructorInstitutions || []);
+  const namedRoutes           = useStore(s => s.namedRoutes || []);
+
+  const instructors = React.useMemo(() => accounts.filter(a => a.role === 'instructor'), [accounts]);
+
+  const [selectedInstructor, setSelectedInstructor] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+
+  const assignedIds = React.useMemo(() =>
+    instructorInstitutions.filter(ii => ii.instructor_id === selectedInstructor).map(ii => ii.institution_id),
+    [instructorInstitutions, selectedInstructor]
+  );
+
+  const toggleInstitution = async (instId) => {
+    if (!selectedInstructor) return;
+    setSaving(true);
+    if (assignedIds.includes(instId)) {
+      await removeInstructorInstitution(selectedInstructor, instId);
+    } else {
+      await assignInstructorInstitution(selectedInstructor, instId);
+    }
+    setSaving(false);
+  };
+
+  const inputSt = { width:'100%', padding:'9px 12px', borderRadius:9, border:'1.5px solid var(--border)', fontFamily:'var(--font)', fontSize:14, outline:'none', background:'var(--white)', boxSizing:'border-box' };
+
+  return (
+    <div style={{ padding:'20px 24px', borderRadius:16, background:'var(--white)', border:'1px solid var(--border)', marginBottom:24 }}>
+      <h3 style={{ fontSize:16, fontWeight:800, color:'var(--dark)', marginBottom:4 }}>🏫 Asignación de Instructores a Colegios</h3>
+      <p style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>Define qué colegios puede gestionar cada instructor.</p>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, alignItems:'start' }}>
+        {/* Selector instructor */}
+        <div>
+          <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:1, display:'block', marginBottom:6 }}>Instructor</label>
+          <select value={selectedInstructor} onChange={e => setSelectedInstructor(e.target.value)} style={inputSt}>
+            <option value="">— Selecciona un instructor —</option>
+            {instructors.map(inst => <option key={inst.id} value={inst.id}>{inst.name} ({inst.email})</option>)}
+          </select>
+          {selectedInstructor && (
+            <div style={{ marginTop:12 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--dark)', marginBottom:8 }}>Colegios asignados:</div>
+              {institutions.length === 0 && <p style={{ fontSize:12, color:'var(--muted)' }}>No hay colegios registrados.</p>}
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                {institutions.map(inst => {
+                  const checked = assignedIds.includes(inst.id);
+                  return (
+                    <label key={inst.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:10,
+                      border: checked ? '1.5px solid var(--success)' : '1px solid var(--border)',
+                      background: checked ? '#F0FDF4' : 'var(--bg)', cursor:'pointer', transition:'all .15s' }}>
+                      <input type="checkbox" checked={checked} disabled={saving} onChange={() => toggleInstitution(inst.id)}
+                        style={{ accentColor:'var(--success)', width:16, height:16 }} />
+                      <span style={{ fontSize:13, fontWeight: checked ? 600 : 400, color:'var(--dark)' }}>{inst.name}</span>
+                      {checked && <CheckIc s={14} c="var(--success)" />}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Resumen por instructor */}
+        <div>
+          <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:1, marginBottom:8 }}>Resumen</div>
+          {instructors.length === 0 && <p style={{ fontSize:12, color:'var(--muted)' }}>No hay instructores.</p>}
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {instructors.map(instr => {
+              const ids = instructorInstitutions.filter(ii => ii.instructor_id === instr.id).map(ii => ii.institution_id);
+              const names = ids.map(id => institutions.find(i => i.id === id)?.name).filter(Boolean);
+              return (
+                <div key={instr.id} style={{ padding:'10px 14px', borderRadius:10, background:'var(--bg-alt)', border:'1px solid var(--border)' }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:'var(--dark)', marginBottom:3 }}>{instr.name}</div>
+                  {names.length === 0
+                    ? <span style={{ fontSize:11, color:'var(--subtle)' }}>Sin colegios asignados</span>
+                    : <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                        {names.map(n => <span key={n} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'#D1FAE5', color:'var(--success)', fontWeight:600 }}>{n}</span>)}
+                      </div>
+                  }
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Rutas por colegio */}
+      {namedRoutes.length > 0 && (
+        <div style={{ marginTop:24, paddingTop:20, borderTop:'1px solid var(--border)' }}>
+          <h4 style={{ fontSize:14, fontWeight:700, color:'var(--dark)', marginBottom:12 }}>📚 Rutas de formación guardadas</h4>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {namedRoutes.map(route => {
+              const area = AREAS.find(a => a.id === route.area);
+              const inst = institutions.find(i => i.id === route.institution_id);
+              return (
+                <div key={route.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 16px', borderRadius:10, background:'var(--bg-alt)', border:'1px solid var(--border)' }}>
+                  <span style={{ fontSize:18 }}>{area?.icon || '📖'}</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:'var(--dark)' }}>{route.name}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)' }}>{area?.name || route.area}</div>
+                  </div>
+                  <select defaultValue={route.institution_id || ''}
+                    onChange={async e => { await assignRouteToInstitution(route.id, e.target.value || null); }}
+                    style={{ padding:'6px 10px', borderRadius:8, border:'1px solid var(--border)', fontFamily:'var(--font)', fontSize:12, outline:'none', background:'var(--white)' }}>
+                    <option value="">— Sin colegio —</option>
+                    {institutions.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                  </select>
+                  {inst && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'#EFF6FF', color:'#1D4ED8', fontWeight:600 }}>{inst.name}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AdminPage = () => {
   const accounts = useStore(s => s.accounts);
   const institutions = useStore(s => s.institutions || INITIAL_INSTITUTIONS);
@@ -1566,6 +1689,8 @@ const AdminPage = () => {
       </Modal>
 
       <BulkUploadModal open={showBulk} onClose={() => setShowBulk(false)} />
+
+      <InstructorAssignmentPanel />
     </div>
   );
 };

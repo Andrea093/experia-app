@@ -2,7 +2,7 @@ import React from 'react'
 import {
   useStore, nav, submitProduct, resubmitProduct, returnSubmission, approveSubmission,
   dismissStudentMessage, AREAS, RUBRIC_CRITERIA,
-  isRouteComplete, progressPct, gradeTotal, gradeMax,
+  isRouteComplete, progressPct, gradeTotal, gradeMax, gradeSubmission,
 } from '../store/store.jsx'
 import {
   useMobile, LogoImg,
@@ -507,8 +507,22 @@ const StudentProductUpload = () => {
 // ---- Instructor Review Panel ----
 // =============================================
 export const InstructorDashboard = ({ onStudentClick }) => {
-  const submissions = useStore(s => s.submissions);
+  const allSubmissions        = useStore(s => s.submissions);
+  const user                  = useStore(s => s.user);
+  const institutions          = useStore(s => s.institutions || []);
+  const instructorInstitutions = useStore(s => s.instructorInstitutions || []);
   const isMobile = useMobile();
+
+  // Filtrar submissions por colegios asignados al instructor (admin ve todo)
+  const submissions = React.useMemo(() => {
+    if (user?.role === 'admin') return allSubmissions;
+    const assignedIds = instructorInstitutions
+      .filter(ii => ii.instructor_id === user?.id)
+      .map(ii => ii.institution_id);
+    if (assignedIds.length === 0) return allSubmissions; // sin asignar → ve todo (retrocompat.)
+    const assignedNames = assignedIds.map(id => institutions.find(i => i.id === id)?.name).filter(Boolean);
+    return allSubmissions.filter(s => assignedNames.includes(s.studentInstitution));
+  }, [allSubmissions, user, instructorInstitutions, institutions]);
   const [activeInstitution, setActiveInstitution] = React.useState('all');
   const [activeArea, setActiveArea] = React.useState('all');
   const [gradeModal, setGradeModal] = React.useState(null);
