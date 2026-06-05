@@ -290,21 +290,66 @@ AREAS.forEach(a => ALL_MODULES.push(...makeAreaModules(a.id)));
 const MODULE_MAP = new Map(ALL_MODULES.map(m => [m.id, m]));
 
 const getStudentModules = (areaId) => ALL_MODULES.filter(m => !m.area || m.area === areaId);
-const findModule = (id) => MODULE_MAP.get(id);
+
+// Convierte una fila de course_modules (BD) al formato de módulo que usa la app
+const dbModToAppMod = (row) => ({
+  id:       row.id,
+  type:     row.type,
+  ctype:    row.challenge_type || null,
+  title:    row.title,
+  subtitle: row.subtitle || '',
+  desc:     row.description || '',
+  xp:       row.xp || 100,
+  req:      row.requirements || [],
+  badge:    null,
+  area:     null,
+  pos:      { x: 50, y: row.order || 0 },
+  side:     'right',
+  task:     '',
+  content:  row.content || [],
+  attachments: row.attachments || [],
+  extras:   [],
+  isDbModule: true,
+  // datos de reto
+  ...(row.challenge_data?.dragItems    ? { dragItems:    row.challenge_data.dragItems }    : {}),
+  ...(row.challenge_data?.empathyCards ? { empathyCards: row.challenge_data.empathyCards } : {}),
+  ...(row.challenge_data?.matchPairs   ? { matchPairs:   row.challenge_data.matchPairs }   : {}),
+  ...(row.challenge_data?.simContext   ? { simContext:   row.challenge_data.simContext }    : {}),
+  ...(row.challenge_data?.questions    ? { questions:    row.challenge_data.questions }     : {}),
+});
+
+// findModule se define aquí pero accede a XS de forma lazy (XS se define más adelante)
+// Funciona porque JS evalúa el cuerpo de la función solo cuando se llama, no cuando se declara
+function findModule(id) {
+  try {
+    const st = typeof XS !== 'undefined' ? XS.get() : null;
+    const dbMod = (st?.courseModules || []).find(m => m.id === id);
+    if (dbMod) return dbMod;
+  } catch (_) {}
+  return MODULE_MAP.get(id);
+}
 
 // --- Helpers ---
 const calcLevel = xp => { let l=1; for(let i=1;i<LEVELS.length;i++){if(xp>=LEVELS[i])l=i+1;else break;} return l; };
 const xpForNext = xp => LEVELS[calcLevel(xp)] || xp;
 const xpProgress = xp => { const l=calcLevel(xp),p=LEVELS[l-1]||0,n=LEVELS[l]||xp; return n===p?1:(xp-p)/(n-p); };
-const nodeStatus = (id,done,areaId) => {
-  const m=findModule(id); if(!m) return 'locked';
-  if(done.includes(id)) return 'completed';
-  const mods = getStudentModules(areaId);
-  if(!mods.find(x=>x.id===id)) return 'locked';
-  return m.req.every(r=>done.includes(r)) ? 'available' : 'locked';
+// modulesOverride: si se pasa, se usa en vez de getStudentModules (para módulos de BD)
+const nodeStatus = (id, done, areaId, modulesOverride) => {
+  const mods = modulesOverride || getStudentModules(areaId);
+  const m = mods.find(x => x.id === id) || findModule(id);
+  if (!m) return 'locked';
+  if (done.includes(id)) return 'completed';
+  if (!mods.find(x => x.id === id)) return 'locked';
+  return (m.req || []).every(r => done.includes(r)) ? 'available' : 'locked';
 };
-const progressPct = (done,areaId) => { const mods=getStudentModules(areaId); return Math.round((done.filter(d=>mods.find(m=>m.id===d)).length/mods.length)*100); };
-const isRouteComplete = (done,areaId) => { const mods=getStudentModules(areaId); return mods.every(m=>done.includes(m.id)); };
+const progressPct = (done, areaId, modulesOverride) => {
+  const mods = modulesOverride || getStudentModules(areaId);
+  return mods.length === 0 ? 0 : Math.round((done.filter(d => mods.find(m => m.id === d)).length / mods.length) * 100);
+};
+const isRouteComplete = (done, areaId, modulesOverride) => {
+  const mods = modulesOverride || getStudentModules(areaId);
+  return mods.every(m => done.includes(m.id));
+};
 const gradeTotal = g => g ? Object.values(g).reduce((a,b)=>a+b,0) : 0;
 const gradeMax = () => RUBRIC_CRITERIA.length * 5;
 
@@ -327,9 +372,11 @@ const DEF = {
   routeConfigs: {},
   namedRoutes: [],
   instructorInstitutions: [],
-  // Multi-curso (Etapa A)
+  // Multi-curso
   courses: [],              // [{ id, name, description, cover_image, color, is_active }]
   institutionCourses: [],   // [{ id, institution_id, course_id, is_active }]
+  courseModules: [],        // módulos del curso inscrito (ya convertidos con dbModToAppMod)
+  enrolledCourseId: null,   // id del curso en el que está inscrito el estudiante
 };
 export const XS = createExpStore(DEF);
 
@@ -374,16 +421,25 @@ const completeNode = (id) => {
   if (s.completed.includes(id)) return;
   const m = findModule(id);
   if (!m) return;
-  const nxp = s.xp + m.xp, nc = [...s.completed, id], nb = [...s.badges];
+  const nxp = s.xp + (m.xp || 100), nc = [...s.completed, id], nb = [...s.badges];
   if (m.badge && !nb.includes(m.badge)) nb.push(m.badge);
-  const notifs = [...s.notifications, { type:'xp', amount:m.xp, id:Date.now() }];
+  const notifs = [...s.notifications, { type:'xp', amount:m.xp || 100, id:Date.now() }];
   if (m.badge && !s.badges.includes(m.badge)) notifs.push({ type:'badge', bid:m.badge, id:Date.now()+1 });
   XS.set({ xp:nxp, completed:nc, badges:nb, notifications:notifs });
   if (s.user?.id) {
-    supabase.from('progress')
-      .update({ xp:nxp, completed:nc, badges:nb, updated_at:new Date().toISOString() })
-      .eq('user_id', s.user.id)
-      .then(({ error }) => { if (error) console.error('completeNode:', error); });
+    if (s.enrolledCourseId) {
+      // Nuevo: escribe en course_progress
+      supabase.from('course_progress')
+        .update({ xp:nxp, completed:nc, badges:nb, updated_at:new Date().toISOString() })
+        .eq('user_id', s.user.id).eq('course_id', s.enrolledCourseId)
+        .then(({ error }) => { if (error) console.error('completeNode course_progress:', error); });
+    } else {
+      // Legacy: escribe en progress
+      supabase.from('progress')
+        .update({ xp:nxp, completed:nc, badges:nb, updated_at:new Date().toISOString() })
+        .eq('user_id', s.user.id)
+        .then(({ error }) => { if (error) console.error('completeNode progress:', error); });
+    }
   }
 };
 const recordAttempt = (challengeId, questions, score, maxScore) => {
@@ -739,6 +795,46 @@ const deleteInstitution = (id) => {
   });
 };
 
+// ---- Módulos de curso para estudiante ----
+const loadCourseModules = async (courseId) => {
+  if (!courseId) return;
+  const { data, error } = await supabase
+    .from('course_modules')
+    .select('*')
+    .eq('course_id', courseId)
+    .eq('is_enabled', true)
+    .order('"order"');
+  if (error) { console.error('loadCourseModules:', error); return; }
+  XS.set({
+    courseModules: (data || []).map(dbModToAppMod),
+    enrolledCourseId: courseId,
+  });
+};
+
+const enrollInCourse = async (courseId) => {
+  const { user } = XS.get();
+  if (!user?.id) return;
+  // Crear o actualizar matrícula
+  await supabase.from('course_enrollments').upsert(
+    { student_id: user.id, course_id: courseId, institution_id: null },
+    { onConflict: 'student_id,course_id' }
+  );
+  // Crear registro de progreso si no existe
+  await supabase.from('course_progress').upsert(
+    { user_id: user.id, course_id: courseId, xp: 0, completed: [], badges: [] },
+    { onConflict: 'user_id,course_id' }
+  );
+  await loadCourseModules(courseId);
+  // Limpiar progreso en memoria y cargar desde course_progress
+  const { data: cp } = await supabase.from('course_progress')
+    .select('*').eq('user_id', user.id).eq('course_id', courseId).single();
+  XS.set({
+    xp: cp?.xp || 0,
+    completed: cp?.completed || [],
+    badges: cp?.badges || [],
+  });
+};
+
 // ---- Cursos (multi-ruta) ----
 const loadCourses = async () => {
   const [{ data: coursesData }, { data: icData }] = await Promise.all([
@@ -805,4 +901,5 @@ export {
   createAccount, deleteAccount, changeAccountArea,
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution,
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,
+  loadCourseModules, enrollInCourse, dbModToAppMod,
 };

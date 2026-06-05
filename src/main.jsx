@@ -4,7 +4,7 @@ import './styles.css'
 import App from './app.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient.js'
-import { XS, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses } from './store/store.jsx'
+import { XS, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, loadCourseModules } from './store/store.jsx'
 import { mapSubmission, mapAttempt } from './lib/mappers.js'
 
 const root = ReactDOM.createRoot(document.getElementById('root'))
@@ -99,16 +99,38 @@ async function restoreSession() {
 
   if (profile.role === 'student') {
     const me = [{ id: session.user.id, ...profile }]
-    const [{ data: subsData }, { data: attemptsData }, { data: progressData }] = await Promise.all([
+    const [{ data: subsData }, { data: attemptsData }, { data: progressData }, { data: enrollmentData }] = await Promise.all([
       supabase.from('submissions').select('*').eq('student_id', session.user.id),
       supabase.from('challenge_attempts').select('*').eq('student_id', session.user.id),
       supabase.from('progress').select('*').eq('user_id', session.user.id).single(),
+      supabase.from('course_enrollments').select('course_id').eq('student_id', session.user.id).limit(1).maybeSingle(),
     ])
     submissions       = (subsData     || []).map(s => mapSubmission(s, me))
     challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, me))
-    xp        = progressData?.xp        || 0
-    completed = progressData?.completed  || []
-    badges    = progressData?.badges     || []
+
+    const enrolledCourseId = enrollmentData?.course_id || null
+
+    if (enrolledCourseId) {
+      // Estudiante con curso inscrito: lee progreso de course_progress
+      const { data: cp } = await supabase.from('course_progress')
+        .select('*').eq('user_id', session.user.id).eq('course_id', enrolledCourseId).maybeSingle()
+      xp        = cp?.xp        || 0
+      completed = cp?.completed || []
+      badges    = cp?.badges    || []
+      // Cargar módulos del curso en el store ANTES de set()
+      const { data: modulesData } = await supabase.from('course_modules')
+        .select('*').eq('course_id', enrolledCourseId).eq('is_enabled', true).order('"order"')
+      const { dbModToAppMod: toApp } = await import('./store/store.jsx')
+      XS.set({
+        courseModules: (modulesData || []).map(toApp),
+        enrolledCourseId,
+      })
+    } else {
+      // Legado: usa progress normal
+      xp        = progressData?.xp        || 0
+      completed = progressData?.completed  || []
+      badges    = progressData?.badges     || []
+    }
   }
 
   loadRouteConfigs()

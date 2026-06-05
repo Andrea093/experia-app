@@ -153,22 +153,38 @@ const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
 
 // --- Main Learning Map ---
 const LearningMap = () => {
-  const completed = useStore(s => s.completed);
-  const xp = useStore(s => s.xp);
-  const selectedArea = useStore(s => s.selectedArea);
-  const routeConfigs = useStore(s => s.routeConfigs);
+  const completed       = useStore(s => s.completed);
+  const xp              = useStore(s => s.xp);
+  const selectedArea    = useStore(s => s.selectedArea);
+  const routeConfigs    = useStore(s => s.routeConfigs);
+  const courseModules   = useStore(s => s.courseModules);
+  const enrolledCourseId = useStore(s => s.enrolledCourseId);
+  const courses         = useStore(s => s.courses);
   const isMobile = useMobile();
 
-  const studentModules = React.useMemo(() => getRouteModules(selectedArea, routeConfigs), [selectedArea, routeConfigs]);
+  // Si el estudiante tiene un curso inscrito en BD → usa courseModules, si no usa legacy
+  const studentModules = React.useMemo(() => {
+    if (enrolledCourseId && courseModules.length > 0) return courseModules;
+    return getRouteModules(selectedArea, routeConfigs);
+  }, [enrolledCourseId, courseModules, selectedArea, routeConfigs]);
+
+  const enrolledCourse = React.useMemo(
+    () => courses.find(c => c.id === enrolledCourseId),
+    [courses, enrolledCourseId]
+  );
+
   const level = React.useMemo(() => calcLevel(xp), [xp]);
-  const pct = React.useMemo(() => progressPct(completed, selectedArea), [completed, selectedArea]);
+  const pct = React.useMemo(
+    () => progressPct(completed, selectedArea, enrolledCourseId ? studentModules : null),
+    [completed, selectedArea, studentModules, enrolledCourseId]
+  );
 
   const handleNodeClick = React.useCallback((mod) => {
-    const status = nodeStatus(mod.id, completed, selectedArea);
+    const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
     if (status === 'locked') return;
     if (mod.type === 'lesson') nav('lesson', mod.id);
     else nav('challenge', mod.id);
-  }, [completed, selectedArea]);
+  }, [completed, selectedArea, studentModules, enrolledCourseId]);
 
   // Desktop layout constants
   const nodeSpacing = 180;
@@ -196,7 +212,7 @@ const LearningMap = () => {
         }}>
           <div style={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100,
             borderRadius: '50%', background: 'rgba(255,255,255,.06)' }} />
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.7)', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 }}>Tu Ruta DCE</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.7)', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 }}>{enrolledCourse?.name || 'Tu Ruta DCE'}</div>
           <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 12 }}>Mapa de aprendizaje</h2>
           <div style={{ display: 'flex', gap: 8 }}>
             <StatChip icon={<ProgressRing pct={pct} size={22} sw={2.5} color="rgba(255,255,255,.9)" />} label="Progreso" value={pct + '%'} />
@@ -217,7 +233,7 @@ const LearningMap = () => {
         {/* Linear module list */}
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {studentModules.map((mod, i) => {
-            const status = nodeStatus(mod.id, completed, selectedArea);
+            const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
             return (
               <MobileModuleRow key={mod.id} mod={mod} status={status} onClick={handleNodeClick} />
             );
@@ -241,7 +257,7 @@ const LearningMap = () => {
           borderRadius: '50%', background: 'rgba(255,255,255,.06)' }} />
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.7)',
-            textTransform: 'uppercase', letterSpacing: 2, marginBottom: 6 }}>Tu Ruta DCE</div>
+            textTransform: 'uppercase', letterSpacing: 2, marginBottom: 6 }}>{enrolledCourse?.name || 'Tu Ruta DCE'}</div>
           <h2 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>Mapa de aprendizaje</h2>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,.75)', maxWidth: 400 }}>
             Avanza por cada lección y desbloquea retos para construir tu rol como docente-diseñador.
@@ -260,7 +276,7 @@ const LearningMap = () => {
           {studentModules.slice(0, -1).map((mod, i) => {
             const p1 = getNodePos(mod, i);
             const p2 = getNodePos(studentModules[i + 1], i + 1);
-            const s1 = nodeStatus(mod.id, completed, selectedArea);
+            const s1 = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
             const active = s1 === 'completed';
             return (
               <path key={i} d={genPath(p1, p2)}
@@ -274,8 +290,8 @@ const LearningMap = () => {
 
         {studentModules.map((mod, i) => {
           const pos = getNodePos(mod, i);
-          const status = nodeStatus(mod.id, completed, selectedArea);
-          const cardOnLeft = mod.side === 'left' || mod.pos.x > 50;
+          const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
+          const cardOnLeft = mod.side === 'left' || (mod.pos?.x || 50) > 50;
           return (
             <div key={mod.id} style={{
               position: 'absolute', left: pos.x - 36, top: pos.y - 36,
