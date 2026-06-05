@@ -178,6 +178,152 @@ const CourseModulesPanel = ({ course, onClose }) => {
   )
 }
 
+// ── Editor de bloques de contenido de lección ────────────────
+const BLOCK_TYPES = [
+  { type: 'intro',    label: 'Introducción',  icon: '📝' },
+  { type: 'text',     label: 'Texto',         icon: '📄' },
+  { type: 'callout',  label: 'Destacado',     icon: '💡' },
+  { type: 'concepts', label: 'Conceptos',     icon: '🗂️' },
+  { type: 'video',    label: 'Video',         icon: '🎬' },
+  { type: 'compare',  label: 'Comparación',   icon: '⚖️' },
+]
+
+const emptyBlock = (type) => {
+  switch (type) {
+    case 'intro':    return { type, title: '', text: '' }
+    case 'text':     return { type, title: '', text: '' }
+    case 'callout':  return { type, icon: '💡', title: '', text: '' }
+    case 'concepts': return { type, title: '', items: [{ t: '', d: '' }] }
+    case 'video':    return { type, title: '', desc: '', url: '' }
+    case 'compare':  return { type, title: '', label: '', trad: '', dce: '' }
+    default:         return { type, title: '', text: '' }
+  }
+}
+
+const BlockEditor = ({ block, onChange, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) => {
+  const inp  = { padding: '7px 10px', borderRadius: 7, border: '1px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box', background: 'var(--white)' }
+  const ta   = { ...inp, resize: 'vertical', lineHeight: 1.5 }
+  const lbl  = { fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 3 }
+  const info = BLOCK_TYPES.find(b => b.type === block.type) || { label: block.type, icon: '📄' }
+
+  const set = (k, v) => onChange({ ...block, [k]: v })
+  const setItem = (i, k, v) => {
+    const items = [...(block.items || [])]
+    items[i] = { ...items[i], [k]: v }
+    onChange({ ...block, items })
+  }
+  const addItem  = () => onChange({ ...block, items: [...(block.items || []), { t: '', d: '' }] })
+  const delItem  = (i) => onChange({ ...block, items: (block.items || []).filter((_, j) => j !== i) })
+
+  return (
+    <div style={{ borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--white)', marginBottom: 8, overflow: 'hidden' }}>
+      {/* Header del bloque */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg-alt)', borderBottom: '1px solid var(--border)' }}>
+        <span style={{ fontSize: 15 }}>{info.icon}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--dark)', flex: 1 }}>{info.label}</span>
+        <button onClick={onMoveUp}   disabled={isFirst}  style={{ width: 24, height: 24, borderRadius: 5, border: 'none', cursor: isFirst ? 'default' : 'pointer', background: 'none', fontSize: 13, opacity: isFirst ? .3 : 1 }}>↑</button>
+        <button onClick={onMoveDown} disabled={isLast}   style={{ width: 24, height: 24, borderRadius: 5, border: 'none', cursor: isLast  ? 'default' : 'pointer', background: 'none', fontSize: 13, opacity: isLast  ? .3 : 1 }}>↓</button>
+        <button onClick={onDelete} style={{ width: 24, height: 24, borderRadius: 5, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <XIc s={11} c="var(--error)" />
+        </button>
+      </div>
+
+      {/* Campos según tipo */}
+      <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {(block.type === 'intro' || block.type === 'text') && (
+          <>
+            <div><label style={lbl}>Título</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Título de la sección" /></div>
+            <div><label style={lbl}>Texto</label><textarea value={block.text || ''} onChange={e => set('text', e.target.value)} rows={3} style={ta} placeholder="Contenido..." /></div>
+          </>
+        )}
+        {block.type === 'callout' && (
+          <>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ width: 80 }}><label style={lbl}>Ícono</label><input value={block.icon || ''} onChange={e => set('icon', e.target.value)} style={inp} placeholder="💡" /></div>
+              <div style={{ flex: 1 }}><label style={lbl}>Título</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Nota destacada" /></div>
+            </div>
+            <div><label style={lbl}>Texto</label><textarea value={block.text || ''} onChange={e => set('text', e.target.value)} rows={2} style={ta} placeholder="Mensaje importante..." /></div>
+          </>
+        )}
+        {block.type === 'concepts' && (
+          <>
+            <div><label style={lbl}>Título de la sección</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Ej: Pilares del DCE" /></div>
+            <label style={lbl}>Conceptos</label>
+            {(block.items || []).map((item, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                <input value={item.t || ''} onChange={e => setItem(i, 't', e.target.value)} style={{ ...inp, width: 140, flexShrink: 0 }} placeholder="Nombre" />
+                <input value={item.d || ''} onChange={e => setItem(i, 'd', e.target.value)} style={{ ...inp, flex: 1 }} placeholder="Descripción" />
+                <button onClick={() => delItem(i)} style={{ width: 26, height: 34, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <XIc s={10} c="var(--error)" />
+                </button>
+              </div>
+            ))}
+            <button onClick={addItem} style={{ alignSelf: 'flex-start', padding: '4px 12px', borderRadius: 7, border: '1.5px dashed var(--border)', background: 'var(--bg)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font)', color: 'var(--muted)' }}>+ Agregar concepto</button>
+          </>
+        )}
+        {block.type === 'video' && (
+          <>
+            <div><label style={lbl}>Título</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Ej: Video introductorio" /></div>
+            <div><label style={lbl}>URL del video (YouTube, Vimeo…)</label><input value={block.url || ''} onChange={e => set('url', e.target.value)} style={inp} placeholder="https://www.youtube.com/watch?v=..." /></div>
+            <div><label style={lbl}>Descripción (opcional)</label><input value={block.desc || ''} onChange={e => set('desc', e.target.value)} style={inp} placeholder="Instrucción para el estudiante" /></div>
+          </>
+        )}
+        {block.type === 'compare' && (
+          <>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1 }}><label style={lbl}>Título</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Título de comparación" /></div>
+              <div style={{ width: 140 }}><label style={lbl}>Etiqueta del tema</label><input value={block.label || ''} onChange={e => set('label', e.target.value)} style={inp} placeholder="Ej: Clase de Historia" /></div>
+            </div>
+            <div><label style={lbl}>Enfoque tradicional</label><textarea value={block.trad || ''} onChange={e => set('trad', e.target.value)} rows={2} style={ta} placeholder="Cómo se hace tradicionalmente..." /></div>
+            <div><label style={lbl}>Enfoque DCE / nuevo</label><textarea value={block.dce || ''} onChange={e => set('dce', e.target.value)} rows={2} style={ta} placeholder="Cómo se hace con el nuevo enfoque..." /></div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const LessonContentEditor = ({ content, onChange }) => {
+  const addBlock = (type) => onChange([...(content || []), emptyBlock(type)])
+  const updateBlock = (i, block) => { const c = [...content]; c[i] = block; onChange(c) }
+  const deleteBlock = (i) => onChange(content.filter((_, j) => j !== i))
+  const moveBlock = (i, dir) => {
+    const c = [...content]
+    const j = i + dir
+    if (j < 0 || j >= c.length) return
+    ;[c[i], c[j]] = [c[j], c[i]]
+    onChange(c)
+  }
+
+  return (
+    <div>
+      {(content || []).length === 0 ? (
+        <div style={{ padding: '12px', borderRadius: 10, border: '2px dashed var(--border)', textAlign: 'center', color: 'var(--subtle)', fontSize: 13, marginBottom: 8 }}>
+          Sin bloques aún. Agrega el primero con los botones de abajo.
+        </div>
+      ) : (
+        (content || []).map((block, i) => (
+          <BlockEditor key={i} block={block}
+            onChange={b => updateBlock(i, b)}
+            onDelete={() => deleteBlock(i)}
+            onMoveUp={() => moveBlock(i, -1)}
+            onMoveDown={() => moveBlock(i, 1)}
+            isFirst={i === 0} isLast={i === content.length - 1} />
+        ))
+      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+        {BLOCK_TYPES.map(bt => (
+          <button key={bt.type} onClick={() => addBlock(bt.type)}
+            style={{ padding: '5px 12px', borderRadius: 8, border: '1.5px dashed var(--border)', background: 'var(--bg)',
+              cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font)', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+            {bt.icon} {bt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Formulario de módulo ─────────────────────────────────────
 const ModuleForm = ({ initial, onSave, saving, onCancel }) => {
   const [form, setForm] = React.useState({
@@ -253,6 +399,14 @@ const ModuleForm = ({ initial, onSave, saving, onCancel }) => {
             style={{ ...inp, resize: 'vertical' }} placeholder="Descripción breve del módulo..." />
         </div>
       </div>
+
+      {/* Editor de contenido (solo lecciones) */}
+      {form.type === 'lesson' && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ ...lbl, marginBottom: 8, color: 'var(--orange)' }}>📋 Contenido de la lección ({(form.content || []).length} bloque{(form.content || []).length !== 1 ? 's' : ''})</label>
+          <LessonContentEditor content={form.content} onChange={v => set('content', v)} />
+        </div>
+      )}
 
       {/* Adjuntos */}
       <div style={{ marginBottom: 10 }}>
@@ -358,7 +512,7 @@ const AdminCourses = () => {
         </Modal>
 
         {/* Modal módulos */}
-        <Modal open={!!modsCourse} onClose={() => setModsCourse(null)} title="Módulos del curso" width={680}>
+        <Modal open={!!modsCourse} onClose={() => setModsCourse(null)} title="Módulos del curso" width={820}>
           {modsCourse && <CourseModulesPanel course={modsCourse} onClose={() => setModsCourse(null)} />}
         </Modal>
 
