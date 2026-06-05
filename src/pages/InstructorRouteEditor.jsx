@@ -1,6 +1,5 @@
 import React from 'react'
-import { useStore, AREAS, getStudentModules, saveRouteConfig } from '../store/store.jsx'
-// namedRoutes y institutions vienen del store
+import { useStore, AREAS, getStudentModules, saveRouteConfig, routeKey } from '../store/store.jsx'
 import {
   useMobile,
   ChevRIc, XIc, PlusIc, TrashIc, EditIc, GripIc, CheckIc,
@@ -1106,7 +1105,10 @@ const InstructorRouteEditor = () => {
 
   React.useEffect(() => {
     const defaults = getStudentModules(activeArea)
-    const config = routeConfigs?.[activeArea]
+    // Busca config específica del colegio seleccionado, si no existe toma la global
+    const key = routeKey(activeArea, routeInstitution || null)
+    const globalKey = routeKey(activeArea, null)
+    const config = routeConfigs?.[key] || routeConfigs?.[globalKey]
     if (config?.modules?.length) {
       const cm = {}
       config.modules.forEach(mc => { cm[mc.id] = mc })
@@ -1121,10 +1123,9 @@ const InstructorRouteEditor = () => {
       setModuleList(defaults.map(m => ({ ...m, enabled: true })))
     }
     setCustomModules(config?.customModules || [])
-    const namedRoute = namedRoutes.find(r => r.area === activeArea)
+    const namedRoute = namedRoutes.find(r => r.area === activeArea && r.institution_id === (routeInstitution || null))
     setRouteName(namedRoute?.name || AREAS.find(a => a.id === activeArea)?.name || '')
-    setRouteInstitution(namedRoute?.institution_id || '')
-  }, [activeArea, routeConfigs, namedRoutes])
+  }, [activeArea, routeInstitution, routeConfigs, namedRoutes])
 
   const handleDrop = (i) => {
     if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return }
@@ -1211,11 +1212,12 @@ const InstructorRouteEditor = () => {
       id: m.id, enabled: m.enabled, order: i,
       ...(m.override ? { override: m.override } : {}),
     }))
-    const existingRoute = namedRoutes.find(r => r.area === activeArea)
+    const instId = routeInstitution || null
+    const existingRoute = namedRoutes.find(r => r.area === activeArea && r.institution_id === instId)
     await saveRouteConfig(
       activeArea, modulesConfig, customModules,
       routeName || AREAS.find(a => a.id === activeArea)?.name,
-      routeInstitution || null,
+      instId,
       existingRoute?.id,
     )
     setSaving(false); setSaved(true)
@@ -1247,21 +1249,30 @@ const InstructorRouteEditor = () => {
             </Btn>
           </div>
         </div>
-        {/* Nombre de ruta y asignación a colegio */}
+        {/* Selector de colegio + nombre de ruta */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', padding: '14px 18px', borderRadius: 12, background: 'var(--bg-alt)', border: '1px solid var(--border)' }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>
+              🏫 Colegio (la ruta se guarda por colegio)
+            </label>
+            <select value={routeInstitution} onChange={e => setRouteInstitution(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '2px solid var(--orange)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', background: 'var(--white)', boxSizing: 'border-box', fontWeight: 600 }}>
+              <option value="">— Ruta global (sin colegio) —</option>
+              {institutions.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
+            </select>
+          </div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>Nombre de la ruta</label>
             <input value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="Ej: Ruta DCE — Colegio San Francisco"
               style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
           </div>
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>Asignar a colegio</label>
-            <select value={routeInstitution} onChange={e => setRouteInstitution(e.target.value)}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', background: 'var(--white)', boxSizing: 'border-box' }}>
-              <option value="">— Sin asignar —</option>
-              {institutions.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
-            </select>
-          </div>
+          {routeInstitution && (
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <div style={{ padding: '6px 12px', borderRadius: 8, background: '#FEF3E8', border: '1px solid var(--orange)', fontSize: 12, color: 'var(--orange)', fontWeight: 600 }}>
+                ✏️ Editando ruta exclusiva para este colegio
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

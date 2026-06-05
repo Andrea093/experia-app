@@ -512,13 +512,17 @@ const resetStudentProgress = async (userId, userEmail) => {
 };
 
 // ---- Route Config ----
+// Clave en routeConfigs: `${area}__${institutionId || 'global'}`
+const routeKey = (area, institutionId) => `${area}__${institutionId || 'global'}`;
+
 const loadRouteConfigs = async () => {
   const { data, error } = await supabase.from('route_configs').select('*');
   if (error) { console.error('loadRouteConfigs:', error); return; }
   const configs = {};
   const namedRoutes = [];
   (data || []).forEach(row => {
-    configs[row.area] = { modules: row.modules || [], customModules: row.custom_modules || [] };
+    const key = routeKey(row.area, row.institution_id);
+    configs[key] = { modules: row.modules || [], customModules: row.custom_modules || [] };
     namedRoutes.push({
       id: row.id, name: row.name || row.area, area: row.area,
       institution_id: row.institution_id || null,
@@ -528,20 +532,23 @@ const loadRouteConfigs = async () => {
   XS.set({ routeConfigs: configs, namedRoutes });
 };
 
-// Guarda una ruta con nombre y opcionalmente la asigna a un colegio
+// Guarda una ruta para un área + colegio específico (institution_id null = global)
 const saveRouteConfig = async (area, modules, customModules, name, institutionId, existingId) => {
-  XS.set(s => ({ routeConfigs: { ...s.routeConfigs, [area]: { modules, customModules } } }));
+  const instId = institutionId || null;
+  const key = routeKey(area, instId);
+  XS.set(s => ({ routeConfigs: { ...s.routeConfigs, [key]: { modules, customModules } } }));
   const payload = {
     area, modules, custom_modules: customModules,
     updated_at: new Date().toISOString(),
-    ...(name !== undefined ? { name } : {}),
-    ...(institutionId !== undefined ? { institution_id: institutionId || null } : {}),
+    name: name || area,
+    institution_id: instId,
   };
   let error;
   if (existingId) {
     ({ error } = await supabase.from('route_configs').update(payload).eq('id', existingId));
   } else {
-    ({ error } = await supabase.from('route_configs').upsert(payload, { onConflict: 'area' }));
+    ({ error } = await supabase.from('route_configs')
+      .upsert(payload, { onConflict: 'area,institution_id' }));
   }
   if (error) { console.error('saveRouteConfig:', error); return; }
   await loadRouteConfigs();
@@ -575,9 +582,11 @@ const assignRouteToInstitution = async (routeId, institutionId) => {
   await loadRouteConfigs();
 };
 
-const getRouteModules = (areaId, routeConfigs) => {
+const getRouteModules = (areaId, routeConfigs, institutionId) => {
   const defaultMods = getStudentModules(areaId);
-  const config = routeConfigs?.[areaId];
+  // Busca primero la config específica del colegio, luego la global
+  const config = routeConfigs?.[routeKey(areaId, institutionId)]
+    || routeConfigs?.[routeKey(areaId, null)];
   if (!config || (!config.modules?.length && !config.customModules?.length)) return defaultMods;
 
   const configMap = {};
@@ -735,7 +744,7 @@ export {
   nav, doLogout, selectArea, changeArea, completeNode, recordAttempt,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
-  loadRouteConfigs, saveRouteConfig, getRouteModules, findModuleInConfig,
+  loadRouteConfigs, saveRouteConfig, getRouteModules, findModuleInConfig, routeKey,
   loadInstructorInstitutions, assignInstructorInstitution, removeInstructorInstitution,
   assignRouteToInstitution,
   createAccount, deleteAccount, changeAccountArea,
