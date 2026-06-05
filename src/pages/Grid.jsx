@@ -507,9 +507,9 @@ const StudentProductUpload = () => {
 // ---- Instructor Review Panel ----
 // =============================================
 export const InstructorDashboard = ({ onStudentClick }) => {
-  const allSubmissions        = useStore(s => s.submissions);
-  const user                  = useStore(s => s.user);
-  const institutions          = useStore(s => s.institutions || []);
+  const allSubmissions         = useStore(s => s.submissions);
+  const user                   = useStore(s => s.user);
+  const storeInstitutions      = useStore(s => s.institutions || []);
   const instructorInstitutions = useStore(s => s.instructorInstitutions || []);
   const isMobile = useMobile();
 
@@ -519,10 +519,10 @@ export const InstructorDashboard = ({ onStudentClick }) => {
     const assignedIds = instructorInstitutions
       .filter(ii => ii.instructor_id === user?.id)
       .map(ii => ii.institution_id);
-    if (assignedIds.length === 0) return allSubmissions; // sin asignar → ve todo (retrocompat.)
-    const assignedNames = assignedIds.map(id => institutions.find(i => i.id === id)?.name).filter(Boolean);
+    if (assignedIds.length === 0) return allSubmissions;
+    const assignedNames = assignedIds.map(id => storeInstitutions.find(i => i.id === id)?.name).filter(Boolean);
     return allSubmissions.filter(s => assignedNames.includes(s.studentInstitution));
-  }, [allSubmissions, user, instructorInstitutions, institutions]);
+  }, [allSubmissions, user, instructorInstitutions, storeInstitutions]);
   const [activeInstitution, setActiveInstitution] = React.useState('all');
   const [activeArea, setActiveArea] = React.useState('all');
   const [gradeModal, setGradeModal] = React.useState(null);
