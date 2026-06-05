@@ -47,7 +47,7 @@ const DragDropChallenge = ({ mod, onComplete }) => {
   const phaseColors={Empatizar:'#E8732C',Definir:'#7B3FA0',Idear:'#3B82F6',Prototipar:'#10B981',Evaluar:'#F59E0B'};
 
   return (
-    <div style={{maxWidth:540,margin:'0 auto'}}>
+    <div style={{maxWidth:540,margin:'0 auto',paddingBottom:48}}>
       <div style={{textAlign:'center',marginBottom:28}}>
         <span style={{fontSize:40}}>🧩</span>
         <h3 style={{fontSize:20,fontWeight:700,marginTop:8,color:'var(--dark)'}}>Ordena las fases del DCE</h3>
@@ -124,7 +124,7 @@ const EmpathyMapChallenge = ({ mod, onComplete }) => {
   };
 
   return (
-    <div style={{maxWidth:720,margin:'0 auto'}}>
+    <div style={{maxWidth:720,margin:'0 auto',paddingBottom:48}}>
       <div style={{textAlign:'center',marginBottom:24}}>
         <span style={{fontSize:40}}>🗺️</span>
         <h3 style={{fontSize:20,fontWeight:700,marginTop:8,color:'var(--dark)'}}>Mapa de Empatía del Estudiante</h3>
@@ -223,7 +223,7 @@ const SimulationChallenge = ({ mod, onComplete }) => {
   },[node, totalPts]);
 
   return (
-    <div style={{maxWidth:600,margin:'0 auto'}}>
+    <div style={{maxWidth:600,margin:'0 auto',paddingBottom:48}}>
       <div style={{textAlign:'center',marginBottom:28}}>
         <span style={{fontSize:40}}>🎭</span>
         <h3 style={{fontSize:20,fontWeight:700,marginTop:8,color:'var(--dark)'}}>Simulación Pedagógica</h3>
@@ -331,7 +331,7 @@ const ConceptMatchingChallenge = ({ mod, onComplete }) => {
   };
 
   return (
-    <div style={{maxWidth:700,margin:'0 auto'}}>
+    <div style={{maxWidth:700,margin:'0 auto',paddingBottom:48}}>
       <div style={{textAlign:'center',marginBottom:28}}>
         <span style={{fontSize:40}}>🔗</span>
         <h3 style={{fontSize:20,fontWeight:700,marginTop:8,color:'var(--dark)'}}>Conecta los Conceptos</h3>
@@ -427,7 +427,7 @@ const DesignLabChallenge = ({ mod, onComplete }) => {
       :pct>=53?{emoji:'👍',text:'Buen Diseñador en Formación',desc:'Tu diseño incorpora varios principios del DCE.'}
       :{emoji:'💪',text:'Iniciando el Camino DCE',desc:'Tu diseño todavía refleja un enfoque tradicional.'};
     return (
-      <div style={{maxWidth:620,margin:'0 auto'}}>
+      <div style={{maxWidth:620,margin:'0 auto',paddingBottom:48}}>
         <div style={{textAlign:'center',marginBottom:28}}>
           <span style={{fontSize:56}}>{rating.emoji}</span>
           <h3 style={{fontSize:22,fontWeight:800,color:'var(--dark)',marginTop:10}}>{rating.text}</h3>
@@ -460,7 +460,7 @@ const DesignLabChallenge = ({ mod, onComplete }) => {
 
   const current=STEPS[step];
   return (
-    <div style={{maxWidth:660,margin:'0 auto'}}>
+    <div style={{maxWidth:660,margin:'0 auto',paddingBottom:48}}>
       <div style={{textAlign:'center',marginBottom:24}}>
         <span style={{fontSize:40}}>🏗️</span>
         <h3 style={{fontSize:20,fontWeight:700,marginTop:8,color:'var(--dark)'}}>Laboratorio de Diseño DCE</h3>
@@ -554,7 +554,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
       : pct >= 60 ? { emoji:'👍', text:'¡Buen trabajo!' }
       : { emoji:'💪', text:'¡Sigue practicando!' };
     return (
-      <div style={{maxWidth:520,margin:'0 auto',textAlign:'center'}}>
+      <div style={{maxWidth:520,margin:'0 auto',textAlign:'center',paddingBottom:48}}>
         <span style={{fontSize:56}}>{rating.emoji}</span>
         <h3 style={{fontSize:22,fontWeight:800,color:'var(--dark)',marginTop:10,marginBottom:6}}>{rating.text}</h3>
         <div style={{display:'flex',justifyContent:'center',alignItems:'baseline',gap:6,marginBottom:16}}>
@@ -582,7 +582,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
   }
 
   return (
-    <div style={{maxWidth:560,margin:'0 auto'}}>
+    <div style={{maxWidth:560,margin:'0 auto',paddingBottom:48}}>
       <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:24}}>
         <ProgressBar pct={(current/questions.length)*100} h={6} color="var(--orange)"/>
         <span style={{fontSize:12,color:'var(--muted)',whiteSpace:'nowrap',fontWeight:600}}>{current+1}/{questions.length}</span>
