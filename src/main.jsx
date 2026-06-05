@@ -113,6 +113,15 @@ async function restoreSession() {
 
   loadRouteConfigs()
   if (profile.role === 'admin' || profile.role === 'instructor') loadInstructorInstitutions()
+
+  // Suscripción en tiempo real: cuando el instructor guarda una ruta,
+  // todos los estudiantes conectados reciben el cambio automáticamente
+  supabase.channel('route-configs-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'route_configs' }, () => {
+      loadRouteConfigs()
+    })
+    .subscribe()
+
   XS.set({
     isLoggedIn: true,
     user: { id: session.user.id, name: profile.name, email: profile.email,
