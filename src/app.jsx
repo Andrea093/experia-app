@@ -206,6 +206,10 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
           onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}>
           <LogOutIc s={16} /> Cerrar sesión
         </button>
+        <div style={{ fontSize: 9, color: 'var(--subtle)', textAlign: 'center', marginTop: 6, letterSpacing: .3 }}>
+          {/* eslint-disable-next-line no-undef */}
+          v{new Date(typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 0).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' })}
+        </div>
       </div>
     </aside>
   );
