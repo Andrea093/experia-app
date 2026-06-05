@@ -75,7 +75,21 @@ const CertificatePage = ({ submission, area }) => {
 
   return (
     <div style={{ height: '100%', overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '16px 12px 48px' : '32px 24px 60px', background: 'var(--bg)' }}>
-      <style dangerouslySetInnerHTML={{ __html: `@media print { .no-print { display: none !important; } #cert-wrap { padding: 0 !important; } #certificate { box-shadow: none !important; } }` }} />
+      <style dangerouslySetInnerHTML={{ __html: `
+        @page { size: A4 landscape; margin: 10mm; }
+        @media print {
+          html, body { height: auto !important; overflow: visible !important; }
+          .no-print { display: none !important; }
+          #cert-wrap { padding: 0 !important; max-width: 100% !important; }
+          #certificate {
+            box-shadow: none !important;
+            padding: 28px 44px !important;
+            border-radius: 12px !important;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+        }
+      ` }} />
       <div id="cert-wrap" style={{ maxWidth: 720, margin: '0 auto' }}>
         <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? 16 : 28, flexWrap: 'wrap', gap: 10 }}>
           <div>
@@ -87,28 +101,28 @@ const CertificatePage = ({ submission, area }) => {
             <Btn variant="gradient" size="sm" onClick={() => window.print()}>🖨️ Descargar / Imprimir</Btn>
           </div>
         </div>
-        <div id="certificate" style={{ background: 'white', border: isMobile ? '5px solid var(--orange)' : '8px solid var(--orange)', borderRadius: isMobile ? 16 : 24, padding: isMobile ? '32px 20px' : '56px 64px', textAlign: 'center', position: 'relative', boxShadow: 'var(--sh-xl)' }}>
+        <div id="certificate" style={{ background: 'white', border: isMobile ? '5px solid var(--orange)' : '8px solid var(--orange)', borderRadius: isMobile ? 16 : 24, padding: isMobile ? '28px 18px' : '40px 56px', textAlign: 'center', position: 'relative', boxShadow: 'var(--sh-xl)' }}>
           <div style={{ position: 'absolute', inset: 10, border: '2px solid #FADCBE', borderRadius: 16, pointerEvents: 'none' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 40 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 24 }}>
             <LogoImg h={44} />
             <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2 }}>Experia · Formación Docente</div>
           </div>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 4, color: 'var(--orange)', marginBottom: 12 }}>Certificado de Formación Docente</div>
           <h1 style={{ fontSize: 30, fontWeight: 800, color: 'var(--dark)', lineHeight: 1.2, marginBottom: 8 }}>Diseño Centrado en Experiencias</h1>
-          <div style={{ width: 80, height: 4, background: 'var(--gradient)', borderRadius: 2, margin: '0 auto 36px' }} />
+          <div style={{ width: 80, height: 4, background: 'var(--gradient)', borderRadius: 2, margin: '0 auto 24px' }} />
           <p style={{ fontSize: 16, color: 'var(--muted)', marginBottom: 20, lineHeight: 1.6 }}>Este certificado acredita que</p>
           <div style={{ fontSize: isMobile ? 26 : 40, fontWeight: 800, color: 'var(--dark)', marginBottom: 12, lineHeight: 1.2, padding: '0 8px' }}>{submission.studentName}</div>
-          <p style={{ fontSize: 15, color: 'var(--text-sec)', marginBottom: 36, lineHeight: 1.7, maxWidth: 520, margin: '0 auto 36px' }}>
+          <p style={{ fontSize: 15, color: 'var(--text-sec)', marginBottom: 24, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 24px' }}>
             ha completado satisfactoriamente la formación docente en<br />
             <strong>Diseño Centrado en Experiencias (DCE)</strong>
           </p>
           {area && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '12px 30px', borderRadius: 100, background: area.bg, border: `2px solid ${area.color}40`, marginBottom: 40 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 24px', borderRadius: 100, background: area.bg, border: `2px solid ${area.color}40`, marginBottom: 24 }}>
               <span style={{ fontSize: 24 }}>{area.icon}</span>
               <span style={{ fontSize: 17, fontWeight: 700, color: area.color }}>Área: {area.name}</span>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: 0, marginBottom: 52, border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', maxWidth: 420, margin: '0 auto 52px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: 0, marginBottom: 28, border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', maxWidth: 420, margin: '0 auto 28px' }}>
             {[
               { label: 'Puntuación', value: `${total}/${max}`, color: 'var(--success)' },
               { label: 'Logro', value: `${pct}%`, color: 'var(--orange)' },
@@ -121,7 +135,7 @@ const CertificatePage = ({ submission, area }) => {
             ))}
           </div>
           {submission.feedback && (
-            <div style={{ padding: '14px 24px', borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border)', marginBottom: 40, textAlign: 'left', maxWidth: 480, margin: '0 auto 40px' }}>
+            <div style={{ padding: '12px 20px', borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border)', marginBottom: 24, textAlign: 'left', maxWidth: 480, margin: '0 auto 24px' }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Comentario del instructor</div>
               <p style={{ fontSize: 13, color: 'var(--text-sec)', fontStyle: 'italic', lineHeight: 1.6 }}>"{submission.feedback}"</p>
             </div>
