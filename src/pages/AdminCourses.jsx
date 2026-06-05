@@ -1,0 +1,439 @@
+import React from 'react'
+import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution } from '../store/store.jsx'
+import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal } from '../components/ui.jsx'
+import { supabase } from '../lib/supabaseClient.js'
+
+// ── Formulario de curso ──────────────────────────────────────
+const CourseForm = ({ initial, onSave, onCancel }) => {
+  const [form, setForm] = React.useState({
+    name: initial?.name || '',
+    description: initial?.description || '',
+    color: initial?.color || '#E8732C',
+    coverImage: initial?.cover_image || '',
+  })
+  const [saving, setSaving] = React.useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const inp = { padding: '9px 12px', borderRadius: 9, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', background: 'var(--white)' }
+  const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }
+
+  const handleSave = async () => {
+    if (!form.name.trim()) return
+    setSaving(true)
+    await onSave(form)
+    setSaving(false)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div>
+        <label style={lbl}>Nombre del curso *</label>
+        <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Ej: Liderazgo Educativo" style={inp} />
+      </div>
+      <div>
+        <label style={lbl}>Descripción</label>
+        <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3}
+          placeholder="Describe el objetivo y contenido del curso..."
+          style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} />
+      </div>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <label style={lbl}>Color de identidad</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input type="color" value={form.color} onChange={e => set('color', e.target.value)}
+              style={{ width: 40, height: 40, borderRadius: 8, border: 'none', cursor: 'pointer', padding: 2 }} />
+            <span style={{ fontSize: 13, color: 'var(--muted)' }}>{form.color}</span>
+          </div>
+        </div>
+        <div style={{ flex: 2 }}>
+          <label style={lbl}>URL imagen de portada</label>
+          <input value={form.coverImage} onChange={e => set('coverImage', e.target.value)}
+            placeholder="https://..." style={inp} />
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+        <Btn variant="secondary" onClick={onCancel}>Cancelar</Btn>
+        <Btn variant="gradient" disabled={saving || !form.name.trim()} onClick={handleSave}>
+          {saving ? '⏳ Guardando...' : initial ? '💾 Actualizar' : '✅ Crear curso'}
+        </Btn>
+      </div>
+    </div>
+  )
+}
+
+// ── Panel de módulos de un curso ─────────────────────────────
+const CourseModulesPanel = ({ course, onClose }) => {
+  const [modules, setModules] = React.useState([])
+  const [loading, setLoading] = React.useState(true)
+  const [showAdd, setShowAdd] = React.useState(false)
+  const [editMod, setEditMod] = React.useState(null)
+  const [saving, setSaving] = React.useState(false)
+
+  const loadModules = React.useCallback(async () => {
+    const { data } = await supabase.from('course_modules')
+      .select('*').eq('course_id', course.id).order('"order"')
+    setModules(data || [])
+    setLoading(false)
+  }, [course.id])
+
+  React.useEffect(() => { loadModules() }, [loadModules])
+
+  const toggleEnabled = async (mod) => {
+    await supabase.from('course_modules').update({ is_enabled: !mod.is_enabled }).eq('id', mod.id)
+    setModules(ms => ms.map(m => m.id === mod.id ? { ...m, is_enabled: !m.is_enabled } : m))
+  }
+
+  const deleteModule = async (id) => {
+    await supabase.from('course_modules').delete().eq('id', id)
+    setModules(ms => ms.filter(m => m.id !== id))
+  }
+
+  const saveModule = async (form) => {
+    setSaving(true)
+    if (editMod) {
+      await supabase.from('course_modules').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editMod.id)
+    } else {
+      const maxOrder = modules.reduce((max, m) => Math.max(max, m.order || 0), 0)
+      await supabase.from('course_modules').insert({ ...form, course_id: course.id, order: maxOrder + 1 })
+    }
+    await loadModules()
+    setSaving(false)
+    setShowAdd(false)
+    setEditMod(null)
+  }
+
+  const typeColor = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: '#10B981' }
+  const typeLabel = { lesson: 'LECCIÓN', challenge: 'RETO', evaluation: 'EVALUACIÓN' }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--dark)', marginBottom: 2 }}>{course.name}</h3>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{modules.length} módulos</span>
+        </div>
+        <Btn variant="gradient" size="sm" onClick={() => setShowAdd(true)}><PlusIc s={14} c="#fff" /> Agregar módulo</Btn>
+      </div>
+
+      {(showAdd || editMod) && (
+        <ModuleForm initial={editMod} onSave={saveModule} saving={saving} onCancel={() => { setShowAdd(false); setEditMod(null) }} />
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 32, color: 'var(--muted)' }}>Cargando...</div>
+      ) : modules.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 32, color: 'var(--subtle)', border: '2px dashed var(--border)', borderRadius: 12 }}>
+          Sin módulos aún. Agrega el primero.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 420, overflowY: 'auto' }}>
+          {modules.map((mod, i) => (
+            <div key={mod.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+              borderRadius: 10, background: mod.is_enabled ? 'var(--bg)' : '#F9FAFB',
+              border: `1px solid ${mod.is_enabled ? 'var(--border)' : '#E5E7EB'}`,
+              opacity: mod.is_enabled ? 1 : 0.6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--subtle)', minWidth: 20 }}>{i + 1}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)' }}>{mod.title}</div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
+                    background: typeColor[mod.type] + '20', color: typeColor[mod.type] }}>
+                    {typeLabel[mod.type]}
+                  </span>
+                  {mod.attachments?.length > 0 && (
+                    <span style={{ fontSize: 10, color: 'var(--muted)' }}>📎 {mod.attachments.length} adjunto{mod.attachments.length !== 1 ? 's' : ''}</span>
+                  )}
+                  <span style={{ fontSize: 10, color: 'var(--muted)' }}>⚡ {mod.xp} XP</span>
+                </div>
+              </div>
+              <button onClick={() => toggleEnabled(mod)}
+                style={{ padding: '4px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                  background: mod.is_enabled ? '#D1FAE5' : '#FEE2E2', color: mod.is_enabled ? 'var(--success)' : 'var(--error)' }}>
+                {mod.is_enabled ? 'Activo' : 'Inactivo'}
+              </button>
+              <button onClick={() => setEditMod(mod)}
+                style={{ width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer', background: 'var(--bg-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <EditIc s={13} c="var(--muted)" />
+              </button>
+              <button onClick={() => deleteModule(mod.id)}
+                style={{ width: 28, height: 28, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <TrashIc s={13} c="var(--error)" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Formulario de módulo ─────────────────────────────────────
+const ModuleForm = ({ initial, onSave, saving, onCancel }) => {
+  const [form, setForm] = React.useState({
+    title: initial?.title || '',
+    subtitle: initial?.subtitle || '',
+    description: initial?.description || '',
+    type: initial?.type || 'lesson',
+    challenge_type: initial?.challenge_type || '',
+    xp: initial?.xp || 100,
+    content: initial?.content || [],
+    attachments: initial?.attachments || [],
+  })
+  const [uploading, setUploading] = React.useState(false)
+  const fileRef = React.useRef(null)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const inp = { padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box', background: 'var(--white)' }
+  const lbl = { fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 4 }
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    if (file.size > 20 * 1024 * 1024) { alert('Máximo 20 MB por archivo'); return }
+    setUploading(true)
+    const path = `course-attachments/${Date.now()}_${file.name}`
+    const { error } = await supabase.storage.from('attachments').upload(path, file, { upsert: false })
+    if (error) { console.error('upload:', error); setUploading(false); return }
+    const { data: { publicUrl } } = supabase.storage.from('attachments').getPublicUrl(path)
+    const attachment = { name: file.name, url: publicUrl, type: file.type, size: file.size }
+    set('attachments', [...form.attachments, attachment])
+    setUploading(false)
+  }
+
+  const removeAttachment = (idx) => set('attachments', form.attachments.filter((_, i) => i !== idx))
+
+  return (
+    <div style={{ padding: '16px', borderRadius: 12, border: '2px dashed var(--orange)', background: 'var(--orange-bg)', marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={lbl}>Título del módulo *</label>
+          <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Ej: Introducción al Liderazgo" style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>Subtítulo</label>
+          <input value={form.subtitle} onChange={e => set('subtitle', e.target.value)} placeholder="Módulo 1, Reto…" style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>XP</label>
+          <input type="number" value={form.xp} onChange={e => set('xp', Number(e.target.value))} style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>Tipo</label>
+          <select value={form.type} onChange={e => set('type', e.target.value)} style={inp}>
+            <option value="lesson">Lección</option>
+            <option value="challenge">Reto</option>
+            <option value="evaluation">Evaluación</option>
+          </select>
+        </div>
+        <div>
+          <label style={lbl}>Tipo de reto</label>
+          <select value={form.challenge_type} onChange={e => set('challenge_type', e.target.value)} style={inp} disabled={form.type !== 'challenge' && form.type !== 'evaluation'}>
+            <option value="">— Ninguno —</option>
+            <option value="dragdrop">Ordenar elementos</option>
+            <option value="empathy">Mapa de empatía</option>
+            <option value="simulation">Simulación</option>
+            <option value="matching">Conectar conceptos</option>
+            <option value="designlab">Lab de diseño</option>
+            <option value="quiz">Quiz</option>
+          </select>
+        </div>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={lbl}>Descripción</label>
+          <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={2}
+            style={{ ...inp, resize: 'vertical' }} placeholder="Descripción breve del módulo..." />
+        </div>
+      </div>
+
+      {/* Adjuntos */}
+      <div style={{ marginBottom: 10 }}>
+        <label style={lbl}>📎 Archivos adjuntos (PDF, videos, imágenes — máx 20 MB)</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+          {form.attachments.map((att, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px',
+              borderRadius: 8, background: 'var(--white)', border: '1px solid var(--border)', fontSize: 12 }}>
+              <a href={att.url} target="_blank" rel="noreferrer" style={{ color: 'var(--orange)', fontWeight: 600, textDecoration: 'none' }}>
+                {att.name}
+              </a>
+              <button onClick={() => removeAttachment(i)}
+                style={{ width: 16, height: 16, border: 'none', background: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}>
+                <XIc s={10} c="var(--error)" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={handleFileUpload}
+          accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.mp4,.mp3" />
+        <button onClick={() => fileRef.current?.click()} disabled={uploading}
+          style={{ padding: '6px 14px', borderRadius: 8, border: '1.5px dashed var(--border)', background: 'var(--white)',
+            cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font)', color: 'var(--muted)' }}>
+          {uploading ? '⏳ Subiendo...' : '+ Subir archivo'}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <Btn variant="secondary" size="sm" onClick={onCancel}>Cancelar</Btn>
+        <Btn variant="gradient" size="sm" disabled={saving || !form.title.trim()} onClick={() => onSave(form)}>
+          {saving ? 'Guardando...' : initial ? 'Actualizar' : 'Agregar'}
+        </Btn>
+      </div>
+    </div>
+  )
+}
+
+// ── Página principal del gestor de cursos ────────────────────
+const AdminCourses = () => {
+  const courses          = useStore(s => s.courses || [])
+  const institutions     = useStore(s => s.institutions || [])
+  const institutionCourses = useStore(s => s.institutionCourses || [])
+  const isMobile         = useMobile()
+
+  const [showCreate, setShowCreate]   = React.useState(false)
+  const [editCourse, setEditCourse]   = React.useState(null)
+  const [modsCourse, setModsCourse]   = React.useState(null)
+  const [deleteConfirm, setDeleteConfirm] = React.useState(null)
+  const [togglingId, setTogglingId]   = React.useState(null)
+
+  const handleCreate = async (form) => {
+    await createCourse({ name: form.name, description: form.description, color: form.color, coverImage: form.coverImage })
+    setShowCreate(false)
+  }
+
+  const handleUpdate = async (form) => {
+    await updateCourse(editCourse.id, { name: form.name, description: form.description, color: form.color, cover_image: form.coverImage })
+    setEditCourse(null)
+  }
+
+  const handleDelete = async () => {
+    await deleteCourse(deleteConfirm.id)
+    setDeleteConfirm(null)
+  }
+
+  const handleToggleGlobal = async (course) => {
+    setTogglingId(course.id)
+    await updateCourse(course.id, { is_active: !course.is_active })
+    setTogglingId(null)
+  }
+
+  const handleToggleInstitution = async (courseId, instId, currentActive) => {
+    await toggleCourseForInstitution(courseId, instId, !currentActive)
+  }
+
+  const isCourseActiveForInst = (courseId, instId) => {
+    const ic = institutionCourses.find(r => r.course_id === courseId && r.institution_id === instId)
+    return ic ? ic.is_active : false
+  }
+
+  return (
+    <div style={{ height: '100%', overflow: 'auto', padding: isMobile ? '16px 12px 48px' : '24px 24px 60px', background: 'var(--bg)' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>📚 Gestor de Cursos</h2>
+            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Crea y administra rutas de formación. Habilítalas por institución.</p>
+          </div>
+          <Btn variant="gradient" onClick={() => setShowCreate(true)}><PlusIc s={15} c="#fff" /> Nuevo curso</Btn>
+        </div>
+
+        {/* Modal crear */}
+        <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Nuevo curso" width={540}>
+          <CourseForm onSave={handleCreate} onCancel={() => setShowCreate(false)} />
+        </Modal>
+
+        {/* Modal editar */}
+        <Modal open={!!editCourse} onClose={() => setEditCourse(null)} title="Editar curso" width={540}>
+          {editCourse && <CourseForm initial={editCourse} onSave={handleUpdate} onCancel={() => setEditCourse(null)} />}
+        </Modal>
+
+        {/* Modal módulos */}
+        <Modal open={!!modsCourse} onClose={() => setModsCourse(null)} title="Módulos del curso" width={680}>
+          {modsCourse && <CourseModulesPanel course={modsCourse} onClose={() => setModsCourse(null)} />}
+        </Modal>
+
+        {/* Modal confirmar eliminar */}
+        <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="¿Eliminar curso?" width={400}>
+          {deleteConfirm && (
+            <div>
+              <p style={{ fontSize: 14, color: 'var(--text-sec)', marginBottom: 16 }}>
+                Se eliminará <strong>{deleteConfirm.name}</strong> y todos sus módulos. Esta acción no se puede deshacer.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Btn variant="secondary" full onClick={() => setDeleteConfirm(null)}>Cancelar</Btn>
+                <Btn variant="danger" full onClick={handleDelete}>Eliminar</Btn>
+              </div>
+            </div>
+          )}
+        </Modal>
+
+        {/* Lista de cursos */}
+        {courses.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '48px 24px', borderRadius: 16, border: '2px dashed var(--border)', background: 'var(--white)' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 6 }}>Sin cursos aún</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>Crea el primer curso para empezar a estructurar rutas de formación.</p>
+            <Btn variant="gradient" onClick={() => setShowCreate(true)}>Crear primer curso</Btn>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {courses.map(course => (
+              <div key={course.id} style={{ borderRadius: 16, background: 'var(--white)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                {/* Header del curso */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px',
+                  borderLeft: `5px solid ${course.color || '#E8732C'}` }}>
+                  {course.cover_image && (
+                    <img src={course.cover_image} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+                  )}
+                  {!course.cover_image && (
+                    <div style={{ width: 48, height: 48, borderRadius: 10, background: (course.color || '#E8732C') + '20',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>📖</div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--dark)', marginBottom: 2 }}>{course.name}</div>
+                    {course.description && <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>{course.description}</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {/* Toggle global */}
+                    <button onClick={() => handleToggleGlobal(course)} disabled={togglingId === course.id}
+                      style={{ padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                        background: course.is_active ? '#D1FAE5' : '#FEE2E2',
+                        color: course.is_active ? 'var(--success)' : 'var(--error)' }}>
+                      {course.is_active ? '✅ Activo' : '❌ Inactivo'}
+                    </button>
+                    <Btn variant="secondary" size="sm" onClick={() => setModsCourse(course)}>📋 Módulos</Btn>
+                    <Btn variant="secondary" size="sm" onClick={() => setEditCourse(course)}><EditIc s={13} c="var(--muted)" /></Btn>
+                    <Btn variant="secondary" size="sm" onClick={() => setDeleteConfirm(course)}><TrashIc s={13} c="var(--error)" /></Btn>
+                  </div>
+                </div>
+
+                {/* Asignación por institución */}
+                <div style={{ padding: '12px 20px 16px', borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                    Habilitar para instituciones
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {institutions.map(inst => {
+                      const active = isCourseActiveForInst(course.id, inst.id)
+                      return (
+                        <button key={inst.id} onClick={() => handleToggleInstitution(course.id, inst.id, active)}
+                          style={{ padding: '5px 12px', borderRadius: 20, border: `1.5px solid ${active ? 'var(--success)' : 'var(--border)'}`,
+                            background: active ? '#D1FAE5' : 'var(--white)', cursor: 'pointer',
+                            fontSize: 12, fontWeight: active ? 600 : 400,
+                            color: active ? 'var(--success)' : 'var(--muted)', transition: 'all .15s',
+                            display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {active && <CheckIc s={11} c="var(--success)" />}
+                          {inst.name}
+                        </button>
+                      )
+                    })}
+                    {institutions.length === 0 && <span style={{ fontSize: 12, color: 'var(--subtle)' }}>No hay instituciones registradas.</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default AdminCourses

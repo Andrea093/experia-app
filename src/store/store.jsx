@@ -325,8 +325,11 @@ const DEF = {
   submissions: [], challengeAttempts: [], studentMessages: [],
   accounts: [], institutions: INITIAL_INSTITUTIONS, cohorts: [],
   routeConfigs: {},
-  namedRoutes: [],           // [{ id, name, area, institution_id, modules, customModules }]
-  instructorInstitutions: [], // [{ instructor_id, institution_id }]
+  namedRoutes: [],
+  instructorInstitutions: [],
+  // Multi-curso (Etapa A)
+  courses: [],              // [{ id, name, description, cover_image, color, is_active }]
+  institutionCourses: [],   // [{ id, institution_id, course_id, is_active }]
 };
 export const XS = createExpStore(DEF);
 
@@ -736,6 +739,58 @@ const deleteInstitution = (id) => {
   });
 };
 
+// ---- Cursos (multi-ruta) ----
+const loadCourses = async () => {
+  const [{ data: coursesData }, { data: icData }] = await Promise.all([
+    supabase.from('courses').select('*').order('created_at'),
+    supabase.from('institution_courses').select('*'),
+  ]);
+  XS.set({
+    courses: coursesData || [],
+    institutionCourses: icData || [],
+  });
+};
+
+const createCourse = async ({ name, description, color, coverImage }) => {
+  const { data, error } = await supabase.from('courses').insert({
+    name, description, color: color || '#E8732C',
+    cover_image: coverImage || null, is_active: true,
+  }).select().single();
+  if (error) { console.error('createCourse:', error); return null; }
+  await loadCourses();
+  return data;
+};
+
+const updateCourse = async (id, fields) => {
+  const { error } = await supabase.from('courses').update({
+    ...fields,
+    updated_at: new Date().toISOString(),
+  }).eq('id', id);
+  if (error) { console.error('updateCourse:', error); return; }
+  await loadCourses();
+};
+
+const deleteCourse = async (id) => {
+  const { error } = await supabase.from('courses').delete().eq('id', id);
+  if (error) { console.error('deleteCourse:', error); return; }
+  await loadCourses();
+};
+
+const toggleCourseForInstitution = async (courseId, institutionId, active) => {
+  const { institutionCourses } = XS.get();
+  const existing = institutionCourses.find(
+    ic => ic.course_id === courseId && ic.institution_id === institutionId
+  );
+  if (existing) {
+    await supabase.from('institution_courses')
+      .update({ is_active: active }).eq('id', existing.id);
+  } else {
+    await supabase.from('institution_courses')
+      .insert({ course_id: courseId, institution_id: institutionId, is_active: active });
+  }
+  await loadCourses();
+};
+
 export {
   useStore, AREAS, BADGES, LEVELS, RUBRIC_CRITERIA, ALL_MODULES, AREA_CONTENT,
   INITIAL_INSTITUTIONS,
@@ -749,4 +804,5 @@ export {
   assignRouteToInstitution,
   createAccount, deleteAccount, changeAccountArea,
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution,
+  loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,
 };

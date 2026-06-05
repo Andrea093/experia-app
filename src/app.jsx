@@ -32,6 +32,7 @@ const InstructorDashboard   = React.lazy(() => import('./pages/InstructorDashboa
 const InstructorRouteEditor = React.lazy(() => import('./pages/InstructorRouteEditor.jsx'))
 const AdminAnalytics        = React.lazy(() => import('./pages/AdminAnalytics.jsx'))
 const AdminCohorts          = React.lazy(() => import('./pages/AdminCohorts.jsx'))
+const AdminCourses          = React.lazy(() => import('./pages/AdminCourses.jsx'))
 const InstructorStudentView = React.lazy(() => import('./pages/InstructorStudentView.jsx'))
 
 const PageSpinner = () => (
@@ -138,6 +139,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   ];
   const adminItems = [
     { key: 'admin-dashboard',  label: 'Usuarios',   icon: <UsersIc s={19} />, active: ['admin-dashboard'] },
+    { key: 'admin-courses',    label: 'Cursos',     icon: <BookIc s={19} />,  active: ['admin-courses'] },
     { key: 'admin-schools',    label: 'Colegios',   icon: <SchoolIc s={19} />, active: ['admin-schools'] },
     { key: 'admin-analytics',  label: 'Analítica',  icon: <BarIc s={19} />,   active: ['admin-analytics'] },
     { key: 'admin-cohorts',    label: 'Cohortes',   icon: <ClockIc s={19} />, active: ['admin-cohorts'] },
@@ -1726,6 +1728,7 @@ const App = () => {
     if (role === 'admin') {
       switch (page) {
         case 'admin-dashboard':  return <AdminPage />;
+        case 'admin-courses':    return <AdminCourses />;
         case 'admin-schools':    return <SchoolsAdminPage />;
         case 'admin-analytics':  return <AdminAnalytics />;
         case 'admin-cohorts':    return <AdminCohorts />;
