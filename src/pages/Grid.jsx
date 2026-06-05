@@ -76,27 +76,26 @@ const CertificatePage = ({ submission, area }) => {
   return (
     <div style={{ height: '100%', overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '16px 12px 48px' : '32px 24px 60px', background: 'var(--bg)' }}>
       <style dangerouslySetInnerHTML={{ __html: `
-        @page { size: A4 portrait; margin: 0; }
+        @page { size: A4 portrait; margin: 12mm; }
         @media print {
           html, body { height: auto !important; overflow: visible !important; margin: 0 !important; }
           .no-print { display: none !important; }
-          #cert-wrap {
-            padding: 0 !important;
-            max-width: 100% !important;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-          }
+          #cert-wrap { padding: 0 !important; max-width: 100% !important; }
           #certificate {
             box-shadow: none !important;
-            transform: scale(0.78);
-            transform-origin: top center;
-            margin-top: -40px;
+            width: 100% !important;
+            max-width: 100% !important;
+            border-width: 6px !important;
+            border-radius: 16px !important;
+            padding: 28px 36px !important;
             page-break-inside: avoid;
             break-inside: avoid;
-            width: 720px !important;
           }
+          #certificate h1 { font-size: 22px !important; }
+          #certificate h3 { font-size: 18px !important; }
+          #certificate p { font-size: 12px !important; }
+          #certificate div[style*="fontSize: 40"] { font-size: 28px !important; }
+          #certificate div[style*="fontSize: 30"] { font-size: 22px !important; }
         }
       ` }} />
       <div id="cert-wrap" style={{ maxWidth: 720, margin: '0 auto' }}>
