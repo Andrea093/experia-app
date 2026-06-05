@@ -110,9 +110,39 @@ const EmpathyMapChallenge = ({ mod, onComplete }) => {
 
   const handleDropOnQuad=(qKey)=>{
     if(!dragCard) return;
-    setPlaced(p=>({...p,[qKey]:[...p[qKey],dragCard]}));
+    // Remove from any quadrant it was already in
+    setPlaced(p=>{
+      const next={};
+      Object.keys(p).forEach(k=>{next[k]=p[k].filter(c=>c.id!==dragCard.id);});
+      next[qKey]=[...next[qKey],dragCard];
+      return next;
+    });
     setUnplaced(u=>u.filter(c=>c.id!==dragCard.id));
     setDragCard(null);
+  };
+
+  const handleDropOnUnplaced=()=>{
+    if(!dragCard) return;
+    setPlaced(p=>{
+      const next={};
+      Object.keys(p).forEach(k=>{next[k]=p[k].filter(c=>c.id!==dragCard.id);});
+      return next;
+    });
+    setUnplaced(u=>{
+      if(u.find(c=>c.id===dragCard.id)) return u;
+      return [...u,dragCard];
+    });
+    setDragCard(null);
+  };
+
+  const returnToUnplaced=(card)=>{
+    if(done) return;
+    setPlaced(p=>{
+      const next={};
+      Object.keys(p).forEach(k=>{next[k]=p[k].filter(c=>c.id!==card.id);});
+      return next;
+    });
+    setUnplaced(u=>[...u,card]);
   };
   const handleCheck=()=>{
     let s=0;const qs=[];
@@ -130,17 +160,20 @@ const EmpathyMapChallenge = ({ mod, onComplete }) => {
         <h3 style={{fontSize:20,fontWeight:700,marginTop:8,color:'var(--dark)'}}>Mapa de Empatía del Estudiante</h3>
         <p style={{fontSize:14,color:'var(--muted)',marginTop:6}}>Arrastra cada tarjeta al cuadrante correcto.</p>
       </div>
-      {unplaced.length>0&&(
-        <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:20,justifyContent:'center'}}>
-          {unplaced.map(c=>(
-            <div key={c.id} draggable onDragStart={()=>setDragCard(c)}
-              style={{padding:'8px 14px',borderRadius:10,background:'var(--white)',border:'1.5px solid var(--border)',
-                cursor:'grab',fontSize:13,fontWeight:500,color:'var(--dark)',maxWidth:220,boxShadow:'var(--sh-sm)',transition:'all .2s'}}
-              onMouseEnter={e=>e.currentTarget.style.boxShadow='var(--sh-md)'}
-              onMouseLeave={e=>e.currentTarget.style.boxShadow='var(--sh-sm)'}>{c.text}</div>
-          ))}
-        </div>
-      )}
+      <div onDragOver={e=>e.preventDefault()} onDrop={handleDropOnUnplaced}
+        style={{minHeight:48,display:'flex',flexWrap:'wrap',gap:8,marginBottom:20,justifyContent:'center',
+          padding:unplaced.length===0?'10px':0,borderRadius:12,
+          border:unplaced.length===0?'2px dashed var(--border)':'none',
+          transition:'all .2s'}}>
+        {unplaced.length===0&&!done&&<span style={{fontSize:12,color:'var(--subtle)',fontStyle:'italic'}}>Arrastra aquí para devolver una tarjeta</span>}
+        {unplaced.map(c=>(
+          <div key={c.id} draggable onDragStart={()=>setDragCard(c)}
+            style={{padding:'8px 14px',borderRadius:10,background:'var(--white)',border:'1.5px solid var(--border)',
+              cursor:'grab',fontSize:13,fontWeight:500,color:'var(--dark)',maxWidth:220,boxShadow:'var(--sh-sm)',transition:'all .2s'}}
+            onMouseEnter={e=>e.currentTarget.style.boxShadow='var(--sh-md)'}
+            onMouseLeave={e=>e.currentTarget.style.boxShadow='var(--sh-sm)'}>{c.text}</div>
+        ))}
+      </div>
       <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:12}}>
         {quadrants.map(q=>(
           <div key={q.key} onDragOver={e=>e.preventDefault()} onDrop={()=>handleDropOnQuad(q.key)}
@@ -152,10 +185,16 @@ const EmpathyMapChallenge = ({ mod, onComplete }) => {
             <div style={{display:'flex',flexDirection:'column',gap:6}}>
               {placed[q.key].map(c=>{
                 const isRight=done&&c.correct===q.key,isWrong=done&&c.correct!==q.key;
-                return <div key={c.id} style={{padding:'7px 12px',borderRadius:8,fontSize:12,fontWeight:500,
-                  background:isRight?'#D1FAE5':isWrong?'#FEE2E2':'var(--white)',
-                  border:isRight?'1px solid var(--success)':isWrong?'1px solid var(--error)':'1px solid '+q.color+'30',
-                  color:'var(--dark)'}}>{c.text} {isRight&&'✓'}{isWrong&&'✗'}</div>;
+                return <div key={c.id} draggable={!done} onDragStart={()=>setDragCard(c)}
+                  onClick={()=>returnToUnplaced(c)}
+                  title={done?'':'Clic para devolver · Arrastra para mover'}
+                  style={{padding:'7px 12px',borderRadius:8,fontSize:12,fontWeight:500,
+                    background:isRight?'#D1FAE5':isWrong?'#FEE2E2':'var(--white)',
+                    border:isRight?'1px solid var(--success)':isWrong?'1px solid var(--error)':'1px solid '+q.color+'30',
+                    color:'var(--dark)',cursor:done?'default':'pointer',transition:'opacity .15s'}}
+                  onMouseEnter={e=>{if(!done)e.currentTarget.style.opacity='.7';}}
+                  onMouseLeave={e=>{e.currentTarget.style.opacity='1';}}
+                >{c.text} {isRight&&'✓'}{isWrong&&'✗'}</div>;
               })}
               {placed[q.key].length===0&&!done&&<div style={{fontSize:12,color:q.color+'80',fontStyle:'italic',padding:8}}>Arrastra aquí</div>}
             </div>
