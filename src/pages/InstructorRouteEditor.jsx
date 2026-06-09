@@ -84,6 +84,18 @@ const InstructorRouteEditor = () => {
     }])
   }
 
+  const addFinalDelivery = () => {
+    const already = customModules.some(m => m.type === 'final_delivery')
+    if (already) return
+    setCustomModules(l => [...l, {
+      id: 'final_delivery_' + Date.now(),
+      type: 'final_delivery', ctype: null,
+      title: 'Entrega Final', desc: 'Sube tu rejilla pedagógica y la pregunta de tu área de formación.',
+      task: 'Completa y sube los dos archivos requeridos para terminar tu ruta.',
+      xp: 300, enabled: true, order: moduleList.length + l.length,
+    }])
+  }
+
   const saveChallengeOverride = (override) => {
     if (override.__clearOverride) {
       const original = getStudentModules(activeArea).find(m => m.id === editingChallenge?.id)
@@ -282,27 +294,31 @@ const InstructorRouteEditor = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {customModules.map(mod => (
                   <div key={mod.id} style={{ borderRadius: 14, background: 'var(--white)',
-                    border: mod.type === 'challenge' ? '2px solid var(--purple-bg)' : '2px solid #D1FAE5' }}>
+                    border: mod.type === 'final_delivery' ? '2px solid #6EE7B7' : mod.type === 'challenge' ? '2px solid var(--purple-bg)' : '2px solid #D1FAE5' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px' }}>
-                      <span style={{ fontSize: 15, flexShrink: 0 }}>{mod.type === 'challenge' ? '⚡' : '✨'}</span>
+                      <span style={{ fontSize: 15, flexShrink: 0 }}>{mod.type === 'final_delivery' ? '🎯' : mod.type === 'challenge' ? '⚡' : '✨'}</span>
                       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
-                          background: mod.type === 'challenge' ? 'var(--purple-bg)' : '#D1FAE5',
-                          color: mod.type === 'challenge' ? 'var(--purple)' : 'var(--success)',
+                          background: mod.type === 'final_delivery' ? '#D1FAE5' : mod.type === 'challenge' ? 'var(--purple-bg)' : '#D1FAE5',
+                          color: mod.type === 'final_delivery' ? '#059669' : mod.type === 'challenge' ? 'var(--purple)' : 'var(--success)',
                           textTransform: 'uppercase', letterSpacing: .8 }}>
-                          {mod.type === 'challenge' ? (CHALLENGE_TYPES.find(t => t.id === mod.ctype)?.label || 'Reto') : 'Módulo'}
+                          {mod.type === 'final_delivery' ? 'ENTREGA FINAL' : mod.type === 'challenge' ? (CHALLENGE_TYPES.find(t => t.id === mod.ctype)?.label || 'Reto') : 'Módulo'}
                         </span>
                         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mod.title}</span>
                       </div>
-                      <button
-                        onClick={() => mod.ctype === 'quiz' ? setEditingQuiz(mod) : mod.type === 'challenge' ? setEditingChallenge(mod) : setEditingModule(mod)}
-                        style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <EditIc s={14} c="var(--muted)" />
-                      </button>
-                      <button onClick={() => duplicateModule(mod)} title="Duplicar"
-                        style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>⧉</button>
+                      {mod.type !== 'final_delivery' && (
+                        <button
+                          onClick={() => mod.ctype === 'quiz' ? setEditingQuiz(mod) : mod.type === 'challenge' ? setEditingChallenge(mod) : setEditingModule(mod)}
+                          style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <EditIc s={14} c="var(--muted)" />
+                        </button>
+                      )}
+                      {mod.type !== 'final_delivery' && (
+                        <button onClick={() => duplicateModule(mod)} title="Duplicar"
+                          style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>⧉</button>
+                      )}
                       <button onClick={() => deleteCustom(mod.id)}
                         style={{ background: '#FEE2E2', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <TrashIc s={13} c="var(--error)" />
@@ -321,6 +337,11 @@ const InstructorRouteEditor = () => {
           <button {...btnRow(() => setShowAddModule(true), 'var(--success)', '#F0FDF4', '#D1FAE5')}>
             <PlusIc s={18} c="var(--success)" /> Crear módulo personalizado
           </button>
+          {!customModules.some(m => m.type === 'final_delivery') && (
+            <button {...btnRow(addFinalDelivery, '#10B981', '#D1FAE5', '#A7F3D0')}>
+              <PlusIc s={18} c="#10B981" /> Agregar Entrega Final
+            </button>
+          )}
         </div>
 
         {/* Right: tips */}

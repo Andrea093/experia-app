@@ -17,9 +17,8 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   const area = AREAS.find(a => a.id === selectedArea);
 
   const studentItems = [
-    { key: 'map', label: 'Mi formación', icon: <MapIc s={19} />, active: ['map','lesson','challenge'] },
+    { key: 'map', label: 'Mi formación', icon: <MapIc s={19} />, active: ['map','lesson','challenge','grid'] },
     { key: 'games', label: 'Juegos', icon: <GameIc s={19} />, active: ['games'] },
-    { key: 'grid', label: 'Entrega final', icon: <FileIc s={19} />, active: ['grid'] },
     { key: 'profile', label: 'Perfil', icon: <UserIc s={19} />, active: ['profile'] },
   ];
   const instructorItems = [
