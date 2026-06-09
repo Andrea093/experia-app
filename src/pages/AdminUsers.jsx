@@ -614,9 +614,13 @@ const AdminPage = () => {
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding:'11px 14px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                      <div style={{ width:30, height:30, borderRadius:'50%', flexShrink:0,
+                      <div style={{ width:30, height:30, borderRadius:'50%', flexShrink:0, overflow:'hidden',
                         background: roleBg[acc.role], display:'flex', alignItems:'center', justifyContent:'center',
-                        fontSize:12, fontWeight:700, color: roleColor[acc.role] }}>{acc.avatar}</div>
+                        fontSize:12, fontWeight:700, color: roleColor[acc.role] }}>
+                        {acc.avatar?.startsWith('http')
+                          ? <img src={acc.avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                          : acc.avatar}
+                      </div>
                       <span style={{ fontSize:13, fontWeight:600, color:'var(--dark)' }}>{acc.name}</span>
                     </div>
                   </td>
@@ -755,9 +759,11 @@ const AdminPage = () => {
             <div>
               <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 16px', borderRadius:10,
                 background:'var(--bg-alt)', marginBottom:20 }}>
-                <div style={{ width:36, height:36, borderRadius:'50%', background:'var(--orange-bg)',
+                <div style={{ width:36, height:36, borderRadius:'50%', overflow:'hidden', background:'var(--orange-bg)',
                   display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700, color:'var(--orange)' }}>
-                  {acc.avatar}
+                  {acc.avatar?.startsWith('http')
+                    ? <img src={acc.avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    : acc.avatar}
                 </div>
                 <div>
                   <div style={{ fontSize:14, fontWeight:600, color:'var(--dark)' }}>{acc.name}</div>

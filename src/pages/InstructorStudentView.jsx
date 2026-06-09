@@ -166,11 +166,13 @@ export function StudentProgressModal({ student, onClose }) {
       {/* Header del estudiante */}
       <div style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 16px',
         borderRadius:12, background:'var(--bg-alt)', marginBottom:20 }}>
-        <div style={{ width:48, height:48, borderRadius:'50%', flexShrink:0,
+        <div style={{ width:48, height:48, borderRadius:'50%', flexShrink:0, overflow:'hidden',
           background: area?.bg || 'var(--orange-bg)',
           display:'flex', alignItems:'center', justifyContent:'center',
           fontSize:18, fontWeight:800, color: area?.color || 'var(--orange)' }}>
-          {student.avatar || student.name?.charAt(0)}
+          {(student.avatar || '').startsWith('http')
+            ? <img src={student.avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+            : (student.avatar || student.name?.charAt(0))}
         </div>
         <div style={{ flex:1 }}>
           <div style={{ fontSize:16, fontWeight:700, color:'var(--dark)' }}>{student.name}</div>

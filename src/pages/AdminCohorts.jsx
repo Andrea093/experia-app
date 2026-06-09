@@ -155,11 +155,13 @@ const AssignModal = ({ cohort, onClose }) => {
                 borderRadius:10, cursor:'pointer', transition:'all .15s',
                 border: assigned ? '1.5px solid var(--orange)' : '1px solid var(--border)',
                 background: assigned ? 'var(--orange-bg)' : 'var(--white)' }}>
-              <div style={{ width:34, height:34, borderRadius:'50%', flexShrink:0,
+              <div style={{ width:34, height:34, borderRadius:'50%', flexShrink:0, overflow:'hidden',
                 background: assigned ? 'var(--orange)' : 'var(--bg-alt)',
                 display:'flex', alignItems:'center', justifyContent:'center',
                 fontSize:13, fontWeight:700, color: assigned ? '#fff' : 'var(--muted)' }}>
-                {st.avatar}
+                {st.avatar?.startsWith('http')
+                  ? <img src={st.avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  : st.avatar}
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13, fontWeight:600, color:'var(--dark)', overflow:'hidden',
