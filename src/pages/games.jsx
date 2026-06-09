@@ -3,10 +3,15 @@ import { useStore, getStudentModules, nodeStatus, nav } from '../store/store.jsx
 import { useMobile, CheckIc, ZapIc } from '../components/ui.jsx'
 
 const GamesPage = () => {
-  const completed = useStore(s => s.completed);
-  const selectedArea = useStore(s => s.selectedArea);
+  const completed      = useStore(s => s.completed);
+  const selectedArea   = useStore(s => s.selectedArea);
+  const courseModules  = useStore(s => s.courseModules);
+  const enrolledCourseId = useStore(s => s.enrolledCourseId);
   const isMobile = useMobile();
-  const studentModules = React.useMemo(() => getStudentModules(selectedArea), [selectedArea]);
+  const studentModules = React.useMemo(
+    () => (enrolledCourseId && courseModules.length > 0) ? courseModules : getStudentModules(selectedArea),
+    [enrolledCourseId, courseModules, selectedArea]
+  );
   const challenges = React.useMemo(() => studentModules.filter(m => m.type === 'challenge' || m.type === 'evaluation'), [studentModules]);
   const typeIcons = { dragdrop: '🧩', empathy: '🗺️', simulation: '🎭', matching: '🔗', designlab: '🏗️' };
 
@@ -18,7 +23,7 @@ const GamesPage = () => {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: isMobile ? 12 : 16 }}>
         {challenges.map((ch) => {
-          const status = nodeStatus(ch.id, completed, selectedArea);
+          const status = nodeStatus(ch.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
           return (
             <div key={ch.id} onClick={() => status !== 'locked' && nav('challenge', ch.id)}
               style={{ padding: isMobile ? '18px' : '24px', borderRadius: 16, background: 'var(--white)',

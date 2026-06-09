@@ -340,6 +340,10 @@ const nodeStatus = (id, done, areaId, modulesOverride) => {
   if (!m) return 'locked';
   if (done.includes(id)) return 'completed';
   if (!mods.find(x => x.id === id)) return 'locked';
+  if (m.type === 'final_delivery') {
+    const others = mods.filter(x => x.type !== 'final_delivery');
+    return others.every(x => done.includes(x.id)) ? 'available' : 'locked';
+  }
   return (m.req || []).every(r => done.includes(r)) ? 'available' : 'locked';
 };
 const progressPct = (done, areaId, modulesOverride) => {
