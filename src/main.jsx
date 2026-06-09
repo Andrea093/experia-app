@@ -117,11 +117,16 @@ async function restoreSession() {
       xp        = cp?.xp        || 0
       completed = cp?.completed || []
       badges    = cp?.badges    || []
+      const studentArea = profile.area || null
       // Cargar módulos del curso en el store ANTES de set()
       const { data: modulesData } = await supabase.from('course_modules')
         .select('*').eq('course_id', enrolledCourseId).eq('is_enabled', true).order('"order"')
+      // Filtra por área: rows sin area_id (null) son universales, los que tienen area_id deben coincidir
+      const filteredMods = studentArea
+        ? (modulesData || []).filter(row => !row.area_id || row.area_id === studentArea)
+        : (modulesData || [])
       XS.set({
-        courseModules: (modulesData || []).map((row, i) => {
+        courseModules: filteredMods.map((row, i) => {
           const mod = dbModToAppMod(row)
           mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i }
           mod.side = i % 2 === 0 ? 'right' : 'left'

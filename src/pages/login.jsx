@@ -50,13 +50,18 @@ const LoginPage = () => {
           .maybeSingle();
         enrolledCourseId = enrollmentData?.course_id || null;
         if (enrolledCourseId) {
+          const studentArea = profile.area || null;
           const [{ data: modulesData }, { data: cp }] = await Promise.all([
             supabase.from('course_modules').select('*')
               .eq('course_id', enrolledCourseId).eq('is_enabled', true).order('"order"'),
             supabase.from('course_progress').select('*')
               .eq('user_id', data.user.id).eq('course_id', enrolledCourseId).maybeSingle(),
           ]);
-          courseModules = (modulesData || []).map((row, i) => {
+          // Filtra por área: null = universal, area_id coincide = incluir
+          const filtered = studentArea
+            ? (modulesData || []).filter(row => !row.area_id || row.area_id === studentArea)
+            : (modulesData || []);
+          courseModules = filtered.map((row, i) => {
             const mod = dbModToAppMod(row);
             mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i };
             mod.side = i % 2 === 0 ? 'right' : 'left';

@@ -796,7 +796,7 @@ const deleteInstitution = (id) => {
 };
 
 // ---- Módulos de curso para estudiante ----
-const loadCourseModules = async (courseId) => {
+const loadCourseModules = async (courseId, areaId = null) => {
   if (!courseId) return;
   const { data, error } = await supabase
     .from('course_modules')
@@ -805,8 +805,12 @@ const loadCourseModules = async (courseId) => {
     .eq('is_enabled', true)
     .order('"order"');
   if (error) { console.error('loadCourseModules:', error); return; }
+  // Filtra por área si la fila tiene area_id (columna opcional — null = aplica a todas las áreas)
+  const rows = areaId
+    ? (data || []).filter(row => !row.area_id || row.area_id === areaId)
+    : (data || []);
   XS.set({
-    courseModules: (data || []).map((row, i) => {
+    courseModules: rows.map((row, i) => {
       const mod = dbModToAppMod(row);
       mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i };
       mod.side = i % 2 === 0 ? 'right' : 'left';

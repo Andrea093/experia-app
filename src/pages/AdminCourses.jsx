@@ -109,14 +109,15 @@ const CourseModulesPanel = ({ course, onClose }) => {
   const saveModule = async (form) => {
     setSaving(true)
     setOpError('')
+    const payload = { ...form, area_id: form.area_id || null }
     let error
     if (editMod) {
       ({ error } = await supabase.from('course_modules')
-        .update({ ...form, updated_at: new Date().toISOString() }).eq('id', editMod.id))
+        .update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editMod.id))
     } else {
       const maxOrder = modules.reduce((max, m) => Math.max(max, m.order || 0), 0)
       ;({ error } = await supabase.from('course_modules')
-        .insert({ ...form, course_id: course.id, order: maxOrder + 1 }))
+        .insert({ ...payload, course_id: course.id, order: maxOrder + 1 }))
     }
     if (error) { setOpError('Error al guardar: ' + error.message); setSaving(false); return; }
     await loadModules()
@@ -350,6 +351,7 @@ const ModuleForm = ({ initial, onSave, saving, onCancel }) => {
     type: initial?.type || 'lesson',
     challenge_type: initial?.challenge_type || '',
     xp: initial?.xp || 100,
+    area_id: initial?.area_id || '',
     content: initial?.content || [],
     attachments: initial?.attachments || [],
   })
@@ -409,6 +411,17 @@ const ModuleForm = ({ initial, onSave, saving, onCancel }) => {
             <option value="matching">Conectar conceptos</option>
             <option value="designlab">Lab de diseño</option>
             <option value="quiz">Quiz</option>
+          </select>
+        </div>
+        <div>
+          <label style={lbl}>Área (opcional)</label>
+          <select value={form.area_id} onChange={e => set('area_id', e.target.value)} style={inp}>
+            <option value="">— Todas las áreas —</option>
+            <option value="lectura">Lectura Crítica</option>
+            <option value="ciudadanas">Competencias Ciudadanas</option>
+            <option value="ingles">Inglés</option>
+            <option value="matematicas">Matemáticas</option>
+            <option value="ciencias">Ciencias Naturales</option>
           </select>
         </div>
         <div style={{ gridColumn: '1/-1' }}>
