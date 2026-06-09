@@ -22,6 +22,7 @@ const NODE_ICONS = {
   lesson: (status) => status === 'completed' ? <CheckIc s={24} c="#fff"/> : <BookIc s={24} c="#fff"/>,
   challenge: (status) => status === 'completed' ? <CheckIc s={24} c="#fff"/> : <ZapIc s={22} c="#fff"/>,
   evaluation: (status) => status === 'completed' ? <CheckIc s={24} c="#fff"/> : <TrophyIc s={22} c="#fff"/>,
+  final_delivery: (status) => status === 'completed' ? <CheckIc s={24} c="#fff"/> : <AwardIc s={22} c="#fff"/>,
 };
 
 const NODE_COLORS = {
@@ -30,8 +31,8 @@ const NODE_COLORS = {
   locked: { bg: 'var(--subtle)', border: 'var(--border)', shadow: 'none' },
 };
 
-const TYPE_LABELS = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUACIÓN' };
-const TYPE_COLORS = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)' };
+const TYPE_LABELS = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUACIÓN', final_delivery: 'ENTREGA FINAL' };
+const TYPE_COLORS = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: 'var(--success)' };
 
 // --- Desktop: Node circle ---
 const MapNode = React.memo(({ mod, status, index, onClick }) => {
@@ -65,7 +66,7 @@ const MapNode = React.memo(({ mod, status, index, onClick }) => {
         transform: hov && status !== 'locked' ? 'scale(1.08)' : 'scale(1)',
         transition: 'all .25s ease',
       }}>
-        {status === 'locked' ? <LockIc s={26} c="#fff" /> : NODE_ICONS[mod.type](status)}
+        {status === 'locked' ? <LockIc s={26} c="#fff" /> : (NODE_ICONS[mod.type] || NODE_ICONS.lesson)(status)}
       </div>
     </div>
   );
@@ -182,7 +183,8 @@ const LearningMap = () => {
   const handleNodeClick = React.useCallback((mod) => {
     const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
     if (status === 'locked') return;
-    if (mod.type === 'lesson') nav('lesson', mod.id);
+    if (mod.type === 'final_delivery') nav('grid');
+    else if (mod.type === 'lesson') nav('lesson', mod.id);
     else nav('challenge', mod.id);
   }, [completed, selectedArea, studentModules, enrolledCourseId]);
 

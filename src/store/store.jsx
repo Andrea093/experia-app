@@ -806,7 +806,12 @@ const loadCourseModules = async (courseId) => {
     .order('"order"');
   if (error) { console.error('loadCourseModules:', error); return; }
   XS.set({
-    courseModules: (data || []).map(dbModToAppMod),
+    courseModules: (data || []).map((row, i) => {
+      const mod = dbModToAppMod(row);
+      mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i };
+      mod.side = i % 2 === 0 ? 'right' : 'left';
+      return mod;
+    }),
     enrolledCourseId: courseId,
   });
 };

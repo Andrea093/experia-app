@@ -396,6 +396,7 @@ const ModuleForm = ({ initial, onSave, saving, onCancel }) => {
             <option value="lesson">Lección</option>
             <option value="challenge">Reto</option>
             <option value="evaluation">Evaluación</option>
+            <option value="final_delivery">Entrega Final</option>
           </select>
         </div>
         <div>
@@ -461,6 +462,72 @@ const ModuleForm = ({ initial, onSave, saving, onCancel }) => {
   )
 }
 
+// ── Vista previa del mapa de un curso ───────────────────────
+const TYPE_COLORS_P = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: '#10B981' }
+const TYPE_LABELS_P = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUACIÓN', final_delivery: 'ENTREGA FINAL' }
+const NODE_BG_P = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: '#10B981' }
+
+const CourseMapPreview = ({ course }) => {
+  const [modules, setModules] = React.useState([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    supabase.from('course_modules')
+      .select('*').eq('course_id', course.id).eq('is_enabled', true).order('"order"')
+      .then(({ data }) => { setModules(data || []); setLoading(false) })
+  }, [course.id])
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>Cargando vista previa…</div>
+  if (modules.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--subtle)' }}>Este curso no tiene módulos activos.</div>
+
+  const nodeSpacing = 160
+  const mapW = 680
+  const mapH = modules.length * nodeSpacing + 80
+  const getX = (i) => i % 2 === 0 ? mapW * 0.38 : mapW * 0.62
+  const getY = (i) => 40 + i * nodeSpacing
+
+  return (
+    <div style={{ overflowY: 'auto', maxHeight: '65vh', paddingBottom: 16 }}>
+      <div style={{ padding: '12px 20px 16px', borderRadius: 12, background: 'var(--gradient)', color: '#fff', marginBottom: 20 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, opacity: .75, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 }}>Vista previa del estudiante</div>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>{course.name}</div>
+        <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>{modules.length} módulos en la ruta</div>
+      </div>
+      <div style={{ position: 'relative', width: mapW, maxWidth: '100%', height: mapH, margin: '0 auto' }}>
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+          {modules.slice(0, -1).map((_, i) => {
+            const x1 = getX(i), y1 = getY(i)
+            const x2 = getX(i + 1), y2 = getY(i + 1)
+            const my = (y1 + y2) / 2
+            return (
+              <path key={i} d={`M${x1},${y1 + 28} C${x1},${my} ${x2},${my} ${x2},${y2 - 28}`}
+                fill="none" stroke="var(--border)" strokeWidth={3} strokeLinecap="round" strokeDasharray="8 6" />
+            )
+          })}
+        </svg>
+        {modules.map((mod, i) => {
+          const x = getX(i), y = getY(i)
+          const onLeft = i % 2 !== 0
+          const bg = NODE_BG_P[mod.type] || 'var(--orange)'
+          return (
+            <div key={mod.id} style={{ position: 'absolute', left: x - 28, top: y - 28, display: 'flex', alignItems: 'center', gap: 16, flexDirection: onLeft ? 'row-reverse' : 'row' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: bg, border: `3px solid ${bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 20 }}>
+                {mod.type === 'lesson' ? '📖' : mod.type === 'challenge' ? '⚡' : mod.type === 'evaluation' ? '🏆' : '🎯'}
+              </div>
+              <div style={{ background: 'var(--white)', borderRadius: 12, padding: '12px 16px', border: '1px solid var(--border)', width: 230, boxShadow: 'var(--sh-sm)' }}>
+                <div style={{ fontSize: 9, fontWeight: 800, color: TYPE_COLORS_P[mod.type] || 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 4 }}>{TYPE_LABELS_P[mod.type] || 'MÓDULO'}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', lineHeight: 1.3, marginBottom: 4 }}>{mod.title}</div>
+                {mod.description && <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.4 }}>{mod.description}</div>}
+                <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 6 }}>⚡ {mod.xp} XP</div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal del gestor de cursos ────────────────────
 const AdminCourses = () => {
   const courses          = useStore(s => s.courses || [])
@@ -471,6 +538,7 @@ const AdminCourses = () => {
   const [showCreate, setShowCreate]   = React.useState(false)
   const [editCourse, setEditCourse]   = React.useState(null)
   const [modsCourse, setModsCourse]   = React.useState(null)
+  const [previewCourse, setPreviewCourse] = React.useState(null)
   const [deleteConfirm, setDeleteConfirm] = React.useState(null)
   const [togglingId, setTogglingId]   = React.useState(null)
 
@@ -533,6 +601,11 @@ const AdminCourses = () => {
           {modsCourse && <CourseModulesPanel course={modsCourse} onClose={() => setModsCourse(null)} />}
         </Modal>
 
+        {/* Modal vista previa */}
+        <Modal open={!!previewCourse} onClose={() => setPreviewCourse(null)} title="Vista previa del mapa" width={780}>
+          {previewCourse && <CourseMapPreview course={previewCourse} />}
+        </Modal>
+
         {/* Modal confirmar eliminar */}
         <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="¿Eliminar curso?" width={400}>
           {deleteConfirm && (
@@ -583,6 +656,7 @@ const AdminCourses = () => {
                       {course.is_active ? '✅ Activo' : '❌ Inactivo'}
                     </button>
                     <Btn variant="secondary" size="sm" onClick={() => setModsCourse(course)}>📋 Módulos</Btn>
+                    <Btn variant="secondary" size="sm" onClick={() => setPreviewCourse(course)}>👁 Vista previa</Btn>
                     <Btn variant="secondary" size="sm" onClick={() => setEditCourse(course)}><EditIc s={13} c="var(--muted)" /></Btn>
                     <Btn variant="secondary" size="sm" onClick={() => setDeleteConfirm(course)}><TrashIc s={13} c="var(--error)" /></Btn>
                   </div>
