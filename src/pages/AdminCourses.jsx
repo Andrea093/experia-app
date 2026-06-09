@@ -541,6 +541,31 @@ const AdminCourses = () => {
   const [previewCourse, setPreviewCourse] = React.useState(null)
   const [deleteConfirm, setDeleteConfirm] = React.useState(null)
   const [togglingId, setTogglingId]   = React.useState(null)
+  const [addingFD, setAddingFD]       = React.useState(null)
+
+  const handleAddFinalDelivery = async (course) => {
+    setAddingFD(course.id)
+    const { data: existing } = await supabase.from('course_modules')
+      .select('id').eq('course_id', course.id).eq('type', 'final_delivery').maybeSingle()
+    if (!existing) {
+      const { data: mods } = await supabase.from('course_modules')
+        .select('order').eq('course_id', course.id).order('"order"', { ascending: false }).limit(1)
+      const nextOrder = (mods?.[0]?.order ?? 0) + 1
+      await supabase.from('course_modules').insert({
+        course_id: course.id,
+        type: 'final_delivery',
+        title: 'Entrega Final',
+        subtitle: 'Producto de cierre',
+        description: 'Sube tu rejilla pedagógica y la pregunta de tu área de formación.',
+        xp: 300,
+        order: nextOrder,
+        is_enabled: true,
+        challenge_data: {},
+        content: [],
+      })
+    }
+    setAddingFD(null)
+  }
 
   const handleCreate = async (form) => {
     await createCourse({ name: form.name, description: form.description, color: form.color, coverImage: form.coverImage })
@@ -657,6 +682,10 @@ const AdminCourses = () => {
                     </button>
                     <Btn variant="secondary" size="sm" onClick={() => setModsCourse(course)}>📋 Módulos</Btn>
                     <Btn variant="secondary" size="sm" onClick={() => setPreviewCourse(course)}>👁 Vista previa</Btn>
+                    <Btn variant="secondary" size="sm" disabled={addingFD === course.id}
+                      onClick={() => handleAddFinalDelivery(course)}>
+                      {addingFD === course.id ? '...' : '🎯 Entrega Final'}
+                    </Btn>
                     <Btn variant="secondary" size="sm" onClick={() => setEditCourse(course)}><EditIc s={13} c="var(--muted)" /></Btn>
                     <Btn variant="secondary" size="sm" onClick={() => setDeleteConfirm(course)}><TrashIc s={13} c="var(--error)" /></Btn>
                   </div>

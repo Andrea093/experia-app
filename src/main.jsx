@@ -121,7 +121,12 @@ async function restoreSession() {
       const { data: modulesData } = await supabase.from('course_modules')
         .select('*').eq('course_id', enrolledCourseId).eq('is_enabled', true).order('"order"')
       XS.set({
-        courseModules: (modulesData || []).map(dbModToAppMod),
+        courseModules: (modulesData || []).map((row, i) => {
+          const mod = dbModToAppMod(row)
+          mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i }
+          mod.side = i % 2 === 0 ? 'right' : 'left'
+          return mod
+        }),
         enrolledCourseId,
       })
     } else {

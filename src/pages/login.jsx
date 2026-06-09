@@ -1,6 +1,6 @@
 import React from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { XS, nav } from '../store/store.jsx'
+import { XS, nav, dbModToAppMod } from '../store/store.jsx'
 import {
   useMobile, LogoImg, LockIc, ArrowRIc, ArrowLIc, CheckIc, XIc, Btn,
 } from '../components/ui.jsx'
@@ -35,13 +35,43 @@ const LoginPage = () => {
       if (profile.role === 'instructor') page = 'instructor-dashboard';
       if (profile.role === 'admin')      page = 'admin-dashboard';
 
+      let enrolledCourseId = null;
+      let courseModules = [];
+      let xp = progress?.xp || 0;
+      let completed = progress?.completed || [];
+      let badges = progress?.badges || [];
+
+      if (profile.role === 'student') {
+        const { data: enrollmentData } = await supabase
+          .from('course_enrollments')
+          .select('course_id')
+          .eq('student_id', data.user.id)
+          .limit(1)
+          .maybeSingle();
+        enrolledCourseId = enrollmentData?.course_id || null;
+        if (enrolledCourseId) {
+          const [{ data: modulesData }, { data: cp }] = await Promise.all([
+            supabase.from('course_modules').select('*')
+              .eq('course_id', enrolledCourseId).eq('is_enabled', true).order('"order"'),
+            supabase.from('course_progress').select('*')
+              .eq('user_id', data.user.id).eq('course_id', enrolledCourseId).maybeSingle(),
+          ]);
+          courseModules = (modulesData || []).map((row, i) => {
+            const mod = dbModToAppMod(row);
+            mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i };
+            mod.side = i % 2 === 0 ? 'right' : 'left';
+            return mod;
+          });
+          if (cp) { xp = cp.xp || 0; completed = cp.completed || []; badges = cp.badges || []; }
+        }
+      }
+
       XS.set({
         isLoggedIn: true,
         user: { id: data.user.id, name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role },
         page,
-        xp:        progress?.xp        || 0,
-        completed: progress?.completed  || [],
-        badges:    progress?.badges     || [],
+        xp, completed, badges,
+        enrolledCourseId, courseModules,
         notifications: [], selectedArea: profile.area || null, nodeId: null,
       });
     } catch (err) {
