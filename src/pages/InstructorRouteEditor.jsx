@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, AREAS, getStudentModules, saveRouteConfig, routeKey } from '../store/store.jsx'
+import { useStore, AREAS, getStudentModules, saveRouteConfig, routeKey, publishRouteToCourse } from '../store/store.jsx'
 import { useMobile, ChevRIc, XIc, PlusIc, TrashIc, EditIc, GripIc, CheckIc, Btn, Modal } from '../components/ui.jsx'
 import {
   TYPE_LABELS, TYPE_COLORS, TYPE_BG, CHALLENGE_TYPES,
@@ -14,12 +14,16 @@ const InstructorRouteEditor = () => {
   const routeConfigs  = useStore(s => s.routeConfigs)
   const namedRoutes   = useStore(s => s.namedRoutes)
   const institutions  = useStore(s => s.institutions)
+  const cohorts       = useStore(s => s.cohorts || [])
+  const courses       = useStore(s => s.courses || [])
   const isMobile = useMobile()
   const [activeArea, setActiveArea] = React.useState(AREAS[0].id)
   const [moduleList, setModuleList] = React.useState([])
   const [customModules, setCustomModules] = React.useState([])
   const [saving, setSaving] = React.useState(false)
   const [saved, setSaved] = React.useState(false)
+  const [publishing, setPublishing] = React.useState(false)
+  const [publishResult, setPublishResult] = React.useState(null)
   const [routeName, setRouteName] = React.useState('')
   const [routeInstitution, setRouteInstitution] = React.useState('')
   const [dragIdx, setDragIdx] = React.useState(null)
@@ -146,6 +150,23 @@ const InstructorRouteEditor = () => {
     ))
   }
 
+  // Curso vinculado: cohorte que coincide con la institución seleccionada y tiene course_id
+  const linkedCohort = React.useMemo(() => {
+    if (!routeInstitution) return null
+    return cohorts.find(c => c.institution_id === routeInstitution && c.course_id) || null
+  }, [routeInstitution, cohorts])
+  const linkedCourse = linkedCohort ? courses.find(c => c.id === linkedCohort.course_id) : null
+
+  const handlePublish = async () => {
+    if (!linkedCourse) return
+    setPublishing(true)
+    setPublishResult(null)
+    const result = await publishRouteToCourse(linkedCourse.id, activeArea, moduleList, customModules)
+    setPublishing(false)
+    setPublishResult(result.error ? { error: result.error } : { ok: true, count: result.count })
+    if (!result.error) setTimeout(() => setPublishResult(null), 4000)
+  }
+
   const handleSave = async () => {
     setSaving(true)
     const modulesConfig = moduleList.map((m, i) => ({
@@ -214,6 +235,49 @@ const InstructorRouteEditor = () => {
             </div>
           )}
         </div>
+
+        {/* Banner curso vinculado */}
+        {routeInstitution && (
+          <div style={{ marginTop: 12, padding: '12px 16px', borderRadius: 10,
+            background: linkedCourse ? '#F0FDF4' : '#FFFBEB',
+            border: `1.5px solid ${linkedCourse ? '#86EFAC' : '#FCD34D'}`,
+            display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {linkedCourse ? (
+              <>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#15803D' }}>
+                    📚 Curso vinculado: {linkedCourse.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#166534', marginTop: 2 }}>
+                    Cohorte: {linkedCohort.name} · Al publicar, los docentes inscritos verán los cambios al recargar
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  <button onClick={handlePublish} disabled={publishing}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', cursor: publishing ? 'wait' : 'pointer',
+                      background: publishing ? '#86EFAC' : '#16A34A', color: '#fff',
+                      fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, transition: 'all .2s' }}>
+                    {publishing ? '⏳ Publicando...' : '🚀 Publicar al curso'}
+                  </button>
+                  {publishResult?.ok && (
+                    <span style={{ fontSize: 11, color: '#16A34A', fontWeight: 600 }}>
+                      ✅ {publishResult.count} módulos publicados
+                    </span>
+                  )}
+                  {publishResult?.error && (
+                    <span style={{ fontSize: 11, color: 'var(--error)', fontWeight: 600 }}>
+                      ⚠️ {publishResult.error}
+                    </span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 12, color: '#92400E' }}>
+                ⚠️ Esta institución no tiene cohorte con curso asignado. El admin debe vincular un curso desde Cohortes.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Area tabs */}

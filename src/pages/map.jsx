@@ -3,7 +3,7 @@ import {
   useStore, nav, completeNode, AREAS, BADGES, LEVELS,
   getStudentModules, getRouteModules, findModule,
   calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete,
-  gradeTotal, gradeMax,
+  gradeTotal, gradeMax, switchCourse,
 } from '../store/store.jsx'
 import {
   useMobile, LogoImg,
@@ -152,6 +152,58 @@ const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
   );
 });
 
+// --- Course Selector (shown when student has multiple enrollments) ---
+const CourseSelector = ({ enrollments, courses, currentId, onSelect }) => {
+  const isMobile = useMobile();
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      background: 'rgba(0,0,0,.45)', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', padding: 24,
+    }}>
+      <div style={{
+        background: 'var(--white)', borderRadius: 20, padding: 32,
+        width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,.18)',
+        animation: 'fadeUp .3s ease',
+      }}>
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>
+          Selecciona tu curso
+        </h2>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24 }}>
+          Tienes inscripción en varios cursos. ¿Cuál quieres continuar?
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {enrollments.map(courseId => {
+            const course = courses.find(c => c.id === courseId);
+            const isActive = courseId === currentId;
+            return (
+              <button key={courseId} onClick={() => onSelect(courseId)}
+                style={{
+                  padding: '16px 20px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                  border: isActive ? '2px solid var(--orange)' : '2px solid var(--border)',
+                  background: isActive ? 'rgba(232,115,44,.06)' : 'var(--bg)',
+                  transition: 'all .15s',
+                }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', marginBottom: 2 }}>
+                  {course?.name || 'Curso sin nombre'}
+                </div>
+                {course?.area_id && (
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>{course.area_id}</div>
+                )}
+                {isActive && (
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Activo
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Main Learning Map ---
 const LearningMap = () => {
   const completed       = useStore(s => s.completed);
@@ -161,11 +213,15 @@ const LearningMap = () => {
   const courseModules   = useStore(s => s.courseModules);
   const enrolledCourseId = useStore(s => s.enrolledCourseId);
   const courses         = useStore(s => s.courses);
+  const allEnrollments  = useStore(s => s.allEnrollments);
   const isMobile = useMobile();
+  const [showCourseSelector, setShowCourseSelector] = React.useState(false);
 
-  // Si el estudiante tiene un curso inscrito en BD → usa courseModules, si no usa legacy
+  // Si el estudiante tiene un curso inscrito → usa courseModules (sistema BD).
+  // Solo cae a legacy si NO está inscrito en ningún curso.
+  const routeNotPublished = enrolledCourseId && courseModules.length === 0;
   const studentModules = React.useMemo(() => {
-    if (enrolledCourseId && courseModules.length > 0) return courseModules;
+    if (enrolledCourseId) return courseModules; // puede ser [] si aún no publicaron
     return getRouteModules(selectedArea, routeConfigs);
   }, [enrolledCourseId, courseModules, selectedArea, routeConfigs]);
 
@@ -207,6 +263,14 @@ const LearningMap = () => {
   if (isMobile) {
     return (
       <div style={{ height: '100%', overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 0 40px' }}>
+        {showCourseSelector && allEnrollments.length > 1 && (
+          <CourseSelector
+            enrollments={allEnrollments}
+            courses={courses}
+            currentId={enrolledCourseId}
+            onSelect={async (id) => { await switchCourse(id); setShowCourseSelector(false); }}
+          />
+        )}
         {/* Compact hero */}
         <div style={{
           margin: '12px 16px 20px', padding: '20px 20px', borderRadius: 16,
@@ -214,7 +278,17 @@ const LearningMap = () => {
         }}>
           <div style={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100,
             borderRadius: '50%', background: 'rgba(255,255,255,.06)' }} />
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.7)', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 }}>{enrolledCourse?.name || 'Tu Ruta DCE'}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.7)', textTransform: 'uppercase', letterSpacing: 1.5 }}>{enrolledCourse?.name || 'Tu Ruta DCE'}</div>
+            {allEnrollments.length > 1 && (
+              <button onClick={() => setShowCourseSelector(true)}
+                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.4)',
+                  background: 'rgba(255,255,255,.1)', color: '#fff', fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'var(--font)' }}>
+                Cambiar
+              </button>
+            )}
+          </div>
           <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 12 }}>Mapa de aprendizaje</h2>
           <div style={{ display: 'flex', gap: 8 }}>
             <StatChip icon={<ProgressRing pct={pct} size={22} sw={2.5} color="rgba(255,255,255,.9)" />} label="Progreso" value={pct + '%'} />
@@ -234,6 +308,14 @@ const LearningMap = () => {
 
         {/* Linear module list */}
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {routeNotPublished && (
+            <div style={{ padding: '20px 16px', borderRadius: 12, border: '2px dashed var(--border)',
+              background: 'var(--bg)', textAlign: 'center' }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', marginBottom: 4 }}>Ruta en preparación</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>Tu instructor aún no ha publicado los módulos de tu ruta. Vuelve pronto.</div>
+            </div>
+          )}
           {studentModules.map((mod, i) => {
             const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
             return (
@@ -248,6 +330,14 @@ const LearningMap = () => {
   // ---- DESKTOP VIEW (original zigzag) ----
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: '0 0 40px' }}>
+      {showCourseSelector && allEnrollments.length > 1 && (
+        <CourseSelector
+          enrollments={allEnrollments}
+          courses={courses}
+          currentId={enrolledCourseId}
+          onSelect={async (id) => { await switchCourse(id); setShowCourseSelector(false); }}
+        />
+      )}
       {/* Hero banner */}
       <div style={{
         margin: '0 24px 24px', padding: '28px 32px', borderRadius: 20,
@@ -265,12 +355,34 @@ const LearningMap = () => {
             Avanza por cada lección y desbloquea retos para construir tu rol como docente-diseñador.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 12, position: 'relative', zIndex: 1 }}>
-          <StatChip icon={<ProgressRing pct={pct} size={28} sw={3} color="rgba(255,255,255,.9)" />} label="Progreso" value={pct + '%'} />
-          <StatChip icon={<ZapIc s={18} c="var(--orange-light)" />} label="XP" value={xp} />
-          <StatChip icon={<TargetIc s={18} c="var(--orange-light)" />} label="Nivel" value={level} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', zIndex: 1, alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <StatChip icon={<ProgressRing pct={pct} size={28} sw={3} color="rgba(255,255,255,.9)" />} label="Progreso" value={pct + '%'} />
+            <StatChip icon={<ZapIc s={18} c="var(--orange-light)" />} label="XP" value={xp} />
+            <StatChip icon={<TargetIc s={18} c="var(--orange-light)" />} label="Nivel" value={level} />
+          </div>
+          {allEnrollments.length > 1 && (
+            <button onClick={() => setShowCourseSelector(true)}
+              style={{ padding: '6px 14px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.5)',
+                background: 'rgba(255,255,255,.12)', color: '#fff', fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'var(--font)', backdropFilter: 'blur(4px)' }}>
+              Cambiar curso
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Ruta no publicada aún */}
+      {routeNotPublished && (
+        <div style={{ maxWidth: 500, margin: '40px auto', padding: '32px 24px', borderRadius: 16,
+          border: '2px dashed var(--border)', background: 'var(--white)', textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>⏳</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--dark)', marginBottom: 8 }}>Ruta en preparación</div>
+          <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>
+            Tu instructor aún no ha publicado los módulos de tu ruta de formación.<br/>Vuelve pronto.
+          </div>
+        </div>
+      )}
 
       {/* Map */}
       <div style={{ position: 'relative', width: mapWidth, maxWidth: '100%', height: mapHeight, margin: '0 auto' }}>

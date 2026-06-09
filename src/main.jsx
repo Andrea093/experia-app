@@ -101,16 +101,17 @@ async function restoreSession() {
 
   if (profile.role === 'student') {
     const me = [{ id: session.user.id, ...profile }]
-    const [{ data: subsData }, { data: attemptsData }, { data: progressData }, { data: enrollmentData }] = await Promise.all([
+    const [{ data: subsData }, { data: attemptsData }, { data: progressData }, { data: enrollmentsData }] = await Promise.all([
       supabase.from('submissions').select('*').eq('student_id', session.user.id),
       supabase.from('challenge_attempts').select('*').eq('student_id', session.user.id),
       supabase.from('progress').select('*').eq('user_id', session.user.id).single(),
-      supabase.from('course_enrollments').select('course_id').eq('student_id', session.user.id).limit(1).maybeSingle(),
+      supabase.from('course_enrollments').select('course_id').eq('student_id', session.user.id),
     ])
     submissions       = (subsData     || []).map(s => mapSubmission(s, me))
     challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, me))
 
-    const enrolledCourseId = enrollmentData?.course_id || null
+    const allEnrollments  = (enrollmentsData || []).map(e => e.course_id)
+    const enrolledCourseId = allEnrollments[0] || null
 
     if (enrolledCourseId) {
       // Estudiante con curso inscrito: lee progreso de course_progress
@@ -165,6 +166,7 @@ async function restoreSession() {
     institutions: institutionsRes.data || [],
     cohorts: cohortsRes.data || [],
     accounts, submissions, challengeAttempts,
+    allEnrollments: profile.role === 'student' ? allEnrollments : [],
   })
 }
 

@@ -42,13 +42,12 @@ const LoginPage = () => {
       let badges = progress?.badges || [];
 
       if (profile.role === 'student') {
-        const { data: enrollmentData } = await supabase
+        const { data: enrollmentsData } = await supabase
           .from('course_enrollments')
           .select('course_id')
-          .eq('student_id', data.user.id)
-          .limit(1)
-          .maybeSingle();
-        enrolledCourseId = enrollmentData?.course_id || null;
+          .eq('student_id', data.user.id);
+        const allEnrollments = (enrollmentsData || []).map(e => e.course_id);
+        enrolledCourseId = allEnrollments[0] || null;
         if (enrolledCourseId) {
           const studentArea = profile.area || null;
           const [{ data: modulesData }, { data: cp }] = await Promise.all([
@@ -77,6 +76,7 @@ const LoginPage = () => {
         page,
         xp, completed, badges,
         enrolledCourseId, courseModules,
+        allEnrollments: profile.role === 'student' ? (enrolledCourseId ? [enrolledCourseId] : []) : [],
         notifications: [], selectedArea: profile.area || null, nodeId: null,
       });
     } catch (err) {

@@ -379,8 +379,9 @@ const DEF = {
   // Multi-curso
   courses: [],              // [{ id, name, description, cover_image, color, is_active }]
   institutionCourses: [],   // [{ id, institution_id, course_id, is_active }]
-  courseModules: [],        // módulos del curso inscrito (ya convertidos con dbModToAppMod)
-  enrolledCourseId: null,   // id del curso en el que está inscrito el estudiante
+  courseModules: [],        // módulos del curso activo (ya convertidos con dbModToAppMod)
+  enrolledCourseId: null,   // id del curso activo del estudiante
+  allEnrollments: [],       // todos los cursos en los que está inscrito el estudiante
 };
 export const XS = createExpStore(DEF);
 
@@ -860,10 +861,11 @@ const loadCourses = async () => {
   });
 };
 
-const createCourse = async ({ name, description, color, coverImage }) => {
+const createCourse = async ({ name, description, color, coverImage, areaId }) => {
   const { data, error } = await supabase.from('courses').insert({
     name, description, color: color || '#E8732C',
     cover_image: coverImage || null, is_active: true,
+    area_id: areaId || null,
   }).select().single();
   if (error) { console.error('createCourse:', error); throw new Error(error.message); }
   await loadCourses();
@@ -900,6 +902,99 @@ const toggleCourseForInstitution = async (courseId, institutionId, active) => {
   await loadCourses();
 };
 
+// Publica la ruta del instructor a course_modules del curso vinculado.
+// Borra todos los módulos del curso (excepto final_delivery) y los reinserta desde la config actual.
+const publishRouteToCourse = async (courseId, area, moduleList, customModules) => {
+  if (!courseId) return { error: 'Sin curso vinculado' };
+
+  // Solo borra/reemplaza los módulos del área que se está publicando, preservando otras áreas y final_delivery
+  const { data: existing } = await supabase.from('course_modules')
+    .select('id, type, area_id').eq('course_id', courseId);
+  const toDelete = (existing || [])
+    .filter(r => r.type !== 'final_delivery' && r.area_id === area)
+    .map(r => r.id);
+  if (toDelete.length > 0) {
+    await supabase.from('course_modules').delete().in('id', toDelete);
+  }
+
+  // Construir filas a insertar desde moduleList (módulos base activos)
+  const rows = [];
+  let order = 1;
+  for (const m of moduleList.filter(m => m.enabled !== false)) {
+    const challengeData = {};
+    if (m.dragItems    || m.override?.dragItems)    challengeData.dragItems    = m.dragItems    || m.override.dragItems;
+    if (m.empathyCards || m.override?.empathyCards) challengeData.empathyCards = m.empathyCards || m.override.empathyCards;
+    if (m.matchPairs   || m.override?.matchPairs)   challengeData.matchPairs   = m.matchPairs   || m.override.matchPairs;
+    if (m.simContext   || m.override?.simContext)    challengeData.simContext   = m.simContext   || m.override.simContext;
+    if (m.questions    || m.override?.questions)     challengeData.questions    = m.questions    || m.override.questions;
+    rows.push({
+      course_id: courseId, type: m.type, area_id: area,
+      title: m.title, subtitle: m.subtitle || '',
+      description: m.desc || '',
+      xp: m.xp || 100, order: order++, is_enabled: true,
+      content: m.content || [],
+      challenge_data: challengeData,
+      challenge_type: m.ctype || null,
+    });
+  }
+  // Módulos personalizados del instructor
+  for (const m of customModules.filter(m => m.enabled !== false && m.type !== 'final_delivery')) {
+    const challengeData = {};
+    if (m.dragItems)    challengeData.dragItems    = m.dragItems;
+    if (m.empathyCards) challengeData.empathyCards = m.empathyCards;
+    if (m.matchPairs)   challengeData.matchPairs   = m.matchPairs;
+    if (m.simContext)   challengeData.simContext   = m.simContext;
+    if (m.questions)    challengeData.questions    = m.questions;
+    rows.push({
+      course_id: courseId, type: m.type || 'lesson', area_id: area,
+      title: m.title, subtitle: m.subtitle || (m.type === 'challenge' ? 'Reto' : 'Módulo'),
+      description: m.desc || '',
+      xp: m.xp || 100, order: order++, is_enabled: true,
+      content: m.content || [],
+      challenge_data: challengeData,
+      challenge_type: m.ctype || null,
+    });
+  }
+
+  const { error } = await supabase.from('course_modules').insert(rows);
+  if (error) return { error: error.message };
+
+  // Reordenar final_delivery al final
+  const { data: fd } = await supabase.from('course_modules')
+    .select('id').eq('course_id', courseId).eq('type', 'final_delivery').maybeSingle();
+  if (fd) {
+    await supabase.from('course_modules').update({ order: order }).eq('id', fd.id);
+  }
+
+  return { ok: true, count: rows.length };
+};
+
+// Cambia el curso activo del estudiante (multi-inscripción)
+const switchCourse = async (courseId) => {
+  const { user, selectedArea } = XS.get();
+  if (!user?.id || !courseId) return;
+  const { data: modulesData } = await supabase.from('course_modules')
+    .select('*').eq('course_id', courseId).eq('is_enabled', true).order('"order"');
+  const filtered = selectedArea
+    ? (modulesData || []).filter(row => !row.area_id || row.area_id === selectedArea)
+    : (modulesData || []);
+  const courseModules = filtered.map((row, i) => {
+    const mod = dbModToAppMod(row);
+    mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i };
+    mod.side = i % 2 === 0 ? 'right' : 'left';
+    return mod;
+  });
+  const { data: cp } = await supabase.from('course_progress')
+    .select('*').eq('user_id', user.id).eq('course_id', courseId).maybeSingle();
+  XS.set({
+    enrolledCourseId: courseId,
+    courseModules,
+    xp: cp?.xp || 0,
+    completed: cp?.completed || [],
+    badges: cp?.badges || [],
+  });
+};
+
 export {
   useStore, AREAS, BADGES, LEVELS, RUBRIC_CRITERIA, ALL_MODULES, AREA_CONTENT,
   INITIAL_INSTITUTIONS,
@@ -914,5 +1009,5 @@ export {
   createAccount, deleteAccount, changeAccountArea,
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution,
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,
-  loadCourseModules, enrollInCourse, dbModToAppMod,
+  loadCourseModules, enrollInCourse, dbModToAppMod, publishRouteToCourse, switchCourse,
 };

@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution } from '../store/store.jsx'
+import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, loadCourseModules } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal } from '../components/ui.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
@@ -10,6 +10,7 @@ const CourseForm = ({ initial, onSave, onCancel }) => {
     description: initial?.description || '',
     color: initial?.color || '#E8732C',
     coverImage: initial?.cover_image || '',
+    areaId: initial?.area_id || '',
   })
   const [saving, setSaving] = React.useState(false)
   const [error, setError]   = React.useState('')
@@ -56,6 +57,16 @@ const CourseForm = ({ initial, onSave, onCancel }) => {
           <input value={form.coverImage} onChange={e => set('coverImage', e.target.value)}
             placeholder="https://..." style={inp} />
         </div>
+      </div>
+      <div>
+        <label style={lbl}>Área de formación (opcional)</label>
+        <select value={form.areaId} onChange={e => set('areaId', e.target.value)} style={inp}>
+          <option value="">— Multi-área / Sin filtro —</option>
+          {AREAS.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+        </select>
+        <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+          Si el curso es para un área específica, los módulos se filtran automáticamente por área del docente.
+        </p>
       </div>
       {error && (
         <div style={{ padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', fontSize: 13, color: 'var(--error)', marginBottom: 4 }}>
@@ -581,13 +592,12 @@ const AdminCourses = () => {
   }
 
   const handleCreate = async (form) => {
-    await createCourse({ name: form.name, description: form.description, color: form.color, coverImage: form.coverImage })
+    await createCourse({ name: form.name, description: form.description, color: form.color, coverImage: form.coverImage, areaId: form.areaId || null })
     setShowCreate(false)
-    // Si createCourse lanza, CourseForm lo captura y muestra el error
   }
 
   const handleUpdate = async (form) => {
-    await updateCourse(editCourse.id, { name: form.name, description: form.description, color: form.color, cover_image: form.coverImage })
+    await updateCourse(editCourse.id, { name: form.name, description: form.description, color: form.color, cover_image: form.coverImage, area_id: form.areaId || null })
     setEditCourse(null)
   }
 
