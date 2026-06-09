@@ -1,7 +1,8 @@
 import React from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { XS, nav } from '../store/store.jsx'
+import { XS, nav, loadRouteConfigs, loadCourses, loadInstructorInstitutions } from '../store/store.jsx'
 import { loadStudentSession } from '../lib/loadStudentSession.js'
+import { mapSubmission, mapAttempt } from '../lib/mappers.js'
 import {
   useMobile, LogoImg, LockIc, ArrowRIc, ArrowLIc, CheckIc, XIc, Btn,
 } from '../components/ui.jsx'
@@ -34,12 +35,10 @@ const LoginPage = () => {
       if (profile.role === 'instructor') page = 'instructor-dashboard';
       if (profile.role === 'admin')      page = 'admin-dashboard';
 
-      let xp = progress?.xp || 0;
-      let completed = progress?.completed || [];
-      let badges = progress?.badges || [];
-      let enrolledCourseId = null;
-      let courseModules = [];
-      let allEnrollments = [];
+      let xp = 0, completed = [], badges = [];
+      let enrolledCourseId = null, courseModules = [], allEnrollments = [];
+      let accounts = [], submissions = [], challengeAttempts = [];
+      let institutions = [], cohorts = [];
 
       if (profile.role === 'student') {
         const studentSess = await loadStudentSession(data.user.id, profile.area || null);
@@ -51,6 +50,47 @@ const LoginPage = () => {
         allEnrollments = studentSess.allEnrollments;
       }
 
+      if (profile.role === 'admin' || profile.role === 'instructor') {
+        const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 86_400_000).toISOString();
+        const isInstructor = profile.role === 'instructor';
+        const profilesQuery = isInstructor && profile.institution_id
+          ? supabase.from('profiles').select('*').eq('institution_id', profile.institution_id).order('name')
+          : supabase.from('profiles').select('*').order('name').limit(500);
+        const [
+          { data: profilesData },
+          { data: subsData },
+          { data: attemptsData },
+          { data: institutionsData },
+          { data: cohortsData },
+        ] = await Promise.all([
+          profilesQuery,
+          supabase.from('submissions').select('*').gte('created_at', THIRTY_DAYS_AGO).order('created_at', { ascending: false }).limit(300),
+          supabase.from('challenge_attempts').select('*').gte('created_at', THIRTY_DAYS_AGO).order('created_at', { ascending: false }).limit(300),
+          supabase.from('institutions').select('*').order('name'),
+          supabase.from('cohorts').select('*').order('created_at'),
+        ]);
+        const allProfiles = profilesData || [];
+        const instById = {};
+        (institutionsData || []).forEach(i => { instById[i.id] = i.name; });
+        accounts = allProfiles.map(p => ({
+          id: p.id, email: p.email, name: p.name, avatar: p.avatar,
+          role: p.role, area: p.area || null,
+          institution: instById[p.institution_id] || '',
+          institution_id: p.institution_id || null,
+          cohort_id: p.cohort_id || null,
+          pass: '',
+        }));
+        submissions       = (subsData     || []).map(s => mapSubmission(s, allProfiles, instById));
+        challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, allProfiles));
+        institutions = institutionsData || [];
+        cohorts      = cohortsData      || [];
+      }
+
+      // Cargar configs de ruta y cursos para todos los roles
+      loadRouteConfigs();
+      loadCourses();
+      if (profile.role === 'instructor') loadInstructorInstitutions();
+
       XS.set({
         isLoggedIn: true,
         user: { id: data.user.id, name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role },
@@ -59,6 +99,8 @@ const LoginPage = () => {
         enrolledCourseId, courseModules,
         allEnrollments: profile.role === 'student' ? allEnrollments : [],
         notifications: [], selectedArea: profile.area || null, nodeId: null,
+        accounts, submissions, challengeAttempts,
+        institutions, cohorts,
       });
     } catch (err) {
       setError('Error de conexión. Intenta de nuevo.');
