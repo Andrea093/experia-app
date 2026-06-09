@@ -17,9 +17,11 @@ const daysLeft = (deadline) => {
 // ── Cohort form ───────────────────────────────────────────────
 const CohortForm = ({ initial = {}, onSave, onCancel }) => {
   const institutions = useStore(s => s.institutions || [])
+  const courses      = useStore(s => s.courses || [])
   const [form, setForm] = React.useState({
     name:           initial.name || '',
     institution_id: initial.institution_id || '',
+    course_id:      initial.course_id || '',
     deadline:       initial.deadline ? initial.deadline.slice(0,16) : '',
     notes:          initial.notes || '',
   })
@@ -32,6 +34,7 @@ const CohortForm = ({ initial = {}, onSave, onCancel }) => {
     const payload = {
       name:           form.name.trim(),
       institution_id: form.institution_id || null,
+      course_id:      form.course_id || null,
       deadline:       form.deadline ? new Date(form.deadline).toISOString() : null,
       notes:          form.notes.trim() || null,
     }
@@ -66,12 +69,24 @@ const CohortForm = ({ initial = {}, onSave, onCancel }) => {
       </div>
       <div>
         <label style={{ fontSize:13, fontWeight:600, color:'var(--dark)', display:'block', marginBottom:6 }}>
-          Institución / Colegio <span style={{ color:'var(--error)' }}>*</span>
+          Institución / Colegio
         </label>
-        <select value={form.institution_id} onChange={e=>setForm(f=>({...f,institution_id:e.target.value}))} style={inp(!form.institution_id && !!err)}>
+        <select value={form.institution_id} onChange={e=>setForm(f=>({...f,institution_id:e.target.value}))} style={inp(false)}>
           <option value="">— Seleccionar institución —</option>
           {institutions.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
         </select>
+      </div>
+      <div>
+        <label style={{ fontSize:13, fontWeight:600, color:'var(--dark)', display:'block', marginBottom:6 }}>
+          Curso de formación
+        </label>
+        <select value={form.course_id} onChange={e=>setForm(f=>({...f,course_id:e.target.value}))} style={inp(false)}>
+          <option value="">— Sin curso asignado —</option>
+          {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <p style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>
+          Al asignar un curso, los docentes de esta cohorte quedan inscritos automáticamente.
+        </p>
       </div>
       <div>
         <label style={{ fontSize:13, fontWeight:600, color:'var(--dark)', display:'block', marginBottom:6 }}>
@@ -101,67 +116,115 @@ const CohortForm = ({ initial = {}, onSave, onCancel }) => {
 const AssignModal = ({ cohort, onClose }) => {
   const accounts      = useStore(s => s.accounts)
   const institutions  = useStore(s => s.institutions || [])
+  const courses       = useStore(s => s.courses || [])
   const institution   = institutions.find(i => i.id === cohort.institution_id)
-  const students = accounts.filter(a =>
-    a.role === 'student' &&
-    (!cohort.institution_id || a.institution_id === cohort.institution_id)
-  )
-  const [search, setSearch] = React.useState('')
-  const [saving, setSaving] = React.useState(false)
+  const course        = courses.find(c => c.id === cohort.course_id)
+  const students = accounts.filter(a => a.role === 'student')
+  const [search, setSearch]               = React.useState('')
   const [cohortStudents, setCohortStudents] = React.useState([])
+  const [toggling, setToggling]           = React.useState(null)
 
   React.useEffect(() => {
     supabase.from('profiles').select('id,email').eq('cohort_id', cohort.id)
-      .then(({ data }) => setCohortStudents((data||[]).map(p=>p.email)))
+      .then(({ data }) => setCohortStudents((data||[]).map(p => p.email)))
   }, [cohort.id])
 
-  const toggle = async (email) => {
-    const profile = await supabase.from('profiles').select('id').eq('email', email).single()
-    if (!profile.data) return
-    const newVal = cohortStudents.includes(email) ? null : cohort.id
-    await supabase.from('profiles').update({ cohort_id: newVal }).eq('email', email)
-    setCohortStudents(prev => newVal
-      ? [...prev, email]
-      : prev.filter(e => e !== email)
+  const toggle = async (student) => {
+    setToggling(student.email)
+    const { data: prof } = await supabase.from('profiles').select('id').eq('email', student.email).single()
+    if (!prof) { setToggling(null); return }
+
+    const isAssigned = cohortStudents.includes(student.email)
+    const newCohortId = isAssigned ? null : cohort.id
+
+    // Actualizar cohort_id en el perfil
+    await supabase.from('profiles').update({ cohort_id: newCohortId }).eq('id', prof.id)
+
+    // Si la cohorte tiene curso, gestionar inscripción automática
+    if (cohort.course_id) {
+      if (!isAssigned) {
+        // Inscribir al curso
+        await supabase.from('course_enrollments').upsert(
+          { student_id: prof.id, course_id: cohort.course_id },
+          { onConflict: 'student_id,course_id' }
+        )
+        // Crear registro de progreso si no existe
+        await supabase.from('course_progress').upsert(
+          { user_id: prof.id, course_id: cohort.course_id, xp: 0, completed: [], badges: [] },
+          { onConflict: 'user_id,course_id' }
+        )
+      } else {
+        // Desinscribir del curso
+        await supabase.from('course_enrollments')
+          .delete()
+          .eq('student_id', prof.id)
+          .eq('course_id', cohort.course_id)
+      }
+    }
+
+    // Actualizar store local de accounts
+    XS.set(s => ({
+      accounts: s.accounts.map(a =>
+        a.email === student.email ? { ...a, cohort_id: newCohortId } : a
+      )
+    }))
+
+    setCohortStudents(prev =>
+      isAssigned ? prev.filter(e => e !== student.email) : [...prev, student.email]
     )
+    setToggling(null)
   }
 
   const filtered = students.filter(s =>
-    !search || s.name.toLowerCase().includes(search.toLowerCase()) ||
+    !search ||
+    s.name.toLowerCase().includes(search.toLowerCase()) ||
     s.email.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
     <div>
+      {/* Info de la cohorte */}
       <div style={{ padding:'12px 16px', borderRadius:10, background:'var(--bg)',
-        border:'1px solid var(--border)', marginBottom:16 }}>
+        border:'1px solid var(--border)', marginBottom:16, display:'flex', flexDirection:'column', gap:4 }}>
         <div style={{ fontSize:14, fontWeight:700, color:'var(--dark)' }}>{cohort.name}</div>
-        {institution && <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>🏫 {institution.name}</div>}
-        {cohort.deadline && <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
+        {institution && <div style={{ fontSize:12, color:'var(--muted)' }}>🏫 {institution.name}</div>}
+        {course
+          ? <div style={{ fontSize:12, fontWeight:600, color:'var(--orange)' }}>
+              📚 Curso: {course.name} — los docentes se inscriben automáticamente
+            </div>
+          : <div style={{ fontSize:12, color:'var(--subtle)' }}>
+              Sin curso asignado — asigna uno en la configuración de la cohorte
+            </div>
+        }
+        {cohort.deadline && <div style={{ fontSize:12, color:'var(--muted)' }}>
           Límite: {fmtDate(cohort.deadline)}
         </div>}
       </div>
+
       <input value={search} onChange={e=>setSearch(e.target.value)}
         placeholder="Buscar docente..." style={{ width:'100%', padding:'9px 14px', borderRadius:10,
           border:'1.5px solid var(--border)', fontFamily:'var(--font)', fontSize:13, outline:'none',
           boxSizing:'border-box', marginBottom:12 }} />
+
       <div style={{ maxHeight:320, overflow:'auto', display:'flex', flexDirection:'column', gap:6 }}>
         {filtered.map(st => {
           const assigned = cohortStudents.includes(st.email)
-          const stArea = AREAS.find(a=>a.id===st.area)
+          const stArea   = AREAS.find(a => a.id === st.area)
+          const isLoading = toggling === st.email
           return (
-            <div key={st.email} onClick={()=>toggle(st.email)}
+            <div key={st.email} onClick={() => !isLoading && toggle(st)}
               style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px',
-                borderRadius:10, cursor:'pointer', transition:'all .15s',
+                borderRadius:10, cursor: isLoading ? 'wait' : 'pointer', transition:'all .15s',
                 border: assigned ? '1.5px solid var(--orange)' : '1px solid var(--border)',
-                background: assigned ? 'var(--orange-bg)' : 'var(--white)' }}>
+                background: assigned ? 'var(--orange-bg)' : 'var(--white)',
+                opacity: isLoading ? .6 : 1 }}>
               <div style={{ width:34, height:34, borderRadius:'50%', flexShrink:0, overflow:'hidden',
                 background: assigned ? 'var(--orange)' : 'var(--bg-alt)',
                 display:'flex', alignItems:'center', justifyContent:'center',
                 fontSize:13, fontWeight:700, color: assigned ? '#fff' : 'var(--muted)' }}>
                 {st.avatar?.startsWith('http')
                   ? <img src={st.avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                  : st.avatar}
+                  : (st.avatar || st.name?.charAt(0) || '?')}
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13, fontWeight:600, color:'var(--dark)', overflow:'hidden',
@@ -185,7 +248,11 @@ const AssignModal = ({ cohort, onClose }) => {
           </p>
         )}
       </div>
-      <div style={{ marginTop:16, textAlign:'right' }}>
+
+      <div style={{ marginTop:16, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <span style={{ fontSize:12, color:'var(--muted)' }}>
+          {cohortStudents.length} docente{cohortStudents.length !== 1 ? 's' : ''} asignado{cohortStudents.length !== 1 ? 's' : ''}
+        </span>
         <Btn variant="primary" onClick={onClose}>Listo</Btn>
       </div>
     </div>
@@ -197,6 +264,7 @@ export default function AdminCohorts() {
   const cohorts      = useStore(s => s.cohorts || [])
   const accounts     = useStore(s => s.accounts)
   const institutions = useStore(s => s.institutions || [])
+  const courses      = useStore(s => s.courses || [])
   const isMobile = useMobile()
   const [showCreate, setShowCreate] = React.useState(false)
   const [editing,    setEditing]    = React.useState(null)
@@ -204,7 +272,7 @@ export default function AdminCohorts() {
   const [delConfirm, setDelConfirm] = React.useState(null)
 
   const countMembers = (cohortId) =>
-    accounts.filter(a => a.cohort_id === cohortId || a.cohort === cohortId).length
+    accounts.filter(a => a.cohort_id === cohortId).length
 
   const handleDelete = async (id) => {
     await supabase.from('cohorts').delete().eq('id', id)
@@ -238,8 +306,10 @@ export default function AdminCohorts() {
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           {cohorts.map(c => {
-            const days  = daysLeft(c.deadline)
-            const inst  = institutions.find(i => i.id === c.institution_id)
+            const days      = daysLeft(c.deadline)
+            const inst      = institutions.find(i => i.id === c.institution_id)
+            const course    = courses.find(co => co.id === c.course_id)
+            const members   = countMembers(c.id)
             const isExpired = days !== null && days < 0
             const isUrgent  = days !== null && days >= 0 && days <= 3
             return (
@@ -248,7 +318,7 @@ export default function AdminCohorts() {
                 borderLeft: isExpired ? '4px solid var(--error)' : isUrgent ? '4px solid var(--warn)' : '4px solid var(--orange)' }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:14, flexWrap:'wrap' }}>
                   <div style={{ flex:1, minWidth:200 }}>
-                    <div style={{ fontSize:15, fontWeight:700, color:'var(--dark)', marginBottom:4 }}>
+                    <div style={{ fontSize:15, fontWeight:700, color:'var(--dark)', marginBottom:6 }}>
                       {c.name}
                     </div>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:6 }}>
@@ -256,6 +326,21 @@ export default function AdminCohorts() {
                         <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4,
                           background:'var(--bg-alt)', color:'var(--text-sec)', fontWeight:600 }}>
                           🏫 {inst.name}
+                        </span>
+                      )}
+                      <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4,
+                        background:'var(--bg-alt)', color:'var(--text-sec)', fontWeight:600 }}>
+                        👥 {members} docente{members !== 1 ? 's' : ''}
+                      </span>
+                      {course ? (
+                        <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4,
+                          background:'var(--orange-bg)', color:'var(--orange)', fontWeight:600 }}>
+                          📚 {course.name}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4,
+                          background:'#FEF3C7', color:'#92400E', fontWeight:600 }}>
+                          ⚠️ Sin curso
                         </span>
                       )}
                       {c.deadline && (

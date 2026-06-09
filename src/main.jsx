@@ -91,6 +91,8 @@ async function restoreSession() {
       id: p.id, email: p.email, name: p.name, avatar: p.avatar,
       role: p.role, area: p.area || null,
       institution: instById[p.institution_id] || '',
+      institution_id: p.institution_id || null,
+      cohort_id: p.cohort_id || null,
       pass: '',
     }))
     submissions       = (subsData     || []).map(s => mapSubmission(s, allProfiles, instById))
