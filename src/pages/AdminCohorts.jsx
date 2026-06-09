@@ -121,8 +121,14 @@ const AssignModal = ({ cohort, onClose }) => {
   const course        = courses.find(c => c.id === cohort.course_id)
   const students = accounts.filter(a => a.role === 'student')
   const [search, setSearch]               = React.useState('')
+  const [debouncedSearch, setDebouncedSearch] = React.useState('')
   const [cohortStudents, setCohortStudents] = React.useState([])
   const [toggling, setToggling]           = React.useState(null)
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
 
   React.useEffect(() => {
     supabase.from('profiles').select('id,email').eq('cohort_id', cohort.id)
@@ -130,45 +136,45 @@ const AssignModal = ({ cohort, onClose }) => {
   }, [cohort.id])
 
   const toggle = async (student) => {
+    const studentId = student.id
+    if (!studentId) return
     setToggling(student.email)
-    const { data: prof } = await supabase.from('profiles').select('id').eq('email', student.email).single()
-    if (!prof) { setToggling(null); return }
 
-    const isAssigned = cohortStudents.includes(student.email)
+    const isAssigned  = cohortStudents.includes(student.email)
     const newCohortId = isAssigned ? null : cohort.id
 
-    // Actualizar cohort_id en el perfil
-    await supabase.from('profiles').update({ cohort_id: newCohortId }).eq('id', prof.id)
-
-    // Si la cohorte tiene curso, gestionar inscripción automática
+    const ops = [
+      supabase.from('profiles').update({ cohort_id: newCohortId }).eq('id', studentId),
+    ]
     if (cohort.course_id) {
       if (!isAssigned) {
-        // Inscribir al curso
-        await supabase.from('course_enrollments').upsert(
-          { student_id: prof.id, course_id: cohort.course_id },
-          { onConflict: 'student_id,course_id' }
-        )
-        // Crear registro de progreso si no existe
-        await supabase.from('course_progress').upsert(
-          { user_id: prof.id, course_id: cohort.course_id, xp: 0, completed: [], badges: [] },
-          { onConflict: 'user_id,course_id' }
+        ops.push(
+          supabase.from('course_enrollments').upsert(
+            { student_id: studentId, course_id: cohort.course_id },
+            { onConflict: 'student_id,course_id' }
+          ),
+          supabase.from('course_progress').upsert(
+            { user_id: studentId, course_id: cohort.course_id, xp: 0, completed: [], badges: [] },
+            { onConflict: 'user_id,course_id' }
+          )
         )
       } else {
-        // Desinscribir del curso
-        await supabase.from('course_enrollments')
-          .delete()
-          .eq('student_id', prof.id)
-          .eq('course_id', cohort.course_id)
+        ops.push(
+          supabase.from('course_enrollments')
+            .delete().eq('student_id', studentId).eq('course_id', cohort.course_id)
+        )
       }
     }
 
-    // Actualizar store local de accounts
+    const results = await Promise.all(ops)
+    const err = results.find(r => r.error)?.error
+    if (err) { console.error('toggle cohort student:', err); setToggling(null); return }
+
     XS.set(s => ({
       accounts: s.accounts.map(a =>
         a.email === student.email ? { ...a, cohort_id: newCohortId } : a
       )
     }))
-
     setCohortStudents(prev =>
       isAssigned ? prev.filter(e => e !== student.email) : [...prev, student.email]
     )
@@ -176,9 +182,9 @@ const AssignModal = ({ cohort, onClose }) => {
   }
 
   const filtered = students.filter(s =>
-    !search ||
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.email.toLowerCase().includes(search.toLowerCase())
+    !debouncedSearch ||
+    s.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    s.email.toLowerCase().includes(debouncedSearch.toLowerCase())
   )
 
   return (

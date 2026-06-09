@@ -428,11 +428,7 @@ const ModuleForm = ({ initial, onSave, saving, onCancel }) => {
           <label style={lbl}>Área (opcional)</label>
           <select value={form.area_id} onChange={e => set('area_id', e.target.value)} style={inp}>
             <option value="">— Todas las áreas —</option>
-            <option value="lectura">Lectura Crítica</option>
-            <option value="ciudadanas">Competencias Ciudadanas</option>
-            <option value="ingles">Inglés</option>
-            <option value="matematicas">Matemáticas</option>
-            <option value="ciencias">Ciencias Naturales</option>
+            {AREAS.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
           </select>
         </div>
         <div style={{ gridColumn: '1/-1' }}>

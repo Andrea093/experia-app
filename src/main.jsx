@@ -4,8 +4,13 @@ import './styles.css'
 import App from './app.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient.js'
-import { XS, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, loadCourseModules, dbModToAppMod } from './store/store.jsx'
+import { XS, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses } from './store/store.jsx'
 import { mapSubmission, mapAttempt } from './lib/mappers.js'
+import { loadStudentSession } from './lib/loadStudentSession.js'
+
+const SESSION_TIMEOUT_MS  = 20_000
+const SLOW_LOAD_THRESHOLD =  5_000
+const VERY_SLOW_THRESHOLD = 12_000
 
 const root = ReactDOM.createRoot(document.getElementById('root'))
 
@@ -14,8 +19,8 @@ const Loading = () => {
   const [verySlow, setVerySlow] = React.useState(false)
 
   React.useEffect(() => {
-    const t1 = setTimeout(() => setSlow(true), 5000)
-    const t2 = setTimeout(() => setVerySlow(true), 12000)
+    const t1 = setTimeout(() => setSlow(true), SLOW_LOAD_THRESHOLD)
+    const t2 = setTimeout(() => setVerySlow(true), VERY_SLOW_THRESHOLD)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
@@ -79,10 +84,15 @@ async function restoreSession() {
   let xp = 0, completed = [], badges = []
 
   if (profile.role === 'admin' || profile.role === 'instructor') {
+    const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 86_400_000).toISOString()
+    const isInstructor = profile.role === 'instructor'
+    const profilesQuery = isInstructor && profile.institution_id
+      ? supabase.from('profiles').select('*').eq('institution_id', profile.institution_id).order('name')
+      : supabase.from('profiles').select('*').order('name').limit(500)
     const [{ data: profilesData }, { data: subsData }, { data: attemptsData }] = await Promise.all([
-      supabase.from('profiles').select('*').order('name'),
-      supabase.from('submissions').select('*').order('created_at', { ascending: false }),
-      supabase.from('challenge_attempts').select('*').order('created_at', { ascending: false }),
+      profilesQuery,
+      supabase.from('submissions').select('*').gte('created_at', THIRTY_DAYS_AGO).order('created_at', { ascending: false }).limit(300),
+      supabase.from('challenge_attempts').select('*').gte('created_at', THIRTY_DAYS_AGO).order('created_at', { ascending: false }).limit(300),
     ])
     const allProfiles = profilesData || []
     const instById = {}
@@ -101,47 +111,18 @@ async function restoreSession() {
 
   if (profile.role === 'student') {
     const me = [{ id: session.user.id, ...profile }]
-    const [{ data: subsData }, { data: attemptsData }, { data: progressData }, { data: enrollmentsData }] = await Promise.all([
-      supabase.from('submissions').select('*').eq('student_id', session.user.id),
-      supabase.from('challenge_attempts').select('*').eq('student_id', session.user.id),
-      supabase.from('progress').select('*').eq('user_id', session.user.id).single(),
-      supabase.from('course_enrollments').select('course_id').eq('student_id', session.user.id),
+    const [{ data: subsData }, { data: attemptsData }, studentSess] = await Promise.all([
+      supabase.from('submissions').select('*').eq('student_id', session.user.id).limit(100),
+      supabase.from('challenge_attempts').select('*').eq('student_id', session.user.id).limit(200),
+      loadStudentSession(session.user.id, profile.area || null),
     ])
     submissions       = (subsData     || []).map(s => mapSubmission(s, me))
     challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, me))
-
-    const allEnrollments  = (enrollmentsData || []).map(e => e.course_id)
-    const enrolledCourseId = allEnrollments[0] || null
-
-    if (enrolledCourseId) {
-      // Estudiante con curso inscrito: lee progreso de course_progress
-      const { data: cp } = await supabase.from('course_progress')
-        .select('*').eq('user_id', session.user.id).eq('course_id', enrolledCourseId).maybeSingle()
-      xp        = cp?.xp        || 0
-      completed = cp?.completed || []
-      badges    = cp?.badges    || []
-      const studentArea = profile.area || null
-      // Cargar módulos del curso en el store ANTES de set()
-      const { data: modulesData } = await supabase.from('course_modules')
-        .select('*').eq('course_id', enrolledCourseId).eq('is_enabled', true).order('"order"')
-      // Filtra por área: rows sin area_id (null) son universales, los que tienen area_id deben coincidir
-      const filteredMods = studentArea
-        ? (modulesData || []).filter(row => !row.area_id || row.area_id === studentArea)
-        : (modulesData || [])
-      XS.set({
-        courseModules: filteredMods.map((row, i) => {
-          const mod = dbModToAppMod(row)
-          mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i }
-          mod.side = i % 2 === 0 ? 'right' : 'left'
-          return mod
-        }),
-        enrolledCourseId,
-      })
-    } else {
-      // Legado: usa progress normal
-      xp        = progressData?.xp        || 0
-      completed = progressData?.completed  || []
-      badges    = progressData?.badges     || []
+    xp        = studentSess.xp
+    completed = studentSess.completed
+    badges    = studentSess.badges
+    if (studentSess.enrolledCourseId) {
+      XS.set({ courseModules: studentSess.courseModules, enrolledCourseId: studentSess.enrolledCourseId })
     }
   }
 
@@ -151,10 +132,11 @@ async function restoreSession() {
 
   // Suscripción en tiempo real: cuando el instructor guarda una ruta,
   // todos los estudiantes conectados reciben el cambio automáticamente
+  const realtimeFilter = profile.institution_id
+    ? { event: '*', schema: 'public', table: 'route_configs', filter: `institution_id=eq.${profile.institution_id}` }
+    : { event: '*', schema: 'public', table: 'route_configs' }
   supabase.channel('route-configs-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'route_configs' }, () => {
-      loadRouteConfigs()
-    })
+    .on('postgres_changes', realtimeFilter, () => { loadRouteConfigs() })
     .subscribe()
 
   XS.set({
@@ -166,7 +148,7 @@ async function restoreSession() {
     institutions: institutionsRes.data || [],
     cohorts: cohortsRes.data || [],
     accounts, submissions, challengeAttempts,
-    allEnrollments: profile.role === 'student' ? allEnrollments : [],
+    allEnrollments: profile.role === 'student' ? (studentSess?.allEnrollments || []) : [],
   })
 }
 
@@ -178,7 +160,7 @@ supabase.auth.onAuthStateChange((event) => {
 root.render(<Loading />)
 
 // Si restoreSession tarda más de 20s en total, renderiza igual (usuario no logueado → landing)
-withTimeout(restoreSession(), 20000)
+withTimeout(restoreSession(), SESSION_TIMEOUT_MS)
   .catch(err => { if (err.message !== 'timeout') console.error('restoreSession:', err) })
   .finally(() => {
     root.render(

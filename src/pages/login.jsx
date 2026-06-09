@@ -1,6 +1,7 @@
 import React from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { XS, nav, dbModToAppMod } from '../store/store.jsx'
+import { XS, nav } from '../store/store.jsx'
+import { loadStudentSession } from '../lib/loadStudentSession.js'
 import {
   useMobile, LogoImg, LockIc, ArrowRIc, ArrowLIc, CheckIc, XIc, Btn,
 } from '../components/ui.jsx'
@@ -25,49 +26,29 @@ const LoginPage = () => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
       if (error) { setError('Correo o contraseña incorrectos'); setLoading(false); return; }
 
-      const [{ data: profile, error: profErr }, { data: progress }] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', data.user.id).single(),
-        supabase.from('progress').select('*').eq('user_id', data.user.id).single(),
-      ]);
+      const { data: profile, error: profErr } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
       if (profErr || !profile) { setError('No se encontró el perfil. Contacta al admin.'); setLoading(false); return; }
+      const progress = null; // Legacy fallback handled inside loadStudentSession
 
       let page = 'map';
       if (profile.role === 'instructor') page = 'instructor-dashboard';
       if (profile.role === 'admin')      page = 'admin-dashboard';
 
-      let enrolledCourseId = null;
-      let courseModules = [];
       let xp = progress?.xp || 0;
       let completed = progress?.completed || [];
       let badges = progress?.badges || [];
+      let enrolledCourseId = null;
+      let courseModules = [];
+      let allEnrollments = [];
 
       if (profile.role === 'student') {
-        const { data: enrollmentsData } = await supabase
-          .from('course_enrollments')
-          .select('course_id')
-          .eq('student_id', data.user.id);
-        const allEnrollments = (enrollmentsData || []).map(e => e.course_id);
-        enrolledCourseId = allEnrollments[0] || null;
-        if (enrolledCourseId) {
-          const studentArea = profile.area || null;
-          const [{ data: modulesData }, { data: cp }] = await Promise.all([
-            supabase.from('course_modules').select('*')
-              .eq('course_id', enrolledCourseId).eq('is_enabled', true).order('"order"'),
-            supabase.from('course_progress').select('*')
-              .eq('user_id', data.user.id).eq('course_id', enrolledCourseId).maybeSingle(),
-          ]);
-          // Filtra por área: null = universal, area_id coincide = incluir
-          const filtered = studentArea
-            ? (modulesData || []).filter(row => !row.area_id || row.area_id === studentArea)
-            : (modulesData || []);
-          courseModules = filtered.map((row, i) => {
-            const mod = dbModToAppMod(row);
-            mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i };
-            mod.side = i % 2 === 0 ? 'right' : 'left';
-            return mod;
-          });
-          if (cp) { xp = cp.xp || 0; completed = cp.completed || []; badges = cp.badges || []; }
-        }
+        const studentSess = await loadStudentSession(data.user.id, profile.area || null);
+        xp             = studentSess.xp;
+        completed      = studentSess.completed;
+        badges         = studentSess.badges;
+        enrolledCourseId = studentSess.enrolledCourseId;
+        courseModules  = studentSess.courseModules;
+        allEnrollments = studentSess.allEnrollments;
       }
 
       XS.set({
@@ -76,7 +57,7 @@ const LoginPage = () => {
         page,
         xp, completed, badges,
         enrolledCourseId, courseModules,
-        allEnrollments: profile.role === 'student' ? (enrolledCourseId ? [enrolledCourseId] : []) : [],
+        allEnrollments: profile.role === 'student' ? allEnrollments : [],
         notifications: [], selectedArea: profile.area || null, nodeId: null,
       });
     } catch (err) {

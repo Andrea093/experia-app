@@ -339,7 +339,6 @@ const nodeStatus = (id, done, areaId, modulesOverride) => {
   const m = mods.find(x => x.id === id) || findModule(id);
   if (!m) return 'locked';
   if (done.includes(id)) return 'completed';
-  if (!mods.find(x => x.id === id)) return 'locked';
   if (m.type === 'final_delivery') {
     const others = mods.filter(x => x.type !== 'final_delivery');
     return others.every(x => done.includes(x.id)) ? 'available' : 'locked';
@@ -393,7 +392,9 @@ const nav = (page, nodeId) => {
     supabase.from('profiles').update({
       last_seen: new Date().toISOString(),
       current_module: nodeId || page,
-    }).eq('id', user.id).then(() => {});
+    }).eq('id', user.id)
+      .then(() => {})
+      .catch(err => console.error('[nav] profile update:', err));
   }
 };
 
@@ -406,6 +407,7 @@ const doLogout = () => {
   if (wasLoggedIn) supabase.auth.signOut();
 };
 const selectArea = (areaId) => {
+  if (!AREAS.find(a => a.id === areaId)) return;
   const { user } = XS.get();
   XS.set({ selectedArea: areaId, page: 'map' });
   if (user?.id) {
@@ -414,6 +416,7 @@ const selectArea = (areaId) => {
   }
 };
 const changeArea = (areaId) => {
+  if (!AREAS.find(a => a.id === areaId)) return;
   const { user } = XS.get();
   XS.set({ selectedArea: areaId });
   if (user?.id) {
@@ -733,10 +736,10 @@ const changeAccountArea = (email, newArea) => {
 };
 
 const createAccount = (name, email, pass, role, area, institution) => {
+  const { user } = XS.get();
+  if (user?.role !== 'admin') return;
   const avatar = name.trim().charAt(0).toUpperCase();
-  // Optimistic local update para que la UI responda de inmediato
-  XS.set(s => ({ accounts: [...s.accounts, { email:email.trim(), pass, name:name.trim(), avatar, role, area:area||null, institution:institution||'' }] }));
-  // Crear en Supabase via Edge Function
+  XS.set(s => ({ accounts: [...s.accounts, { email:email.trim(), name:name.trim(), avatar, role, area:area||null, institution:institution||'' }] }));
   supabase.functions.invoke('bulk-create-users', {
     body: { users: [{ name: name.trim(), email: email.trim(), pass, role, area: area||null }] }
   }).then(({ data, error }) => {
@@ -745,9 +748,9 @@ const createAccount = (name, email, pass, role, area, institution) => {
   });
 };
 const deleteAccount = (email) => {
-  // Optimistic: quitar de la UI inmediatamente
+  const { user } = XS.get();
+  if (user?.role !== 'admin') return;
   XS.set(s => ({ accounts: s.accounts.filter(a => a.email !== email) }));
-  // Borrar de Supabase Auth via Edge Function
   supabase.functions.invoke('delete-user', { body: { email } })
     .then(({ data, error }) => {
       if (error) console.error('deleteAccount error:', error);
@@ -756,7 +759,8 @@ const deleteAccount = (email) => {
 };
 
 const bulkCreateAccounts = (users) => {
-  const { institutions } = XS.get();
+  const { institutions, user } = XS.get();
+  if (user?.role !== 'admin') return;
   const instByName = {};
   (institutions || []).forEach(i => { instByName[i.name.toLowerCase().trim()] = i.id; });
 
@@ -827,26 +831,24 @@ const loadCourseModules = async (courseId, areaId = null) => {
 
 const enrollInCourse = async (courseId) => {
   const { user } = XS.get();
-  if (!user?.id) return;
-  // Crear o actualizar matrícula
-  await supabase.from('course_enrollments').upsert(
-    { student_id: user.id, course_id: courseId, institution_id: null },
-    { onConflict: 'student_id,course_id' }
-  );
-  // Crear registro de progreso si no existe
-  await supabase.from('course_progress').upsert(
-    { user_id: user.id, course_id: courseId, xp: 0, completed: [], badges: [] },
-    { onConflict: 'user_id,course_id' }
-  );
+  if (!user?.id) return { error: 'No autenticado' };
+  const [{ error: e1 }, { error: e2 }] = await Promise.all([
+    supabase.from('course_enrollments').upsert(
+      { student_id: user.id, course_id: courseId, institution_id: null },
+      { onConflict: 'student_id,course_id' }
+    ),
+    supabase.from('course_progress').upsert(
+      { user_id: user.id, course_id: courseId, xp: 0, completed: [], badges: [] },
+      { onConflict: 'user_id,course_id' }
+    ),
+  ]);
+  if (e1) { console.error('enrollInCourse enrollment:', e1); return { error: e1.message }; }
+  if (e2) { console.error('enrollInCourse progress:', e2); return { error: e2.message }; }
   await loadCourseModules(courseId);
-  // Limpiar progreso en memoria y cargar desde course_progress
   const { data: cp } = await supabase.from('course_progress')
-    .select('*').eq('user_id', user.id).eq('course_id', courseId).single();
-  XS.set({
-    xp: cp?.xp || 0,
-    completed: cp?.completed || [],
-    badges: cp?.badges || [],
-  });
+    .select('*').eq('user_id', user.id).eq('course_id', courseId).maybeSingle();
+  XS.set({ xp: cp?.xp || 0, completed: cp?.completed || [], badges: cp?.badges || [] });
+  return { ok: true };
 };
 
 // ---- Cursos (multi-ruta) ----

@@ -153,8 +153,7 @@ const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
 });
 
 // --- Course Selector (shown when student has multiple enrollments) ---
-const CourseSelector = ({ enrollments, courses, currentId, onSelect }) => {
-  const isMobile = useMobile();
+const CourseSelector = ({ enrollments, courses, currentId, onSelect, switching = false }) => {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
@@ -177,12 +176,15 @@ const CourseSelector = ({ enrollments, courses, currentId, onSelect }) => {
             const course = courses.find(c => c.id === courseId);
             const isActive = courseId === currentId;
             return (
-              <button key={courseId} onClick={() => onSelect(courseId)}
+              <button key={courseId}
+                onClick={() => !switching && onSelect(courseId)}
+                disabled={switching}
                 style={{
-                  padding: '16px 20px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                  padding: '16px 20px', borderRadius: 12,
+                  cursor: switching ? 'wait' : 'pointer', textAlign: 'left',
                   border: isActive ? '2px solid var(--orange)' : '2px solid var(--border)',
                   background: isActive ? 'rgba(232,115,44,.06)' : 'var(--bg)',
-                  transition: 'all .15s',
+                  transition: 'all .15s', opacity: switching && !isActive ? 0.5 : 1,
                 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', marginBottom: 2 }}>
                   {course?.name || 'Curso sin nombre'}
@@ -190,10 +192,13 @@ const CourseSelector = ({ enrollments, courses, currentId, onSelect }) => {
                 {course?.area_id && (
                   <div style={{ fontSize: 12, color: 'var(--muted)' }}>{course.area_id}</div>
                 )}
-                {isActive && (
+                {isActive && !switching && (
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>
                     Activo
                   </div>
+                )}
+                {switching && isActive && (
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Cargando...</div>
                 )}
               </button>
             );
@@ -216,6 +221,14 @@ const LearningMap = () => {
   const allEnrollments  = useStore(s => s.allEnrollments);
   const isMobile = useMobile();
   const [showCourseSelector, setShowCourseSelector] = React.useState(false);
+  const [switching, setSwitching] = React.useState(false);
+
+  const handleCourseSelect = React.useCallback(async (id) => {
+    setSwitching(true);
+    await switchCourse(id);
+    setSwitching(false);
+    setShowCourseSelector(false);
+  }, []);
 
   // Si el estudiante tiene un curso inscrito → usa courseModules (sistema BD).
   // Solo cae a legacy si NO está inscrito en ningún curso.
@@ -268,7 +281,8 @@ const LearningMap = () => {
             enrollments={allEnrollments}
             courses={courses}
             currentId={enrolledCourseId}
-            onSelect={async (id) => { await switchCourse(id); setShowCourseSelector(false); }}
+            onSelect={handleCourseSelect}
+            switching={switching}
           />
         )}
         {/* Compact hero */}
