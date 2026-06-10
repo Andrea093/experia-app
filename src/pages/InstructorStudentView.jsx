@@ -1,11 +1,11 @@
 import React from 'react'
 import {
-  useStore, AREAS, BADGES, ALL_MODULES, getStudentModules,
+  useStore, AREAS, BADGES, ALL_MODULES, RUBRIC_CRITERIA, getStudentModules,
   gradeTotal, gradeMax, calcLevel, xpForNext, nav,
 } from '../store/store.jsx'
 import {
   useMobile, CheckIc, ClockIc, ZapIc, AwardIc, XIc,
-  ProgressBar, ProgressRing, BadgeCard, Modal,
+  ProgressBar, ProgressRing, BadgeCard, Modal, Btn,
 } from '../components/ui.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { InstructorDashboard } from './Grid.jsx'
@@ -346,18 +346,324 @@ function InstructorCohorts() {
   )
 }
 
-// ── Default export: página completa de entregas para instructor ──
-const InstructorStudentViewPage = ({ studentView, setStudentView }) => (
-  <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-    <InstructorCohorts />
-    <ActiveStudents />
-    <div style={{ flex: 1, overflow: 'hidden' }}>
-      <InstructorDashboard onStudentClick={setStudentView} />
+// ── Historial de entregas aprobadas ────────────────────────
+const InstructorHistorial = ({ onStudentClick }) => {
+  const allSubmissions         = useStore(s => s.submissions)
+  const user                   = useStore(s => s.user)
+  const storeInstitutions      = useStore(s => s.institutions || [])
+  const instructorInstitutions = useStore(s => s.instructorInstitutions || [])
+  const accounts               = useStore(s => s.accounts || [])
+  const isMobile = useMobile()
+
+  const submissions = React.useMemo(() => {
+    if (user?.role === 'admin') return allSubmissions
+    const assignedIds = instructorInstitutions
+      .filter(ii => ii.instructor_id === user?.id)
+      .map(ii => ii.institution_id)
+    if (assignedIds.length === 0) return allSubmissions
+    const assignedNames = assignedIds
+      .map(id => storeInstitutions.find(i => i.id === id)?.name)
+      .filter(Boolean)
+    return allSubmissions.filter(s => assignedNames.includes(s.studentInstitution))
+  }, [allSubmissions, user, instructorInstitutions, storeInstitutions])
+
+  const approved = React.useMemo(() =>
+    [...submissions.filter(s => s.status === 'approved')]
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+  [submissions])
+
+  const [search, setSearch]         = React.useState('')
+  const [debSearch, setDebSearch]   = React.useState('')
+  const [dateFrom, setDateFrom]     = React.useState('')
+  const [dateTo, setDateTo]         = React.useState('')
+  const [filterInst, setFilterInst] = React.useState('all')
+  const [filterArea, setFilterArea] = React.useState('all')
+  const [detailSub, setDetailSub]   = React.useState(null)
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const institutions = React.useMemo(() => {
+    const set = new Set(approved.map(s => s.studentInstitution || 'Sin institución'))
+    return [...set].filter(Boolean).sort()
+  }, [approved])
+
+  const filtered = React.useMemo(() => approved.filter(s => {
+    if (filterInst !== 'all' && (s.studentInstitution || 'Sin institución') !== filterInst) return false
+    if (filterArea !== 'all' && s.area !== filterArea) return false
+    if (debSearch) {
+      const q = debSearch.toLowerCase()
+      if (!s.studentName?.toLowerCase().includes(q) && !s.studentEmail?.toLowerCase().includes(q)) return false
+    }
+    if (dateFrom && s.date < dateFrom) return false
+    if (dateTo   && s.date > dateTo)   return false
+    return true
+  }), [approved, filterInst, filterArea, debSearch, dateFrom, dateTo])
+
+  const hasFilters = debSearch || dateFrom || dateTo || filterInst !== 'all' || filterArea !== 'all'
+  const clearFilters = () => { setSearch(''); setDebSearch(''); setDateFrom(''); setDateTo(''); setFilterInst('all'); setFilterArea('all') }
+
+  const chipBtn = (active, color, onClick, children) => (
+    <button onClick={onClick} style={{
+      padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font)',
+      fontSize: 12, fontWeight: 600, transition: 'all .15s',
+      border: active ? `1.5px solid ${color}` : '1px solid var(--border)',
+      background: active ? color + '18' : 'var(--bg)',
+      color: active ? color : 'var(--muted)',
+    }}>{children}</button>
+  )
+
+  const detailStudent = detailSub
+    ? (accounts.find(a => a.email === detailSub.studentEmail) ||
+        { name: detailSub.studentName, email: detailSub.studentEmail, area: detailSub.area, avatar: null })
+    : null
+
+  const inp = { padding: '8px 12px', borderRadius: 9, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', background: 'var(--white)' }
+
+  return (
+    <div style={{ height: '100%', overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '16px 16px 40px' : '0 24px 40px' }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>Historial de calificados</h2>
+        <p style={{ fontSize: 14, color: 'var(--muted)' }}>
+          {approved.length} entrega{approved.length !== 1 ? 's' : ''} aprobada{approved.length !== 1 ? 's' : ''} en total
+        </p>
+      </div>
+
+      {/* Filters panel */}
+      <div style={{ padding: 16, borderRadius: 14, background: 'var(--white)', border: '1px solid var(--border)', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* Search + dates */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por nombre o correo..."
+            style={{ ...inp, flex: '1 1 200px', minWidth: 0 }} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Desde</span>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...inp, width: 'auto' }} />
+            <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Hasta</span>
+            <input type="date" value={dateTo}   onChange={e => setDateTo(e.target.value)}   style={{ ...inp, width: 'auto' }} />
+          </div>
+        </div>
+
+        {/* Institution chips */}
+        {institutions.length > 1 && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>Institución</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {chipBtn(filterInst === 'all', 'var(--dark)', () => setFilterInst('all'), 'Todas')}
+              {institutions.map(inst => chipBtn(filterInst === inst, 'var(--purple)', () => setFilterInst(inst), `🏫 ${inst}`))}
+            </div>
+          </div>
+        )}
+
+        {/* Area chips */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>Área</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {chipBtn(filterArea === 'all', 'var(--dark)', () => setFilterArea('all'), 'Todas')}
+            {AREAS.map(a => chipBtn(filterArea === a.id, a.color, () => setFilterArea(a.id), `${a.icon} ${a.name}`))}
+          </div>
+        </div>
+
+        {hasFilters && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={clearFilters} style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, color: 'var(--muted)' }}>
+              × Limpiar filtros
+            </button>
+          </div>
+        )}
+      </div>
+
+      {hasFilters && (
+        <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+          {filtered.length} resultado{filtered.length !== 1 ? 's' : ''} de {approved.length}
+        </div>
+      )}
+
+      {/* Results */}
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--muted)', fontSize: 14, background: 'var(--white)', borderRadius: 14, border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+          {hasFilters ? 'No hay resultados con estos filtros.' : 'Aún no hay entregas aprobadas.'}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {filtered.map(sub => {
+            const area  = AREAS.find(a => a.id === sub.area)
+            const total = gradeTotal(sub.grade)
+            const max   = gradeMax()
+            const pct   = max > 0 ? Math.round((total / max) * 100) : 0
+            const scoreColor = pct >= 80 ? 'var(--success)' : pct >= 60 ? 'var(--warn)' : 'var(--error)'
+            return (
+              <div key={sub.id} onClick={() => setDetailSub(sub)}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 14, background: 'var(--white)', border: '1px solid var(--border)', cursor: 'pointer', transition: 'border-color .15s' }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--success)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0, background: area?.bg || 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: area?.color || 'var(--orange)' }}>
+                  {sub.studentName?.charAt(0) || '?'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub.studentName}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {sub.studentEmail}{sub.studentInstitution ? ` · 🏫 ${sub.studentInstitution}` : ''}
+                  </div>
+                </div>
+                {!isMobile && area && (
+                  <div style={{ padding: '4px 10px', borderRadius: 8, background: area.bg, fontSize: 11, fontWeight: 700, color: area.color, flexShrink: 0 }}>
+                    {area.icon} {area.name}
+                  </div>
+                )}
+                {!isMobile && (
+                  <div style={{ fontSize: 12, color: 'var(--muted)', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
+                    {sub.date || '—'}
+                  </div>
+                )}
+                <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 56 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: scoreColor }}>{total}/{max}</div>
+                  <div style={{ fontSize: 10, color: 'var(--muted)' }}>{pct}%</div>
+                </div>
+                <span style={{ color: 'var(--border)', fontSize: 20, flexShrink: 0 }}>›</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Detail modal */}
+      <Modal open={!!detailSub} onClose={() => setDetailSub(null)} title={detailSub?.studentName || ''} width={560}>
+        {detailSub && (() => {
+          const area  = AREAS.find(a => a.id === detailSub.area)
+          const total = gradeTotal(detailSub.grade)
+          const max   = gradeMax()
+          const pct   = max > 0 ? Math.round((total / max) * 100) : 0
+          return (
+            <div>
+              {/* Student header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 12, background: 'var(--bg-alt)', marginBottom: 20 }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', flexShrink: 0, background: area?.bg || 'var(--orange-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: area?.color || 'var(--orange)' }}>
+                  {detailSub.studentName?.charAt(0)}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)' }}>{detailSub.studentName}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>{detailSub.studentEmail}</div>
+                  {detailSub.studentInstitution && (
+                    <div style={{ fontSize: 12, color: 'var(--purple)', fontWeight: 600, marginTop: 2 }}>🏫 {detailSub.studentInstitution}</div>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: pct >= 80 ? 'var(--success)' : pct >= 60 ? 'var(--warn)' : 'var(--error)' }}>
+                    {total}/{max}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>✅ Aprobado · {detailSub.date}</div>
+                </div>
+              </div>
+
+              {/* Rubric breakdown */}
+              {detailSub.grade && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>Desglose de calificación</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {RUBRIC_CRITERIA.map(cr => {
+                      const val = detailSub.grade[cr.key] || 0
+                      const p   = (val / 5) * 100
+                      const c   = p >= 80 ? 'var(--success)' : p >= 60 ? 'var(--warn)' : 'var(--error)'
+                      return (
+                        <div key={cr.key}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)' }}>{cr.label}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: c }}>{val}/5</span>
+                          </div>
+                          <ProgressBar pct={p} h={6} color={c} />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Feedback */}
+              {detailSub.feedback && (
+                <div style={{ padding: '14px 16px', borderRadius: 12, background: '#F0FDF4', border: '1px solid #BBF7D0', marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>Retroalimentación del instructor</div>
+                  <p style={{ fontSize: 13, color: 'var(--dark)', lineHeight: 1.6 }}>{detailSub.feedback}</p>
+                </div>
+              )}
+
+              {/* View profile */}
+              {onStudentClick && detailStudent && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Btn variant="secondary" size="sm" onClick={() => { setDetailSub(null); onStudentClick(detailStudent) }}>
+                    Ver perfil del docente →
+                  </Btn>
+                </div>
+              )}
+            </div>
+          )
+        })()}
+      </Modal>
     </div>
-    <Modal open={!!studentView} onClose={() => setStudentView(null)} title={studentView?.name || ''} width={600}>
-      <StudentProgressModal student={studentView} onClose={() => setStudentView(null)} />
-    </Modal>
-  </div>
-)
+  )
+}
+
+// ── Default export: página con tabs Pendientes / Historial ──
+const InstructorStudentViewPage = ({ studentView, setStudentView }) => {
+  const [tab, setTab] = React.useState('pending')
+  const submissions   = useStore(s => s.submissions)
+  const isMobile      = useMobile()
+
+  const pendingCount  = submissions.filter(s => !s.status || s.status === 'pending' || s.status === 'returned').length
+  const historialCount = submissions.filter(s => s.status === 'approved').length
+
+  const tabBtn = (id, label, count, activeColor) => {
+    const active = tab === id
+    return (
+      <button onClick={() => setTab(id)} style={{
+        padding: isMobile ? '10px 16px' : '12px 24px',
+        border: 'none', cursor: 'pointer', fontFamily: 'var(--font)',
+        fontSize: isMobile ? 13 : 14, fontWeight: 600,
+        background: 'none', transition: 'all .15s',
+        borderBottom: active ? `2px solid ${activeColor}` : '2px solid transparent',
+        marginBottom: -2, color: active ? activeColor : 'var(--muted)',
+        display: 'flex', alignItems: 'center', gap: 7,
+      }}>
+        {label}
+        {count > 0 && (
+          <span style={{ background: active ? activeColor : 'var(--border)', color: active ? '#fff' : 'var(--muted)', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
+            {count}
+          </span>
+        )}
+      </button>
+    )
+  }
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <InstructorCohorts />
+      <ActiveStudents />
+
+      {/* Tab bar */}
+      <div style={{ display: 'flex', borderBottom: '2px solid var(--border)', background: 'var(--white)', flexShrink: 0, paddingLeft: isMobile ? 16 : 24 }}>
+        {tabBtn('pending',   '📋 Pendientes', pendingCount,  'var(--orange)')}
+        {tabBtn('historial', '📚 Historial',  historialCount, 'var(--success)')}
+      </div>
+
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        {tab === 'pending' ? (
+          <InstructorDashboard onStudentClick={setStudentView} />
+        ) : (
+          <InstructorHistorial onStudentClick={setStudentView} />
+        )}
+      </div>
+
+      <Modal open={!!studentView} onClose={() => setStudentView(null)} title={studentView?.name || ''} width={600}>
+        <StudentProgressModal student={studentView} onClose={() => setStudentView(null)} />
+      </Modal>
+    </div>
+  )
+}
 
 export default InstructorStudentViewPage
