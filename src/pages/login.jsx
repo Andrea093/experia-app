@@ -111,8 +111,10 @@ const LoginPage = () => {
   const inputStyle = {
     width: '100%', padding: '13px 16px', borderRadius: 'var(--r-md)',
     border: '1.5px solid var(--border)', fontSize: 15, fontFamily: 'var(--font)',
-    outline: 'none', transition: 'border-color .2s', background: 'var(--white)',
+    outline: 'none', transition: 'border-color .2s, box-shadow .2s', background: 'var(--white)',
   };
+  const focusInput = e => { e.target.style.borderColor = 'var(--orange)'; e.target.style.boxShadow = '0 0 0 4px rgba(232,115,44,.12)'; };
+  const blurInput  = e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; };
 
   return (
     <div style={{
@@ -121,10 +123,15 @@ const LoginPage = () => {
     }}>
       {/* Left panel — decorative (hidden on mobile) */}
       {!isMobile && <div style={{
-        flex: '0 0 45%', background: 'var(--gradient)', position: 'relative',
+        flex: '0 0 45%', background: 'var(--gradient)', backgroundSize: '180% 180%',
+        animation: 'gradientShift 18s ease infinite', position: 'relative',
         display: 'flex', flexDirection: 'column', justifyContent: 'center',
         padding: 60, overflow: 'hidden',
       }}>
+        {/* Patrón de puntos sutil */}
+        <div style={{ position: 'absolute', inset: 0, opacity: .35,
+          backgroundImage: 'radial-gradient(rgba(255,255,255,.18) 1px, transparent 1px)',
+          backgroundSize: '26px 26px' }} />
         <div style={{ position: 'absolute', top: -80, right: -80, width: 280, height: 280,
           borderRadius: '50%', background: 'rgba(255,255,255,.06)', animation: 'heroFloat 9s ease-in-out infinite' }} />
         <div style={{ position: 'absolute', bottom: -60, left: -40, width: 200, height: 200,
@@ -137,12 +144,25 @@ const LoginPage = () => {
           <div style={{ marginBottom: 48 }}>
             <LogoImg h={40} onDark={true} />
           </div>
-          <h1 style={{ fontSize: 36, fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 16 }}>
+          <h1 style={{ fontSize: 38, fontWeight: 800, color: '#fff', lineHeight: 1.15, marginBottom: 16 }}>
             Bienvenido a<br/>Experia
           </h1>
-          <p style={{ fontSize: 16, color: 'rgba(255,255,255,.75)', lineHeight: 1.6, maxWidth: 360 }}>
+          <p style={{ fontSize: 16, color: 'rgba(255,255,255,.78)', lineHeight: 1.6, maxWidth: 360, marginBottom: 36 }}>
             Tu plataforma de formación en Diseño Centrado en Experiencias. Inicia sesión para continuar tu recorrido formativo.
           </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {['Rutas formativas gamificadas', 'Retos interactivos y certificación', 'Seguimiento de progreso en tiempo real'].map((t, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10,
+                animation: `fadeUp .5s ${300 + i * 110}ms var(--ease-out) both` }}>
+                <span style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                  background: 'rgba(255,255,255,.16)', border: '1px solid rgba(255,255,255,.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <CheckIc s={12} c="#fff" />
+                </span>
+                <span style={{ fontSize: 14, color: 'rgba(255,255,255,.85)', fontWeight: 500 }}>{t}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>}
 
@@ -162,9 +182,11 @@ const LoginPage = () => {
         flex: 1, display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center',
         padding: isMobile ? '24px 20px 40px' : 40, background: 'var(--bg)',
       }}>
-        <div style={{ width: '100%', maxWidth: 400, animation: 'fadeUp .5s .15s ease both' }}>
+        <div style={{ width: '100%', maxWidth: 430, animation: 'fadeUp .5s .15s ease both',
+          background: 'var(--white)', borderRadius: 'var(--r-xl)', border: '1px solid var(--border)',
+          boxShadow: 'var(--sh-lg)', padding: isMobile ? '24px 20px' : '36px 36px 32px' }}>
           <h2 style={{ fontSize: isMobile ? 20 : 26, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>Iniciar sesión</h2>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: isMobile ? 20 : 32 }}>
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: isMobile ? 20 : 28 }}>
             Ingresa tus credenciales para acceder a la plataforma
           </p>
 
@@ -174,9 +196,9 @@ const LoginPage = () => {
                 Correo electrónico
               </label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="docente@ceinfes.com"
-                onFocus={e => e.target.style.borderColor = 'var(--orange)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                placeholder="docente@ceinfes.com" autoComplete="email"
+                onFocus={focusInput}
+                onBlur={blurInput}
                 style={inputStyle} />
             </div>
             <div>
@@ -185,9 +207,9 @@ const LoginPage = () => {
               </label>
               <div style={{ position: 'relative' }}>
                 <input type={showPass ? 'text' : 'password'} value={pass}
-                  onChange={e => setPass(e.target.value)} placeholder="••••••"
-                  onFocus={e => e.target.style.borderColor = 'var(--orange)'}
-                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                  onChange={e => setPass(e.target.value)} placeholder="••••••" autoComplete="current-password"
+                  onFocus={focusInput}
+                  onBlur={blurInput}
                   style={inputStyle} />
                 <button type="button" onClick={() => setShowPass(!showPass)}
                   style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',

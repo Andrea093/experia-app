@@ -50,7 +50,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'space-between' : 'center', padding: '20px 22px 16px' }}>
         <LogoImg h={28} />
         {isMobile && (
-          <button onClick={onMobileClose} style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer',
+          <button onClick={onMobileClose} aria-label="Cerrar menú" style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer',
             width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <XIc s={18} c="var(--muted)" />
           </button>
@@ -71,19 +71,28 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
         </div>
       </div>
 
-      <nav style={{ flex: 1, padding: '4px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <nav style={{ flex: 1, padding: '4px 12px', display: 'flex', flexDirection: 'column', gap: 3 }}>
         {items.map((item, i) => {
           const isActive = (item.active || [item.key]).includes(page);
           return (
-            <button key={i} onClick={() => handleNav(item.key)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 10,
+            <button key={i} onClick={() => handleNav(item.key)} aria-current={isActive ? 'page' : undefined}
+              style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 11, padding: '12px 14px', borderRadius: 10,
                 border: 'none', cursor: 'pointer', background: isActive ? 'var(--orange-bg)' : 'transparent',
                 color: isActive ? 'var(--orange)' : 'var(--text-sec)', fontFamily: 'var(--font)',
-                fontSize: 14, fontWeight: isActive ? 600 : 500, transition: 'all .15s', textAlign: 'left', width: '100%',
+                fontSize: 14, fontWeight: isActive ? 700 : 500, textAlign: 'left', width: '100%',
+                transition: 'background .2s var(--ease-out), color .2s var(--ease-out), padding-left .2s var(--ease-out)',
+                boxShadow: isActive ? 'inset 0 0 0 1px rgba(232,115,44,.14)' : 'none',
                 minHeight: 44 }}
-              onMouseEnter={e => !isActive && (e.currentTarget.style.background = 'var(--bg-alt)')}
-              onMouseLeave={e => !isActive && (e.currentTarget.style.background = 'transparent')}>
-              {item.icon}{item.label}
+              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-alt)'; e.currentTarget.style.color = 'var(--dark)'; e.currentTarget.style.paddingLeft = '18px'; } }}
+              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-sec)'; e.currentTarget.style.paddingLeft = '14px'; } }}>
+              {/* Indicador del ítem activo */}
+              <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: '50%', translate: '0 -50%',
+                width: 3.5, borderRadius: '0 4px 4px 0', background: 'var(--gradient-orange)',
+                height: isActive ? 22 : 0, opacity: isActive ? 1 : 0,
+                transition: 'height .25s var(--ease-spring), opacity .2s' }} />
+              <span style={{ display: 'flex', transition: 'transform .25s var(--ease-spring)',
+                transform: isActive ? 'scale(1.08)' : 'none' }}>{item.icon}</span>
+              {item.label}
             </button>
           );
         })}

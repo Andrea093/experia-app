@@ -1,18 +1,6 @@
 import React from 'react'
-import {
-  useStore, nav, doLogin, AREAS, BADGES, LEVELS,
-  calcLevel, xpForNext, xpProgress, progressPct, isRouteComplete,
-  getStudentModules, findModule, nodeStatus,
-} from '../store/store.jsx'
-import {
-  useMobile, LogoImg,
-  HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc,
-  ArrowRIc, ArrowLIc, ChevRIc, StarIc, TrophyIc, ZapIc, AwardIc, BellIc,
-  LogOutIc, ClockIc, XIc, PlusIc, TrashIc, EditIc, MenuIc, TargetIc,
-  SettingsIc, BarIc, UsersIc, GripIc, MapIc, SchoolIc, UploadIc,
-  Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
-  Modal, BadgeCard, StatChip, Stagger,
-} from '../components/ui.jsx'
+import { nav } from '../store/store.jsx'
+import { useMobile, LogoImg, ArrowRIc, Btn } from '../components/ui.jsx'
 // =============================================
 // EXPERIA — Landing Page
 // =============================================
@@ -51,9 +39,11 @@ const LandingPage = () => {
         position: 'sticky', top: 0, zIndex: 100,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: isMobile ? '0 16px' : '0 40px', height: 64,
-        background: scrollY > 20 ? 'rgba(255,255,255,.95)' : 'transparent',
-        backdropFilter: scrollY > 20 ? 'blur(12px)' : 'none',
+        background: scrollY > 20 ? 'rgba(255,255,255,.82)' : 'transparent',
+        backdropFilter: scrollY > 20 ? 'saturate(1.5) blur(14px)' : 'none',
+        WebkitBackdropFilter: scrollY > 20 ? 'saturate(1.5) blur(14px)' : 'none',
         borderBottom: scrollY > 20 ? '1px solid var(--border)' : '1px solid transparent',
+        boxShadow: scrollY > 20 ? 'var(--sh-sm)' : 'none',
         transition: 'all .3s ease',
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -69,20 +59,27 @@ const LandingPage = () => {
       <section style={{
         position: 'relative', overflow: 'hidden',
         padding: isMobile ? '56px 20px 72px' : '80px 40px 100px', textAlign: 'center',
-        background: 'var(--gradient)', minHeight: isMobile ? 420 : 540,
+        background: 'var(--gradient)', backgroundSize: '180% 180%',
+        animation: 'gradientShift 16s ease infinite', minHeight: isMobile ? 420 : 540,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{ position: 'absolute', top: -80, right: -80, width: 240, height: 240,
           borderRadius: '50%', background: 'rgba(255,255,255,.06)', animation: 'heroFloat 8s ease-in-out infinite' }} />
         <div style={{ position: 'absolute', bottom: -40, left: -60, width: 160, height: 160,
           borderRadius: '50%', background: 'rgba(255,255,255,.04)', animation: 'heroFloat 10s ease-in-out infinite 2s' }} />
+        <div style={{ position: 'absolute', top: '22%', left: '14%', width: 70, height: 70,
+          borderRadius: 18, transform: 'rotate(18deg)', background: 'rgba(255,255,255,.05)',
+          animation: 'heroFloat 12s ease-in-out infinite 1s' }} />
 
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 760, animation: 'fadeUp .7s ease' }}>
           <div style={{
-            display: 'inline-block', padding: '5px 14px', borderRadius: 20,
-            background: 'rgba(255,255,255,.15)', backdropFilter: 'blur(4px)',
+            display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 16px', borderRadius: 'var(--r-full)',
+            background: 'rgba(255,255,255,.14)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,.25)',
             color: '#fff', fontSize: isMobile ? 11 : 13, fontWeight: 600, marginBottom: 16, letterSpacing: .5,
           }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6EE7B7',
+              boxShadow: '0 0 8px #6EE7B7', display: 'inline-block' }} />
             PLATAFORMA FORMATIVA · CEINFES
           </div>
           <h1 style={{
@@ -117,7 +114,7 @@ const LandingPage = () => {
       }}>
         {stats.map((s, i) => (
           <div key={i} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: isMobile ? 32 : 40, fontWeight: 800, color: 'var(--orange)' }}>{s.num}</div>
+            <div className="gradient-text" style={{ fontSize: isMobile ? 32 : 40, fontWeight: 800 }}>{s.num}</div>
             <div style={{ fontSize: isMobile ? 12 : 14, color: 'var(--muted)', fontWeight: 500 }}>{s.label}</div>
           </div>
         ))}
@@ -139,14 +136,30 @@ const LandingPage = () => {
         }}>
           {features.map((f, i) => (
             <div key={i} style={{
-              padding: 28, borderRadius: 16, border: '1px solid var(--border)',
-              background: 'var(--white)', transition: 'all .25s ease',
+              padding: 28, borderRadius: 'var(--r-lg)', border: '1px solid var(--border)',
+              background: 'var(--white)',
+              transition: 'transform .3s var(--ease-out), box-shadow .3s var(--ease-out), border-color .3s var(--ease-out)',
               animation: `fadeUp .5s ${i * 80 + 200}ms ease both`,
               cursor: 'default',
             }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--sh-lg)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
-              <div style={{ fontSize: 36, marginBottom: 16 }}>{f.icon}</div>
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-5px)';
+              e.currentTarget.style.boxShadow = 'var(--sh-lg), 0 0 0 1px rgba(232,115,44,.18)';
+              e.currentTarget.style.borderColor = 'var(--orange-pale)';
+              const tile = e.currentTarget.firstChild;
+              if (tile) { tile.style.transform = 'scale(1.08) rotate(-4deg)'; }
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = 'none';
+              e.currentTarget.style.borderColor = 'var(--border)';
+              const tile = e.currentTarget.firstChild;
+              if (tile) { tile.style.transform = 'none'; }
+            }}>
+              <div style={{ width: 60, height: 60, borderRadius: 16, fontSize: 30, marginBottom: 18,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'var(--gradient-soft)', border: '1px solid rgba(232,115,44,.12)',
+                transition: 'transform .3s var(--ease-spring)' }}>{f.icon}</div>
               <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 8, color: 'var(--dark)' }}>{f.title}</h3>
               <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>{f.desc}</p>
             </div>
@@ -156,8 +169,10 @@ const LandingPage = () => {
 
       {/* CTA */}
       <section style={{
-        margin: isMobile ? '0 16px 48px' : '0 40px 80px', padding: isMobile ? '36px 20px' : '56px 40px', borderRadius: 20,
-        background: 'var(--gradient)', textAlign: 'center',
+        margin: isMobile ? '0 16px 48px' : '0 40px 80px', padding: isMobile ? '36px 20px' : '56px 40px', borderRadius: 'var(--r-xl)',
+        background: 'var(--gradient)', backgroundSize: '180% 180%',
+        animation: 'gradientShift 16s ease infinite', textAlign: 'center',
+        boxShadow: 'var(--sh-purple)',
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180,

@@ -28,10 +28,15 @@ const SchoolsAdminPage      = React.lazy(() => import('./pages/AdminSchools.jsx'
 const AdminPage             = React.lazy(() => import('./pages/AdminUsers.jsx'))
 
 const PageSpinner = () => (
-  <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--orange)',
-      borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
-    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+  <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'column', gap: 14, animation: 'fadeIn .3s ease' }}>
+    <div style={{ position: 'relative', width: 36, height: 36 }}>
+      <div style={{ position: 'absolute', inset: 0, border: '3px solid var(--border)',
+        borderRadius: '50%' }} />
+      <div style={{ position: 'absolute', inset: 0, border: '3px solid transparent',
+        borderTopColor: 'var(--orange)', borderRightColor: 'var(--orange-light)',
+        borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+    </div>
   </div>
 )
 
@@ -110,7 +115,7 @@ const App = () => {
       )}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         {!isFullPage && <Header onMenuClick={() => setMobileSidebarOpen(o => !o)} />}
-        <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }} key={page + (nodeId || '')}>
+        <main className="page-enter" style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }} key={page + (nodeId || '')}>
           <React.Suspense fallback={<PageSpinner />}>
             {renderPage()}
           </React.Suspense>

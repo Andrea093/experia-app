@@ -26,9 +26,11 @@ const Loading = () => {
 
   return (
     <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center',
-      flexDirection:'column', gap:16, background:'#F9FAFB' }}>
-      <div style={{ width:40, height:40, border:'3px solid #E5E7EB', borderTopColor:'#E8732C',
-        borderRadius:'50%', animation:'spin .7s linear infinite' }} />
+      flexDirection:'column', gap:18, background:'#F9FAFB' }}>
+      <img src="/logo-ceinfes.png" alt="CEINFES" style={{ width:150, height:'auto',
+        animation:'logoPulse 1.8s ease-in-out infinite' }} />
+      <div style={{ width:36, height:36, border:'3px solid #E5E7EB', borderTopColor:'#E8732C',
+        borderRightColor:'#F09848', borderRadius:'50%', animation:'spin .7s linear infinite' }} />
       <span style={{ fontSize:13, color:'#9CA3AF', fontFamily:"'DM Sans', sans-serif" }}>Cargando...</span>
       {slow && !verySlow && (
         <span style={{ fontSize:12, color:'#9CA3AF', fontFamily:"'DM Sans', sans-serif", maxWidth:260, textAlign:'center' }}>
@@ -48,7 +50,7 @@ const Loading = () => {
           </button>
         </div>
       )}
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes logoPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.65;transform:scale(.97)}}`}</style>
     </div>
   )
 }
@@ -81,7 +83,7 @@ async function restoreSession() {
   if (profile.role === 'admin')      page = 'admin-dashboard'
 
   let accounts = [], submissions = [], challengeAttempts = []
-  let xp = 0, completed = [], badges = []
+  let xp = 0, completed = [], badges = [], allEnrollments = []
 
   if (profile.role === 'admin' || profile.role === 'instructor') {
     const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 86_400_000).toISOString()
@@ -118,9 +120,10 @@ async function restoreSession() {
     ])
     submissions       = (subsData     || []).map(s => mapSubmission(s, me))
     challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, me))
-    xp        = studentSess.xp
-    completed = studentSess.completed
-    badges    = studentSess.badges
+    xp             = studentSess.xp
+    completed      = studentSess.completed
+    badges         = studentSess.badges
+    allEnrollments = studentSess.allEnrollments || []
     if (studentSess.enrolledCourseId) {
       XS.set({ courseModules: studentSess.courseModules, enrolledCourseId: studentSess.enrolledCourseId })
     }
@@ -148,7 +151,7 @@ async function restoreSession() {
     institutions: institutionsRes.data || [],
     cohorts: cohortsRes.data || [],
     accounts, submissions, challengeAttempts,
-    allEnrollments: profile.role === 'student' ? (studentSess?.allEnrollments || []) : [],
+    allEnrollments,
   })
 }
 

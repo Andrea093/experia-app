@@ -53,24 +53,30 @@ const UploadIc=({s,c})=><Sv s={s} c={c}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 0
 // --- Button ---
 const Btn = ({children, variant='primary', size='md', onClick, disabled, full, style:sx={}}) => {
   const base = {display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,fontFamily:'var(--font)',
-    fontWeight:600,border:'none',cursor:'pointer',transition:'all .2s ease',borderRadius:'var(--r-md)',
+    fontWeight:600,border:'none',cursor:'pointer',borderRadius:'var(--r-md)',
+    transition:'transform .2s var(--ease-out), box-shadow .2s var(--ease-out), background .2s var(--ease-out), filter .2s var(--ease-out)',
     ...(disabled?{opacity:.5,pointerEvents:'none'}:{}), ...(full?{width:'100%'}:{})};
   const sizes = {sm:{padding:'8px 16px',fontSize:13},md:{padding:'11px 22px',fontSize:14},lg:{padding:'14px 32px',fontSize:16}};
   const vars = {
-    primary:{background:'var(--orange)',color:'#fff'},
+    primary:{background:'var(--gradient-orange)',color:'#fff',boxShadow:'var(--sh-orange)'},
     secondary:{background:'var(--bg-alt)',color:'var(--text)'},
     outline:{background:'transparent',color:'var(--orange)',boxShadow:'inset 0 0 0 2px var(--orange)'},
     ghost:{background:'transparent',color:'var(--muted)'},
-    gradient:{background:'var(--gradient)',color:'#fff'},
+    gradient:{background:'var(--gradient)',color:'#fff',boxShadow:'var(--sh-purple)'},
     white:{background:'#fff',color:'var(--dark)',boxShadow:'var(--sh-sm)'},
     danger:{background:'var(--error)',color:'#fff'},
   };
+  const hovShadow = {
+    primary:'0 10px 28px -8px rgba(232,115,44,.55)',
+    gradient:'0 10px 28px -8px rgba(123,63,160,.5)',
+  };
   const [hov,setH] = React.useState(false);
-  return <button onClick={onClick} disabled={disabled}
+  return <button onClick={onClick} disabled={disabled} className="btn-press"
     onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
     style={{...base,...sizes[size],...vars[variant],
-      transform:hov&&!disabled?'translateY(-1px)':'none',
-      boxShadow:hov&&!disabled?'var(--sh-md)':(vars[variant].boxShadow||'none'),
+      transform:hov&&!disabled?'translateY(-1.5px)':'none',
+      filter:hov&&!disabled?'brightness(1.05)':'none',
+      boxShadow:hov&&!disabled?(hovShadow[variant]||'var(--sh-md)'):(vars[variant].boxShadow||'none'),
       ...sx}}>{children}</button>;
 };
 
@@ -88,7 +94,27 @@ const ProgressRing = ({pct=0, size=56, sw=4, color='var(--orange)'}) => {
 // --- Progress Bar ---
 const ProgressBar = ({pct=0, h=8, color='var(--orange)', bg='var(--border)'}) =>
   <div style={{width:'100%',height:h,borderRadius:h,background:bg,overflow:'hidden'}}>
-    <div style={{height:'100%',borderRadius:h,background:color,width:pct+'%',transition:'width .6s ease'}}/>
+    <div style={{height:'100%',borderRadius:h,width:pct+'%',transition:'width .8s var(--ease-out)',
+      background:color==='var(--orange)'?'var(--gradient-orange)':color}}/>
+  </div>;
+
+// --- Skeleton loader ---
+const Skeleton = ({w='100%', h=14, r, circle=false, style:sx={}}) =>
+  <div className="skeleton" aria-hidden="true" style={{width:circle?h:w,height:h,
+    borderRadius:circle?'50%':(r??'var(--r-sm)'),flexShrink:0,...sx}}/>;
+
+// --- Skeleton de tarjeta (loading state genérico) ---
+const SkeletonCard = ({lines=3}) =>
+  <div style={{padding:20,borderRadius:'var(--r-lg)',border:'1px solid var(--border)',background:'#fff',
+    display:'flex',flexDirection:'column',gap:12}}>
+    <div style={{display:'flex',alignItems:'center',gap:12}}>
+      <Skeleton circle h={40}/>
+      <div style={{flex:1,display:'flex',flexDirection:'column',gap:8}}>
+        <Skeleton w="55%" h={12}/>
+        <Skeleton w="35%" h={10}/>
+      </div>
+    </div>
+    {Array.from({length:lines},(_,i)=><Skeleton key={i} w={`${92-i*14}%`} h={10}/>)}
   </div>;
 
 // --- Animated Number ---
@@ -169,19 +195,23 @@ const Modal = ({open,onClose,title,children,width=560}) => {
   }, [open]);
   if(!open) return null;
   return <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:5000,
-    background:'rgba(0,0,0,.5)',backdropFilter:'blur(6px)',
+    background:'rgba(15,15,30,.45)',backdropFilter:'blur(10px) saturate(1.2)',WebkitBackdropFilter:'blur(10px) saturate(1.2)',
     display:'flex',alignItems:isMobile?'flex-end':'center',justifyContent:'center',animation:'fadeIn .2s ease'}}>
-    <div onClick={e=>e.stopPropagation()} style={{background:'#fff',
-      borderRadius:isMobile?'20px 20px 0 0':20,
+    <div onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true" style={{background:'#fff',
+      borderRadius:isMobile?'24px 24px 0 0':'var(--r-xl)',
       maxWidth:isMobile?'100%':width,
       width:isMobile?'100%':'92%',
       maxHeight:isMobile?'92vh':'85vh',
-      overflow:'auto',animation:isMobile?'fadeUp .3s ease':'scaleIn .25s ease',boxShadow:'var(--sh-xl)'}}>
+      overflow:'auto',animation:isMobile?'sheetIn .35s var(--ease-out)':'modalIn .3s var(--ease-out)',boxShadow:'var(--sh-xl)'}}>
       {title && <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-        padding:'18px 24px',borderBottom:'1px solid var(--border)',position:'sticky',top:0,background:'#fff',zIndex:1}}>
+        padding:'18px 24px',borderBottom:'1px solid var(--border)',position:'sticky',top:0,zIndex:1,
+        background:'rgba(255,255,255,.85)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)'}}>
         <h3 style={{fontSize:18,fontWeight:700}}>{title}</h3>
-        <button onClick={onClose} style={{background:'var(--bg-alt)',border:'none',cursor:'pointer',padding:6,
-          borderRadius:8,display:'flex',minWidth:32,minHeight:32,alignItems:'center',justifyContent:'center'}}>
+        <button onClick={onClose} aria-label="Cerrar" style={{background:'var(--bg-alt)',border:'none',cursor:'pointer',padding:6,
+          borderRadius:8,display:'flex',minWidth:32,minHeight:32,alignItems:'center',justifyContent:'center',
+          transition:'background .2s, transform .2s'}}
+          onMouseEnter={e=>{e.currentTarget.style.background='var(--border)';e.currentTarget.style.transform='rotate(90deg)'}}
+          onMouseLeave={e=>{e.currentTarget.style.background='var(--bg-alt)';e.currentTarget.style.transform='none'}}>
           <XIc s={20} c="var(--muted)"/></button>
       </div>}
       <div style={{padding:isMobile?'20px 20px 32px':24}}>{children}</div>
@@ -245,5 +275,5 @@ export {
   TrashIc, EditIc, MenuIc, TargetIc, SettingsIc, BarIc, UsersIc, GripIc, MapIc,
   SchoolIc, UploadIc,
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager, Modal, BadgeCard, StatChip, Stagger,
-  XPToast, BadgeToast,
+  XPToast, BadgeToast, Skeleton, SkeletonCard,
 };

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useStore, nav, calcLevel, doLogout, dismissStudentMessage } from '../store/store.jsx'
-import { useMobile, LogoImg, MenuIc, CheckIc, ClockIc, LogOutIc } from './ui.jsx'
+import { useMobile, LogoImg, MenuIc, BellIc, CheckIc, ClockIc, LogOutIc } from './ui.jsx'
 
 const Header = React.memo(({ onMenuClick }) => {
   const user = useStore(s => s.user);
@@ -26,10 +26,12 @@ const Header = React.memo(({ onMenuClick }) => {
   return (
     <header style={{ height: 'var(--header-h)', display: 'flex', alignItems: 'center',
       justifyContent: 'space-between', padding: '0 16px 0 24px', gap: 12,
-      borderBottom: '1px solid var(--border)', background: 'var(--white)', flexShrink: 0 }}>
+      borderBottom: '1px solid var(--border)', flexShrink: 0,
+      background: 'rgba(255,255,255,.8)', backdropFilter: 'saturate(1.5) blur(14px)',
+      WebkitBackdropFilter: 'saturate(1.5) blur(14px)', zIndex: 50 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {isMobile && (
-          <button onClick={onMenuClick} style={{
+          <button onClick={onMenuClick} aria-label="Abrir menú" style={{
             background: 'var(--bg-alt)', border: 'none', cursor: 'pointer',
             width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
@@ -52,11 +54,15 @@ const Header = React.memo(({ onMenuClick }) => {
           <div style={{ position: 'relative' }}>
             <button
                onClick={e => { e.stopPropagation(); setShowNotifs(o => !o); }}
+              aria-label={`Notificaciones${myUnread.length > 0 ? ` (${myUnread.length} sin leer)` : ''}`}
               style={{ position: 'relative', background: myUnread.length > 0 ? 'var(--orange-bg)' : 'var(--bg-alt)',
                 border: 'none', cursor: 'pointer', width: 36, height: 36, borderRadius: 10,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                transition: 'background .2s' }}>
-              <span style={{ fontSize: 17 }}>🔔</span>
+                transition: 'background .2s, transform .2s var(--ease-spring)',
+                animation: myUnread.length > 0 ? 'glow 2.4s ease infinite' : 'none' }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
+              <BellIc s={17} c={myUnread.length > 0 ? 'var(--orange)' : 'var(--muted)'} />
               {myUnread.length > 0 && (
                 <span style={{ position: 'absolute', top: -3, right: -3, width: 17, height: 17,
                   borderRadius: '50%', background: 'var(--error)', color: '#fff', fontSize: 9,
@@ -140,19 +146,23 @@ const Header = React.memo(({ onMenuClick }) => {
           </div>
         )}
 
-        <div style={{ width: 36, height: 36, borderRadius: '50%',
-          background: user.role === 'instructor' ? 'var(--success)' : 'var(--orange)',
+        <button aria-label="Ver perfil" style={{ width: 36, height: 36, minHeight: 36, borderRadius: '50%', border: 'none', padding: 0,
+          background: user.role === 'instructor' ? 'var(--success)' : 'var(--gradient-orange)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', flexShrink: 0,
-          overflow: 'hidden' }}
+          overflow: 'hidden', boxShadow: '0 0 0 2px var(--white), 0 0 0 3.5px var(--border)',
+          transition: 'box-shadow .2s, transform .2s var(--ease-spring)' }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 0 2px var(--white), 0 0 0 3.5px var(--orange)'; e.currentTarget.style.transform = 'scale(1.06)'; }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 0 0 2px var(--white), 0 0 0 3.5px var(--border)'; e.currentTarget.style.transform = 'none'; }}
           onClick={() => nav('profile')}>
           {user.avatar?.startsWith('http')
             ? <img src={user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : user.avatar}
-        </div>
+        </button>
         {!isMobile && (
-          <button onClick={doLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4,
-            borderRadius: 6, display: 'flex', minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center' }}
+          <button onClick={doLogout} aria-label="Cerrar sesión" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+            borderRadius: 6, display: 'flex', minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center',
+            transition: 'background .2s' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}>
             <LogOutIc s={18} c="var(--muted)" />
