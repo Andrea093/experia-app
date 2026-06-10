@@ -2,7 +2,7 @@ import React from 'react'
 import { useStore, nav, doLogout, AREAS } from '../store/store.jsx'
 import {
   useMobile, LogoImg, MapIc, GameIc, FileIc, UserIc, BookIc,
-  SchoolIc, BarIc, ClockIc, UsersIc, LogOutIc, XIc
+  SchoolIc, BarIc, ClockIc, UsersIc, LogOutIc, XIc, MsgIc
 } from './ui.jsx'
 
 const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
@@ -19,12 +19,14 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   const studentItems = [
     { key: 'map', label: 'Mi formación', icon: <MapIc s={19} />, active: ['map','lesson','challenge','grid'] },
     { key: 'games', label: 'Juegos', icon: <GameIc s={19} />, active: ['games'] },
+    { key: 'forum', label: 'Comunidad', icon: <MsgIc s={19} />, active: ['forum'] },
     { key: 'profile', label: 'Perfil', icon: <UserIc s={19} />, active: ['profile'] },
   ];
   const instructorItems = [
     { key: 'instructor-dashboard', label: 'Entregas',     icon: <FileIc s={19} />, active: ['instructor-dashboard'] },
     { key: 'instructor-stats',     label: 'Estadísticas', icon: <BarIc s={19} />,  active: ['instructor-stats'] },
     { key: 'instructor-route',     label: 'Ruta',         icon: <MapIc s={19} />,  active: ['instructor-route'] },
+    { key: 'forum',                label: 'Comunidad',    icon: <MsgIc s={19} />,  active: ['forum'] },
     { key: 'profile',              label: 'Perfil',       icon: <UserIc s={19} />, active: ['profile'] },
   ];
   const adminItems = [
@@ -33,6 +35,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
     { key: 'admin-schools',    label: 'Colegios',   icon: <SchoolIc s={19} />, active: ['admin-schools'] },
     { key: 'admin-analytics',  label: 'Analítica',  icon: <BarIc s={19} />,   active: ['admin-analytics'] },
     { key: 'admin-cohorts',    label: 'Cohortes',   icon: <ClockIc s={19} />, active: ['admin-cohorts'] },
+    { key: 'forum',            label: 'Comunidad',  icon: <MsgIc s={19} />,   active: ['forum'] },
     { key: 'profile',          label: 'Perfil',     icon: <UserIc s={19} />,  active: ['profile'] },
   ];
   const items = role === 'instructor' ? instructorItems : role === 'admin' ? adminItems : studentItems;

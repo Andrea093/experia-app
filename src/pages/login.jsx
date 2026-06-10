@@ -1,6 +1,6 @@
 import React from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { XS, nav, loadRouteConfigs, loadCourses, loadInstructorInstitutions } from '../store/store.jsx'
+import { XS, nav, loadRouteConfigs, loadCourses, loadInstructorInstitutions, applyInitialHash } from '../store/store.jsx'
 import { loadStudentSession } from '../lib/loadStudentSession.js'
 import { mapSubmission, mapAttempt } from '../lib/mappers.js'
 import {
@@ -93,7 +93,9 @@ const LoginPage = () => {
 
       XS.set({
         isLoggedIn: true,
-        user: { id: data.user.id, name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role },
+        user: { id: data.user.id, name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role,
+                onboarded: profile.onboarded ?? true,
+                onboardingBonus: profile.onboarding_bonus ?? true },
         page,
         xp, completed, badges,
         enrolledCourseId, courseModules,
@@ -102,6 +104,8 @@ const LoginPage = () => {
         accounts, submissions, challengeAttempts,
         institutions, cohorts,
       });
+      // Respeta el deep link si el usuario llegó con #/pagina en la URL
+      applyInitialHash();
     } catch (err) {
       setError('Error de conexión. Intenta de nuevo.');
       setLoading(false);

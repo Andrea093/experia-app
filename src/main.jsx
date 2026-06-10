@@ -4,7 +4,7 @@ import './styles.css'
 import App from './app.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient.js'
-import { XS, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses } from './store/store.jsx'
+import { XS, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, applyInitialHash } from './store/store.jsx'
 import { mapSubmission, mapAttempt } from './lib/mappers.js'
 import { loadStudentSession } from './lib/loadStudentSession.js'
 
@@ -145,7 +145,10 @@ async function restoreSession() {
   XS.set({
     isLoggedIn: true,
     user: { id: session.user.id, name: profile.name, email: profile.email,
-            avatar: profile.avatar, role: profile.role },
+            avatar: profile.avatar, role: profile.role,
+            // ?? true: si la migración 0009 no está aplicada, no molestar con onboarding
+            onboarded: profile.onboarded ?? true,
+            onboardingBonus: profile.onboarding_bonus ?? true },
     page, xp, completed, badges, notifications: [],
     selectedArea: profile.area || null, nodeId: null,
     institutions: institutionsRes.data || [],
@@ -153,6 +156,9 @@ async function restoreSession() {
     accounts, submissions, challengeAttempts,
     allEnrollments,
   })
+
+  // Deep link: si la URL trae #/pagina, navegar allí tras restaurar sesión
+  applyInitialHash()
 }
 
 // Sincronizar cierre de sesión desde otras pestañas

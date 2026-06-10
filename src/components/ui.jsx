@@ -50,6 +50,7 @@ const MapIc=({s,c})=><Sv s={s} c={c}><polygon points="1 6 1 22 8 18 16 22 23 18 
 const SchoolIc=({s,c})=><Sv s={s} c={c}><rect x="3" y="9" width="18" height="13" rx="2"/><path d="M3 9l9-6 9 6"/><path d="M9 22v-8h6v8"/></Sv>;
 const UploadIc=({s,c})=><Sv s={s} c={c}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></Sv>;
 const SunIc=({s,c})=><Sv s={s} c={c}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></Sv>;
+const MsgIc=({s,c})=><Sv s={s} c={c}><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></Sv>;
 const MoonIc=({s,c})=><Sv s={s} c={c}><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></Sv>;
 const PaletteIc=({s,c})=><Sv s={s} c={c}><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.69-.76 1.69-1.69 0-.44-.17-.83-.44-1.13-.27-.3-.43-.7-.43-1.13a1.69 1.69 0 011.69-1.69h2A5.5 5.5 0 0022 11c0-4.97-4.5-9-10-9z"/></Sv>;
 
@@ -277,7 +278,7 @@ export {
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc, ArrowRIc, ArrowLIc,
   ChevRIc, StarIc, TrophyIc, ZapIc, AwardIc, BellIc, LogOutIc, ClockIc, XIc, PlusIc,
   TrashIc, EditIc, MenuIc, TargetIc, SettingsIc, BarIc, UsersIc, GripIc, MapIc,
-  SchoolIc, UploadIc, SunIc, MoonIc, PaletteIc,
+  SchoolIc, UploadIc, SunIc, MoonIc, PaletteIc, MsgIc,
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager, Modal, BadgeCard, StatChip, Stagger,
   XPToast, BadgeToast, Skeleton, SkeletonCard,
 };

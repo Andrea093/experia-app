@@ -1,6 +1,7 @@
 import React from 'react'
 import { useStore, nav } from './store/store.jsx'
 import { NotifManager } from './components/ui.jsx'
+import { OnboardingModal } from './components/Onboarding.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Header from './components/Header.jsx'
 
@@ -26,6 +27,7 @@ const GamesPage             = React.lazy(() => import('./pages/games.jsx'))
 const InstructorStatsPage   = React.lazy(() => import('./pages/InstructorStats.jsx'))
 const SchoolsAdminPage      = React.lazy(() => import('./pages/AdminSchools.jsx'))
 const AdminPage             = React.lazy(() => import('./pages/AdminUsers.jsx'))
+const ForumPage             = React.lazy(() => import('./pages/forum.jsx'))
 
 const PageSpinner = () => (
   <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -77,6 +79,7 @@ const App = () => {
         case 'admin-schools':    return <SchoolsAdminPage />;
         case 'admin-analytics':  return <AdminAnalytics />;
         case 'admin-cohorts':    return <AdminCohorts />;
+        case 'forum':            return <ForumPage />;
         case 'profile':          return <ProfilePage />;
         default:                 return <AdminPage />;
       }
@@ -92,6 +95,7 @@ const App = () => {
           );
         case 'instructor-stats': return <InstructorStatsPage />;
         case 'instructor-route': return <InstructorRouteEditor />;
+        case 'forum':            return <ForumPage />;
         case 'profile':          return <ProfilePage />;
         default:                 return <InstructorDashboard />;
       }
@@ -102,6 +106,7 @@ const App = () => {
       case 'challenge':return <ChallengeView />;
       case 'games':    return <GamesPage />;
       case 'grid':     return <StudentProductUpload />;
+      case 'forum':    return <ForumPage />;
       case 'profile':  return <ProfilePage />;
       default:         return <LearningMap />;
     }
@@ -110,6 +115,8 @@ const App = () => {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <NotifManager />
+      {/* Bienvenida: solo estudiantes que no han visto el onboarding (flag en profiles) */}
+      {role === 'student' && user?.onboarded === false && <OnboardingModal />}
       {!isFullPage && (
         <Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
       )}

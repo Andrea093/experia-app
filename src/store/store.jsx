@@ -43,6 +43,7 @@ const BADGES = {
   challenger:{id:'challenger',name:'Retador',icon:'⚡',desc:'Completaste tu primer reto'},
   speedster:{id:'speedster',name:'Veloz',icon:'⏱️',desc:'Reto avanzado completado'},
   builder:{id:'builder',name:'Constructor',icon:'🏗️',desc:'Creaste tu producto final'},
+  companero:{id:'companero',name:'Voz de la Comunidad',icon:'💬',desc:'Participaste en el foro educativo'},
 };
 const LEVELS = [0,100,250,500,800,1200,1800,2500,3500];
 const RUBRIC_CRITERIA = [
@@ -398,12 +399,56 @@ const nav = (page, nodeId) => {
   }
 };
 
+// --- Hash routing ligero ---
+// Sincroniza page/nodeId con location.hash (#/pagina/nodo) sin librería de
+// router: habilita el botón atrás del navegador y deep links compartibles.
+const hashFor = (page, nodeId) => '#/' + page + (nodeId ? '/' + encodeURIComponent(nodeId) : '');
+const parseHash = () => {
+  const h = window.location.hash.replace(/^#\/?/, '');
+  if (!h) return null;
+  const [page, nodeId] = h.split('/');
+  return page ? { page, nodeId: nodeId ? decodeURIComponent(nodeId) : null } : null;
+};
+let hashSelfUpdate = false;
+// Estado → URL (cubre nav(), login y guards, todos pasan por XS.set)
+XS.sub(s => {
+  if (!s.isLoggedIn) return;
+  const target = hashFor(s.page, s.nodeId);
+  if (window.location.hash !== target) {
+    hashSelfUpdate = true;
+    window.location.hash = target;
+  }
+});
+// URL → estado (botón atrás/adelante o edición manual del hash)
+window.addEventListener('hashchange', () => {
+  if (hashSelfUpdate) { hashSelfUpdate = false; return; }
+  const r = parseHash();
+  const s = XS.get();
+  if (!r || !s.isLoggedIn) return;
+  if (r.page === s.page && (r.nodeId || null) === (s.nodeId || null)) return;
+  XS.set({ page: r.page, nodeId: r.nodeId });
+});
+// Deep link inicial: se captura al cargar (la suscripción de arriba sobrescribe
+// el hash apenas el login hace XS.set, así que hay que guardarlo antes).
+// Páginas inválidas para el rol caen al default seguro de renderPage.
+let initialRoute = parseHash();
+const applyInitialHash = () => {
+  const r = initialRoute;
+  initialRoute = null; // un solo uso
+  const s = XS.get();
+  if (!r || !s.isLoggedIn) return;
+  if (r.page === s.page && (r.nodeId || null) === (s.nodeId || null)) return;
+  XS.set({ page: r.page, nodeId: r.nodeId });
+};
+
 const doLogout = () => {
   const wasLoggedIn = XS.get().isLoggedIn;
   XS.set({
     isLoggedIn: false, user: null, page: 'landing', nodeId: null,
     xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
   });
+  // Limpia el hash sin crear entrada de historial (evita deep links huérfanos)
+  history.replaceState(null, '', window.location.pathname + window.location.search);
   if (wasLoggedIn) supabase.auth.signOut();
 };
 const selectArea = (areaId) => {
@@ -997,6 +1042,66 @@ const switchCourse = async (courseId) => {
   });
 };
 
+// =============================================
+// ONBOARDING + FORO
+// =============================================
+
+// Persiste xp/badges del estudiante en la tabla que corresponda
+// (course_progress si hay curso inscrito, progress en legacy)
+const persistStudentXP = (s, fields) => {
+  if (!s.user?.id) return;
+  const payload = { ...fields, updated_at: new Date().toISOString() };
+  if (s.enrolledCourseId) {
+    supabase.from('course_progress').update(payload)
+      .eq('user_id', s.user.id).eq('course_id', s.enrolledCourseId)
+      .then(({ error }) => { if (error) console.error('persistStudentXP course_progress:', error); });
+  } else {
+    supabase.from('progress').update(payload).eq('user_id', s.user.id)
+      .then(({ error }) => { if (error) console.error('persistStudentXP progress:', error); });
+  }
+};
+
+// El estudiante terminó (o saltó) el modal de bienvenida
+const markOnboarded = () => {
+  const { user } = XS.get();
+  if (!user) return;
+  XS.set({ user: { ...user, onboarded: true } });
+  supabase.from('profiles').update({ onboarded: true }).eq('id', user.id)
+    .then(({ error }) => { if (error) console.error('markOnboarded:', error); });
+};
+
+const ONBOARDING_BONUS_XP = 50;
+// Bonus de "Primeros pasos": +50 XP una única vez al completar el checklist
+const claimOnboardingBonus = () => {
+  const s = XS.get();
+  if (!s.user || s.user.role !== 'student' || s.user.onboardingBonus) return;
+  const nxp = s.xp + ONBOARDING_BONUS_XP;
+  XS.set({
+    xp: nxp,
+    user: { ...s.user, onboardingBonus: true },
+    notifications: [...s.notifications, { type: 'xp', amount: ONBOARDING_BONUS_XP, id: Date.now() }],
+  });
+  persistStudentXP(s, { xp: nxp });
+  supabase.from('profiles').update({ onboarding_bonus: true }).eq('id', s.user.id)
+    .then(({ error }) => { if (error) console.error('claimOnboardingBonus:', error); });
+};
+
+const FORUM_FIRST_XP = 30;
+// Primera participación en el foro: XP + insignia (la insignia actúa de flag)
+const awardForumParticipation = () => {
+  const s = XS.get();
+  if (!s.user || s.user.role !== 'student' || s.badges.includes('companero')) return;
+  const nxp = s.xp + FORUM_FIRST_XP;
+  const nb = [...s.badges, 'companero'];
+  XS.set({
+    xp: nxp, badges: nb,
+    notifications: [...s.notifications,
+      { type: 'xp', amount: FORUM_FIRST_XP, id: Date.now() },
+      { type: 'badge', bid: 'companero', id: Date.now() + 1 }],
+  });
+  persistStudentXP(s, { xp: nxp, badges: nb });
+};
+
 export {
   useStore, AREAS, BADGES, LEVELS, RUBRIC_CRITERIA, ALL_MODULES, AREA_CONTENT,
   INITIAL_INSTITUTIONS,
@@ -1012,4 +1117,5 @@ export {
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution,
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,
   loadCourseModules, enrollInCourse, dbModToAppMod, publishRouteToCourse, switchCourse,
+  applyInitialHash, markOnboarded, claimOnboardingBonus, awardForumParticipation,
 };

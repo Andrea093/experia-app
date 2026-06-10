@@ -14,6 +14,7 @@ import {
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
   Modal, BadgeCard, StatChip, Stagger,
 } from '../components/ui.jsx'
+import { FirstStepsCard } from '../components/Onboarding.jsx'
 // =============================================
 // EXPERIA — Learning Map (responsive + optimized)
 // =============================================
@@ -320,6 +321,11 @@ const LearningMap = () => {
           <ProgressBar pct={pct} h={6} color="var(--orange)" />
         </div>
 
+        {/* Checklist primeros pasos (hasta reclamar el bonus) */}
+        <div style={{ margin: '0 16px 16px' }}>
+          <FirstStepsCard modules={studentModules} />
+        </div>
+
         {/* Linear module list */}
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {routeNotPublished && (
@@ -384,6 +390,11 @@ const LearningMap = () => {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Checklist primeros pasos (hasta reclamar el bonus) */}
+      <div style={{ margin: '0 24px 24px' }}>
+        <FirstStepsCard modules={studentModules} />
       </div>
 
       {/* Ruta no publicada aún */}
