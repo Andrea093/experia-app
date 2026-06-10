@@ -49,6 +49,9 @@ const GripIc=({s,c})=><Sv s={s} c={c} fill={c}><circle cx="9" cy="5" r="1.5"/><c
 const MapIc=({s,c})=><Sv s={s} c={c}><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></Sv>;
 const SchoolIc=({s,c})=><Sv s={s} c={c}><rect x="3" y="9" width="18" height="13" rx="2"/><path d="M3 9l9-6 9 6"/><path d="M9 22v-8h6v8"/></Sv>;
 const UploadIc=({s,c})=><Sv s={s} c={c}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></Sv>;
+const SunIc=({s,c})=><Sv s={s} c={c}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></Sv>;
+const MoonIc=({s,c})=><Sv s={s} c={c}><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></Sv>;
+const PaletteIc=({s,c})=><Sv s={s} c={c}><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.69-.76 1.69-1.69 0-.44-.17-.83-.44-1.13-.27-.3-.43-.7-.43-1.13a1.69 1.69 0 011.69-1.69h2A5.5 5.5 0 0022 11c0-4.97-4.5-9-10-9z"/></Sv>;
 
 // --- Button ---
 const Btn = ({children, variant='primary', size='md', onClick, disabled, full, style:sx={}}) => {
@@ -63,7 +66,7 @@ const Btn = ({children, variant='primary', size='md', onClick, disabled, full, s
     outline:{background:'transparent',color:'var(--orange)',boxShadow:'inset 0 0 0 2px var(--orange)'},
     ghost:{background:'transparent',color:'var(--muted)'},
     gradient:{background:'var(--gradient)',color:'#fff',boxShadow:'var(--sh-purple)'},
-    white:{background:'#fff',color:'var(--dark)',boxShadow:'var(--sh-sm)'},
+    white:{background:'#fff',color:'#1A1A2E',boxShadow:'var(--sh-sm)'},
     danger:{background:'var(--error)',color:'#fff'},
   };
   const hovShadow = {
@@ -105,7 +108,7 @@ const Skeleton = ({w='100%', h=14, r, circle=false, style:sx={}}) =>
 
 // --- Skeleton de tarjeta (loading state genérico) ---
 const SkeletonCard = ({lines=3}) =>
-  <div style={{padding:20,borderRadius:'var(--r-lg)',border:'1px solid var(--border)',background:'#fff',
+  <div style={{padding:20,borderRadius:'var(--r-lg)',border:'1px solid var(--border)',background:'var(--white)',
     display:'flex',flexDirection:'column',gap:12}}>
     <div style={{display:'flex',alignItems:'center',gap:12}}>
       <Skeleton circle h={40}/>
@@ -150,7 +153,7 @@ const BadgeToast = ({bid, onDone}) => {
   React.useEffect(()=>{const t=setTimeout(onDone,3000);return()=>clearTimeout(t);},[]);
   if(!b) return null;
   return <div style={{position:'fixed',top:140,right:24,zIndex:9999,
-    background:'#fff',padding:'16px 24px',borderRadius:16,fontWeight:600,fontSize:15,
+    background:'var(--white)',padding:'16px 24px',borderRadius:16,fontWeight:600,fontSize:15,
     animation:'xpPop 3s ease-out forwards',boxShadow:'var(--sh-xl)',
     display:'flex',alignItems:'center',gap:12,border:'2px solid var(--orange-bg)'}}>
     <span style={{fontSize:32}}>{b.icon}</span>
@@ -197,7 +200,7 @@ const Modal = ({open,onClose,title,children,width=560}) => {
   return <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:5000,
     background:'rgba(15,15,30,.45)',backdropFilter:'blur(10px) saturate(1.2)',WebkitBackdropFilter:'blur(10px) saturate(1.2)',
     display:'flex',alignItems:isMobile?'flex-end':'center',justifyContent:'center',animation:'fadeIn .2s ease'}}>
-    <div onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true" style={{background:'#fff',
+    <div onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true" style={{background:'var(--white)',
       borderRadius:isMobile?'24px 24px 0 0':'var(--r-xl)',
       maxWidth:isMobile?'100%':width,
       width:isMobile?'100%':'92%',
@@ -205,7 +208,7 @@ const Modal = ({open,onClose,title,children,width=560}) => {
       overflow:'auto',animation:isMobile?'sheetIn .35s var(--ease-out)':'modalIn .3s var(--ease-out)',boxShadow:'var(--sh-xl)'}}>
       {title && <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
         padding:'18px 24px',borderBottom:'1px solid var(--border)',position:'sticky',top:0,zIndex:1,
-        background:'rgba(255,255,255,.85)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)'}}>
+        background:'var(--glass-bg)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)'}}>
         <h3 style={{fontSize:18,fontWeight:700}}>{title}</h3>
         <button onClick={onClose} aria-label="Cerrar" style={{background:'var(--bg-alt)',border:'none',cursor:'pointer',padding:6,
           borderRadius:8,display:'flex',minWidth:32,minHeight:32,alignItems:'center',justifyContent:'center',
@@ -257,6 +260,7 @@ const LogoImg = ({ h=34, w=null, onDark=false }) => (
   <img
     src="/logo-ceinfes.png"
     alt="CEINFES"
+    className={onDark ? undefined : 'logo-img'}
     style={{
       width: w || h * 5,
       height: 'auto',
@@ -273,7 +277,7 @@ export {
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc, ArrowRIc, ArrowLIc,
   ChevRIc, StarIc, TrophyIc, ZapIc, AwardIc, BellIc, LogOutIc, ClockIc, XIc, PlusIc,
   TrashIc, EditIc, MenuIc, TargetIc, SettingsIc, BarIc, UsersIc, GripIc, MapIc,
-  SchoolIc, UploadIc,
+  SchoolIc, UploadIc, SunIc, MoonIc, PaletteIc,
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager, Modal, BadgeCard, StatChip, Stagger,
   XPToast, BadgeToast, Skeleton, SkeletonCard,
 };

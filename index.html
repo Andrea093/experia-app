@@ -19,6 +19,22 @@
   <!-- Preconnect para Google Fonts (usado en styles.css) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- Tema: se aplica antes del primer paint para evitar flash (FOUC) -->
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem('experia-theme');
+        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+        var accent = localStorage.getItem('experia-accent');
+        if (accent && accent !== 'morado') {
+          document.documentElement.setAttribute('data-accent', accent);
+        }
+      } catch (e) { /* localStorage bloqueado: tema claro por defecto */ }
+    })();
+  </script>
 </head>
 <body>
   <div id="root"></div>

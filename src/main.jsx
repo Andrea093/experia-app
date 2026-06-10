@@ -26,20 +26,20 @@ const Loading = () => {
 
   return (
     <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center',
-      flexDirection:'column', gap:18, background:'#F9FAFB' }}>
-      <img src="/logo-ceinfes.png" alt="CEINFES" style={{ width:150, height:'auto',
+      flexDirection:'column', gap:18, background:'var(--bg, #F9FAFB)' }}>
+      <img src="/logo-ceinfes.png" alt="CEINFES" className="logo-img" style={{ width:150, height:'auto',
         animation:'logoPulse 1.8s ease-in-out infinite' }} />
-      <div style={{ width:36, height:36, border:'3px solid #E5E7EB', borderTopColor:'#E8732C',
+      <div style={{ width:36, height:36, border:'3px solid var(--border, #E5E7EB)', borderTopColor:'#E8732C',
         borderRightColor:'#F09848', borderRadius:'50%', animation:'spin .7s linear infinite' }} />
-      <span style={{ fontSize:13, color:'#9CA3AF', fontFamily:"'DM Sans', sans-serif" }}>Cargando...</span>
+      <span style={{ fontSize:13, color:'var(--subtle, #9CA3AF)', fontFamily:"'DM Sans', sans-serif" }}>Cargando...</span>
       {slow && !verySlow && (
-        <span style={{ fontSize:12, color:'#9CA3AF', fontFamily:"'DM Sans', sans-serif", maxWidth:260, textAlign:'center' }}>
+        <span style={{ fontSize:12, color:'var(--subtle, #9CA3AF)', fontFamily:"'DM Sans', sans-serif", maxWidth:260, textAlign:'center' }}>
           Conectando con el servidor, puede tomar unos segundos...
         </span>
       )}
       {verySlow && (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:12, color:'#6B7280', fontFamily:"'DM Sans', sans-serif" }}>
+          <span style={{ fontSize:12, color:'var(--muted, #6B7280)', fontFamily:"'DM Sans', sans-serif" }}>
             Tardando más de lo esperado.
           </span>
           <button onClick={() => window.location.reload()}

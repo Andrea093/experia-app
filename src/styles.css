@@ -5,17 +5,28 @@
 :root {
   --orange: #E8732C; --orange-light: #F09848; --orange-pale: #FADCBE;
   --orange-bg: #FEF3E8; --orange-50: #FFF9F4;
-  --purple: #7B3FA0; --purple-deep: #5E2D82; --purple-light: #B07CC8; --purple-bg: #F3E8FA;
+
+  /* Acento secundario (configurable: morado por defecto; ver [data-accent]) */
+  --accent-rgb: 123, 63, 160;
+  --purple: #7B3FA0; --purple-deep: #5E2D82; --purple-light: #B07CC8;
+  --purple-bg: rgba(var(--accent-rgb), .10);
+  --grad-mid: #B84B8A;
+
   --dark: #1A1A2E; --text: #2D2D44; --text-sec: #4A4A5E;
   --muted: #6B7280; --subtle: #9CA3AF;
   --border: #E5E7EB; --bg-alt: #F3F4F6; --bg: #F9FAFB; --white: #FFFFFF;
   --success: #10B981; --warn: #F59E0B; --error: #EF4444;
 
-  /* Gradientes premium */
-  --gradient: linear-gradient(125deg, #5E2D82 0%, #7B3FA0 32%, #B84B8A 64%, #E8732C 100%);
+  /* Tintes semánticos (adaptan en modo oscuro) */
+  --success-bg: #F0FDF4; --success-bg-strong: #D1FAE5;
+  --error-bg: #FEF2F2;   --error-bg-strong: #FEE2E2;
+  --info-bg: #EFF6FF;    --warn-bg: #FFFBEB;  --violet-bg: #EDE9FE;
+
+  /* Gradientes premium (derivados del acento activo) */
+  --gradient: linear-gradient(125deg, var(--purple-deep) 0%, var(--purple) 32%, var(--grad-mid) 64%, var(--orange) 100%);
   --gradient-orange: linear-gradient(135deg, #E8732C 0%, #F09848 100%);
   --gradient-soft: linear-gradient(135deg, var(--orange-bg) 0%, var(--purple-bg) 100%);
-  --gradient-text: linear-gradient(120deg, #7B3FA0 0%, #E8732C 100%);
+  --gradient-text: linear-gradient(120deg, var(--purple) 0%, var(--orange) 100%);
 
   --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --sidebar-w: 260px; --header-h: 64px;
@@ -27,18 +38,82 @@
   --sh-lg: 0 4px 8px rgba(26,26,46,.05), 0 12px 32px rgba(26,26,46,.10);
   --sh-xl: 0 8px 16px rgba(26,26,46,.06), 0 24px 56px rgba(26,26,46,.16);
   --sh-orange: 0 8px 24px -8px rgba(232,115,44,.45);
-  --sh-purple: 0 8px 24px -8px rgba(123,63,160,.40);
+  --sh-purple: 0 8px 24px -8px rgba(var(--accent-rgb), .40);
 
   /* Glassmorphism */
   --glass-bg: rgba(255,255,255,.72);
   --glass-border: rgba(255,255,255,.55);
   --glass-blur: saturate(1.5) blur(16px);
+  --shimmer: rgba(255,255,255,.75);
 
   /* Curvas de animación */
   --ease: cubic-bezier(.4,0,.2,1);
   --ease-out: cubic-bezier(.16,1,.3,1);
   --ease-spring: cubic-bezier(.34,1.56,.64,1);
 }
+
+/* =============================================
+   ACENTOS ALTERNATIVOS (alternativa al morado)
+   Se aplican con <html data-accent="...">
+   ============================================= */
+[data-accent="azul"] {
+  --accent-rgb: 37, 99, 235;
+  --purple: #2563EB; --purple-deep: #1E40AF; --purple-light: #60A5FA;
+  --grad-mid: #B85C9E;
+}
+[data-accent="esmeralda"] {
+  --accent-rgb: 13, 148, 136;
+  --purple: #0D9488; --purple-deep: #0F766E; --purple-light: #5EEAD4;
+  --grad-mid: #F59E0B;
+}
+
+/* =============================================
+   MODO OSCURO — <html data-theme="dark">
+   Las superficies usan las mismas variables; aquí solo se remapean.
+   ============================================= */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --dark: #F2F2F7; --text: #E4E4EE; --text-sec: #C2C2D2;
+  --muted: #9696AC; --subtle: #6E6E88;
+  --border: #2C2C44; --bg-alt: #232338; --bg: #121220; --white: #1A1A2E;
+
+  --orange-bg: rgba(232,115,44,.16); --orange-50: rgba(232,115,44,.09);
+  --orange-pale: rgba(232,115,44,.40);
+  --purple-bg: rgba(var(--accent-rgb), .22);
+
+  --success-bg: rgba(16,185,129,.13);  --success-bg-strong: rgba(16,185,129,.22);
+  --error-bg: rgba(239,68,68,.13);     --error-bg-strong: rgba(239,68,68,.22);
+  --info-bg: rgba(59,130,246,.15);     --warn-bg: rgba(245,158,11,.15);
+  --violet-bg: rgba(139,92,246,.20);
+
+  --sh-sm: 0 1px 2px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.30);
+  --sh-md: 0 2px 4px rgba(0,0,0,.35), 0 6px 16px rgba(0,0,0,.40);
+  --sh-lg: 0 4px 8px rgba(0,0,0,.40), 0 12px 32px rgba(0,0,0,.50);
+  --sh-xl: 0 8px 16px rgba(0,0,0,.45), 0 24px 56px rgba(0,0,0,.60);
+
+  --glass-bg: rgba(20,20,36,.74);
+  --glass-border: rgba(255,255,255,.08);
+  --shimmer: rgba(255,255,255,.07);
+}
+
+/* En modo oscuro el logo pasa a silueta blanca (mismo filtro que onDark) */
+[data-theme="dark"] .logo-img { filter: brightness(0) invert(1); }
+
+/* El certificado es un documento imprimible: siempre usa tema claro,
+   sin importar el modo activo (las custom properties del ancestro más
+   cercano ganan por herencia) */
+#certificate {
+  --dark: #1A1A2E; --text: #2D2D44; --text-sec: #4A4A5E;
+  --muted: #6B7280; --subtle: #9CA3AF;
+  --border: #E5E7EB; --bg-alt: #F3F4F6; --bg: #F9FAFB; --white: #FFFFFF;
+}
+[data-theme="dark"] #certificate .logo-img { filter: none; }
+
+/* Scrollbar acorde al tema */
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3A3A55; background-clip: padding-box; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #4A4A68; background-clip: padding-box; }
+[data-theme="dark"] ::selection { background: rgba(232,115,44,.45); color: #fff; }
 
 html,body,#root{height:100%;width:100%;overflow:hidden}
 body{font-family:var(--font);color:var(--dark);background:var(--bg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;line-height:1.55}
@@ -93,7 +168,7 @@ h1,h2,h3{letter-spacing:-.02em}
 
 /* Skeleton loader (shimmer) */
 .skeleton{position:relative;overflow:hidden;background:var(--bg-alt);border-radius:var(--r-sm)}
-.skeleton::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);background-size:200% 100%;animation:shimmer 1.4s ease infinite}
+.skeleton::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,var(--shimmer),transparent);background-size:200% 100%;animation:shimmer 1.4s ease infinite}
 
 /* Elevación al hover (tarjetas) */
 .hover-lift{transition:transform .25s var(--ease-out),box-shadow .25s var(--ease-out),border-color .25s var(--ease-out)}

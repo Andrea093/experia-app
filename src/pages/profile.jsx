@@ -5,15 +5,87 @@ import {
   getStudentModules, findModule, nodeStatus, gradeTotal, gradeMax,
 } from '../store/store.jsx'
 import { supabase } from '../lib/supabaseClient.js'
+import { useTheme, ACCENTS } from '../lib/theme.js'
 import {
   useMobile, LogoImg,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc,
   ArrowRIc, ArrowLIc, ChevRIc, StarIc, TrophyIc, ZapIc, AwardIc, BellIc,
   LogOutIc, ClockIc, XIc, PlusIc, TrashIc, EditIc, MenuIc, TargetIc,
   SettingsIc, BarIc, UsersIc, GripIc, MapIc, SchoolIc, UploadIc,
+  SunIc, MoonIc, PaletteIc,
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
   Modal, BadgeCard, StatChip, Stagger,
 } from '../components/ui.jsx'
+
+// --- Sección Apariencia: modo claro/oscuro + color de acento ---
+const AppearanceCard = () => {
+  const { theme, accent, setMode, pickAccent } = useTheme();
+  const modes = [
+    { id: 'light', label: 'Claro',  icon: <SunIc s={15} /> },
+    { id: 'dark',  label: 'Oscuro', icon: <MoonIc s={15} /> },
+  ];
+  return (
+    <div style={{
+      padding: '24px', borderRadius: 16, background: 'var(--white)',
+      border: '1px solid var(--border)', marginTop: 28,
+    }}>
+      <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 4,
+        display: 'flex', alignItems: 'center', gap: 8 }}>
+        <PaletteIc s={18} c="var(--orange)" /> Apariencia
+      </h3>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
+        Personaliza el tema de la plataforma. Se guarda en este dispositivo.
+      </p>
+
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', textTransform: 'uppercase',
+        letterSpacing: .6, marginBottom: 10 }}>Tema</div>
+      <div style={{ display: 'inline-flex', gap: 4, padding: 4, borderRadius: 12,
+        background: 'var(--bg-alt)', marginBottom: 24 }}>
+        {modes.map(m => {
+          const active = theme === m.id;
+          return (
+            <button key={m.id} onClick={() => setMode(m.id)} aria-pressed={active}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 18px',
+                borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: 'var(--font)',
+                fontSize: 13, fontWeight: 600, minHeight: 36,
+                background: active ? 'var(--white)' : 'transparent',
+                color: active ? 'var(--dark)' : 'var(--muted)',
+                boxShadow: active ? 'var(--sh-sm)' : 'none',
+                transition: 'background .2s, color .2s, box-shadow .2s' }}>
+              {m.icon}{m.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', textTransform: 'uppercase',
+        letterSpacing: .6, marginBottom: 10 }}>Color de acento</div>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+        {ACCENTS.map(a => {
+          const active = accent === a.id;
+          return (
+            <button key={a.id} onClick={() => pickAccent(a.id)} aria-pressed={active}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                background: 'transparent', border: 'none', cursor: 'pointer', padding: 4,
+                fontFamily: 'var(--font)' }}>
+              <span style={{ width: 44, height: 44, borderRadius: '50%', background: a.preview,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: active
+                  ? `0 0 0 2px var(--white), 0 0 0 4.5px ${a.color}, var(--sh-md)`
+                  : '0 0 0 1px var(--border)',
+                transform: active ? 'scale(1.06)' : 'none',
+                transition: 'box-shadow .2s, transform .25s var(--ease-spring)' }}>
+                {active && <CheckIc s={18} c="#fff" />}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: active ? 700 : 500,
+                color: active ? 'var(--dark)' : 'var(--muted)' }}>{a.name}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 // =============================================
 // EXPERIA — Profile Page
 // =============================================
@@ -246,7 +318,7 @@ const ProfilePage = () => {
                     borderRadius: 10, background: 'var(--bg)',
                   }}>
                     <div style={{
-                      width: 32, height: 32, borderRadius: 8, background: '#D1FAE5',
+                      width: 32, height: 32, borderRadius: 8, background: 'var(--success-bg-strong)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}><CheckIc s={16} c="var(--success)" /></div>
                     <div style={{ flex: 1 }}>
@@ -265,6 +337,9 @@ const ProfilePage = () => {
           </div>
         )}
       </div>
+
+      {/* Apariencia: tema y color de acento */}
+      <AppearanceCard />
     </div>
   );
 };

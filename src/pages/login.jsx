@@ -222,7 +222,7 @@ const LoginPage = () => {
             {error && (
               <div style={{
                 padding: '10px 14px', borderRadius: 'var(--r-sm)',
-                background: '#FEF2F2', color: 'var(--error)', fontSize: 13, fontWeight: 500,
+                background: 'var(--error-bg)', color: 'var(--error)', fontSize: 13, fontWeight: 500,
                 animation: 'shake .4s ease',
               }}>{error}</div>
             )}

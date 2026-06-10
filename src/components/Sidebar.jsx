@@ -59,7 +59,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
 
       <div style={{ padding: '0 16px 12px' }}>
         <div style={{ padding: '8px 12px', borderRadius: 8,
-          background: role === 'admin' ? '#EDE9FE' : role === 'instructor' ? '#D1FAE5' : 'var(--purple-bg)',
+          background: role === 'admin' ? 'var(--violet-bg)' : role === 'instructor' ? 'var(--success-bg-strong)' : 'var(--purple-bg)',
           display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1,
             color: role === 'admin' ? '#7C3AED' : role === 'instructor' ? 'var(--success)' : 'var(--purple)' }}>

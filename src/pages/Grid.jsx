@@ -339,7 +339,7 @@ const StudentProductUpload = () => {
             {existingSub.returnNotes && (
               <div style={{ padding: '12px 16px', borderRadius: 10, background: 'white', border: '1px solid #FCD34D', marginTop: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 6 }}>Notas del instructor:</div>
-                <p style={{ fontSize: 14, color: 'var(--dark)', lineHeight: 1.7 }}>{existingSub.returnNotes}</p>
+                <p style={{ fontSize: 14, color: '#1F2937', lineHeight: 1.7 }}>{existingSub.returnNotes}</p>
               </div>
             )}
             {(existingSub.instrRejillaName || existingSub.instrPreguntaName) && (
@@ -789,7 +789,7 @@ export const InstructorDashboard = ({ onStudentClick }) => {
               <div style={{ padding: '16px', borderRadius: 12, background: '#FFFBEB', border: '1.5px solid #FCD34D', marginBottom: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 8 }}>↩️ Devolver para corrección ({currentSub.returnCount || 0}/2 devoluciones usadas)</div>
                 <textarea value={returnNotes} onChange={e => setReturnNotes(e.target.value)} placeholder="Ej: Revisar la formulación de la pregunta..." rows={3}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #FCD34D', fontFamily: 'var(--font)', fontSize: 13, resize: 'vertical', outline: 'none', background: 'white', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #FCD34D', fontFamily: 'var(--font)', fontSize: 13, resize: 'vertical', outline: 'none', background: 'white', color: '#1A1A2E', boxSizing: 'border-box' }} />
                 <div style={{ marginTop: 12 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#92400E', marginBottom: 8 }}>📎 Adjuntar archivos corregidos (opcional)</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

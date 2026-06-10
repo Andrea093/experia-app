@@ -1,6 +1,7 @@
 import React from 'react'
 import { useStore, nav, calcLevel, doLogout, dismissStudentMessage } from '../store/store.jsx'
-import { useMobile, LogoImg, MenuIc, BellIc, CheckIc, ClockIc, LogOutIc } from './ui.jsx'
+import { useTheme } from '../lib/theme.js'
+import { useMobile, LogoImg, MenuIc, BellIc, SunIc, MoonIc, CheckIc, ClockIc, LogOutIc } from './ui.jsx'
 
 const Header = React.memo(({ onMenuClick }) => {
   const user = useStore(s => s.user);
@@ -9,6 +10,7 @@ const Header = React.memo(({ onMenuClick }) => {
   const studentMessages = useStore(s => s.studentMessages);
   const isMobile = useMobile();
   const [showNotifs, setShowNotifs] = React.useState(false);
+  const { theme, toggle } = useTheme();
   if (!isLoggedIn || !user) return null;
   const level = calcLevel(xp);
 
@@ -27,8 +29,8 @@ const Header = React.memo(({ onMenuClick }) => {
     <header style={{ height: 'var(--header-h)', display: 'flex', alignItems: 'center',
       justifyContent: 'space-between', padding: '0 16px 0 24px', gap: 12,
       borderBottom: '1px solid var(--border)', flexShrink: 0,
-      background: 'rgba(255,255,255,.8)', backdropFilter: 'saturate(1.5) blur(14px)',
-      WebkitBackdropFilter: 'saturate(1.5) blur(14px)', zIndex: 50 }}>
+      background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)',
+      WebkitBackdropFilter: 'var(--glass-blur)', zIndex: 50 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {isMobile && (
           <button onClick={onMenuClick} aria-label="Abrir menú" style={{
@@ -48,6 +50,19 @@ const Header = React.memo(({ onMenuClick }) => {
             {user.role === 'instructor' ? 'Instructor' : `Nivel ${level} · ${xp} pts`}
           </div>
         </div>
+
+        {/* Toggle modo claro/oscuro */}
+        <button onClick={toggle}
+          aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+          style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer',
+            width: 36, height: 36, minHeight: 36, borderRadius: 10, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background .2s, transform .2s var(--ease-spring)' }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08) rotate(-12deg)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
+          {theme === 'dark' ? <SunIc s={17} c="var(--warn)" /> : <MoonIc s={17} c="var(--muted)" />}
+        </button>
 
         {/* Notification bell — students only */}
         {user.role === 'student' && (
@@ -103,7 +118,7 @@ const Header = React.memo(({ onMenuClick }) => {
                       const msgLabel = isApproved ? '✅ ¡Tu entrega fue aprobada!'
                         : isGraded ? '📝 Tu instructor calificó tu entrega'
                         : '↩️ Tu instructor devolvió tu entrega';
-                      const msgBg = isApproved ? '#F0FDF4' : isGraded ? '#EFF6FF' : 'var(--orange-50)';
+                      const msgBg = isApproved ? 'var(--success-bg)' : isGraded ? 'var(--info-bg)' : 'var(--orange-50)';
                       return (
                         <div key={msg.id} style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', background: msgBg }}>
                           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>

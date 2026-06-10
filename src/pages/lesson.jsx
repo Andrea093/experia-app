@@ -114,7 +114,7 @@ const LessonSection = React.memo(({ section, index }) => {
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
           <div style={{
-            padding: '18px 20px', borderRadius: 14, background: '#FEF2F2',
+            padding: '18px 20px', borderRadius: 14, background: 'var(--error-bg)',
             border: '1px solid #FECACA',
           }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--error)', textTransform: 'uppercase',
@@ -122,7 +122,7 @@ const LessonSection = React.memo(({ section, index }) => {
             <p style={{ fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.6 }}>{section.trad}</p>
           </div>
           <div style={{
-            padding: '18px 20px', borderRadius: 14, background: '#F0FDF4',
+            padding: '18px 20px', borderRadius: 14, background: 'var(--success-bg)',
             border: '1px solid #BBF7D0',
           }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase',
