@@ -40,7 +40,10 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   ];
   const items = role === 'instructor' ? instructorItems : role === 'admin' ? adminItems : studentItems;
 
-  const handleNav = (key) => {
+  const handleNav = (e, key) => {
+    // Allow Ctrl/Cmd+click and middle-click to open in new tab naturally
+    if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault();
     nav(key);
     if (isMobile && onMobileClose) onMobileClose();
   };
@@ -78,14 +81,15 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
         {items.map((item, i) => {
           const isActive = (item.active || [item.key]).includes(page);
           return (
-            <button key={i} onClick={() => handleNav(item.key)} aria-current={isActive ? 'page' : undefined}
+            <a key={i} href={'#/' + item.key} onClick={(e) => handleNav(e, item.key)}
+              aria-current={isActive ? 'page' : undefined}
               style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 11, padding: '12px 14px', borderRadius: 10,
                 border: 'none', cursor: 'pointer', background: isActive ? 'var(--orange-bg)' : 'transparent',
                 color: isActive ? 'var(--orange)' : 'var(--text-sec)', fontFamily: 'var(--font)',
                 fontSize: 14, fontWeight: isActive ? 700 : 500, textAlign: 'left', width: '100%',
                 transition: 'background .2s var(--ease-out), color .2s var(--ease-out), padding-left .2s var(--ease-out)',
                 boxShadow: isActive ? 'inset 0 0 0 1px rgba(232,115,44,.14)' : 'none',
-                minHeight: 44 }}
+                minHeight: 44, textDecoration: 'none' }}
               onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-alt)'; e.currentTarget.style.color = 'var(--dark)'; e.currentTarget.style.paddingLeft = '18px'; } }}
               onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-sec)'; e.currentTarget.style.paddingLeft = '14px'; } }}>
               {/* Indicador del ítem activo */}
@@ -96,7 +100,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
               <span style={{ display: 'flex', transition: 'transform .25s var(--ease-spring)',
                 transform: isActive ? 'scale(1.08)' : 'none' }}>{item.icon}</span>
               {item.label}
-            </button>
+            </a>
           );
         })}
       </nav>

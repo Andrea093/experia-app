@@ -5,6 +5,63 @@ import { OnboardingModal } from './components/Onboarding.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Header from './components/Header.jsx'
 
+// ---- PWA Install Prompt (solo móvil, solo cuando el navegador lo dispara) ----
+const PWAInstallPrompt = () => {
+  const [prompt, setPrompt] = React.useState(null)
+  const [dismissed, setDismissed] = React.useState(
+    () => !!sessionStorage.getItem('pwa-dismissed')
+  )
+
+  React.useEffect(() => {
+    const handler = (e) => { e.preventDefault(); setPrompt(e) }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const handleInstall = async () => {
+    if (!prompt) return
+    prompt.prompt()
+    const { outcome } = await prompt.userChoice
+    if (outcome === 'accepted') setPrompt(null)
+    else handleDismiss()
+  }
+
+  const handleDismiss = () => {
+    sessionStorage.setItem('pwa-dismissed', '1')
+    setDismissed(true)
+  }
+
+  if (!prompt || dismissed) return null
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 16, left: 16, right: 16, zIndex: 9000,
+      background: 'var(--white)', borderRadius: 16,
+      boxShadow: '0 8px 32px rgba(0,0,0,.18)', border: '1.5px solid var(--orange-pale)',
+      padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
+      animation: 'fadeUp .35s var(--ease-out)',
+    }}>
+      <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--gradient-orange)',
+        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 22, fontWeight: 900, color: '#fff', fontFamily: 'sans-serif' }}>E</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)' }}>Instalar Experia</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)' }}>Accede más rápido desde tu pantalla de inicio</div>
+      </div>
+      <button onClick={handleDismiss}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18,
+          color: 'var(--subtle)', padding: '4px 6px', lineHeight: 1, flexShrink: 0 }}
+        aria-label="Cerrar">×</button>
+      <button onClick={handleInstall}
+        style={{ background: 'var(--orange)', border: 'none', cursor: 'pointer',
+          color: '#fff', fontSize: 12, fontWeight: 700, padding: '8px 14px',
+          borderRadius: 8, fontFamily: 'var(--font)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+        Instalar
+      </button>
+    </div>
+  )
+}
+
 // Páginas con carga diferida — cada rol solo descarga lo que necesita
 const LandingPage           = React.lazy(() => import('./pages/landing.jsx'))
 const LoginPage             = React.lazy(() => import('./pages/login.jsx'))
@@ -28,6 +85,7 @@ const InstructorStatsPage   = React.lazy(() => import('./pages/InstructorStats.j
 const SchoolsAdminPage      = React.lazy(() => import('./pages/AdminSchools.jsx'))
 const AdminPage             = React.lazy(() => import('./pages/AdminUsers.jsx'))
 const ForumPage             = React.lazy(() => import('./pages/forum.jsx'))
+const CertPage              = React.lazy(() => import('./pages/CertPage.jsx'))
 
 const PageSpinner = () => (
   <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -60,6 +118,8 @@ const App = () => {
 
   if (page === 'landing' && !isLoggedIn) return <React.Suspense fallback={null}><LandingPage /></React.Suspense>;
   if (page === 'login'   && !isLoggedIn) return <React.Suspense fallback={null}><LoginPage /></React.Suspense>;
+  // Verificación pública de certificado — no requiere autenticación
+  if (page === 'cert') return <React.Suspense fallback={<PageSpinner />}><CertPage /></React.Suspense>;
   if (!isLoggedIn) { setTimeout(() => nav('landing'), 0); return null; }
 
   const role = user?.role;
@@ -115,6 +175,7 @@ const App = () => {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <NotifManager />
+      <PWAInstallPrompt />
       {/* Bienvenida: solo estudiantes que no han visto el onboarding (flag en profiles) */}
       {role === 'student' && user?.onboarded === false && <OnboardingModal />}
       {!isFullPage && (

@@ -3,8 +3,15 @@ import {
   useStore, nav, completeNode, AREAS, BADGES, LEVELS,
   getStudentModules, getRouteModules, findModule,
   calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete,
-  gradeTotal, gradeMax, switchCourse,
+  gradeTotal, gradeMax, switchCourse, hashFor,
 } from '../store/store.jsx'
+
+const hrefForMod = (mod) => {
+  if (!mod) return '#'
+  if (mod.type === 'final_delivery') return '#/grid'
+  if (mod.type === 'lesson') return hashFor('lesson', mod.id)
+  return hashFor('challenge', mod.id)
+}
 import {
   useMobile, LogoImg,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc,
@@ -76,8 +83,16 @@ const MapNode = React.memo(({ mod, status, index, onClick }) => {
 // --- Desktop: Card beside node ---
 const MapCard = React.memo(({ mod, status, onClick }) => {
   const [hov, setHov] = React.useState(false);
+  const El = status === 'locked' ? 'div' : 'a';
+  const handleClick = (e) => {
+    if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault();
+    onClick(mod);
+  };
   return (
-    <div onClick={() => status !== 'locked' && onClick(mod)}
+    <El
+      href={status !== 'locked' ? hrefForMod(mod) : undefined}
+      onClick={status !== 'locked' ? handleClick : undefined}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
         background: 'var(--white)', borderRadius: 16, padding: '18px 22px',
@@ -88,6 +103,7 @@ const MapCard = React.memo(({ mod, status, onClick }) => {
         transform: hov && status !== 'locked' ? 'translateY(-2px)' : 'none',
         boxShadow: hov && status !== 'locked' ? 'var(--sh-lg)' : 'var(--sh-sm)',
         opacity: status === 'locked' ? .55 : 1,
+        display: 'block', textDecoration: 'none', color: 'inherit',
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{
@@ -110,7 +126,7 @@ const MapCard = React.memo(({ mod, status, onClick }) => {
           <span style={{ marginLeft: 4, fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>· Clic para revisar</span>
         </div>
       )}
-    </div>
+    </El>
   );
 });
 
@@ -118,8 +134,16 @@ const MapCard = React.memo(({ mod, status, onClick }) => {
 const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
   const colors = NODE_COLORS[status];
   const isActive = status === 'available';
+  const El = status === 'locked' ? 'div' : 'a';
+  const handleClick = (e) => {
+    if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault();
+    onClick(mod);
+  };
   return (
-    <div onClick={() => status !== 'locked' && onClick(mod)}
+    <El
+      href={status !== 'locked' ? hrefForMod(mod) : undefined}
+      onClick={status !== 'locked' ? handleClick : undefined}
       style={{
         display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
         borderRadius: 16, background: 'var(--white)',
@@ -127,7 +151,7 @@ const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
         cursor: status === 'locked' ? 'default' : 'pointer',
         opacity: status === 'locked' ? .55 : 1,
         transition: 'all .2s',
-        position: 'relative',
+        position: 'relative', textDecoration: 'none', color: 'inherit',
       }}>
       {isActive && (
         <div style={{ position: 'absolute', top: -8, left: 16, background: 'var(--orange)', color: '#fff',
@@ -149,7 +173,7 @@ const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
       {status === 'available' && <ChevRIc s={18} c="var(--orange)" />}
       {status === 'completed' && <CheckIc s={18} c="var(--success)" />}
       {status === 'locked' && <LockIc s={16} c="var(--subtle)" />}
-    </div>
+    </El>
   );
 });
 

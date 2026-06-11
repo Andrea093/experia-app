@@ -2,7 +2,7 @@ import React from 'react'
 import {
   useStore, nav, submitProduct, resubmitProduct, returnSubmission, approveSubmission,
   dismissStudentMessage, AREAS, RUBRIC_CRITERIA,
-  isRouteComplete, progressPct, gradeTotal, gradeMax, gradeSubmission,
+  isRouteComplete, progressPct, gradeTotal, gradeMax, gradeSubmission, issueCertificate,
 } from '../store/store.jsx'
 import {
   useMobile, LogoImg,
@@ -65,13 +65,39 @@ const isValidFile = (file) => {
   return ['doc', 'docx', 'xls', 'xlsx'].includes(ext);
 };
 
+const PROD_BASE = 'https://experia-app.pages.dev'
+
+const buildLinkedInUrl = (certUuid, issuedAt, areaName) => {
+  const d = new Date(issuedAt)
+  const params = new URLSearchParams({
+    startTask: 'CERTIFICATION_NAME',
+    name: `Diseño Centrado en Experiencias (DCE)${areaName ? ' — ' + areaName : ''}`,
+    organizationName: 'CEINFES Experia',
+    issueYear: d.getFullYear(),
+    issueMonth: d.getMonth() + 1,
+    certUrl: `${PROD_BASE}/#/cert/${certUuid}`,
+    certId: certUuid,
+  })
+  return `https://www.linkedin.com/profile/add?${params.toString()}`
+}
+
 // ---- Certificate ----
 const CertificatePage = ({ submission, area }) => {
   const total = gradeTotal(submission.grade);
   const max = gradeMax();
   const pct = Math.round((total / max) * 100);
-  const dateStr = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
   const isMobile = useMobile();
+  const [cert, setCert] = React.useState(null);
+
+  React.useEffect(() => {
+    issueCertificate(submission.id, submission.studentName, area?.id, total, max)
+      .then(data => { if (data) setCert(data); });
+  }, [submission.id]);
+
+  const certUrl = cert ? `${PROD_BASE}/#/cert/${cert.cert_uuid}` : null;
+  const dateStr = cert
+    ? new Date(cert.issued_at).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
+    : new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
     <div style={{ height: '100%', overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '16px 12px 48px' : '32px 24px 60px', background: 'var(--bg)' }}>
@@ -99,14 +125,36 @@ const CertificatePage = ({ submission, area }) => {
         }
       ` }} />
       <div id="cert-wrap" style={{ maxWidth: 720, margin: '0 auto' }}>
-        <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? 16 : 28, flexWrap: 'wrap', gap: 10 }}>
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: isMobile ? 16 : 28, flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 2 }}>🎓 ¡Proyecto aprobado!</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Tu proyecto fue aprobado. Descarga o imprime tu certificado.</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: certUrl ? 8 : 0 }}>Tu proyecto fue aprobado. Descarga o imprime tu certificado.</p>
+            {certUrl && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, color: 'var(--subtle)' }}>Enlace de verificación:</span>
+                <a href={certUrl} target="_blank" rel="noreferrer"
+                  style={{ fontSize: 11, color: 'var(--orange)', fontWeight: 600, wordBreak: 'break-all' }}>
+                  {certUrl.replace('https://', '')}
+                </a>
+                <button onClick={() => navigator.clipboard?.writeText(certUrl)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: 2 }}
+                  title="Copiar enlace">📋</button>
+              </div>
+            )}
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Btn variant="secondary" size="sm" onClick={() => nav('map')}>Volver al mapa</Btn>
-            <Btn variant="gradient" size="sm" onClick={() => window.print()}>🖨️ Descargar / Imprimir</Btn>
+            {cert && (
+              <a href={buildLinkedInUrl(cert.cert_uuid, cert.issued_at, area?.name)}
+                target="_blank" rel="noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+                  borderRadius: 'var(--r-md)', background: '#0A66C2', color: '#fff',
+                  fontSize: 13, fontWeight: 700, textDecoration: 'none', fontFamily: 'var(--font)' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                Agregar a LinkedIn
+              </a>
+            )}
+            <Btn variant="gradient" size="sm" onClick={() => window.print()}>🖨️ Imprimir</Btn>
           </div>
         </div>
         <div id="certificate" style={{ background: 'white', border: isMobile ? '5px solid var(--orange)' : '8px solid var(--orange)', borderRadius: isMobile ? 16 : 24, padding: isMobile ? '28px 18px' : '40px 56px', textAlign: 'center', position: 'relative', boxShadow: 'var(--sh-xl)' }}>
