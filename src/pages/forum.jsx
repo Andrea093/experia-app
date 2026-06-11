@@ -83,6 +83,7 @@ const ForumPage = () => {
   // Composer de respuesta
   const [replyBody, setReplyBody] = React.useState('')
 
+  const isAdmin = user?.role === 'admin'
   const canModerate = (authorId) => user && (user.id === authorId || user.role === 'instructor' || user.role === 'admin')
 
   const loadTopics = React.useCallback(async () => {
@@ -163,6 +164,15 @@ const ForumPage = () => {
     setTopics(ts => ts.map(t => t.id === selected?.id ? { ...t, replyCount: Math.max(0, (t.replyCount || 1) - 1) } : t))
   }
 
+  const togglePin = async (t, e) => {
+    e.stopPropagation()
+    const newVal = !t.pinned
+    const { error } = await supabase.from('forum_topics').update({ pinned: newVal }).eq('id', t.id)
+    if (error) { console.error('togglePin:', error); return }
+    setTopics(ts => ts.map(x => x.id === t.id ? { ...x, pinned: newVal } : x))
+    if (selected?.id === t.id) setSelected(s => ({ ...s, pinned: newVal }))
+  }
+
   const visible = activeCat === 'all' ? topics : topics.filter(t => t.category === activeCat)
 
   // ---------- Vista detalle de tema ----------
@@ -198,13 +208,25 @@ const ForumPage = () => {
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', marginRight: 8 }}>{selected.author_name}</span>
                 <RoleTag role={selected.author_role} />
               </div>
-              {canModerate(selected.author_id) && (
-                <button onClick={() => deleteTopic(selected)} aria-label="Eliminar tema"
-                  style={{ background: 'var(--error-bg)', border: 'none', cursor: 'pointer', width: 30, height: 30,
-                    minHeight: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <TrashIc s={14} c="var(--error)" />
-                </button>
-              )}
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {isAdmin && (
+                  <button onClick={(e) => togglePin(selected, e)} aria-label={selected.pinned ? 'Desfijar tema' : 'Fijar tema'}
+                    title={selected.pinned ? 'Desfijar tema' : 'Fijar en inicio'}
+                    style={{ background: selected.pinned ? 'var(--warn-bg)' : 'var(--bg)', border: '1.5px solid',
+                      borderColor: selected.pinned ? 'var(--warn)' : 'var(--border)', cursor: 'pointer',
+                      width: 30, height: 30, minHeight: 30, borderRadius: 8,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+                    📌
+                  </button>
+                )}
+                {canModerate(selected.author_id) && (
+                  <button onClick={() => deleteTopic(selected)} aria-label="Eliminar tema"
+                    style={{ background: 'var(--error-bg)', border: 'none', cursor: 'pointer', width: 30, height: 30,
+                      minHeight: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <TrashIc s={14} c="var(--error)" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -336,7 +358,21 @@ const ForumPage = () => {
               <div key={t.id} onClick={() => openTopic(t)} className="hover-lift"
                 style={{ background: 'var(--white)', borderRadius: 16, padding: isMobile ? '14px 16px' : '16px 20px',
                   border: t.pinned ? '1.5px solid var(--orange-pale)' : '1px solid var(--border)',
-                  cursor: 'pointer', animation: `fadeUp .35s ${Math.min(i, 10) * 40}ms var(--ease-out) both` }}>
+                  cursor: 'pointer', animation: `fadeUp .35s ${Math.min(i, 10) * 40}ms var(--ease-out) both`,
+                  position: 'relative' }}>
+                {isAdmin && (
+                  <button onClick={(e) => togglePin(t, e)} aria-label={t.pinned ? 'Desfijar' : 'Fijar'}
+                    title={t.pinned ? 'Desfijar tema' : 'Fijar en inicio'}
+                    style={{ position: 'absolute', top: 10, right: 10, background: t.pinned ? 'var(--warn-bg)' : 'var(--bg)',
+                      border: '1.5px solid', borderColor: t.pinned ? 'var(--warn)' : 'var(--border)',
+                      cursor: 'pointer', width: 26, height: 26, borderRadius: 8, zIndex: 1,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12,
+                      opacity: t.pinned ? 1 : 0.4, transition: 'opacity .2s' }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                    onMouseLeave={e => e.currentTarget.style.opacity = t.pinned ? 1 : 0.4}>
+                    📌
+                  </button>
+                )}
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                   <Avatar name={t.author_name} avatar={t.author_avatar} />
                   <div style={{ flex: 1, minWidth: 0 }}>
