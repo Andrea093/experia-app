@@ -25,13 +25,13 @@ const useStore = (sel) => {
 };
 
 
-// --- Areas ---
+// --- Areas --- (colores alineados con CEINFES Brandbook)
 const AREAS = [
-  { id:'lectura', name:'Lectura Crítica', icon:'📖', color:'#E8732C', bg:'#FEF3E8' },
-  { id:'ciudadanas', name:'Competencias Ciudadanas', icon:'🏛️', color:'#7B3FA0', bg:'#F3E8FA' },
-  { id:'ingles', name:'Inglés', icon:'🌎', color:'#3B82F6', bg:'#EFF6FF' },
-  { id:'matematicas', name:'Matemáticas', icon:'📐', color:'#10B981', bg:'#F0FDF4' },
-  { id:'ciencias', name:'Ciencias Naturales', icon:'🔬', color:'#F59E0B', bg:'#FFFBEB' },
+  { id:'lectura',      name:'Lectura Crítica',           icon:'📖', color:'#EC671A', bg:'#FEF0E6' }, // Naranja Evolución
+  { id:'ciudadanas',   name:'Competencias Ciudadanas',   icon:'🏛️', color:'#5E4F9C', bg:'#EDEAF7' }, // Morado Formación
+  { id:'ingles',       name:'Inglés',                    icon:'🌎', color:'#3A5BA7', bg:'#EBF0FA' }, // Azul Pensamiento
+  { id:'matematicas',  name:'Matemáticas',               icon:'📐', color:'#2D9070', bg:'#E8F6F1' }, // Verde Desarrollo (oscurecido para legibilidad)
+  { id:'ciencias',     name:'Ciencias Naturales',        icon:'🔬', color:'#024B4E', bg:'#E0EEED' }, // Verde Transformación
 ];
 
 const BADGES = {

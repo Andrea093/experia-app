@@ -47,7 +47,7 @@ const DragDropChallenge = ({ mod, onComplete }) => {
     recordAttempt(mod.id, qs, score, correctOrder.length);
     if(!isOk) setTimeout(()=>{ setChecked(false); lastCheckedRef.current = null; },1800);
   };
-  const phaseColors={Empatizar:'#E8732C',Definir:'#7B3FA0',Idear:'#3B82F6',Prototipar:'#10B981',Evaluar:'#F59E0B'};
+  const phaseColors={Empatizar:'#EC671A',Definir:'#5E4F9C',Idear:'#3A5BA7',Prototipar:'#2D9070',Evaluar:'#F59E33'};
 
   return (
     <div style={{maxWidth:540,margin:'0 auto',paddingBottom:48}}>

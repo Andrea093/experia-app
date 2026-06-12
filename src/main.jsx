@@ -29,8 +29,8 @@ const Loading = () => {
       flexDirection:'column', gap:18, background:'var(--bg, #F9FAFB)' }}>
       <img src="/logo-ceinfes.png" alt="CEINFES" className="logo-img" style={{ width:150, height:'auto',
         animation:'logoPulse 1.8s ease-in-out infinite' }} />
-      <div style={{ width:36, height:36, border:'3px solid var(--border, #E5E7EB)', borderTopColor:'#E8732C',
-        borderRightColor:'#F09848', borderRadius:'50%', animation:'spin .7s linear infinite' }} />
+      <div style={{ width:36, height:36, border:'3px solid var(--border, #E5E7EB)', borderTopColor:'#EC671A',
+        borderRightColor:'#F59E33', borderRadius:'50%', animation:'spin .7s linear infinite' }} />
       <span style={{ fontSize:13, color:'var(--subtle, #9CA3AF)', fontFamily:"'DM Sans', sans-serif" }}>Cargando...</span>
       {slow && !verySlow && (
         <span style={{ fontSize:12, color:'var(--subtle, #9CA3AF)', fontFamily:"'DM Sans', sans-serif", maxWidth:260, textAlign:'center' }}>
@@ -44,7 +44,7 @@ const Loading = () => {
           </span>
           <button onClick={() => window.location.reload()}
             style={{ padding:'8px 20px', borderRadius:8, border:'none', cursor:'pointer',
-              background:'#E8732C', color:'#fff', fontSize:13, fontWeight:600,
+              background:'#EC671A', color:'#fff', fontSize:13, fontWeight:600,
               fontFamily:"'DM Sans', sans-serif" }}>
             Recargar página
           </button>
