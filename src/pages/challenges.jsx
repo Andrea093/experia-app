@@ -29,6 +29,7 @@ const DragDropChallenge = ({ mod, onComplete }) => {
   const [checked, setChecked] = React.useState(false);
   const [correct, setCorrect] = React.useState(false);
   const [attempts, setAttempts] = React.useState(0);
+  const lastCheckedRef = React.useRef(null);
 
   const handleDrop = (i) => {
     if(dragIdx===null) return;
@@ -36,13 +37,15 @@ const DragDropChallenge = ({ mod, onComplete }) => {
     setItems(next); setDragIdx(null); setOverIdx(null);
   };
   const handleCheck = () => {
+    const key = items.join('|');
+    if(lastCheckedRef.current === key) return; // prevent duplicate attempt for same order
+    lastCheckedRef.current = key;
     const isOk = items.every((it,i)=>it===correctOrder[i]);
     setChecked(true); setCorrect(isOk); setAttempts(a=>a+1);
-    // Record attempt
     const qs = items.map((it,i)=>({q:`${it} en posición ${i+1}`,correct:it===correctOrder[i]}));
     const score = qs.filter(q=>q.correct).length;
     recordAttempt(mod.id, qs, score, correctOrder.length);
-    if(!isOk) setTimeout(()=>setChecked(false),1800);
+    if(!isOk) setTimeout(()=>{ setChecked(false); lastCheckedRef.current = null; },1800);
   };
   const phaseColors={Empatizar:'#E8732C',Definir:'#7B3FA0',Idear:'#3B82F6',Prototipar:'#10B981',Evaluar:'#F59E0B'};
 
@@ -205,7 +208,7 @@ const EmpathyMapChallenge = ({ mod, onComplete }) => {
         {done ? (
           <div style={{textAlign:'center'}}>
             <p style={{fontSize:16,fontWeight:700,color:score>=6?'var(--success)':'var(--orange)',marginBottom:12}}>
-              {score>=6?'🎉 ¡Excelente!':'👍 ¡Buen intento!'} {score}/{allCards.length} correctas
+              {score>=Math.ceil(allCards.length*.75)?'🎉 ¡Excelente!':'👍 ¡Buen intento!'} {score}/{allCards.length} correctas
             </p>
             <Btn variant="gradient" size="lg" onClick={onComplete}>Continuar <ArrowRIc s={18} c="#fff"/></Btn>
           </div>
@@ -250,16 +253,18 @@ const SimulationChallenge = ({ mod, onComplete }) => {
   const choose=(opt)=>{setTotalPts(p=>p+opt.points);setHistory(h=>[...h,{text:current.text,chosen:opt.text}]);setNode(opt.next);};
   const maxPts=6, pct=Math.round((totalPts/maxPts)*100);
 
-  // Record when done
+  // Record when done — ref prevents double-firing if node/totalPts update after end
+  const recordedSim = React.useRef(false);
   React.useEffect(()=>{
-    if(current.end){
+    if(current.end && !recordedSim.current){
+      recordedSim.current = true;
       recordAttempt(mod.id,[
         {q:'Primer paso pedagógico',correct:totalPts>=3},
         {q:'Decisión de diseño',correct:totalPts>=5},
         {q:'Resultado general',correct:pct>=80},
       ],totalPts,maxPts);
     }
-  },[node, totalPts]);
+  },[node]);
 
   return (
     <div style={{maxWidth:600,margin:'0 auto',paddingBottom:48}}>
