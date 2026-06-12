@@ -183,7 +183,7 @@ const App = () => {
       )}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         {!isFullPage && <Header onMenuClick={() => setMobileSidebarOpen(o => !o)} />}
-        <main className="page-enter" style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }} key={page + (nodeId || '')}>
+        <main id="main-content" tabIndex="-1" className="page-enter" style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)', outline: 'none' }} key={page + (nodeId || '')}>
           <React.Suspense fallback={<PageSpinner />}>
             {renderPage()}
           </React.Suspense>

@@ -37,11 +37,16 @@
         if (accent && accent !== 'morado') {
           document.documentElement.setAttribute('data-accent', accent);
         }
+        if (localStorage.getItem('experia-contrast') === 'alto') {
+          document.documentElement.setAttribute('data-contrast', 'alto');
+        }
       } catch (e) { /* localStorage bloqueado: tema claro por defecto */ }
     })();
   </script>
 </head>
 <body>
+  <!-- Skip link: permite a usuarios de teclado/lectores de pantalla saltar la navegación -->
+  <a href="#main-content" class="skip-link">Ir al contenido principal</a>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>

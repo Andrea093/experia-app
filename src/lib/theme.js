@@ -10,12 +10,11 @@ import React from 'react'
 const THEME_KEY = 'experia-theme'
 const ACCENT_KEY = 'experia-accent'
 
-// Acentos disponibles (alternativas al morado). `preview` alimenta los
-// swatches del selector en Perfil.
+// Acentos disponibles — colores CEINFES Brandbook. `preview` alimenta los swatches en Perfil.
 export const ACCENTS = [
-  { id: 'morado',    name: 'Morado',    color: '#7B3FA0', preview: 'linear-gradient(125deg,#5E2D82,#7B3FA0 40%,#B84B8A 70%,#E8732C)' },
-  { id: 'azul',      name: 'Azul',      color: '#2563EB', preview: 'linear-gradient(125deg,#1E40AF,#2563EB 40%,#B85C9E 70%,#E8732C)' },
-  { id: 'esmeralda', name: 'Esmeralda', color: '#0D9488', preview: 'linear-gradient(125deg,#0F766E,#0D9488 40%,#F59E0B 70%,#E8732C)' },
+  { id: 'morado',    name: 'Morado Formación',    color: '#5E4F9C', preview: 'linear-gradient(125deg,#45397A,#5E4F9C 40%,#C0538A 70%,#EC671A)' },
+  { id: 'azul',      name: 'Azul Pensamiento',     color: '#3A5BA7', preview: 'linear-gradient(125deg,#2B4485,#3A5BA7 40%,#9A5CB8 70%,#EC671A)' },
+  { id: 'esmeralda', name: 'Verde Transformación', color: '#024B4E', preview: 'linear-gradient(125deg,#013738,#024B4E 40%,#8CCAAE 70%,#EC671A)' },
 ]
 
 const safeGet = (key) => { try { return localStorage.getItem(key) } catch { return null } }
@@ -64,4 +63,32 @@ export const useTheme = () => {
     theme: getTheme(), accent: getAccent(),
     toggle: toggleTheme, setMode: setTheme, pickAccent: setAccent,
   }
+}
+
+// ── Alto contraste ──────────────────────────────────────────────────────────
+const CONTRAST_KEY = 'experia-contrast'
+
+export const getContrast = () =>
+  document.documentElement.getAttribute('data-contrast') === 'alto' ? 'alto' : 'normal'
+
+export const setContrast = (level) => {
+  if (level === 'alto') document.documentElement.setAttribute('data-contrast', 'alto')
+  else document.documentElement.removeAttribute('data-contrast')
+  safeSet(CONTRAST_KEY, level)
+  notify()
+}
+
+export const toggleContrast = () => {
+  const next = getContrast() === 'alto' ? 'normal' : 'alto'
+  setContrast(next)
+  return next
+}
+
+export const useContrast = () => {
+  const [, force] = React.useReducer(x => x + 1, 0)
+  React.useEffect(() => {
+    window.addEventListener(CHANGE_EVENT, force)
+    return () => window.removeEventListener(CHANGE_EVENT, force)
+  }, [])
+  return { contrast: getContrast(), toggle: toggleContrast, set: setContrast }
 }

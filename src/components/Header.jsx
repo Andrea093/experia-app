@@ -1,6 +1,6 @@
 import React from 'react'
 import { useStore, nav, calcLevel, doLogout, dismissStudentMessage } from '../store/store.jsx'
-import { useTheme } from '../lib/theme.js'
+import { useTheme, useContrast } from '../lib/theme.js'
 import { useMobile, LogoImg, MenuIc, BellIc, SunIc, MoonIc, CheckIc, ClockIc, LogOutIc } from './ui.jsx'
 
 const Header = React.memo(({ onMenuClick }) => {
@@ -11,6 +11,7 @@ const Header = React.memo(({ onMenuClick }) => {
   const isMobile = useMobile();
   const [showNotifs, setShowNotifs] = React.useState(false);
   const { theme, toggle } = useTheme();
+  const { contrast, toggle: toggleContrast } = useContrast();
   if (!isLoggedIn || !user) return null;
   const level = calcLevel(xp);
 
@@ -20,9 +21,11 @@ const Header = React.memo(({ onMenuClick }) => {
 
   React.useEffect(() => {
     if (!showNotifs) return;
-    const close = () => setShowNotifs(false);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
+    const onKey = (e) => { if (e.key === 'Escape') setShowNotifs(false); };
+    const onClick = () => setShowNotifs(false);
+    document.addEventListener('click', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('click', onClick); document.removeEventListener('keydown', onKey); };
   }, [showNotifs]);
 
   return (
@@ -51,6 +54,24 @@ const Header = React.memo(({ onMenuClick }) => {
           </div>
         </div>
 
+        {/* Alto contraste */}
+        <button onClick={toggleContrast}
+          aria-label={contrast === 'alto' ? 'Desactivar alto contraste' : 'Activar alto contraste'}
+          aria-pressed={contrast === 'alto'}
+          title={contrast === 'alto' ? 'Alto contraste: activo' : 'Alto contraste'}
+          style={{ background: contrast === 'alto' ? 'var(--dark)' : 'var(--bg-alt)',
+            border: contrast === 'alto' ? '2px solid var(--orange)' : '2px solid transparent',
+            cursor: 'pointer', width: 36, height: 36, minHeight: 36, borderRadius: 10,
+            flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background .2s, border-color .2s',
+            fontSize: 12, fontWeight: 900, letterSpacing: -.5,
+            color: contrast === 'alto' ? 'var(--orange)' : 'var(--muted)',
+            fontFamily: 'var(--font)' }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
+          A
+        </button>
+
         {/* Toggle modo claro/oscuro */}
         <button onClick={toggle}
           aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
@@ -68,8 +89,10 @@ const Header = React.memo(({ onMenuClick }) => {
         {user.role === 'student' && (
           <div style={{ position: 'relative' }}>
             <button
-               onClick={e => { e.stopPropagation(); setShowNotifs(o => !o); }}
+              onClick={e => { e.stopPropagation(); setShowNotifs(o => !o); }}
               aria-label={`Notificaciones${myUnread.length > 0 ? ` (${myUnread.length} sin leer)` : ''}`}
+              aria-expanded={showNotifs}
+              aria-haspopup="true"
               style={{ position: 'relative', background: myUnread.length > 0 ? 'var(--orange-bg)' : 'var(--bg-alt)',
                 border: 'none', cursor: 'pointer', width: 36, height: 36, borderRadius: 10,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,

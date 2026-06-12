@@ -72,6 +72,35 @@
 }
 
 /* =============================================
+   ALTO CONTRASTE — <html data-contrast="alto">
+   Aumenta el contraste de bordes, texto secundario y naranja
+   para cumplir WCAG AA 4.5:1 en todos los tamaños de texto.
+   ============================================= */
+[data-contrast="alto"] {
+  --orange: #B84E00;              /* 4.5:1 en blanco — pasa WCAG AA texto normal */
+  --orange-light: #9A5E00;
+  --orange-pale: #FFD1A8;
+  --muted: #374151;               /* contraste mejorado en texto secundario */
+  --subtle: #4B5563;
+  --text-sec: #1F2937;
+  --border: #6B7280;              /* bordes más visibles */
+  --bg-alt: #EBEBEB;
+}
+[data-contrast="alto"][data-theme="dark"] {
+  --orange: #FFAA66;              /* más claro en oscuro para visibilidad */
+  --orange-light: #FFC080;
+  --muted: #D1D5DB;
+  --subtle: #9CA3AF;
+  --border: #9CA3AF;
+  --bg-alt: #2C2C44;
+}
+/* Los botones con acento en alto contraste llevan borde explícito */
+[data-contrast="alto"] button,
+[data-contrast="alto"] a {
+  text-decoration-skip-ink: auto;
+}
+
+/* =============================================
    MODO OSCURO — <html data-theme="dark">
    Las superficies usan las mismas variables; aquí solo se remapean.
    ============================================= */
@@ -129,9 +158,25 @@ h1,h2,h3{letter-spacing:-.02em}
 /* Selección de texto con identidad de marca */
 ::selection{background:var(--orange-pale);color:var(--dark)}
 
-/* Accesibilidad: anillo de foco visible solo con teclado */
+/* ── Skip link: visible al tabular, oculto de otro modo ── */
+.skip-link{position:absolute;top:-100%;left:12px;z-index:10000;padding:10px 20px;
+  background:var(--orange);color:#fff;font-size:15px;font-weight:700;
+  font-family:var(--font);text-decoration:none;border-radius:0 0 12px 12px;
+  box-shadow:var(--sh-lg);transition:top .15s var(--ease);white-space:nowrap}
+.skip-link:focus{top:0}
+
+/* ── Focus ring: doble contorno visible sobre cualquier fondo ── */
 :focus{outline:none}
-:focus-visible{outline:2px solid var(--orange);outline-offset:2px;border-radius:4px}
+:focus-visible{
+  outline:2px solid var(--orange);
+  outline-offset:3px;
+  border-radius:4px;
+  box-shadow:0 0 0 5px rgba(255,255,255,.85),0 0 0 7px var(--orange);
+}
+/* En modo oscuro el halo interior es oscuro */
+[data-theme="dark"] :focus-visible{
+  box-shadow:0 0 0 5px rgba(18,18,32,.9),0 0 0 7px var(--orange);
+}
 
 ::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-track{background:transparent}

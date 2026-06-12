@@ -5,7 +5,7 @@ import {
   getStudentModules, findModule, nodeStatus, gradeTotal, gradeMax,
 } from '../store/store.jsx'
 import { supabase } from '../lib/supabaseClient.js'
-import { useTheme, ACCENTS } from '../lib/theme.js'
+import { useTheme, useContrast, ACCENTS } from '../lib/theme.js'
 import {
   useMobile, LogoImg,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc,
@@ -16,6 +16,66 @@ import {
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
   Modal, BadgeCard, StatChip, Stagger,
 } from '../components/ui.jsx'
+
+// --- Sección Accesibilidad ---
+const AccessibilityCard = () => {
+  const { contrast, set: setContrast } = useContrast();
+
+  return (
+    <div style={{ padding: '20px 24px', borderRadius: 16, background: 'var(--white)',
+      border: '1px solid var(--border)', boxShadow: 'var(--sh-sm)', marginBottom: 16 }}>
+      <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 4,
+        display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 18 }}>♿</span> Accesibilidad
+      </h3>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
+        Ajusta la interfaz para mayor legibilidad. Se guarda en este dispositivo.
+      </p>
+
+      {/* Alto contraste */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', textTransform: 'uppercase',
+          letterSpacing: .6, marginBottom: 10 }}>Contraste</div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {[{ id: 'normal', label: 'Normal' }, { id: 'alto', label: 'Alto contraste' }].map(opt => {
+            const active = contrast === opt.id;
+            return (
+              <button key={opt.id} onClick={() => setContrast(opt.id)} aria-pressed={active}
+                style={{ flex: 1, padding: '10px 16px', borderRadius: 10, cursor: 'pointer',
+                  border: active ? '2px solid var(--orange)' : '1.5px solid var(--border)',
+                  background: active ? 'var(--orange-bg)' : 'var(--bg)',
+                  fontFamily: 'var(--font)', fontSize: 13, fontWeight: active ? 700 : 500,
+                  color: active ? 'var(--orange)' : 'var(--text)', transition: 'all .2s' }}>
+                {opt.id === 'alto' && <span style={{ fontWeight: 900, marginRight: 4 }}>A</span>}
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Consejo zoom del navegador */}
+      <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--bg-alt)',
+        border: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <span style={{ fontSize: 18, flexShrink: 0 }}>🔍</span>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--dark)', marginBottom: 2 }}>
+            Tamaño del texto
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+            Usa el zoom del navegador para ampliar toda la interfaz:{' '}
+            <kbd style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--white)',
+              border: '1px solid var(--border)', fontSize: 11, fontFamily: 'monospace' }}>Ctrl</kbd>
+            {' + '}<kbd style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--white)',
+              border: '1px solid var(--border)', fontSize: 11, fontFamily: 'monospace' }}>+</kbd>
+            {' / '}<kbd style={{ padding: '1px 5px', borderRadius: 4, background: 'var(--white)',
+              border: '1px solid var(--border)', fontSize: 11, fontFamily: 'monospace' }}>−</kbd>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- Sección Apariencia: modo claro/oscuro + color de acento ---
 const AppearanceCard = () => {
@@ -338,6 +398,8 @@ const ProfilePage = () => {
         )}
       </div>
 
+      {/* Accesibilidad */}
+      <AccessibilityCard />
       {/* Apariencia: tema y color de acento */}
       <AppearanceCard />
     </div>
