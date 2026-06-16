@@ -840,7 +840,7 @@ const AdminPage = () => {
                 </p>
                 <div style={{ padding:'12px 16px', borderRadius:10, background:'#FEF3C7', border:'1px solid #FDE68A', marginBottom:16, textAlign:'left' }}>
                   <p style={{ fontSize:12, color:'#92400E', lineHeight:1.6, margin:0 }}>
-                    ⚠️ Se eliminarán sus <strong>módulos completados</strong>, <strong>XP</strong>, <strong>insignias</strong>, <strong>entregas</strong> e <strong>intentos de retos</strong> (incluido el progreso de todos sus cursos). Esta acción no se puede deshacer.
+                    ⚠️ Se eliminarán sus <strong>módulos completados</strong>, <strong>XP</strong>, <strong>insignias</strong>, <strong>entregas</strong>, <strong>intentos de retos</strong> y su <strong>certificado</strong> (incluido el progreso de todos sus cursos). Esta acción no se puede deshacer.
                   </p>
                 </div>
                 {resetError && (
