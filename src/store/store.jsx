@@ -75,7 +75,7 @@ const SHARED_MODULES = [
       {type:'text',title:'Orígenes del DCE',text:'El DCE integra el aprendizaje experiencial de John Dewey, el Design Thinking de IDEO, y la pedagogía humanista en un marco práctico para docentes del siglo XXI.'},
       {type:'video',title:'Video introductorio: DCE en acción',
         desc:'Mira este video antes de continuar con el ejemplo práctico.',
-        url:'https://www.youtube.com/watch?v=3rcULk9VLKs'},
+        url:'https://www.youtube.com/watch?v=n2itLW4yp4o'},
       {type:'compare',title:'Ejemplo Práctico — Clase de Historia',label:'Revolución Industrial',
         trad:'El docente expone los hechos con diapositivas y los estudiantes toman notas.',
         dce:'Los estudiantes recrean un taller de la época, simulan roles, debaten condiciones laborales y reflexionan sobre su impacto actual.'},
@@ -90,6 +90,9 @@ const SHARED_MODULES = [
     xp:120, badge:'empathist', req:['ch1'], pos:{x:36,y:2}, side:'right',
     content:[
       {type:'intro',title:'La Empatía como Competencia Docente',text:'La empatía educativa permite comprender y conectar con las experiencias y perspectivas de los estudiantes para diseñar desde esa comprensión.'},
+      {type:'video',title:'Video: La empatía en el aula',
+        desc:'Mira este video para profundizar en la empatía educativa.',
+        url:'https://www.youtube.com/watch?v=inC0xQV7eak'},
       {type:'concepts',title:'Dimensiones de la Empatía',items:[
         {t:'Cognitiva',d:'Entender cómo piensan los estudiantes y sus modelos mentales.'},
         {t:'Emocional',d:'Conectar con las emociones durante el aprendizaje.'},
