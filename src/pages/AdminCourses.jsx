@@ -83,6 +83,18 @@ const CourseForm = ({ initial, onSave, onCancel }) => {
   )
 }
 
+// ── Alcance de un módulo: transversal (todas las áreas) o área específica ──
+const areaById = (id) => AREAS.find(a => a.id === id)
+const scopeLabel = (areaId) => {
+  if (!areaId) return '🌐 Transversal'
+  const a = areaById(areaId)
+  return a ? `${a.icon} ${a.name}` : areaId
+}
+const scopeColor = (areaId) => {
+  if (!areaId) return '#4F46E5' // índigo = transversal
+  return areaById(areaId)?.color || 'var(--muted)'
+}
+
 // ── Panel de módulos de un curso ─────────────────────────────
 const CourseModulesPanel = ({ course, onClose }) => {
   const [modules, setModules] = React.useState([])
@@ -90,6 +102,7 @@ const CourseModulesPanel = ({ course, onClose }) => {
   const [showAdd, setShowAdd] = React.useState(false)
   const [editMod, setEditMod] = React.useState(null)
   const [saving, setSaving] = React.useState(false)
+  const [scopeFilter, setScopeFilter] = React.useState('all') // 'all' | 'transversal' | <areaId>
 
   const loadModules = React.useCallback(async () => {
     const { data } = await supabase.from('course_modules')
@@ -137,17 +150,54 @@ const CourseModulesPanel = ({ course, onClose }) => {
     setEditMod(null)
   }
 
-  const typeColor = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: '#10B981' }
-  const typeLabel = { lesson: 'LECCIÓN', challenge: 'RETO', evaluation: 'EVALUACIÓN' }
+  const typeColor = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: '#10B981', final_delivery: '#0EA5E9' }
+  const typeLabel = { lesson: 'LECCIÓN', challenge: 'RETO', evaluation: 'EVALUACIÓN', final_delivery: 'ENTREGA FINAL' }
+
+  // Áreas que realmente tienen módulos en este curso (para no llenar de chips vacíos)
+  const usedAreaIds = AREAS.filter(a => modules.some(m => m.area_id === a.id)).map(a => a.id)
+  const hasTransversal = modules.some(m => !m.area_id)
+  const visibleModules = modules.filter(m =>
+    scopeFilter === 'all' ? true
+    : scopeFilter === 'transversal' ? !m.area_id
+    : m.area_id === scopeFilter
+  )
+  const defaultAreaForNew = scopeFilter === 'all' || scopeFilter === 'transversal' ? '' : scopeFilter
+
+  const FilterChip = ({ id, label, color }) => {
+    const active = scopeFilter === id
+    return (
+      <button onClick={() => setScopeFilter(id)}
+        style={{ padding: '4px 12px', borderRadius: 20, border: `1.5px solid ${active ? color : 'var(--border)'}`,
+          background: active ? color + '1A' : 'var(--white)', cursor: 'pointer',
+          fontSize: 12, fontWeight: active ? 700 : 500, color: active ? color : 'var(--muted)',
+          fontFamily: 'var(--font)', transition: 'all .15s' }}>
+        {label}
+      </button>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--dark)', marginBottom: 2 }}>{course.name}</h3>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{modules.length} módulos</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+            {scopeFilter === 'all'
+              ? `${modules.length} módulos`
+              : `${visibleModules.length} de ${modules.length} módulos · ${scopeLabel(scopeFilter === 'transversal' ? null : scopeFilter)}`}
+          </span>
         </div>
         <Btn variant="gradient" size="sm" onClick={() => setShowAdd(true)}><PlusIc s={14} c="#fff" /> Agregar módulo</Btn>
+      </div>
+
+      {/* Filtro por alcance: transversal o por área */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+        <FilterChip id="all" label={`Todos (${modules.length})`} color="var(--dark)" />
+        {hasTransversal && <FilterChip id="transversal" label={`🌐 Transversal (${modules.filter(m => !m.area_id).length})`} color="#4F46E5" />}
+        {usedAreaIds.map(aid => {
+          const a = areaById(aid)
+          return <FilterChip key={aid} id={aid} label={`${a.icon} ${a.name} (${modules.filter(m => m.area_id === aid).length})`} color={a.color} />
+        })}
       </div>
 
       {opError && (
@@ -156,7 +206,8 @@ const CourseModulesPanel = ({ course, onClose }) => {
         </div>
       )}
       {(showAdd || editMod) && (
-        <ModuleForm initial={editMod} onSave={saveModule} saving={saving} onCancel={() => { setShowAdd(false); setEditMod(null) }} />
+        <ModuleForm initial={editMod} defaultArea={editMod ? '' : defaultAreaForNew}
+          onSave={saveModule} saving={saving} onCancel={() => { setShowAdd(false); setEditMod(null) }} />
       )}
 
       {loading ? (
@@ -165,9 +216,14 @@ const CourseModulesPanel = ({ course, onClose }) => {
         <div style={{ textAlign: 'center', padding: 32, color: 'var(--subtle)', border: '2px dashed var(--border)', borderRadius: 12 }}>
           Sin módulos aún. Agrega el primero.
         </div>
+      ) : visibleModules.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 32, color: 'var(--subtle)', border: '2px dashed var(--border)', borderRadius: 12 }}>
+          No hay módulos {scopeFilter === 'transversal' ? 'transversales' : `del área ${areaById(scopeFilter)?.name || ''}`} aún.
+          Usa “Agregar módulo” para crear uno con este alcance.
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 420, overflowY: 'auto' }}>
-          {modules.map((mod, i) => (
+          {visibleModules.map((mod, i) => (
             <div key={mod.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
               borderRadius: 10, background: mod.is_enabled ? 'var(--bg)' : '#F9FAFB',
               border: `1px solid ${mod.is_enabled ? 'var(--border)' : '#E5E7EB'}`,
@@ -177,8 +233,12 @@ const CourseModulesPanel = ({ course, onClose }) => {
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)' }}>{mod.title}</div>
                 <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
-                    background: typeColor[mod.type] + '20', color: typeColor[mod.type] }}>
-                    {typeLabel[mod.type]}
+                    background: (typeColor[mod.type] || 'var(--muted)') + '20', color: typeColor[mod.type] || 'var(--muted)' }}>
+                    {typeLabel[mod.type] || mod.type}
+                  </span>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
+                    background: scopeColor(mod.area_id) + '1A', color: scopeColor(mod.area_id) }}>
+                    {scopeLabel(mod.area_id)}
                   </span>
                   {mod.attachments?.length > 0 && (
                     <span style={{ fontSize: 10, color: 'var(--muted)' }}>📎 {mod.attachments.length} adjunto{mod.attachments.length !== 1 ? 's' : ''}</span>
@@ -354,7 +414,7 @@ const LessonContentEditor = ({ content, onChange }) => {
 }
 
 // ── Formulario de módulo ─────────────────────────────────────
-const ModuleForm = ({ initial, onSave, saving, onCancel }) => {
+const ModuleForm = ({ initial, defaultArea = '', onSave, saving, onCancel }) => {
   const [form, setForm] = React.useState({
     title: initial?.title || '',
     subtitle: initial?.subtitle || '',
@@ -362,7 +422,7 @@ const ModuleForm = ({ initial, onSave, saving, onCancel }) => {
     type: initial?.type || 'lesson',
     challenge_type: initial?.challenge_type || '',
     xp: initial?.xp || 100,
-    area_id: initial?.area_id || '',
+    area_id: initial?.area_id || defaultArea || '',
     content: initial?.content || [],
     attachments: initial?.attachments || [],
   })
@@ -425,11 +485,16 @@ const ModuleForm = ({ initial, onSave, saving, onCancel }) => {
           </select>
         </div>
         <div>
-          <label style={lbl}>Área (opcional)</label>
+          <label style={lbl}>Alcance del módulo</label>
           <select value={form.area_id} onChange={e => set('area_id', e.target.value)} style={inp}>
-            <option value="">— Todas las áreas —</option>
-            {AREAS.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+            <option value="">🌐 Transversal — todas las áreas</option>
+            {AREAS.map(a => <option key={a.id} value={a.id}>{a.icon} Solo {a.name}</option>)}
           </select>
+          <p style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4 }}>
+            {form.area_id
+              ? `Solo lo verán docentes del área ${areaById(form.area_id)?.name || form.area_id}.`
+              : 'Transversal: aparece para los docentes de todas las áreas.'}
+          </p>
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={lbl}>Descripción</label>
