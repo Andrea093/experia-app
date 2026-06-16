@@ -419,12 +419,17 @@ const AdminPage = () => {
   // --- Reset progress ---
   const [resetConfirm, setResetConfirm] = React.useState(null);
   const [resetting, setResetting] = React.useState(false);
+  const [resetError, setResetError] = React.useState('');
+  const [resetDone, setResetDone] = React.useState(false);
   const handleResetProgress = async () => {
     if (!resetConfirm) return;
     setResetting(true);
-    await resetStudentProgress(resetConfirm.id, resetConfirm.email);
+    setResetError('');
+    const res = await resetStudentProgress(resetConfirm.id, resetConfirm.email);
     setResetting(false);
-    setResetConfirm(null);
+    if (res?.error) { setResetError(res.error); return; }
+    setResetDone(true);
+    setTimeout(() => { setResetConfirm(null); setResetDone(false); }, 1200);
   };
 
   // --- Edit area ---
@@ -820,24 +825,37 @@ const AdminPage = () => {
       </Modal>
 
       {/* Reset progress modal */}
-      <Modal open={!!resetConfirm} onClose={() => setResetConfirm(null)} title="Resetear progreso" width={420}>
+      <Modal open={!!resetConfirm} onClose={() => { setResetConfirm(null); setResetError(''); setResetDone(false); }} title="Resetear progreso" width={420}>
         {resetConfirm && (
           <div style={{ textAlign:'center', padding:'8px 0' }}>
-            <div style={{ fontSize:44, marginBottom:12 }}>🔄</div>
-            <p style={{ fontSize:14, color:'var(--text-sec)', marginBottom:8, lineHeight:1.6 }}>
-              ¿Resetear todo el progreso de <strong>{resetConfirm.name}</strong>?
-            </p>
-            <div style={{ padding:'12px 16px', borderRadius:10, background:'#FEF3C7', border:'1px solid #FDE68A', marginBottom:16, textAlign:'left' }}>
-              <p style={{ fontSize:12, color:'#92400E', lineHeight:1.6, margin:0 }}>
-                ⚠️ Se eliminarán sus <strong>módulos completados</strong>, <strong>XP</strong>, <strong>insignias</strong>, <strong>entregas</strong> e <strong>intentos de retos</strong>. Esta acción no se puede deshacer.
+            <div style={{ fontSize:44, marginBottom:12 }}>{resetDone ? '✅' : '🔄'}</div>
+            {resetDone ? (
+              <p style={{ fontSize:14, color:'var(--success)', fontWeight:700, marginBottom:8 }}>
+                Progreso de <strong>{resetConfirm.name}</strong> reiniciado.
               </p>
-            </div>
-            <div style={{ display:'flex', gap:10 }}>
-              <Btn variant="secondary" full onClick={() => setResetConfirm(null)}>Cancelar</Btn>
-              <Btn variant="danger" full disabled={resetting} onClick={handleResetProgress}>
-                {resetting ? '⏳ Reseteando...' : 'Resetear progreso'}
-              </Btn>
-            </div>
+            ) : (
+              <>
+                <p style={{ fontSize:14, color:'var(--text-sec)', marginBottom:8, lineHeight:1.6 }}>
+                  ¿Resetear todo el progreso de <strong>{resetConfirm.name}</strong>?
+                </p>
+                <div style={{ padding:'12px 16px', borderRadius:10, background:'#FEF3C7', border:'1px solid #FDE68A', marginBottom:16, textAlign:'left' }}>
+                  <p style={{ fontSize:12, color:'#92400E', lineHeight:1.6, margin:0 }}>
+                    ⚠️ Se eliminarán sus <strong>módulos completados</strong>, <strong>XP</strong>, <strong>insignias</strong>, <strong>entregas</strong> e <strong>intentos de retos</strong> (incluido el progreso de todos sus cursos). Esta acción no se puede deshacer.
+                  </p>
+                </div>
+                {resetError && (
+                  <div style={{ padding:'10px 14px', borderRadius:8, background:'#FEF2F2', border:'1px solid #FECACA', fontSize:13, color:'var(--error)', marginBottom:16, textAlign:'left' }}>
+                    ⚠️ {resetError}
+                  </div>
+                )}
+                <div style={{ display:'flex', gap:10 }}>
+                  <Btn variant="secondary" full onClick={() => { setResetConfirm(null); setResetError(''); }}>Cancelar</Btn>
+                  <Btn variant="danger" full disabled={resetting} onClick={handleResetProgress}>
+                    {resetting ? '⏳ Reseteando...' : 'Resetear progreso'}
+                  </Btn>
+                </div>
+              </>
+            )}
           </div>
         )}
       </Modal>

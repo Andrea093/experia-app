@@ -29,16 +29,22 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  const [progressRes, subsRes, attemptsRes] = await Promise.all([
+  const now = new Date().toISOString();
+  const [progressRes, courseProgRes, subsRes, attemptsRes] = await Promise.all([
+    // Progreso legacy (tabla progress)
     admin.from("progress").upsert(
-      { user_id: userId, xp: 0, completed: [], badges: [], updated_at: new Date().toISOString() },
+      { user_id: userId, xp: 0, completed: [], badges: [], updated_at: now },
       { onConflict: "user_id" }
     ),
+    // Progreso por curso (todas las inscripciones del estudiante)
+    admin.from("course_progress")
+      .update({ xp: 0, completed: [], badges: [], updated_at: now })
+      .eq("user_id", userId),
     admin.from("submissions").delete().eq("student_id", userId),
     admin.from("challenge_attempts").delete().eq("student_id", userId),
   ]);
 
-  const errors = [progressRes.error, subsRes.error, attemptsRes.error].filter(Boolean);
+  const errors = [progressRes.error, courseProgRes.error, subsRes.error, attemptsRes.error].filter(Boolean);
   if (errors.length > 0) {
     console.error("reset errors:", errors);
     return json({ error: errors[0]?.message }, 500);

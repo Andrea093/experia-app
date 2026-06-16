@@ -294,6 +294,15 @@ AREAS.forEach(a => ALL_MODULES.push(...makeAreaModules(a.id)));
 const MODULE_MAP = new Map(ALL_MODULES.map(m => [m.id, m]));
 
 const getStudentModules = (areaId) => ALL_MODULES.filter(m => !m.area || m.area === areaId);
+// Alcance del módulo dentro de una ruta:
+//   transversales (m.area == null) → se muestran en TODAS las áreas
+//   específicos    (m.area === areaId) → solo en esa área
+const TRANSVERSAL_AREA = 'transversal';
+const getTransversalModules = () => ALL_MODULES.filter(m => !m.area);
+const getAreaOnlyModules   = (areaId) => ALL_MODULES.filter(m => m.area === areaId);
+// Base de un alcance (pestaña) del editor de ruta
+const getScopeModules = (scopeId) =>
+  scopeId === TRANSVERSAL_AREA ? getTransversalModules() : getAreaOnlyModules(scopeId);
 
 // Convierte una fila de course_modules (BD) al formato de módulo que usa la app
 const dbModToAppMod = (row) => ({
@@ -616,14 +625,22 @@ const resubmitProduct = (subId, rejillaName, preguntaName, rejillaData, pregunta
     });
 };
 const resetStudentProgress = async (userId, userEmail) => {
-  const { error } = await supabase.functions.invoke('reset-student-progress', {
+  const { data, error } = await supabase.functions.invoke('reset-student-progress', {
     body: { userId },
   });
-  if (error) { console.error('resetStudentProgress:', error); return; }
+  if (error) {
+    console.error('resetStudentProgress:', error);
+    let msg = error.message || 'Error al reiniciar el progreso';
+    // La Edge Function devuelve el detalle en el cuerpo cuando responde no-2xx
+    try { const body = await error.context?.json?.(); if (body?.error) msg = body.error; } catch (_) {}
+    return { error: msg };
+  }
+  if (data?.error) { console.error('resetStudentProgress:', data.error); return { error: data.error }; }
   XS.set(s => ({
     submissions: s.submissions.filter(su => su.studentEmail !== userEmail),
     challengeAttempts: s.challengeAttempts.filter(a => a.studentEmail !== userEmail),
   }));
+  return { ok: true };
 };
 
 // ---- Route Config ----
@@ -697,17 +714,12 @@ const assignRouteToInstitution = async (routeId, institutionId) => {
   await loadRouteConfigs();
 };
 
-const getRouteModules = (areaId, routeConfigs, institutionId) => {
-  const defaultMods = getStudentModules(areaId);
-  // Busca primero la config específica del colegio, luego la global
-  const config = routeConfigs?.[routeKey(areaId, institutionId)]
-    || routeConfigs?.[routeKey(areaId, null)];
-  if (!config || (!config.modules?.length && !config.customModules?.length)) return defaultMods;
-
+// Aplica la config (overrides, orden, activos, custom) de UN alcance a sus módulos base
+const applyScopeConfig = (baseMods, config, areaForCustom) => {
   const configMap = {};
-  (config.modules || []).forEach(mc => { configMap[mc.id] = mc; });
+  (config?.modules || []).forEach(mc => { configMap[mc.id] = mc; });
 
-  const sorted = [...defaultMods]
+  const sorted = [...baseMods]
     .sort((a, b) => (configMap[a.id]?.order ?? 999) - (configMap[b.id]?.order ?? 999))
     .filter(m => configMap[m.id] ? configMap[m.id].enabled !== false : true)
     .map(m => ({
@@ -716,7 +728,7 @@ const getRouteModules = (areaId, routeConfigs, institutionId) => {
       extras: configMap[m.id]?.extras || [],
     }));
 
-  (config.customModules || [])
+  (config?.customModules || [])
     .filter(cm => cm.enabled !== false)
     .forEach(cm => {
       const isChallenge = cm.type === 'challenge';
@@ -726,7 +738,7 @@ const getRouteModules = (areaId, routeConfigs, institutionId) => {
         ctype: cm.ctype || null,
         title: cm.title,
         subtitle: isChallenge ? 'Reto' : 'Módulo adicional',
-        desc: cm.desc || '', xp: cm.xp || 50, req: [], area: areaId,
+        desc: cm.desc || '', xp: cm.xp || 50, req: [], area: areaForCustom,
         content: cm.content || [],
         questions: cm.questions || [],
         isCustom: true, badge: null,
@@ -738,6 +750,26 @@ const getRouteModules = (areaId, routeConfigs, institutionId) => {
     });
 
   return sorted;
+};
+
+// Ruta del estudiante = módulos TRANSVERSALES (config transversal) + módulos del ÁREA (config de área).
+// La entrega final siempre queda al final.
+const getRouteModules = (areaId, routeConfigs, institutionId) => {
+  const transConfig = routeConfigs?.[routeKey(TRANSVERSAL_AREA, institutionId)]
+    || routeConfigs?.[routeKey(TRANSVERSAL_AREA, null)];
+  const areaConfig = routeConfigs?.[routeKey(areaId, institutionId)]
+    || routeConfigs?.[routeKey(areaId, null)];
+
+  // Sin ninguna config → ruta por defecto (transversal + área), como antes
+  if (!transConfig && !areaConfig) return getStudentModules(areaId);
+
+  const transMods = applyScopeConfig(getTransversalModules(), transConfig, null);
+  const areaMods  = applyScopeConfig(getAreaOnlyModules(areaId), areaConfig, areaId);
+
+  const all = [...transMods, ...areaMods];
+  const finals = all.filter(m => m.type === 'final_delivery');
+  const rest   = all.filter(m => m.type !== 'final_delivery');
+  return [...rest, ...finals];
 };
 
 const findModuleInConfig = (id) => {
@@ -957,11 +989,14 @@ const toggleCourseForInstitution = async (courseId, institutionId, active) => {
 const publishRouteToCourse = async (courseId, area, moduleList, customModules) => {
   if (!courseId) return { error: 'Sin curso vinculado' };
 
-  // Solo borra/reemplaza los módulos del área que se está publicando, preservando otras áreas y final_delivery
+  // El alcance transversal se guarda como area_id NULL (visible en todas las áreas)
+  const areaIdVal = area === TRANSVERSAL_AREA ? null : area;
+
+  // Solo borra/reemplaza los módulos de este alcance, preservando los demás y final_delivery
   const { data: existing } = await supabase.from('course_modules')
     .select('id, type, area_id').eq('course_id', courseId);
   const toDelete = (existing || [])
-    .filter(r => r.type !== 'final_delivery' && r.area_id === area)
+    .filter(r => r.type !== 'final_delivery' && (r.area_id ?? null) === areaIdVal)
     .map(r => r.id);
   if (toDelete.length > 0) {
     await supabase.from('course_modules').delete().in('id', toDelete);
@@ -978,7 +1013,7 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.simContext   || m.override?.simContext)    challengeData.simContext   = m.simContext   || m.override.simContext;
     if (m.questions    || m.override?.questions)     challengeData.questions    = m.questions    || m.override.questions;
     rows.push({
-      course_id: courseId, type: m.type, area_id: area,
+      course_id: courseId, type: m.type, area_id: areaIdVal,
       title: m.title, subtitle: m.subtitle || '',
       description: m.desc || '',
       xp: m.xp || 100, order: order++, is_enabled: true,
@@ -996,7 +1031,7 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.simContext)   challengeData.simContext   = m.simContext;
     if (m.questions)    challengeData.questions    = m.questions;
     rows.push({
-      course_id: courseId, type: m.type || 'lesson', area_id: area,
+      course_id: courseId, type: m.type || 'lesson', area_id: areaIdVal,
       title: m.title, subtitle: m.subtitle || (m.type === 'challenge' ? 'Reto' : 'Módulo'),
       description: m.desc || '',
       xp: m.xp || 100, order: order++, is_enabled: true,
@@ -1129,7 +1164,7 @@ const issueCertificate = async (submissionId, studentName, areaId, score, maxSco
 export {
   useStore, AREAS, BADGES, LEVELS, RUBRIC_CRITERIA, ALL_MODULES, AREA_CONTENT,
   INITIAL_INSTITUTIONS,
-  getStudentModules, findModule,
+  getStudentModules, getTransversalModules, getAreaOnlyModules, getScopeModules, TRANSVERSAL_AREA, findModule,
   calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete, gradeTotal, gradeMax,
   nav, doLogout, selectArea, changeArea, completeNode, recordAttempt,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,

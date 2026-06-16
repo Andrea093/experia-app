@@ -1,6 +1,12 @@
 import React from 'react'
-import { useStore, AREAS, getStudentModules, saveRouteConfig, routeKey, publishRouteToCourse } from '../store/store.jsx'
+import { useStore, AREAS, getScopeModules, TRANSVERSAL_AREA, saveRouteConfig, routeKey, publishRouteToCourse } from '../store/store.jsx'
 import { useMobile, ChevRIc, XIc, PlusIc, TrashIc, EditIc, GripIc, CheckIc, Btn, Modal } from '../components/ui.jsx'
+
+// Pestañas del editor: la transversal va primero (sus módulos aparecen en TODAS las áreas)
+const TRANSVERSAL_SCOPE = { id: TRANSVERSAL_AREA, name: 'Transversal', icon: '🌐', color: '#4F46E5' }
+const SCOPES = [TRANSVERSAL_SCOPE, ...AREAS]
+const scopeName = (id) => SCOPES.find(s => s.id === id)?.name || id
+const isTransversal = (id) => id === TRANSVERSAL_AREA
 import {
   TYPE_LABELS, TYPE_COLORS, TYPE_BG, CHALLENGE_TYPES,
   ChallengeEditorModal,
@@ -17,7 +23,7 @@ const InstructorRouteEditor = () => {
   const cohorts       = useStore(s => s.cohorts || [])
   const courses       = useStore(s => s.courses || [])
   const isMobile = useMobile()
-  const [activeArea, setActiveArea] = React.useState(AREAS[0].id)
+  const [activeArea, setActiveArea] = React.useState(TRANSVERSAL_AREA)
   const [moduleList, setModuleList] = React.useState([])
   const [customModules, setCustomModules] = React.useState([])
   const [saving, setSaving] = React.useState(false)
@@ -37,7 +43,7 @@ const InstructorRouteEditor = () => {
   const [showPreview, setShowPreview] = React.useState(false)
 
   React.useEffect(() => {
-    const defaults = getStudentModules(activeArea)
+    const defaults = getScopeModules(activeArea)
     const key = routeKey(activeArea, routeInstitution || null)
     const globalKey = routeKey(activeArea, null)
     const config = routeConfigs?.[key] || routeConfigs?.[globalKey]
@@ -56,7 +62,7 @@ const InstructorRouteEditor = () => {
     }
     setCustomModules(config?.customModules || [])
     const namedRoute = namedRoutes.find(r => r.area === activeArea && r.institution_id === (routeInstitution || null))
-    setRouteName(namedRoute?.name || AREAS.find(a => a.id === activeArea)?.name || '')
+    setRouteName(namedRoute?.name || scopeName(activeArea) || '')
   }, [activeArea, routeInstitution, routeConfigs, namedRoutes])
 
   const handleDrop = (i) => {
@@ -102,7 +108,7 @@ const InstructorRouteEditor = () => {
 
   const saveChallengeOverride = (override) => {
     if (override.__clearOverride) {
-      const original = getStudentModules(activeArea).find(m => m.id === editingChallenge?.id)
+      const original = getScopeModules(activeArea).find(m => m.id === editingChallenge?.id)
       if (original) setModuleList(l => l.map(m => m.id === editingChallenge.id ? { ...original, enabled: m.enabled, override: null } : m))
     } else if (editingChallenge?.isNew) {
       setCustomModules(l => [...l, {
@@ -143,7 +149,7 @@ const InstructorRouteEditor = () => {
   }
 
   const clearOverride = (modId) => {
-    const original = getStudentModules(activeArea).find(m => m.id === modId)
+    const original = getScopeModules(activeArea).find(m => m.id === modId)
     if (!original) return
     setModuleList(l => l.map(m => m.id === modId
       ? { ...m, title: original.title, desc: original.desc, task: original.task, xp: original.xp, content: original.content, override: null } : m
@@ -177,7 +183,7 @@ const InstructorRouteEditor = () => {
     const existingRoute = namedRoutes.find(r => r.area === activeArea && r.institution_id === instId)
     await saveRouteConfig(
       activeArea, modulesConfig, customModules,
-      routeName || AREAS.find(a => a.id === activeArea)?.name,
+      routeName || scopeName(activeArea),
       instId,
       existingRoute?.id,
     )
@@ -280,18 +286,27 @@ const InstructorRouteEditor = () => {
         )}
       </div>
 
-      {/* Area tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-        {AREAS.map(area => (
-          <button key={area.id} onClick={() => setActiveArea(area.id)}
-            style={{ padding: '8px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
-              fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, transition: 'all .2s',
-              background: activeArea === area.id ? area.color : 'var(--bg-alt)',
-              color: activeArea === area.id ? '#fff' : 'var(--muted)' }}>
-            {area.icon} {!isMobile && area.name}
-          </button>
+      {/* Scope tabs: Transversal (todas las áreas) + cada área */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {SCOPES.map((scope, idx) => (
+          <React.Fragment key={scope.id}>
+            <button onClick={() => setActiveArea(scope.id)}
+              style={{ padding: '8px 16px', borderRadius: 10,
+                border: isTransversal(scope.id) && activeArea !== scope.id ? `1.5px solid ${scope.color}` : 'none',
+                cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, transition: 'all .2s',
+                background: activeArea === scope.id ? scope.color : 'var(--bg-alt)',
+                color: activeArea === scope.id ? '#fff' : isTransversal(scope.id) ? scope.color : 'var(--muted)' }}>
+              {scope.icon} {!isMobile && scope.name}
+            </button>
+            {idx === 0 && <div style={{ width: 1, height: 24, background: 'var(--border)', margin: '0 4px' }} />}
+          </React.Fragment>
         ))}
       </div>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 20 }}>
+        {isTransversal(activeArea)
+          ? '🌐 Estos módulos se muestran a los estudiantes de TODAS las áreas. Edítalos una sola vez aquí.'
+          : `Módulos específicos de ${scopeName(activeArea)}. Los módulos comunes (intro, empatía…) se editan en la pestaña 🌐 Transversal.`}
+      </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 280px', gap: 20, alignItems: 'start' }}>
         <div>
@@ -425,9 +440,13 @@ const InstructorRouteEditor = () => {
               <p style={{ fontSize: 12, color: 'var(--text-sec)', lineHeight: 1.6, margin: 0 }}>{tip.text}</p>
             </div>
           ))}
-          <div style={{ marginTop: 14, padding: '10px', borderRadius: 10, background: 'var(--orange-bg)', border: '1px solid var(--orange-pale)' }}>
-            <p style={{ fontSize: 11, color: 'var(--orange)', fontWeight: 600, margin: 0, lineHeight: 1.5 }}>
-              Los cambios afectan a todos los estudiantes del área seleccionada.
+          <div style={{ marginTop: 14, padding: '10px', borderRadius: 10,
+            background: isTransversal(activeArea) ? '#EEF2FF' : 'var(--orange-bg)',
+            border: `1px solid ${isTransversal(activeArea) ? '#C7D2FE' : 'var(--orange-pale)'}` }}>
+            <p style={{ fontSize: 11, color: isTransversal(activeArea) ? '#4F46E5' : 'var(--orange)', fontWeight: 600, margin: 0, lineHeight: 1.5 }}>
+              {isTransversal(activeArea)
+                ? '🌐 Estos módulos transversales se muestran en TODAS las áreas. Editarlos aquí los cambia para todos los estudiantes.'
+                : `Los cambios afectan a todos los estudiantes de ${scopeName(activeArea)}.`}
             </p>
           </div>
         </div>
@@ -448,7 +467,7 @@ const InstructorRouteEditor = () => {
       <RoutePreviewModal
         open={showPreview}
         onClose={() => setShowPreview(false)}
-        area={AREAS.find(a => a.id === activeArea)}
+        area={SCOPES.find(s => s.id === activeArea)}
         moduleList={moduleList}
         customModules={customModules}
       />
