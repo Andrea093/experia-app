@@ -115,16 +115,17 @@ const App = () => {
   const courses        = useStore(s => s.courses);
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
 
-  // Aplica el tema visual inmersivo del curso activo en el elemento raíz
+  // Aplica el tema visual inmersivo del curso activo en el elemento raíz.
+  // Solo cuando el estudiante está logueado y dentro de su curso — nunca en login/landing.
   React.useEffect(() => {
-    const theme = getActiveCourseTheme();
     const root = document.documentElement;
+    const theme = isLoggedIn ? getActiveCourseTheme() : null;
     if (theme) {
       root.setAttribute('data-course-theme', theme);
     } else {
       root.removeAttribute('data-course-theme');
     }
-  }, [enrolledCourse, courses]);
+  }, [isLoggedIn, enrolledCourse, courses]);
   const [studentView, setStudentView] = React.useState(null);
 
   React.useEffect(() => { setMobileSidebarOpen(false); }, [page]);

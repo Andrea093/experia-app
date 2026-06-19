@@ -460,6 +460,7 @@ const doLogout = () => {
   XS.set({
     isLoggedIn: false, user: null, page: 'landing', nodeId: null,
     xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
+    enrolledCourseId: null, allEnrollments: [], courseModules: [],
   });
   // Limpia el hash sin crear entrada de historial (evita deep links huérfanos)
   history.replaceState(null, '', window.location.pathname + window.location.search);
