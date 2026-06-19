@@ -119,6 +119,61 @@ const CHARACTERS = {
   },
 }
 
+// ─── Dra. Nexus — guía del Laboratorio de Ciencias ──────────────────────────
+const DraNexusAvatar = () => (
+  <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+    {/* Fondo oscuro de laboratorio */}
+    <circle cx="26" cy="26" r="26" fill="#04080f"/>
+    {/* Bata de laboratorio */}
+    <path d="M14 44 Q18 38 26 42 Q34 38 38 44 Q36 52 26 52 Q16 52 14 44Z" fill="#e8fff4"/>
+    <path d="M22 38 L26 42 L30 38" stroke="#a0f0c0" strokeWidth=".8" fill="none"/>
+    {/* Cabello rizado y salvaje */}
+    <ellipse cx="26" cy="20" rx="12" ry="9" fill="#0a1a08"/>
+    <path d="M14 18 C12 8 16 3 19 5 C17 12 16 17 15 20" fill="#0a1a08"/>
+    <path d="M38 18 C40 8 36 3 33 5 C35 12 36 17 37 20" fill="#0a1a08"/>
+    {/* Rizos salvajes */}
+    <circle cx="13" cy="11" r="4" stroke="#0a1a08" strokeWidth="3" fill="none"/>
+    <circle cx="26" cy="5"  r="4" stroke="#132210" strokeWidth="3" fill="none"/>
+    <circle cx="39" cy="11" r="4" stroke="#0a1a08" strokeWidth="3" fill="none"/>
+    <circle cx="18" cy="5"  r="3" stroke="#132210" strokeWidth="2.5" fill="none"/>
+    <circle cx="34" cy="5"  r="3" stroke="#132210" strokeWidth="2.5" fill="none"/>
+    {/* Cara */}
+    <ellipse cx="26" cy="30" rx="9" ry="10" fill="#d4a86a"/>
+    {/* Gafas de laboratorio grandes (cyan) */}
+    <rect x="16" y="24.5" width="9" height="7.5" rx="4" stroke="#00d4ff" strokeWidth="1.6" fill="rgba(0,212,255,.1)"/>
+    <rect x="27" y="24.5" width="9" height="7.5" rx="4" stroke="#00d4ff" strokeWidth="1.6" fill="rgba(0,212,255,.1)"/>
+    <line x1="25" y1="28.2" x2="27" y2="28.2" stroke="#00d4ff" strokeWidth="1.2"/>
+    <line x1="16" y1="27"   x2="13.5" y2="26"  stroke="#00d4ff" strokeWidth="1.2"/>
+    <line x1="36" y1="27"   x2="38.5" y2="26"  stroke="#00d4ff" strokeWidth="1.2"/>
+    {/* Ojos */}
+    <ellipse cx="20.5" cy="28.2" rx="2" ry="2" fill="#1a0a05"/>
+    <ellipse cx="31.5" cy="28.2" rx="2" ry="2" fill="#1a0a05"/>
+    <circle cx="21.2" cy="27.5" r=".6" fill="white" opacity=".9"/>
+    <circle cx="32.2" cy="27.5" r=".6" fill="white" opacity=".9"/>
+    {/* Nariz */}
+    <ellipse cx="26" cy="32" rx="1.1" ry=".75" fill="#a07050" opacity=".5"/>
+    {/* Sonrisa entusiasta */}
+    <path d="M21 36 Q26 40 31 36" stroke="#a07050" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+    {/* Tubo de ensayo con líquido verde brillante */}
+    <rect x="37" y="28" width="6" height="14" rx="3" fill="#001a08"/>
+    <rect x="38" y="35" width="4" height="7.5" rx="2" fill="#00ff88"/>
+    <rect x="37" y="28" width="6" height="3.5" rx="1.5" fill="#e8fff4"/>
+    {/* Burbuja dentro del tubo */}
+    <circle cx="40" cy="37" r="1.2" fill="rgba(255,255,255,.5)"/>
+    {/* Brillo y glow */}
+    <ellipse cx="40.5" cy="39.5" rx=".8" ry="2.8" fill="rgba(0,255,136,.45)"/>
+    <circle cx="40" cy="40" r="6" fill="rgba(0,255,136,.07)"/>
+  </svg>
+)
+
+const LAB_CHARACTERS = {
+  nexus: {
+    name: 'DRA. NEXUS',
+    Avatar: DraNexusAvatar,
+    defaultLine: 'Observar, preguntar, experimentar y concluir. Ese ciclo es la clave de toda la ciencia.',
+  },
+}
+
 const ESCAPE_CHARACTERS = {
   prof: {
     name: 'PROF. AXIOMA',
@@ -169,7 +224,8 @@ export const CharacterFloat = ({ moduleCharacterLine }) => {
 
   const isDetective  = theme === 'detective'
   const isEscapeRoom = theme === 'escape-room'
-  const isActive     = isDetective || isEscapeRoom
+  const isLab        = theme === 'lab'
+  const isActive     = isDetective || isEscapeRoom || isLab
 
   React.useEffect(() => {
     if (!isActive) return
@@ -186,7 +242,24 @@ export const CharacterFloat = ({ moduleCharacterLine }) => {
   if (!isActive) return null
 
   // Config según tema
-  const config = isEscapeRoom
+  const config = isLab
+    ? {
+        char: LAB_CHARACTERS.nexus,
+        bgCard: 'rgba(4,12,10,.97)',
+        borderCard: 'rgba(0,255,136,.3)',
+        nameColor: '#00ff88',
+        textColor: '#c0f0d8',
+        bgAvatar: '#04080f',
+        borderAvatar: open ? '#00ff88' : 'rgba(0,255,136,.4)',
+        shadowAvatar: open ? '0 0 16px rgba(0,255,136,.6)' : '0 4px 16px rgba(0,0,0,.8)',
+        animAvatar: 'lab-idle-nexus 3s ease-in-out infinite',
+        dotBg: '#00ff88',
+        dotBorder: '#04080f',
+        dotAnim: 'lab-pulse-green 1.5s ease-in-out infinite',
+        revealAnim: 'lab-reveal .35s ease both',
+        bgBubbleBorder: '#04080f',
+      }
+    : isEscapeRoom
     ? {
         char: ESCAPE_CHARACTERS.prof,
         bgCard: 'rgba(10,18,10,.96)',

@@ -1350,6 +1350,282 @@ table { min-width: 560px; }
   50% { transform: scale(1.3); opacity: .6; }
 }
 
+/* =============================================
+   LAB THEME — data-course-theme="lab"
+   Laboratorio de ciencias: burbujeo, electrones, chispas, escáner.
+   ============================================= */
+
+/* ── Capa ambiental ── */
+.lab-ambient {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none; overflow: hidden;
+}
+
+/* Viñeta atmosférica verde */
+.lab-amb-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 20%, rgba(0,10,5,.8) 100%);
+  animation: lab-vignette-pulse 10s ease-in-out infinite;
+}
+@keyframes lab-vignette-pulse {
+  0%,100% { opacity: .8; }
+  50% { opacity: 1; }
+}
+
+/* Cuadrícula holográfica */
+.lab-amb-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,136,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,136,.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  animation: lab-grid-pulse 5s ease-in-out infinite;
+}
+@keyframes lab-grid-pulse {
+  0%,100% { opacity: .5; }
+  50% { opacity: 1; }
+}
+
+/* Rayo escáner horizontal */
+.lab-amb-scan {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: 2px;
+  background: linear-gradient(to right,
+    transparent, rgba(0,255,136,.25) 15%,
+    rgba(0,255,136,.8) 50%,
+    rgba(0,255,136,.25) 85%, transparent);
+  box-shadow: 0 0 8px rgba(0,255,136,.6), 0 0 24px rgba(0,255,136,.25);
+  animation: lab-scan-sweep 9s linear infinite;
+}
+@keyframes lab-scan-sweep {
+  0% { transform: translateY(0); opacity: 0; }
+  5% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+/* Chispa eléctrica */
+@keyframes lab-spark {
+  0%, 84%, 100% { opacity: 0; transform: scaleY(0.2); }
+  86% { opacity: 1; transform: scaleY(1); }
+  88% { opacity: 0.3; transform: scaleY(0.7); }
+  90% { opacity: 1; transform: scaleY(1); }
+  92% { opacity: 0; }
+}
+
+/* Burbujas */
+.lab-amb-bubbles { position: absolute; inset: 0; }
+.lab-amb-bubble {
+  position: absolute; bottom: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%,
+    rgba(255,255,255,.8) 0%, rgba(0,255,136,.35) 40%,
+    rgba(0,180,100,.08) 100%);
+  border: 1px solid rgba(0,255,136,.45);
+  animation: lab-bubble-rise linear infinite;
+}
+@keyframes lab-bubble-rise {
+  0%   { transform: translateY(0)    translateX(0)              scale(0.6); opacity: var(--bub-op, .5); }
+  25%  { transform: translateY(-25vh) translateX(var(--d1, 6px)) scale(0.85); }
+  50%  { transform: translateY(-50vh) translateX(0)              scale(1);   }
+  75%  { transform: translateY(-75vh) translateX(var(--d2, -4px)) scale(1.1); opacity: calc(var(--bub-op, .5) * .7); }
+  100% { transform: translateY(-102vh) translateX(0)             scale(1.3); opacity: 0; }
+}
+
+/* Órbita de electrones */
+@keyframes lab-orbit {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Orbes de energía */
+.lab-amb-orbs { position: absolute; inset: 0; }
+.lab-amb-orb {
+  position: absolute; border-radius: 50%;
+  animation: lab-orb-float ease-in-out infinite;
+}
+@keyframes lab-orb-float {
+  0%,100% { transform: translate(0, 0);     opacity: .8; }
+  25%      { transform: translate(6px, -8px); opacity: .5; }
+  50%      { transform: translate(-5px, 5px); opacity: .9; }
+  75%      { transform: translate(4px, 10px); opacity: .6; }
+}
+
+/* Vapor en la base */
+.lab-amb-vapor {
+  position: absolute; bottom: 0; left: -10%; right: -10%; height: 180px;
+  background: linear-gradient(to top, rgba(0,30,15,.6) 0%, transparent 100%);
+  filter: blur(14px);
+  animation: lab-vapor-drift 12s ease-in-out infinite alternate;
+}
+@keyframes lab-vapor-drift {
+  0%   { transform: translateX(-3%) scaleX(1); }
+  100% { transform: translateX(3%)  scaleX(1.04); }
+}
+
+/* Sin movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .lab-amb-bubbles, .lab-amb-orbs, .lab-amb-scan, .lab-amb-vapor { display: none; }
+  .lab-amb-grid { animation: none; }
+  .lab-amb-vignette { animation: none; }
+}
+
+/* ── Variables del tema lab ── */
+[data-course-theme="lab"] {
+  --lab-bg:      #04080f;
+  --lab-panel:   #080f14;
+  --lab-border:  rgba(0,255,136,.18);
+  --lab-green:   #00ff88;
+  --lab-cyan:    #00d4ff;
+  --lab-purple:  #7b2fff;
+  --lab-green-bg: rgba(0,255,136,.1);
+  --lab-text:    #c0f0d8;
+  --lab-muted:   #5a9070;
+  /* Redirige variables globales */
+  --bg: var(--lab-bg);
+  --white: #0a1410;
+  --border: var(--lab-border);
+  --text: var(--lab-text);
+  --muted: var(--lab-muted);
+  --orange: var(--lab-green);
+  --orange-light: var(--lab-cyan);
+  --orange-pale: rgba(0,255,136,.25);
+  --orange-bg: var(--lab-green-bg);
+  --purple: #00a870;
+  --purple-deep: #006a48;
+  --purple-light: #00d4a0;
+  --purple-bg: rgba(0,255,136,.1);
+  --gradient: linear-gradient(125deg, #020c06 0%, #041a10 35%, #082810 65%, #00ff88 100%);
+  --gradient-orange: linear-gradient(135deg, #008850, #00ff88);
+  --gradient-soft: linear-gradient(135deg, rgba(0,255,136,.1) 0%, rgba(0,212,255,.08) 100%);
+  --dark: #c0f0d8;
+  --success: #00ff88;
+  --sh-md: 0 2px 4px rgba(0,0,0,.4), 0 6px 16px rgba(0,0,0,.5);
+  --sh-lg: 0 4px 8px rgba(0,0,0,.5), 0 12px 32px rgba(0,0,0,.6);
+}
+
+/* Header y sidebar */
+[data-course-theme="lab"] header {
+  background: rgba(4,8,15,.96) !important;
+  border-bottom: 1px solid rgba(0,255,136,.12) !important;
+  box-shadow: 0 2px 24px rgba(0,0,0,.8), 0 0 40px rgba(0,255,136,.04) !important;
+}
+[data-course-theme="lab"] aside {
+  background: rgba(4,8,15,.98) !important;
+  border-right: 1px solid rgba(0,255,136,.08) !important;
+}
+[data-course-theme="lab"] .sidebar-nav-item.active {
+  background: rgba(0,255,136,.1) !important;
+  color: var(--lab-green) !important;
+  border-left: 3px solid var(--lab-green) !important;
+}
+[data-course-theme="lab"] .sidebar-nav-item:hover {
+  background: rgba(0,255,136,.05) !important;
+  color: var(--lab-text) !important;
+}
+
+/* Botones */
+[data-course-theme="lab"] .btn-primary {
+  background: linear-gradient(135deg, #008850, #00ff88) !important;
+  box-shadow: 0 4px 16px rgba(0,255,136,.3), 0 0 24px rgba(0,255,136,.15) !important;
+  color: #020c06 !important;
+}
+[data-course-theme="lab"] .btn-outline {
+  border-color: var(--lab-green) !important;
+  color: var(--lab-green) !important;
+}
+
+/* Nodos del mapa — efecto cristal de microscopio */
+[data-course-theme="lab"] .lab-node {
+  box-shadow: 0 0 0 2px rgba(0,255,136,.12), 0 0 16px rgba(0,255,136,.15) !important;
+}
+[data-course-theme="lab"] .lab-node.available {
+  box-shadow: 0 0 20px rgba(0,255,136,.55), 0 0 45px rgba(0,255,136,.25), 0 0 80px rgba(0,255,136,.1) !important;
+  animation: lab-node-pulse 2.5s ease-in-out infinite !important;
+}
+[data-course-theme="lab"] .lab-node.completed {
+  box-shadow: 0 0 16px rgba(0,212,255,.5), 0 0 36px rgba(0,212,255,.2) !important;
+}
+@keyframes lab-node-pulse {
+  0%,100% { box-shadow: 0 0 20px rgba(0,255,136,.55), 0 0 45px rgba(0,255,136,.25); }
+  50% { box-shadow: 0 0 30px rgba(0,255,136,.75), 0 0 60px rgba(0,255,136,.4), 0 0 100px rgba(0,255,136,.15); }
+}
+
+/* Lesson section overrides */
+[data-course-theme="lab"] .ls-section-card {
+  background: rgba(4,14,10,.95);
+  border: 1px solid rgba(0,255,136,.12);
+  color: var(--lab-text);
+}
+[data-course-theme="lab"] .ls-section-card h1,
+[data-course-theme="lab"] .ls-section-card h2,
+[data-course-theme="lab"] .ls-section-card h3 {
+  color: var(--lab-green);
+  text-shadow: 0 0 20px rgba(0,255,136,.3);
+}
+[data-course-theme="lab"] .ls-section-card p,
+[data-course-theme="lab"] .ls-section-card li { color: rgba(192,240,216,.85); }
+
+/* Quote */
+[data-course-theme="lab"] .ls-quote {
+  background: rgba(0,255,136,.05);
+  border-left: 4px solid var(--lab-green);
+}
+[data-course-theme="lab"] .ls-quote-mark { color: var(--lab-green); }
+[data-course-theme="lab"] .ls-quote-text { color: var(--lab-text); }
+[data-course-theme="lab"] .ls-quote-author { color: rgba(192,240,216,.5); }
+
+/* Steps */
+[data-course-theme="lab"] .ls-step-node {
+  background: linear-gradient(135deg, rgba(0,255,136,.12), rgba(0,212,255,.06));
+  border: 1.5px solid rgba(0,255,136,.3);
+  box-shadow: 0 0 12px rgba(0,255,136,.15);
+}
+[data-course-theme="lab"] .ls-step-index { background: var(--lab-green); color: #020c06; }
+[data-course-theme="lab"] .ls-step-text  { color: var(--lab-text); }
+[data-course-theme="lab"] .ls-step-title { color: var(--lab-green); }
+
+/* Image */
+[data-course-theme="lab"] .ls-image-badge {
+  background: var(--lab-cyan);
+  color: #020c06;
+  content: 'MUESTRA';
+}
+
+/* Reveal */
+[data-course-theme="lab"] .ls-reveal-trigger {
+  background: rgba(0,255,136,.05);
+  border: 1.5px solid rgba(0,255,136,.2);
+  color: var(--lab-text);
+}
+[data-course-theme="lab"] .ls-reveal-trigger.open { border-color: var(--lab-green); color: var(--lab-green); }
+[data-course-theme="lab"] .ls-reveal-body { background: rgba(4,14,10,.95); border-color: rgba(0,255,136,.15); }
+[data-course-theme="lab"] .ls-reveal-item { border-bottom-color: rgba(0,255,136,.08); }
+[data-course-theme="lab"] .ls-reveal-item-title { color: var(--lab-green); }
+[data-course-theme="lab"] .ls-reveal-item-desc  { color: rgba(192,240,216,.7); }
+[data-course-theme="lab"] .ls-reveal-text       { color: rgba(192,240,216,.7); }
+
+/* Character bubble lab */
+.lab-character-avatar {
+  width: 54px; height: 54px; flex-shrink: 0; border-radius: 50%;
+  border: 2px solid rgba(0,255,136,.4);
+  overflow: hidden; background: #04080f;
+  box-shadow: 0 0 16px rgba(0,255,136,.3), 0 0 32px rgba(0,255,136,.1);
+  animation: lab-idle-nexus 3s ease-in-out infinite;
+}
+@keyframes lab-idle-nexus {
+  0%,100% { transform: translateY(0); box-shadow: 0 0 16px rgba(0,255,136,.3); }
+  50% { transform: translateY(-4px); box-shadow: 0 4px 24px rgba(0,255,136,.55); }
+}
+@keyframes lab-reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes lab-pulse-green {
+  0%,100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.3); opacity: .55; }
+}
+
 /* Print: certificate only */
 @media print {
   .no-print { display: none !important; }

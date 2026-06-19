@@ -48,7 +48,19 @@ const MapNode = React.memo(({ mod, status, index, onClick, courseTheme }) => {
   const colors = NODE_COLORS[status];
   const isActive = status === 'available';
   const nodeSize = 72;
-  const isDoor = courseTheme === 'escape-room';
+  const isDoor  = courseTheme === 'escape-room';
+  const isFlask = courseTheme === 'lab';
+
+  // Forma de matraz: círculo con glow de laboratorio
+  const flaskStyle = isFlask ? {
+    width: nodeSize, height: nodeSize, borderRadius: '50%',
+    background: status === 'completed'
+      ? 'radial-gradient(circle at 50% 60%, rgba(0,212,255,.4) 0%, rgba(0,80,80,.6) 100%)'
+      : status === 'available'
+        ? 'radial-gradient(circle at 50% 60%, rgba(0,255,136,.5) 0%, rgba(0,80,40,.6) 100%)'
+        : 'radial-gradient(circle at 50% 60%, rgba(0,50,30,.5) 0%, rgba(0,20,15,.7) 100%)',
+    border: `3px solid ${status === 'completed' ? '#00d4ff' : status === 'available' ? '#00ff88' : 'rgba(0,255,136,.15)'}`,
+  } : null;
 
   // Forma de puerta: arco en la parte superior
   const doorStyle = isDoor ? {
@@ -79,7 +91,7 @@ const MapNode = React.memo(({ mod, status, index, onClick, courseTheme }) => {
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         animation: `fadeUp .4s ${index * 80}ms ease both`,
       }}>
-      {isActive && !isDoor && (
+      {isActive && !isDoor && !isFlask && (
         <div style={{ position: 'absolute', top: -28, background: 'var(--dark)', color: '#fff',
           fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 6,
           letterSpacing: 1, animation: 'float 2s ease-in-out infinite', whiteSpace: 'nowrap' }}>AQUÍ</div>
@@ -89,22 +101,30 @@ const MapNode = React.memo(({ mod, status, index, onClick, courseTheme }) => {
           fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 6,
           letterSpacing: 1, animation: 'float 2s ease-in-out infinite', whiteSpace: 'nowrap' }}>ABIERTA</div>
       )}
+      {isActive && isFlask && (
+        <div style={{ position: 'absolute', top: -28, background: '#00ff88', color: '#020c06',
+          fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 6,
+          letterSpacing: 1, animation: 'float 2s ease-in-out infinite', whiteSpace: 'nowrap' }}>ANALIZAR</div>
+      )}
       {isActive && (
         <div style={{
           position: 'absolute',
-          width: isDoor ? 58 : nodeSize,
-          height: isDoor ? 80 : nodeSize,
+          width: nodeSize, height: nodeSize,
           borderRadius: isDoor ? '50% 50% 6px 6px' : '50%',
-          border: `3px solid ${isDoor ? '#f0a500' : 'var(--orange)'}`,
+          border: `3px solid ${isDoor ? '#f0a500' : isFlask ? '#00ff88' : 'var(--orange)'}`,
           animation: 'nodePing 2s ease-out infinite',
         }} />
       )}
-      <div className={isDoor ? `er-door-node ${status}` : ''}
+      <div className={isDoor ? `er-door-node ${status}` : isFlask ? `lab-node ${status}` : ''}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transform: hov && status !== 'locked' ? 'scale(1.08)' : 'scale(1)',
           transition: 'all .25s ease',
-          ...doorStyle,
+          ...(flaskStyle || doorStyle || {
+            width: nodeSize, height: nodeSize, borderRadius: '50%',
+            background: colors.bg, border: `3px solid ${colors.border}`,
+            boxShadow: hov && status !== 'locked' ? 'var(--sh-lg)' : colors.shadow,
+          }),
         }}>
         {status === 'locked'
           ? <LockIc s={isDoor ? 22 : 26} c={isDoor ? 'rgba(240,165,0,.4)' : '#fff'} />
@@ -312,6 +332,7 @@ const LearningMap = () => {
   );
   const isDetective  = enrolledCourse?.theme === 'detective';
   const isEscapeRoom = enrolledCourse?.theme === 'escape-room';
+  const isLab        = enrolledCourse?.theme === 'lab';
   const courseTheme  = enrolledCourse?.theme || null;
 
   const level = React.useMemo(() => calcLevel(xp), [xp]);
@@ -429,7 +450,75 @@ const LearningMap = () => {
         />
       )}
       {/* Hero banner */}
-      {isEscapeRoom ? (
+      {isLab ? (
+        /* ── Hero: Laboratorio de Ciencias ── */
+        <div style={{
+          margin: '0 24px 24px', padding: '28px 32px', borderRadius: 20,
+          background: 'linear-gradient(135deg, #020c06 0%, #041408 40%, #071a0e 100%)',
+          border: '1px solid rgba(0,255,136,.18)',
+          color: '#c0f0d8', position: 'relative', overflow: 'hidden',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexWrap: 'wrap', gap: 24,
+          boxShadow: '0 8px 40px rgba(0,0,0,.9), inset 0 1px 0 rgba(0,255,136,.07), 0 0 60px rgba(0,255,136,.04)',
+        }}>
+          {/* Átomo decorativo de fondo */}
+          <div style={{ position: 'absolute', top: -30, right: -30, fontSize: 160,
+            opacity: .04, userSelect: 'none', pointerEvents: 'none', lineHeight: 1 }}>⚗️</div>
+          {/* Sello "EXPERIMENTO ACTIVO" */}
+          <div style={{ position: 'absolute', top: 16, right: 20,
+            fontSize: 9, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase',
+            color: '#00ff88', border: '1.5px solid rgba(0,255,136,.35)',
+            padding: '3px 8px', borderRadius: 3, opacity: .75, transform: 'rotate(-2deg)' }}>
+            EXPERIMENTO ACTIVO
+          </div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(0,255,136,.7)',
+              textTransform: 'uppercase', letterSpacing: 2.5, marginBottom: 8 }}>
+              🔬 {enrolledCourse?.name || 'Laboratorio de Ciencias Naturales'}
+            </div>
+            <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8, color: '#c0f0d8',
+              textShadow: '0 0 24px rgba(0,255,136,.2)' }}>
+              Mesa de Trabajo
+            </h2>
+            <p style={{ fontSize: 13, color: 'rgba(192,240,216,.6)', maxWidth: 380, lineHeight: 1.6 }}>
+              Cada módulo es un experimento. Observa, formula hipótesis, experimenta y concluye para avanzar al siguiente nivel.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', zIndex: 1, alignItems: 'flex-end' }}>
+            {/* Muestras analizadas */}
+            <div style={{ background: 'rgba(0,255,136,.08)', border: '1px solid rgba(0,255,136,.2)',
+              borderRadius: 10, padding: '10px 16px', textAlign: 'center', minWidth: 140 }}>
+              <div style={{ fontSize: 22, fontWeight: 900, color: '#00ff88',
+                textShadow: '0 0 12px rgba(0,255,136,.5)' }}>
+                {completed.filter(id => studentModules.find(m => m.id === id)).length}
+                <span style={{ fontSize: 14, color: 'rgba(0,255,136,.35)' }}>/{studentModules.length}</span>
+              </div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: 'rgba(0,255,136,.6)',
+                textTransform: 'uppercase', marginTop: 2 }}>Experimentos completados</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ background: 'rgba(0,255,136,.06)', border: '1px solid rgba(0,255,136,.12)',
+                borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#c0f0d8' }}>{xp}</div>
+                <div style={{ fontSize: 9, color: 'rgba(192,240,216,.4)', letterSpacing: 1 }}>XP</div>
+              </div>
+              <div style={{ background: 'rgba(0,255,136,.06)', border: '1px solid rgba(0,255,136,.12)',
+                borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#c0f0d8' }}>Nv.{level}</div>
+                <div style={{ fontSize: 9, color: 'rgba(192,240,216,.4)', letterSpacing: 1 }}>GRADO</div>
+              </div>
+            </div>
+            {allEnrollments.length > 1 && (
+              <button onClick={() => setShowCourseSelector(true)}
+                style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(0,255,136,.3)',
+                  background: 'rgba(0,255,136,.07)', color: 'rgba(0,255,136,.8)', fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'var(--font)' }}>
+                Cambiar lab
+              </button>
+            )}
+          </div>
+        </div>
+      ) : isEscapeRoom ? (
         /* ── Hero: Sala de Escape (tema Matemáticas) ── */
         <div style={{
           margin: '0 24px 24px', padding: '28px 32px', borderRadius: 20,
