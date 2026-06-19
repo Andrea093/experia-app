@@ -286,66 +286,6 @@ export function StudentProgressModal({ student, onClose }) {
   )
 }
 
-// ── Panel de cohortes del instructor ─────────────────────────
-function InstructorCohorts() {
-  const cohorts      = useStore(s => s.cohorts || [])
-  const courses      = useStore(s => s.courses || [])
-  const accounts     = useStore(s => s.accounts || [])
-  const instructorInstitutions = useStore(s => s.instructorInstitutions || [])
-  const role         = useStore(s => s.user?.role)
-  if (role !== 'instructor') return null
-
-  const myInstIds = instructorInstitutions.map(i => i.id)
-  const myCohorts = cohorts.filter(c => !c.institution_id || myInstIds.includes(c.institution_id))
-  if (myCohorts.length === 0) return null
-
-  const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('es-CO',
-    { day:'2-digit', month:'short', year:'numeric' }) : null
-
-  return (
-    <div style={{ padding: '16px 24px 0', borderBottom: '1px solid var(--border)', background: 'var(--white)' }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase',
-        letterSpacing: 1, marginBottom: 10 }}>Mis cohortes</div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', paddingBottom: 14 }}>
-        {myCohorts.map(c => {
-          const course   = courses.find(co => co.id === c.course_id)
-          const members  = accounts.filter(a => a.cohort_id === c.id).length
-          const deadline = fmtDate(c.deadline)
-          const days     = c.deadline ? Math.ceil((new Date(c.deadline) - new Date()) / 86400000) : null
-          const expired  = days !== null && days < 0
-          return (
-            <div key={c.id} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)',
-              background: 'var(--bg)', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)' }}>{c.name}</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11, color: 'var(--muted)' }}>👥 {members} docentes</span>
-                {course
-                  ? <span style={{ fontSize: 11, color: 'var(--orange)', fontWeight: 600 }}>📚 {course.name}</span>
-                  : <span style={{ fontSize: 11, color: '#92400E' }}>⚠️ Sin curso</span>
-                }
-                {deadline && (
-                  <span style={{ fontSize: 11, fontWeight: 600,
-                    color: expired ? 'var(--error)' : days <= 3 ? 'var(--warn)' : 'var(--muted)' }}>
-                    {expired ? `⚠️ Vencida` : `⏱ ${days}d`} · {deadline}
-                  </span>
-                )}
-              </div>
-              {course && (
-                <button onClick={() => nav('instructor-route')}
-                  style={{ marginTop: 4, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--orange)',
-                    background: 'var(--orange-bg)', color: 'var(--orange)', fontFamily: 'var(--font)',
-                    fontSize: 11, fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start' }}>
-                  Editar ruta →
-                </button>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 // ── Historial de entregas aprobadas ────────────────────────
 const InstructorHistorial = ({ onStudentClick }) => {
   const allSubmissions         = useStore(s => s.submissions)
@@ -642,7 +582,6 @@ const InstructorStudentViewPage = ({ studentView, setStudentView }) => {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <InstructorCohorts />
       <ActiveStudents />
 
       {/* Tab bar */}

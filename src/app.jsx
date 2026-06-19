@@ -73,7 +73,6 @@ const StudentProductUpload  = React.lazy(() => import('./pages/Grid.jsx'))
 const InstructorDashboard   = React.lazy(() => import('./pages/InstructorDashboard.jsx'))
 const InstructorRouteEditor = React.lazy(() => import('./pages/InstructorRouteEditor.jsx'))
 const AdminAnalytics        = React.lazy(() => import('./pages/AdminAnalytics.jsx'))
-const AdminCohorts          = React.lazy(() => import('./pages/AdminCohorts.jsx'))
 const AdminCourses          = React.lazy(() => import('./pages/AdminCourses.jsx'))
 const InstructorStudentView = React.lazy(() => import('./pages/InstructorStudentView.jsx'))
 
@@ -138,7 +137,6 @@ const App = () => {
         case 'admin-courses':    return <AdminCourses />;
         case 'admin-schools':    return <SchoolsAdminPage />;
         case 'admin-analytics':  return <AdminAnalytics />;
-        case 'admin-cohorts':    return <AdminCohorts />;
         case 'forum':            return <ForumPage />;
         case 'profile':          return <ProfilePage />;
         default:                 return <AdminPage />;

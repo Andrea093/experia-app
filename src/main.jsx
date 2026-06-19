@@ -4,9 +4,15 @@ import './styles.css'
 import App from './app.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient.js'
-import { XS, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, applyInitialHash } from './store/store.jsx'
+import { XS, useStore, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, applyInitialHash } from './store/store.jsx'
 import { mapSubmission, mapAttempt } from './lib/mappers.js'
 import { loadStudentSession } from './lib/loadStudentSession.js'
+
+// Wrapper que pasa el page actual como resetKey al ErrorBoundary
+const PagedErrorBoundary = ({ children }) => {
+  const page = useStore(s => s.page);
+  return <ErrorBoundary resetKey={page}>{children}</ErrorBoundary>;
+};
 
 const SESSION_TIMEOUT_MS  = 20_000
 const SLOW_LOAD_THRESHOLD =  5_000
@@ -174,9 +180,9 @@ withTimeout(restoreSession(), SESSION_TIMEOUT_MS)
   .finally(() => {
     root.render(
       <React.StrictMode>
-        <ErrorBoundary>
+        <PagedErrorBoundary>
           <App />
-        </ErrorBoundary>
+        </PagedErrorBoundary>
       </React.StrictMode>
     )
   })

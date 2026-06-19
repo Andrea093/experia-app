@@ -94,6 +94,7 @@ const LessonSection = React.memo(({ section, index }) => {
         )}
         <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--sh-lg)' }}>
           <iframe
+            key={videoId}
             src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
             title={section.title || 'Video'}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -270,7 +271,7 @@ const LessonView = () => {
                       <div key={i}>
                         {extra.title && <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--dark)', marginBottom: 8 }}>{extra.title}</h4>}
                         <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--sh-md)' }}>
-                          <iframe src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+                          <iframe key={videoId} src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
                             title={extra.title || 'Video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
                         </div>

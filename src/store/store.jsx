@@ -16,12 +16,12 @@ const createExpStore = (init) => {
   };
 };
 const useStore = (sel) => {
-  const ref=React.useRef(XS);
-  const selRef=React.useRef(sel);
-  selRef.current=sel;
-  const [v,sv]=React.useState(()=>sel(ref.current.get()));
-  React.useEffect(()=>ref.current.sub(s=>{const n=selRef.current(s);sv(p=>p!==n?n:p);}),[]);
-  return v;
+  const selRef = React.useRef(sel);
+  selRef.current = sel;
+  return React.useSyncExternalStore(
+    (onChange) => XS.sub(() => onChange()),
+    () => selRef.current(XS.get()),
+  );
 };
 
 
@@ -359,6 +359,7 @@ const nodeStatus = (id, done, areaId, modulesOverride) => {
   return (m.req || []).every(r => done.includes(r)) ? 'available' : 'locked';
 };
 const progressPct = (done, areaId, modulesOverride) => {
+  if (!Array.isArray(done)) return 0;
   const mods = modulesOverride || getStudentModules(areaId);
   return mods.length === 0 ? 0 : Math.round((done.filter(d => mods.find(m => m.id === d)).length / mods.length) * 100);
 };

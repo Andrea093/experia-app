@@ -391,7 +391,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 
 ## Maintenance
 
-- **Author:** Sergio Bahamontes (sergiobaha05@gmail.com)
+- **Author:** Sergio Bahamon (sergiobaha05@gmail.com)
 - **Version:** v14 (stable, multi-course)
 - **Roadmap:** course_progress migration, Sentry, advanced analytics
 

@@ -20,7 +20,7 @@ const InstructorRouteEditor = () => {
   const routeConfigs  = useStore(s => s.routeConfigs)
   const namedRoutes   = useStore(s => s.namedRoutes)
   const institutions  = useStore(s => s.institutions)
-  const cohorts       = useStore(s => s.cohorts || [])
+  const institutionCourses = useStore(s => s.institutionCourses || [])
   const courses       = useStore(s => s.courses || [])
   const isMobile = useMobile()
   const [activeArea, setActiveArea] = React.useState(TRANSVERSAL_AREA)
@@ -156,12 +156,12 @@ const InstructorRouteEditor = () => {
     ))
   }
 
-  // Curso vinculado: cohorte que coincide con la institución seleccionada y tiene course_id
-  const linkedCohort = React.useMemo(() => {
+  // Curso vinculado: curso activo asignado a la institución seleccionada (tabla institution_courses)
+  const linkedCourse = React.useMemo(() => {
     if (!routeInstitution) return null
-    return cohorts.find(c => c.institution_id === routeInstitution && c.course_id) || null
-  }, [routeInstitution, cohorts])
-  const linkedCourse = linkedCohort ? courses.find(c => c.id === linkedCohort.course_id) : null
+    const ic = institutionCourses.find(r => r.institution_id === routeInstitution && r.is_active)
+    return ic ? courses.find(c => c.id === ic.course_id) || null : null
+  }, [routeInstitution, institutionCourses, courses])
 
   const handlePublish = async () => {
     if (!linkedCourse) return
@@ -255,7 +255,7 @@ const InstructorRouteEditor = () => {
                     📚 Curso vinculado: {linkedCourse.name}
                   </div>
                   <div style={{ fontSize: 11, color: '#166534', marginTop: 2 }}>
-                    Cohorte: {linkedCohort.name} · Al publicar, los docentes inscritos verán los cambios al recargar
+                    Al publicar, los docentes inscritos verán los cambios al recargar
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
@@ -279,7 +279,7 @@ const InstructorRouteEditor = () => {
               </>
             ) : (
               <div style={{ fontSize: 12, color: '#92400E' }}>
-                ⚠️ Esta institución no tiene cohorte con curso asignado. El admin debe vincular un curso desde Cohortes.
+                ⚠️ Este colegio no tiene un curso activo asignado. El admin debe activar un curso para este colegio desde Cursos.
               </div>
             )}
           </div>

@@ -7,6 +7,14 @@ export default class ErrorBoundary extends React.Component {
     return { error }
   }
 
+  // Resetear el error al cambiar de página (resetKey prop)
+  static getDerivedStateFromProps(props, state) {
+    if (state.error && props.resetKey !== state.resetKey) {
+      return { error: null, resetKey: props.resetKey }
+    }
+    return state.resetKey !== props.resetKey ? { resetKey: props.resetKey } : null
+  }
+
   render() {
     if (!this.state.error) return this.props.children
     return (
