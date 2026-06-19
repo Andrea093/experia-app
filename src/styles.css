@@ -653,38 +653,96 @@ table { min-width: 560px; }
 }
 
 /* ── steps ── */
-.ls-step {
-  display: grid;
-  grid-template-columns: 36px 20px 1fr;
-  gap: 0 12px;
-  animation: fadeUp .4s ease both;
+@keyframes ls-step-in {
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
-.ls-step-number {
-  width: 36px; height: 36px;
+@keyframes ls-node-pop {
+  0%   { transform: scale(0); }
+  60%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+@keyframes ls-rail-grow {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+@keyframes ls-node-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232,115,44,.35); }
+  50%      { box-shadow: 0 0 0 7px rgba(232,115,44,0); }
+}
+
+.ls-steps {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.ls-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 0 16px;
+  padding-bottom: 14px;
+  opacity: 0;
+  animation: ls-step-in .5s var(--ease-out) both;
+}
+/* Riel + nodo */
+.ls-step-rail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+/* Línea vertical que conecta los nodos (crece al entrar) */
+.ls-step-rail::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: -14px;
+  width: 2px;
+  background: linear-gradient(var(--orange-pale), var(--border));
+  transform-origin: top;
+  animation: ls-rail-grow .5s ease both;
+  animation-delay: inherit;
+}
+.ls-step:last-child .ls-step-rail::before { display: none; }
+
+.ls-step-node {
+  position: relative;
+  width: 44px; height: 44px;
   border-radius: 50%;
   background: var(--gradient-orange);
-  color: #fff;
-  font-weight: 800;
-  font-size: 15px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   z-index: 1;
-  position: relative;
+  box-shadow: 0 4px 14px rgba(232,115,44,.3);
+  animation: ls-node-pop .5s var(--ease-spring) both, ls-node-glow 2.6s ease-in-out infinite;
+  animation-delay: inherit, 1s;
+  transition: transform .25s var(--ease-spring);
 }
-.ls-step-line {
-  width: 2px;
-  background: var(--border);
-  margin: 36px auto 0;
-  grid-row: 1 / 3;
-  grid-column: 1;
-  position: relative;
-  left: 17px;
-  top: -36px;
-  z-index: 0;
+.ls-step:hover .ls-step-node {
+  transform: scale(1.12) rotate(-4deg);
 }
-.ls-step:last-child .ls-step-line { display: none; }
+.ls-step-icon {
+  font-size: 20px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.25));
+}
+/* Insignia numérica del paso */
+.ls-step-index {
+  position: absolute;
+  bottom: -3px; right: -3px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--white);
+  color: var(--orange);
+  border: 2px solid var(--orange);
+  font-size: 10px;
+  font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,.15);
+}
 .ls-step-body {
-  padding: 6px 0 24px;
+  padding: 4px 0 8px;
+  align-self: center;
 }
 .ls-step-title {
   font-size: 15px;
@@ -832,21 +890,29 @@ table { min-width: 560px; }
 }
 
 /* steps: protocolo de investigación */
-[data-course-theme="detective"] .ls-step-number {
-  background: transparent;
+[data-course-theme="detective"] .ls-step-node {
+  background: radial-gradient(circle at 35% 30%, #2A2014, #13120F);
   border: 2px solid var(--det-amber);
-  color: var(--det-amber);
-  font-size: 13px;
-  box-shadow: 0 0 10px rgba(212,160,23,.25);
+  box-shadow: 0 0 16px rgba(212,160,23,.35), inset 0 0 8px rgba(212,160,23,.12);
+  animation: ls-node-pop .5s var(--ease-spring) both, det-pulse-amber 2.6s ease-in-out infinite;
+  animation-delay: inherit, 1s;
 }
-[data-course-theme="detective"] .ls-step-line {
-  background: rgba(212,160,23,.2);
+[data-course-theme="detective"] .ls-step-rail::before {
+  background: linear-gradient(rgba(212,160,23,.5), rgba(212,160,23,.12));
+}
+[data-course-theme="detective"] .ls-step-index {
+  background: #0A0A0F;
+  color: var(--det-amber);
+  border-color: var(--det-amber);
 }
 [data-course-theme="detective"] .ls-step-title {
   color: var(--det-cream);
 }
 [data-course-theme="detective"] .ls-step-desc {
   color: rgba(237,232,220,.6);
+}
+[data-course-theme="detective"] .ls-steps-title {
+  color: var(--det-cream);
 }
 
 /* reveal: evidencia sellada */

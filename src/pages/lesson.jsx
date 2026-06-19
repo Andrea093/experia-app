@@ -177,15 +177,19 @@ const LessonSection = React.memo(({ section, index }) => {
 
   if (section.type === 'steps') {
     return (
-      <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
+      <div style={{ margin: '36px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
         {section.title && (
-          <h3 style={{ fontSize: 19, fontWeight: 700, color: 'var(--dark)', marginBottom: 20 }}>{section.title}</h3>
+          <h3 className="ls-steps-title" style={{ fontSize: 19, fontWeight: 700, color: 'var(--dark)', marginBottom: 24 }}>{section.title}</h3>
         )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div className="ls-steps">
           {(section.items || []).map((item, i) => (
-            <div key={i} className="ls-step" style={{ animationDelay: `${delay + i * 80}ms` }}>
-              <div className="ls-step-number">{item.icon || (i + 1)}</div>
-              <div className="ls-step-line" aria-hidden="true" />
+            <div key={i} className="ls-step" style={{ animationDelay: `${delay + i * 120}ms` }}>
+              <div className="ls-step-rail" aria-hidden="true">
+                <div className="ls-step-node">
+                  <span className="ls-step-icon">{item.icon || '•'}</span>
+                  <span className="ls-step-index">{i + 1}</span>
+                </div>
+              </div>
               <div className="ls-step-body">
                 {item.t && <div className="ls-step-title">{item.t}</div>}
                 {item.d && <div className="ls-step-desc">{item.d}</div>}
