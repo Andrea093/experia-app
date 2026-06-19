@@ -364,38 +364,126 @@ table { min-width: 560px; }
   --sh-orange: 0 8px 24px -8px rgba(212,160,23,.5);
 }
 
-/* ── Fondo con efecto de lluvia ── */
-[data-course-theme="detective"] #root::before {
-  content: '';
+/* ══════════════════════════════════════════════
+   CAPA AMBIENTAL INMERSIVA (DetectiveAmbient.jsx)
+   ══════════════════════════════════════════════ */
+.det-ambient {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
-  background:
-    repeating-linear-gradient(
-      105deg,
-      transparent 0px,
-      transparent 2px,
-      rgba(212,160,23,.03) 2px,
-      rgba(212,160,23,.03) 3px
-    );
-  animation: det-rain 4s linear infinite;
+  z-index: 40;
+  overflow: hidden;
 }
-[data-course-theme="detective"] #root::after {
-  content: '';
-  position: fixed;
+
+/* Viñeta + parpadeo de lámpara ámbar */
+@keyframes det-amb-flicker {
+  0%, 100% { opacity: 1; }
+  48%      { opacity: 1; }
+  50%      { opacity: .82; }
+  52%      { opacity: 1; }
+  82%      { opacity: 1; }
+  83%      { opacity: .7; }
+  84%      { opacity: 1; }
+  86%      { opacity: .9; }
+  88%      { opacity: 1; }
+}
+.det-amb-vignette {
+  position: absolute;
   inset: 0;
-  pointer-events: none;
-  z-index: 0;
   background:
-    repeating-linear-gradient(
-      105deg,
-      transparent 0px,
-      transparent 5px,
-      rgba(212,160,23,.02) 5px,
-      rgba(212,160,23,.02) 6px
-    );
-  animation: det-rain 6.5s linear infinite .8s;
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(212,160,23,.10), transparent 60%),
+    radial-gradient(ellipse 120% 100% at 50% 50%, transparent 50%, rgba(0,0,0,.55) 100%);
+  animation: det-amb-flicker 7s ease-in-out infinite;
+}
+
+/* Linterna que recorre la pantalla en diagonal */
+@keyframes det-amb-search {
+  0%   { transform: translate(-30%, -20%) scale(1); opacity: 0; }
+  15%  { opacity: .5; }
+  50%  { transform: translate(60%, 40%) scale(1.3); opacity: .35; }
+  85%  { opacity: .5; }
+  100% { transform: translate(-30%, -20%) scale(1); opacity: 0; }
+}
+.det-amb-searchlight {
+  position: absolute;
+  top: -20%; left: -10%;
+  width: 60vw; height: 60vw;
+  background: radial-gradient(circle, rgba(212,160,23,.12) 0%, rgba(212,160,23,.05) 35%, transparent 70%);
+  filter: blur(20px);
+  animation: det-amb-search 18s ease-in-out infinite;
+}
+
+/* Lluvia: gotas individuales cayendo */
+@keyframes det-amb-fall {
+  0%   { transform: translateY(-120px) rotate(12deg); }
+  100% { transform: translateY(105vh)  rotate(12deg); }
+}
+.det-amb-rain { position: absolute; inset: 0; }
+.det-amb-drop {
+  position: absolute;
+  top: 0;
+  width: 1.5px;
+  background: linear-gradient(to bottom, transparent, rgba(190,210,235,.55), rgba(212,160,23,.25));
+  border-radius: 1px;
+  animation: det-amb-fall linear infinite;
+  will-change: transform;
+}
+
+/* Polvo flotante */
+@keyframes det-amb-float {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  20%  { opacity: .6; }
+  80%  { opacity: .5; }
+  100% { transform: translate(24px, -40px); opacity: 0; }
+}
+.det-amb-dust { position: absolute; inset: 0; }
+.det-amb-mote {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(212,160,23,.5);
+  box-shadow: 0 0 4px rgba(212,160,23,.4);
+  animation: det-amb-float ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Haz de escaneo horizontal (línea de investigación) */
+@keyframes det-amb-scanline {
+  0%   { top: -2%;  opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { top: 102%; opacity: 0; }
+}
+.det-amb-scan {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(212,160,23,.6), transparent);
+  box-shadow: 0 0 12px rgba(212,160,23,.5);
+  animation: det-amb-scanline 9s linear infinite;
+}
+
+/* Grano de película animado */
+@keyframes det-amb-grainmove {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(-3%, -2%); }
+  40%  { transform: translate(2%, 3%); }
+  60%  { transform: translate(-2%, 2%); }
+  80%  { transform: translate(3%, -3%); }
+  100% { transform: translate(0, 0); }
+}
+.det-amb-grain {
+  position: absolute;
+  inset: -50%;
+  width: 200%; height: 200%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+  opacity: .05;
+  animation: det-amb-grainmove .6s steps(4) infinite;
+}
+
+/* Respeta usuarios con movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  .det-amb-rain, .det-amb-dust, .det-amb-scan, .det-amb-searchlight, .det-amb-grain { display: none; }
+  .det-amb-vignette { animation: none; }
 }
 
 /* ── Textura de papel envejecido en cards ── */
