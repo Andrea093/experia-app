@@ -17,6 +17,38 @@ import {
 // EXPERIA — Lesson Viewer
 // =============================================
 
+// Tarjeta de evidencia: click para revelar contenido oculto
+const RevealSection = ({ section, delay }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
+      {section.title && (
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>{section.title}</h3>
+      )}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`ls-reveal-trigger${open ? ' open' : ''}`}
+        aria-expanded={open}
+      >
+        <span className="ls-reveal-icon">{open ? '🔓' : (section.icon || '🔒')}</span>
+        <span className="ls-reveal-label">{open ? (section.openLabel || 'Ocultar') : (section.label || 'Revelar contenido')}</span>
+        <span className="ls-reveal-arrow">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="ls-reveal-body">
+          {section.items?.map((item, i) => (
+            <div key={i} className="ls-reveal-item" style={{ animationDelay: `${i * 60}ms` }}>
+              {item.t && <div className="ls-reveal-item-title">{item.t}</div>}
+              {item.d && <div className="ls-reveal-item-desc">{item.d}</div>}
+            </div>
+          ))}
+          {section.text && <p className="ls-reveal-text">{section.text}</p>}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const LessonSection = React.memo(({ section, index }) => {
   const delay = index * 60;
   const isMobile = useMobile();
@@ -105,6 +137,68 @@ const LessonSection = React.memo(({ section, index }) => {
         </div>
       </div>
     );
+  }
+
+  if (section.type === 'image') {
+    return (
+      <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
+        {section.title && (
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>{section.title}</h3>
+        )}
+        <div className="ls-image-wrap">
+          <img
+            src={section.url}
+            alt={section.caption || section.title || ''}
+            style={{ width: '100%', borderRadius: 14, display: 'block',
+              boxShadow: 'var(--sh-lg)', objectFit: 'cover',
+              maxHeight: section.height || 420 }}
+          />
+          {section.caption && (
+            <p className="ls-image-caption">{section.caption}</p>
+          )}
+          {/* Sello EVIDENCIA en tema detective — via CSS */}
+          <div className="ls-image-badge" aria-hidden="true" />
+        </div>
+      </div>
+    );
+  }
+
+  if (section.type === 'quote') {
+    return (
+      <div className="ls-quote" style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
+        <span className="ls-quote-mark">"</span>
+        <blockquote className="ls-quote-text">{section.text}</blockquote>
+        {section.author && (
+          <cite className="ls-quote-author">— {section.author}</cite>
+        )}
+      </div>
+    );
+  }
+
+  if (section.type === 'steps') {
+    return (
+      <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
+        {section.title && (
+          <h3 style={{ fontSize: 19, fontWeight: 700, color: 'var(--dark)', marginBottom: 20 }}>{section.title}</h3>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {(section.items || []).map((item, i) => (
+            <div key={i} className="ls-step" style={{ animationDelay: `${delay + i * 80}ms` }}>
+              <div className="ls-step-number">{item.icon || (i + 1)}</div>
+              <div className="ls-step-line" aria-hidden="true" />
+              <div className="ls-step-body">
+                {item.t && <div className="ls-step-title">{item.t}</div>}
+                {item.d && <div className="ls-step-desc">{item.d}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (section.type === 'reveal') {
+    return <RevealSection section={section} delay={delay} />;
   }
 
   if (section.type === 'compare') {
