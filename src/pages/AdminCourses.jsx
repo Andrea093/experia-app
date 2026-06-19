@@ -11,6 +11,7 @@ const CourseForm = ({ initial, onSave, onCancel }) => {
     color: initial?.color || '#E8732C',
     coverImage: initial?.cover_image || '',
     areaId: initial?.area_id || '',
+    theme: initial?.theme || '',
   })
   const [saving, setSaving] = React.useState(false)
   const [error, setError]   = React.useState('')
@@ -67,6 +68,20 @@ const CourseForm = ({ initial, onSave, onCancel }) => {
         <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
           Si el curso es para un área específica, los módulos se filtran automáticamente por área del docente.
         </p>
+      </div>
+      <div>
+        <label style={lbl}>🎨 Tema visual inmersivo</label>
+        <select value={form.theme} onChange={e => set('theme', e.target.value)} style={inp}>
+          <option value="">— Estándar (sin tema especial) —</option>
+          <option value="detective">🕵️ Detectives de Texto — Lenguaje / Lectura Crítica</option>
+        </select>
+        {form.theme === 'detective' && (
+          <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 8,
+            background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)',
+            fontSize: 12, color: '#D4A017' }}>
+            🕵️ Los estudiantes inscritos verán la experiencia noir: paleta ámbar/negro, animaciones de lluvia, personaje Vera Clío y sello ARCHIVADO al completar módulos.
+          </div>
+        )}
       </div>
       {error && (
         <div style={{ padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', fontSize: 13, color: 'var(--error)', marginBottom: 4 }}>
@@ -425,6 +440,7 @@ const ModuleForm = ({ initial, defaultArea = '', onSave, saving, onCancel }) => 
     area_id: initial?.area_id || defaultArea || '',
     content: initial?.content || [],
     attachments: initial?.attachments || [],
+    character_line: initial?.character_line || '',
   })
   const [uploading, setUploading] = React.useState(false)
   const fileRef = React.useRef(null)
@@ -458,6 +474,12 @@ const ModuleForm = ({ initial, defaultArea = '', onSave, saving, onCancel }) => 
         <div>
           <label style={lbl}>Subtítulo</label>
           <input value={form.subtitle} onChange={e => set('subtitle', e.target.value)} placeholder="Módulo 1, Reto…" style={inp} />
+        </div>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={lbl}>🕵️ Línea del personaje (Vera Clío — solo en tema Detective)</label>
+          <input value={form.character_line} onChange={e => set('character_line', e.target.value)}
+            placeholder='Ej: "Detective, este texto guarda una mentira. Tu misión: encuéntrarla."'
+            style={inp} />
         </div>
         <div>
           <label style={lbl}>XP</label>
@@ -653,12 +675,12 @@ const AdminCourses = () => {
   }
 
   const handleCreate = async (form) => {
-    await createCourse({ name: form.name, description: form.description, color: form.color, coverImage: form.coverImage, areaId: form.areaId || null })
+    await createCourse({ name: form.name, description: form.description, color: form.color, coverImage: form.coverImage, areaId: form.areaId || null, theme: form.theme || null })
     setShowCreate(false)
   }
 
   const handleUpdate = async (form) => {
-    await updateCourse(editCourse.id, { name: form.name, description: form.description, color: form.color, cover_image: form.coverImage, area_id: form.areaId || null })
+    await updateCourse(editCourse.id, { name: form.name, description: form.description, color: form.color, cover_image: form.coverImage, area_id: form.areaId || null, theme: form.theme || null })
     setEditCourse(null)
   }
 

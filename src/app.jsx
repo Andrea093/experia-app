@@ -1,5 +1,6 @@
 import React from 'react'
 import { useStore, nav } from './store/store.jsx'
+import { getActiveCourseTheme } from './store/store.jsx'
 import { NotifManager } from './components/ui.jsx'
 import { OnboardingModal } from './components/Onboarding.jsx'
 import Sidebar from './components/Sidebar.jsx'
@@ -110,7 +111,19 @@ const App = () => {
   const selectedArea   = useStore(s => s.selectedArea);
   const hasCourses     = useStore(s => (s.courses || []).some(c => c.is_active));
   const enrolledCourse = useStore(s => s.enrolledCourseId);
+  const courses        = useStore(s => s.courses);
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
+
+  // Aplica el tema visual inmersivo del curso activo en el elemento raíz
+  React.useEffect(() => {
+    const theme = getActiveCourseTheme();
+    const root = document.documentElement;
+    if (theme) {
+      root.setAttribute('data-course-theme', theme);
+    } else {
+      root.removeAttribute('data-course-theme');
+    }
+  }, [enrolledCourse, courses]);
   const [studentView, setStudentView] = React.useState(null);
 
   React.useEffect(() => { setMobileSidebarOpen(false); }, [page]);

@@ -306,23 +306,24 @@ const getScopeModules = (scopeId) =>
 
 // Convierte una fila de course_modules (BD) al formato de módulo que usa la app
 const dbModToAppMod = (row) => ({
-  id:       row.id,
-  type:     row.type,
-  ctype:    row.challenge_type || null,
-  title:    row.title,
-  subtitle: row.subtitle || '',
-  desc:     row.description || '',
-  xp:       row.xp || 100,
-  req:      row.requirements || [],
-  badge:    null,
-  area:     null,
-  pos:      { x: 50, y: row.order || 0 },
-  side:     'right',
-  task:     '',
-  content:  row.content || [],
-  attachments: row.attachments || [],
-  extras:   [],
-  isDbModule: true,
+  id:            row.id,
+  type:          row.type,
+  ctype:         row.challenge_type || null,
+  title:         row.title,
+  subtitle:      row.subtitle || '',
+  desc:          row.description || '',
+  xp:            row.xp || 100,
+  req:           row.requirements || [],
+  badge:         null,
+  area:          null,
+  pos:           { x: 50, y: row.order || 0 },
+  side:          'right',
+  task:          '',
+  content:       row.content || [],
+  attachments:   row.attachments || [],
+  extras:        [],
+  characterLine: row.character_line || null,
+  isDbModule:    true,
   // datos de reto
   ...(row.challenge_data?.dragItems    ? { dragItems:    row.challenge_data.dragItems }    : {}),
   ...(row.challenge_data?.empathyCards ? { empathyCards: row.challenge_data.empathyCards } : {}),
@@ -944,11 +945,12 @@ const loadCourses = async () => {
   });
 };
 
-const createCourse = async ({ name, description, color, coverImage, areaId }) => {
+const createCourse = async ({ name, description, color, coverImage, areaId, theme }) => {
   const { data, error } = await supabase.from('courses').insert({
     name, description, color: color || '#E8732C',
     cover_image: coverImage || null, is_active: true,
     area_id: areaId || null,
+    theme: theme || null,
   }).select().single();
   if (error) { console.error('createCourse:', error); throw new Error(error.message); }
   await loadCourses();
@@ -1162,6 +1164,13 @@ const issueCertificate = async (submissionId, studentName, areaId, score, maxSco
   return data;
 };
 
+// Devuelve el tema visual del curso en el que está inscrito el estudiante ('detective' | null)
+const getActiveCourseTheme = () => {
+  const { enrolledCourseId, courses } = XS.get();
+  if (!enrolledCourseId) return null;
+  return courses.find(c => c.id === enrolledCourseId)?.theme || null;
+};
+
 export {
   useStore, AREAS, BADGES, LEVELS, RUBRIC_CRITERIA, ALL_MODULES, AREA_CONTENT,
   INITIAL_INSTITUTIONS,
@@ -1178,5 +1187,5 @@ export {
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,
   loadCourseModules, enrollInCourse, dbModToAppMod, publishRouteToCourse, switchCourse,
   applyInitialHash, markOnboarded, claimOnboardingBonus, awardForumParticipation,
-  hashFor, issueCertificate,
+  hashFor, issueCertificate, getActiveCourseTheme,
 };

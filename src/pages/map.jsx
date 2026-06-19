@@ -267,6 +267,7 @@ const LearningMap = () => {
     () => courses.find(c => c.id === enrolledCourseId),
     [courses, enrolledCourseId]
   );
+  const isDetective = enrolledCourse?.theme === 'detective';
 
   const level = React.useMemo(() => calcLevel(xp), [xp]);
   const pct = React.useMemo(
@@ -383,38 +384,107 @@ const LearningMap = () => {
         />
       )}
       {/* Hero banner */}
-      <div style={{
-        margin: '0 24px 24px', padding: '28px 32px', borderRadius: 20,
-        background: 'var(--gradient)', color: '#fff', position: 'relative', overflow: 'hidden',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        flexWrap: 'wrap', gap: 24, animation: 'fadeUp .5s ease',
-      }}>
-        <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160,
-          borderRadius: '50%', background: 'rgba(255,255,255,.06)' }} />
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.7)',
-            textTransform: 'uppercase', letterSpacing: 2, marginBottom: 6 }}>{enrolledCourse?.name || 'Tu Ruta DCE'}</div>
-          <h2 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>Mapa de aprendizaje</h2>
-          <p style={{ fontSize: 14, color: 'rgba(255,255,255,.75)', maxWidth: 400 }}>
-            Avanza por cada lección y desbloquea retos para construir tu rol como docente-diseñador.
-          </p>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', zIndex: 1, alignItems: 'flex-end' }}>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <StatChip icon={<ProgressRing pct={pct} size={28} sw={3} color="rgba(255,255,255,.9)" />} label="Progreso" value={pct + '%'} />
-            <StatChip icon={<ZapIc s={18} c="var(--orange-light)" />} label="XP" value={xp} />
-            <StatChip icon={<TargetIc s={18} c="var(--orange-light)" />} label="Nivel" value={level} />
+      {isDetective ? (
+        /* ── Hero: Tablero del Caso (tema Detective) ── */
+        <div style={{
+          margin: '0 24px 24px', padding: '28px 32px', borderRadius: 20,
+          background: 'linear-gradient(125deg, #0A0806 0%, #1C1508 40%, #2A1E0A 100%)',
+          border: '1px solid rgba(212,160,23,.25)',
+          color: '#EDE8DC', position: 'relative', overflow: 'hidden',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexWrap: 'wrap', gap: 24, animation: 'det-reveal .6s ease',
+          boxShadow: '0 8px 40px rgba(0,0,0,.8), inset 0 1px 0 rgba(212,160,23,.1)',
+        }}>
+          {/* Marca de agua: lupa */}
+          <div style={{ position: 'absolute', top: -20, right: -20, fontSize: 140,
+            opacity: .04, userSelect: 'none', pointerEvents: 'none', lineHeight: 1 }}>🔍</div>
+          {/* Sello CASO ACTIVO */}
+          <div style={{ position: 'absolute', top: 16, right: 20,
+            fontSize: 9, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase',
+            color: '#D4A017', border: '1.5px solid rgba(212,160,23,.4)',
+            padding: '3px 8px', borderRadius: 3, opacity: .7, transform: 'rotate(2deg)' }}>
+            CASO ACTIVO
           </div>
-          {allEnrollments.length > 1 && (
-            <button onClick={() => setShowCourseSelector(true)}
-              style={{ padding: '6px 14px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.5)',
-                background: 'rgba(255,255,255,.12)', color: '#fff', fontSize: 12, fontWeight: 600,
-                cursor: 'pointer', fontFamily: 'var(--font)', backdropFilter: 'blur(4px)' }}>
-              Cambiar curso
-            </button>
-          )}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(212,160,23,.7)',
+              textTransform: 'uppercase', letterSpacing: 2.5, marginBottom: 8 }}>
+              🕵️ {enrolledCourse?.name || 'Detectives de Texto'}
+            </div>
+            <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8, color: '#EDE8DC' }}>
+              Tablero de Investigación
+            </h2>
+            <p style={{ fontSize: 13, color: 'rgba(237,232,220,.6)', maxWidth: 380, lineHeight: 1.6 }}>
+              Cada módulo es una pista. Cada reto, una evidencia. Resuelve el caso completando todas las investigaciones.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', zIndex: 1, alignItems: 'flex-end' }}>
+            {/* Evidencias recolectadas */}
+            <div style={{ background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.2)',
+              borderRadius: 10, padding: '10px 16px', textAlign: 'center', minWidth: 120 }}>
+              <div style={{ fontSize: 22, fontWeight: 900, color: '#D4A017' }}>
+                {completed.filter(id => studentModules.find(m => m.id === id)).length}
+                <span style={{ fontSize: 14, color: 'rgba(212,160,23,.5)' }}>/{studentModules.length}</span>
+              </div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: 'rgba(212,160,23,.6)',
+                textTransform: 'uppercase', marginTop: 2 }}>Evidencias</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.15)',
+                borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#EDE8DC' }}>{xp}</div>
+                <div style={{ fontSize: 9, color: 'rgba(237,232,220,.4)', letterSpacing: 1 }}>XP</div>
+              </div>
+              <div style={{ background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.15)',
+                borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#EDE8DC' }}>Nv.{level}</div>
+                <div style={{ fontSize: 9, color: 'rgba(237,232,220,.4)', letterSpacing: 1 }}>RANGO</div>
+              </div>
+            </div>
+            {allEnrollments.length > 1 && (
+              <button onClick={() => setShowCourseSelector(true)}
+                style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(212,160,23,.3)',
+                  background: 'rgba(212,160,23,.08)', color: 'rgba(212,160,23,.8)', fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'var(--font)' }}>
+                Cambiar caso
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* ── Hero estándar ── */
+        <div style={{
+          margin: '0 24px 24px', padding: '28px 32px', borderRadius: 20,
+          background: 'var(--gradient)', color: '#fff', position: 'relative', overflow: 'hidden',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexWrap: 'wrap', gap: 24, animation: 'fadeUp .5s ease',
+        }}>
+          <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160,
+            borderRadius: '50%', background: 'rgba(255,255,255,.06)' }} />
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.7)',
+              textTransform: 'uppercase', letterSpacing: 2, marginBottom: 6 }}>{enrolledCourse?.name || 'Tu Ruta DCE'}</div>
+            <h2 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>Mapa de aprendizaje</h2>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,.75)', maxWidth: 400 }}>
+              Avanza por cada lección y desbloquea retos para construir tu rol como docente-diseñador.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', zIndex: 1, alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <StatChip icon={<ProgressRing pct={pct} size={28} sw={3} color="rgba(255,255,255,.9)" />} label="Progreso" value={pct + '%'} />
+              <StatChip icon={<ZapIc s={18} c="var(--orange-light)" />} label="XP" value={xp} />
+              <StatChip icon={<TargetIc s={18} c="var(--orange-light)" />} label="Nivel" value={level} />
+            </div>
+            {allEnrollments.length > 1 && (
+              <button onClick={() => setShowCourseSelector(true)}
+                style={{ padding: '6px 14px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.5)',
+                  background: 'rgba(255,255,255,.12)', color: '#fff', fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'var(--font)', backdropFilter: 'blur(4px)' }}>
+                Cambiar curso
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Checklist primeros pasos (hasta reclamar el bonus) */}
       <div style={{ margin: '0 24px 24px' }}>

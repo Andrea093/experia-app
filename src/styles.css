@@ -267,6 +267,338 @@ table { min-width: 560px; }
   html{scroll-behavior:auto}
 }
 
+/* =============================================
+   TEMA INMERSIVO: DETECTIVES DE TEXTO
+   Activado con <html data-course-theme="detective">
+   ============================================= */
+
+/* ── Keyframes globales del tema detective ── */
+@keyframes det-rain {
+  0%   { transform: translateY(-100vh) rotate(15deg); opacity: 0; }
+  10%  { opacity: .18; }
+  90%  { opacity: .18; }
+  100% { transform: translateY(100vh) rotate(15deg); opacity: 0; }
+}
+@keyframes det-flicker {
+  0%,100% { opacity: 1; }
+  92%      { opacity: 1; }
+  93%      { opacity: .7; }
+  94%      { opacity: 1; }
+  96%      { opacity: .5; }
+  97%      { opacity: 1; }
+}
+@keyframes det-stamp {
+  0%   { transform: scale(2.5) rotate(-12deg); opacity: 0; }
+  60%  { transform: scale(.92) rotate(-2deg);  opacity: 1; }
+  75%  { transform: scale(1.06) rotate(-2deg); }
+  100% { transform: scale(1)   rotate(-2deg);  opacity: 1; }
+}
+@keyframes det-pulse-amber {
+  0%,100% { box-shadow: 0 0 0 0 rgba(212,160,23,.5); }
+  50%      { box-shadow: 0 0 0 8px rgba(212,160,23,0); }
+}
+@keyframes det-idle-vera {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+@keyframes det-typewriter {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+@keyframes det-reveal {
+  0%   { filter: blur(8px) brightness(.4); opacity: 0; transform: scale(.97); }
+  100% { filter: blur(0)   brightness(1);  opacity: 1; transform: scale(1); }
+}
+@keyframes det-thread {
+  from { stroke-dashoffset: 400; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes det-scan {
+  0%   { top: 0; }
+  100% { top: 100%; }
+}
+
+/* ── Variables del tema detective ── */
+[data-course-theme="detective"] {
+  color-scheme: dark;
+
+  /* Paleta noir */
+  --det-bg:       #0A0A0F;
+  --det-panel:    #13120F;
+  --det-card:     #1C1A16;
+  --det-amber:    #D4A017;
+  --det-amber-dk: #A07810;
+  --det-amber-bg: rgba(212,160,23,.12);
+  --det-red:      #8B1A1A;
+  --det-red-bright: #C0392B;
+  --det-cream:    #EDE8DC;
+  --det-muted:    #7A7060;
+  --det-border:   rgba(212,160,23,.22);
+
+  /* Override de variables globales */
+  --bg:       var(--det-bg);
+  --bg-alt:   var(--det-panel);
+  --white:    var(--det-card);
+  --border:   var(--det-border);
+  --dark:     var(--det-cream);
+  --text:     var(--det-cream);
+  --text-sec: #C4BCA8;
+  --muted:    var(--det-muted);
+  --subtle:   #5A5040;
+  --orange:   var(--det-amber);
+  --orange-light: #E8B830;
+  --orange-bg: var(--det-amber-bg);
+  --orange-50: rgba(212,160,23,.06);
+  --purple:   #8B5E3C;
+  --purple-deep: #6B4030;
+  --purple-bg: rgba(139,94,60,.15);
+  --grad-mid: #C0724A;
+  --gradient: linear-gradient(125deg, #1C1208 0%, #3A2A10 35%, #6B4A20 65%, var(--det-amber) 100%);
+  --gradient-orange: linear-gradient(135deg, var(--det-amber-dk) 0%, var(--det-amber) 100%);
+  --gradient-soft: linear-gradient(135deg, var(--det-amber-bg) 0%, rgba(139,26,26,.15) 100%);
+
+  --sh-sm: 0 1px 3px rgba(0,0,0,.6);
+  --sh-md: 0 4px 16px rgba(0,0,0,.7), 0 0 0 1px var(--det-border);
+  --sh-lg: 0 8px 32px rgba(0,0,0,.8), 0 0 0 1px var(--det-border);
+  --sh-xl: 0 16px 56px rgba(0,0,0,.9), 0 0 20px rgba(212,160,23,.08);
+  --sh-orange: 0 8px 24px -8px rgba(212,160,23,.5);
+}
+
+/* ── Fondo con efecto de lluvia ── */
+[data-course-theme="detective"] #root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    repeating-linear-gradient(
+      105deg,
+      transparent 0px,
+      transparent 2px,
+      rgba(212,160,23,.03) 2px,
+      rgba(212,160,23,.03) 3px
+    );
+  animation: det-rain 4s linear infinite;
+}
+[data-course-theme="detective"] #root::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    repeating-linear-gradient(
+      105deg,
+      transparent 0px,
+      transparent 5px,
+      rgba(212,160,23,.02) 5px,
+      rgba(212,160,23,.02) 6px
+    );
+  animation: det-rain 6.5s linear infinite .8s;
+}
+
+/* ── Textura de papel envejecido en cards ── */
+[data-course-theme="detective"] [class*="card"],
+[data-course-theme="detective"] .det-card {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='.03'/%3E%3C/svg%3E");
+}
+
+/* ── Sidebar en tema detective ── */
+[data-course-theme="detective"] aside {
+  background: #0D0B08 !important;
+  border-right: 1px solid var(--det-border) !important;
+}
+
+/* ── Header en tema detective ── */
+[data-course-theme="detective"] header {
+  background: rgba(10,9,6,.95) !important;
+  border-bottom: 1px solid var(--det-border) !important;
+  backdrop-filter: blur(12px);
+}
+
+/* ── Scrollbars noir ── */
+[data-course-theme="detective"] ::-webkit-scrollbar { width: 6px; }
+[data-course-theme="detective"] ::-webkit-scrollbar-track { background: #0A0A0F; }
+[data-course-theme="detective"] ::-webkit-scrollbar-thumb {
+  background: var(--det-amber-dk);
+  border-radius: 3px;
+}
+
+/* ── Barra de progreso ámbar ── */
+[data-course-theme="detective"] .progress-bar-fill {
+  background: linear-gradient(90deg, var(--det-amber-dk), var(--det-amber)) !important;
+  box-shadow: 0 0 8px rgba(212,160,23,.5);
+}
+
+/* ── Nodos del mapa: estilo pin de investigación ── */
+[data-course-theme="detective"] .map-node-available {
+  background: var(--det-amber) !important;
+  border-color: var(--det-amber) !important;
+  box-shadow: 0 0 0 4px rgba(212,160,23,.2), 0 4px 16px rgba(212,160,23,.4) !important;
+  animation: det-pulse-amber 2s ease-in-out infinite !important;
+}
+[data-course-theme="detective"] .map-node-completed {
+  background: #1A3020 !important;
+  border: 2px solid #2ECC71 !important;
+  box-shadow: 0 0 12px rgba(46,204,113,.3) !important;
+}
+[data-course-theme="detective"] .map-node-locked {
+  background: #1C1A16 !important;
+  border: 1px dashed rgba(212,160,23,.2) !important;
+}
+
+/* ── Animación de entrada de página en tema detective ── */
+[data-course-theme="detective"] .page-enter {
+  animation: det-reveal .5s var(--ease-out) both !important;
+}
+
+/* ── Sello ARCHIVADO (se añade via JS cuando completa módulo) ── */
+.det-stamp {
+  position: absolute;
+  top: 12px; right: 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #C0392B;
+  border: 2px solid #C0392B;
+  padding: 3px 8px;
+  border-radius: 3px;
+  opacity: .85;
+  transform: rotate(-2deg);
+  pointer-events: none;
+  animation: det-stamp .4s var(--ease-spring) both;
+}
+
+/* ── Componente CharacterBubble ── */
+.det-character-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 0 0 4px;
+  animation: det-reveal .5s .1s var(--ease-out) both;
+}
+.det-character-avatar {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid var(--det-amber);
+  background: #1C1A16;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(212,160,23,.3);
+  animation: det-idle-vera 3s ease-in-out infinite;
+}
+.det-character-bubble {
+  position: relative;
+  background: #1C1A16;
+  border: 1px solid var(--det-border);
+  border-radius: 12px 12px 12px 2px;
+  padding: 10px 14px;
+  max-width: 520px;
+  box-shadow: var(--sh-md);
+}
+.det-character-bubble::before {
+  content: '';
+  position: absolute;
+  left: -7px; bottom: 10px;
+  border-width: 6px 8px 6px 0;
+  border-style: solid;
+  border-color: transparent var(--det-border) transparent transparent;
+}
+.det-character-bubble::after {
+  content: '';
+  position: absolute;
+  left: -5px; bottom: 10px;
+  border-width: 6px 8px 6px 0;
+  border-style: solid;
+  border-color: transparent #1C1A16 transparent transparent;
+}
+.det-character-name {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--det-amber);
+  margin-bottom: 4px;
+}
+.det-character-text {
+  font-size: 13px;
+  color: var(--det-cream);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+/* ── Sección tipo 'evidence' en lección ── */
+.det-evidence-card {
+  border: 1px solid var(--det-border);
+  border-left: 3px solid var(--det-amber);
+  background: var(--det-card);
+  border-radius: 8px;
+  padding: 14px 18px;
+  position: relative;
+}
+.det-evidence-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--det-amber);
+  margin-bottom: 6px;
+}
+
+/* ── Tablero del caso (reemplaza "Tu progreso") ── */
+.det-caseboard {
+  background: var(--det-card);
+  border: 1px solid var(--det-border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  position: relative;
+  overflow: hidden;
+}
+.det-caseboard::before {
+  content: 'EXPEDIENTE ACTIVO';
+  position: absolute;
+  top: 8px; right: 12px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  font-weight: 800;
+  color: var(--det-amber);
+  opacity: .5;
+}
+.det-evidence-dots {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.det-evidence-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  transition: all .3s var(--ease);
+}
+.det-evidence-dot.collected {
+  background: var(--det-amber);
+  box-shadow: 0 0 8px rgba(212,160,23,.4);
+}
+.det-evidence-dot.pending {
+  background: transparent;
+  border: 1.5px dashed rgba(212,160,23,.3);
+}
+
+/* ── Lámpara ámbar: vignette atmosférico ── */
+[data-course-theme="detective"] #root {
+  position: relative;
+}
+[data-course-theme="detective"] #root > div {
+  position: relative;
+  z-index: 1;
+}
+
 /* Print: certificate only */
 @media print {
   .no-print { display: none !important; }

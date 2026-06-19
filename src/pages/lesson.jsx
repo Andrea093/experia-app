@@ -3,6 +3,7 @@ import {
   useStore, nav, completeNode, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
   getStudentModules, nodeStatus, calcLevel,
 } from '../store/store.jsx'
+import { CharacterFloat } from '../components/CharacterBubble.jsx'
 import {
   useMobile, LogoImg,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc,
@@ -335,9 +336,12 @@ const LessonView = () => {
               </>
             )}
           </div>
-          <div style={{ height: 40 }} />
+          <div style={{ height: 80 }} />
         </div>
       </div>
+
+      {/* Personaje flotante — solo visible en tema detective */}
+      <CharacterFloat moduleCharacterLine={mod?.characterLine} />
     </div>
   );
 };
