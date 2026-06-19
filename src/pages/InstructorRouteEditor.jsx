@@ -156,12 +156,24 @@ const InstructorRouteEditor = () => {
     ))
   }
 
-  // Curso vinculado: curso activo asignado a la institución seleccionada (tabla institution_courses)
-  const linkedCourse = React.useMemo(() => {
-    if (!routeInstitution) return null
-    const ic = institutionCourses.find(r => r.institution_id === routeInstitution && r.is_active)
-    return ic ? courses.find(c => c.id === ic.course_id) || null : null
+  // Todos los cursos activos asignados a la institución seleccionada
+  const linkedCourses = React.useMemo(() => {
+    if (!routeInstitution) return []
+    return institutionCourses
+      .filter(r => r.institution_id === routeInstitution && r.is_active)
+      .map(r => courses.find(c => c.id === r.course_id))
+      .filter(Boolean)
   }, [routeInstitution, institutionCourses, courses])
+
+  const [selectedCourseId, setSelectedCourseId] = React.useState('')
+
+  // Auto-seleccionar si solo hay uno; limpiar si cambia la institución
+  React.useEffect(() => {
+    if (linkedCourses.length === 1) setSelectedCourseId(linkedCourses[0].id)
+    else setSelectedCourseId('')
+  }, [routeInstitution])
+
+  const linkedCourse = linkedCourses.find(c => c.id === selectedCourseId) || null
 
   const handlePublish = async () => {
     if (!linkedCourse) return
@@ -248,11 +260,32 @@ const InstructorRouteEditor = () => {
             background: linkedCourse ? '#F0FDF4' : '#FFFBEB',
             border: `1.5px solid ${linkedCourse ? '#86EFAC' : '#FCD34D'}`,
             display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            {linkedCourse ? (
+            {linkedCourses.length === 0 ? null : linkedCourses.length > 1 && !linkedCourse ? (
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#92400E', marginBottom: 6 }}>
+                  📚 Esta institución tiene varios cursos — ¿a cuál publicas?
+                </div>
+                <select value={selectedCourseId} onChange={e => setSelectedCourseId(e.target.value)}
+                  style={{ fontSize: 13, padding: '6px 10px', borderRadius: 8, border: '1.5px solid #FCD34D',
+                    fontFamily: 'var(--font)', background: '#fff', cursor: 'pointer', width: '100%', maxWidth: 360 }}>
+                  <option value="">— Selecciona un curso —</option>
+                  {linkedCourses.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : linkedCourse ? (
               <>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#15803D' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#15803D', display: 'flex', alignItems: 'center', gap: 8 }}>
                     📚 Curso vinculado: {linkedCourse.name}
+                    {linkedCourses.length > 1 && (
+                      <button onClick={() => setSelectedCourseId('')}
+                        style={{ fontSize: 10, color: '#15803D', background: 'none', border: '1px solid #86EFAC',
+                          borderRadius: 4, padding: '1px 6px', cursor: 'pointer', fontFamily: 'var(--font)' }}>
+                        cambiar
+                      </button>
+                    )}
                   </div>
                   <div style={{ fontSize: 11, color: '#166534', marginTop: 2 }}>
                     Al publicar, los docentes inscritos verán los cambios al recargar
