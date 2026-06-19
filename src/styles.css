@@ -1035,6 +1035,321 @@ table { min-width: 560px; }
   color: rgba(237,232,220,.7);
 }
 
+/* =============================================
+   ESCAPE ROOM THEME — data-course-theme="escape-room"
+   Inmersión de mazmorra matemática: antorchas, engranajes, puertas.
+   ============================================= */
+
+/* ── Capa ambiental ── */
+.er-ambient {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none; overflow: hidden;
+}
+
+/* Viñeta de mazmorra */
+.er-amb-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 25%, rgba(0,0,0,.75) 100%);
+  animation: er-vignette-pulse 9s ease-in-out infinite;
+}
+@keyframes er-vignette-pulse {
+  0%,100% { opacity: .85; }
+  50% { opacity: 1; }
+}
+
+/* Parpadeo global de luz */
+.er-amb-flicker {
+  position: absolute; inset: 0;
+  background: transparent;
+  animation: er-flicker 4s ease-in-out infinite;
+}
+@keyframes er-flicker {
+  0%,100% { background: transparent; }
+  18% { background: rgba(240,165,0,.02); }
+  20% { background: transparent; }
+  55% { background: rgba(240,165,0,.015); }
+  57% { background: transparent; }
+  80% { background: rgba(240,165,0,.025); }
+  82% { background: transparent; }
+}
+
+/* Antorchas en esquinas */
+.er-amb-torch {
+  position: absolute; width: 320px; height: 320px;
+  border-radius: 50%;
+}
+.er-amb-torch-tl {
+  top: -160px; left: -160px;
+  background: radial-gradient(circle, rgba(240,165,0,.18) 0%, transparent 70%);
+  animation: er-torch-flicker 2.4s ease-in-out infinite;
+}
+.er-amb-torch-tr {
+  top: -160px; right: -160px;
+  background: radial-gradient(circle, rgba(240,165,0,.14) 0%, transparent 70%);
+  animation: er-torch-flicker 1.8s ease-in-out infinite 0.5s;
+}
+.er-amb-torch-bl {
+  bottom: -160px; left: -160px;
+  background: radial-gradient(circle, rgba(240,165,0,.12) 0%, transparent 70%);
+  animation: er-torch-flicker 2.9s ease-in-out infinite 1.1s;
+}
+.er-amb-torch-br {
+  bottom: -160px; right: -160px;
+  background: radial-gradient(circle, rgba(240,165,0,.12) 0%, transparent 70%);
+  animation: er-torch-flicker 2.2s ease-in-out infinite 0.3s;
+}
+@keyframes er-torch-flicker {
+  0%,100% { opacity: 1; transform: scale(1); }
+  15% { opacity: .6; transform: scale(.92); }
+  30% { opacity: 1.1; transform: scale(1.06); }
+  60% { opacity: .8; transform: scale(.96); }
+  75% { opacity: 1; transform: scale(1.03); }
+}
+
+/* Brasas que suben */
+.er-amb-embers { position: absolute; inset: 0; }
+.er-amb-ember {
+  position: absolute;
+  bottom: -8px;
+  border-radius: 50% 50% 30% 30%;
+  background: radial-gradient(circle at 50% 30%, #fff9 0%, #f0a500 35%, rgba(240,100,0,0) 100%);
+  animation: er-ember-rise linear infinite;
+}
+@keyframes er-ember-rise {
+  0%  { transform: translateY(0) translateX(0); opacity: .9; }
+  40% { opacity: .6; }
+  100% { transform: translateY(-90vh) translateX(var(--drift, 0px)); opacity: 0; }
+}
+
+/* Niebla en el suelo */
+.er-amb-fog {
+  position: absolute; bottom: 0; left: -10%; right: -10%;
+  height: 220px;
+  background: linear-gradient(to top, rgba(10,18,10,.65) 0%, transparent 100%);
+  filter: blur(12px);
+  animation: er-fog-drift 14s ease-in-out infinite alternate;
+}
+.er-amb-fog-2 {
+  height: 140px; bottom: -20px;
+  background: linear-gradient(to top, rgba(20,30,15,.5) 0%, transparent 100%);
+  animation: er-fog-drift 10s ease-in-out infinite alternate-reverse;
+}
+@keyframes er-fog-drift {
+  0% { transform: translateX(-4%) scaleX(1); }
+  100% { transform: translateX(4%) scaleX(1.05); }
+}
+
+/* Engranajes */
+.er-amb-gears { position: absolute; inset: 0; overflow: hidden; }
+@keyframes er-gear-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Líneas de escaneo */
+.er-amb-scan {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    to bottom, transparent 0, transparent 3px,
+    rgba(0,0,0,.06) 3px, rgba(0,0,0,.06) 4px
+  );
+  animation: er-scan-move 8s linear infinite;
+}
+@keyframes er-scan-move {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 40px; }
+}
+
+/* Sin movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .er-amb-embers, .er-amb-fog, .er-amb-scan, .er-amb-flicker { display: none; }
+  .er-amb-torch, .er-amb-gears { animation: none !important; }
+  .er-amb-vignette { animation: none; }
+}
+
+/* ── Variables del tema ── */
+[data-course-theme="escape-room"] {
+  --er-bg:      #080e08;
+  --er-panel:   #0f170f;
+  --er-border:  rgba(240,165,0,.2);
+  --er-amber:   #f0a500;
+  --er-amber-bg: rgba(240,165,0,.1);
+  --er-green:   #00c853;
+  --er-text:    #d8ccaa;
+  --er-muted:   #7a9070;
+  /* Redirige variables globales */
+  --bg: var(--er-bg);
+  --white: #111a11;
+  --border: var(--er-border);
+  --text: var(--er-text);
+  --muted: var(--er-muted);
+  --orange: var(--er-amber);
+  --orange-light: #f5c040;
+  --orange-pale: rgba(240,165,0,.25);
+  --orange-bg: var(--er-amber-bg);
+  --purple: #3a7a3a;
+  --purple-deep: #1e501e;
+  --purple-light: #60a060;
+  --purple-bg: rgba(0,200,83,.12);
+  --gradient: linear-gradient(125deg, #060e06 0%, #0f2010 35%, #1a3818 65%, #f0a500 100%);
+  --gradient-orange: linear-gradient(135deg, #c07800 0%, #f0a500 100%);
+  --gradient-soft: linear-gradient(135deg, rgba(240,165,0,.1) 0%, rgba(0,200,83,.1) 100%);
+  --dark: #e8d8a0;
+  --success: var(--er-green);
+  --sh-md: 0 2px 4px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.4);
+  --sh-lg: 0 4px 8px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.5);
+}
+
+/* Header y sidebar oscuros */
+[data-course-theme="escape-room"] header {
+  background: rgba(8,14,8,.95) !important;
+  border-bottom: 1px solid rgba(240,165,0,.15) !important;
+  box-shadow: 0 2px 24px rgba(0,0,0,.7) !important;
+}
+[data-course-theme="escape-room"] aside {
+  background: rgba(8,14,8,.98) !important;
+  border-right: 1px solid rgba(240,165,0,.1) !important;
+}
+[data-course-theme="escape-room"] .sidebar-nav-item.active {
+  background: rgba(240,165,0,.12) !important;
+  color: var(--er-amber) !important;
+  border-left: 3px solid var(--er-amber) !important;
+}
+[data-course-theme="escape-room"] .sidebar-nav-item:hover {
+  background: rgba(240,165,0,.07) !important;
+  color: var(--er-text) !important;
+}
+
+/* Botones */
+[data-course-theme="escape-room"] button[class*="btn-primary"],
+[data-course-theme="escape-room"] .btn-primary {
+  background: linear-gradient(135deg, #c07800, #f0a500) !important;
+  box-shadow: 0 4px 16px rgba(240,165,0,.3) !important;
+}
+[data-course-theme="escape-room"] button[class*="btn-outline"],
+[data-course-theme="escape-room"] .btn-outline {
+  border-color: var(--er-amber) !important;
+  color: var(--er-amber) !important;
+}
+
+/* Nodos del mapa — efecto puerta */
+[data-course-theme="escape-room"] .er-door-node {
+  border-radius: 46% 46% 8px 8px !important;
+  box-shadow: 0 0 0 2px rgba(240,165,0,.15), inset 0 -4px 8px rgba(0,0,0,.5) !important;
+  position: relative;
+}
+[data-course-theme="escape-room"] .er-door-node.available {
+  box-shadow: 0 0 20px rgba(240,165,0,.45), 0 0 40px rgba(240,165,0,.2), inset 0 -4px 8px rgba(0,0,0,.3) !important;
+}
+[data-course-theme="escape-room"] .er-door-node.completed {
+  box-shadow: 0 0 20px rgba(0,200,83,.4), 0 0 40px rgba(0,200,83,.15), inset 0 -4px 8px rgba(0,0,0,.3) !important;
+}
+
+/* Lesson section overrides */
+[data-course-theme="escape-room"] .ls-section-card {
+  background: rgba(15,23,15,.95);
+  border: 1px solid rgba(240,165,0,.15);
+  color: var(--er-text);
+}
+[data-course-theme="escape-room"] .ls-section-card h1,
+[data-course-theme="escape-room"] .ls-section-card h2,
+[data-course-theme="escape-room"] .ls-section-card h3 {
+  color: var(--er-amber);
+  text-shadow: 0 0 20px rgba(240,165,0,.3);
+}
+[data-course-theme="escape-room"] .ls-section-card p,
+[data-course-theme="escape-room"] .ls-section-card li {
+  color: rgba(216,204,170,.85);
+}
+
+/* Quote — pergamino */
+[data-course-theme="escape-room"] .ls-quote {
+  background: rgba(240,165,0,.06);
+  border-left: 4px solid var(--er-amber);
+}
+[data-course-theme="escape-room"] .ls-quote-mark { color: var(--er-amber); }
+[data-course-theme="escape-room"] .ls-quote-text { color: var(--er-text); }
+[data-course-theme="escape-room"] .ls-quote-author { color: rgba(216,204,170,.5); }
+
+/* Steps */
+[data-course-theme="escape-room"] .ls-step-node {
+  background: linear-gradient(135deg, rgba(240,165,0,.15), rgba(240,165,0,.08));
+  border: 1.5px solid rgba(240,165,0,.35);
+  box-shadow: 0 0 12px rgba(240,165,0,.2);
+}
+[data-course-theme="escape-room"] .ls-step-index {
+  background: var(--er-amber);
+  color: #080e08;
+}
+[data-course-theme="escape-room"] .ls-step-text { color: var(--er-text); }
+[data-course-theme="escape-room"] .ls-step-title { color: var(--er-amber); }
+
+/* Image badge */
+[data-course-theme="escape-room"] .ls-image-badge {
+  background: var(--er-amber);
+  color: #080e08;
+  content: 'PISTA';
+}
+
+/* Reveal */
+[data-course-theme="escape-room"] .ls-reveal-trigger {
+  background: rgba(240,165,0,.06);
+  border: 1.5px solid rgba(240,165,0,.25);
+  color: var(--er-text);
+}
+[data-course-theme="escape-room"] .ls-reveal-trigger.open {
+  border-color: var(--er-amber);
+  color: var(--er-amber);
+}
+[data-course-theme="escape-room"] .ls-reveal-body {
+  background: rgba(15,23,15,.95);
+  border-color: rgba(240,165,0,.2);
+}
+[data-course-theme="escape-room"] .ls-reveal-item { border-bottom-color: rgba(240,165,0,.1); }
+[data-course-theme="escape-room"] .ls-reveal-item-title { color: var(--er-amber); }
+[data-course-theme="escape-room"] .ls-reveal-item-desc { color: rgba(216,204,170,.7); }
+[data-course-theme="escape-room"] .ls-reveal-text { color: rgba(216,204,170,.7); }
+
+/* Character bubble escape room */
+.er-character-wrap {
+  display: flex; align-items: flex-end; gap: 12;
+  margin: 24px 0;
+}
+.er-character-avatar {
+  width: 54px; height: 54px; flex-shrink: 0; border-radius: 50%;
+  border: 2px solid rgba(240,165,0,.4);
+  overflow: hidden; background: #0d150d;
+  box-shadow: 0 0 16px rgba(240,165,0,.3);
+  animation: er-idle-prof 3.5s ease-in-out infinite;
+}
+@keyframes er-idle-prof {
+  0%,100% { transform: translateY(0); box-shadow: 0 0 16px rgba(240,165,0,.3); }
+  50% { transform: translateY(-4px); box-shadow: 0 4px 24px rgba(240,165,0,.5); }
+}
+.er-character-bubble {
+  background: rgba(10,18,10,.96);
+  border: 1px solid rgba(240,165,0,.3);
+  border-radius: 12px 12px 12px 2px;
+  padding: 10px 14px; max-width: 320px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.8);
+  animation: er-reveal .35s ease both;
+}
+@keyframes er-reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.er-character-name {
+  font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+  text-transform: uppercase; color: #f0a500; margin-bottom: 4px;
+}
+.er-character-text {
+  font-size: 12px; color: #d8ccaa; line-height: 1.6; font-style: italic;
+}
+@keyframes er-pulse-amber {
+  0%,100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: .6; }
+}
+
 /* Print: certificate only */
 @media print {
   .no-print { display: none !important; }

@@ -43,11 +43,33 @@ const TYPE_LABELS = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUAC
 const TYPE_COLORS = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: 'var(--success)' };
 
 // --- Desktop: Node circle ---
-const MapNode = React.memo(({ mod, status, index, onClick }) => {
+const MapNode = React.memo(({ mod, status, index, onClick, courseTheme }) => {
   const [hov, setHov] = React.useState(false);
   const colors = NODE_COLORS[status];
   const isActive = status === 'available';
   const nodeSize = 72;
+  const isDoor = courseTheme === 'escape-room';
+
+  // Forma de puerta: arco en la parte superior
+  const doorStyle = isDoor ? {
+    width: 58, height: 80,
+    borderRadius: '50% 50% 6px 6px',
+    background: status === 'completed'
+      ? 'linear-gradient(160deg,#005a25,#00c853)'
+      : status === 'available'
+        ? 'linear-gradient(160deg,#8a6000,#f0a500)'
+        : 'linear-gradient(160deg,#1a2a1a,#2a3a2a)',
+    border: `3px solid ${status === 'completed' ? '#00c853' : status === 'available' ? '#f0a500' : 'rgba(240,165,0,.15)'}`,
+    boxShadow: status === 'completed'
+      ? '0 0 20px rgba(0,200,83,.4)'
+      : status === 'available'
+        ? '0 0 24px rgba(240,165,0,.5), 0 0 48px rgba(240,165,0,.2)'
+        : 'none',
+  } : {
+    width: nodeSize, height: nodeSize, borderRadius: '50%',
+    background: colors.bg, border: `3px solid ${colors.border}`,
+    boxShadow: hov && status !== 'locked' ? 'var(--sh-lg)' : colors.shadow,
+  };
 
   return (
     <div onClick={() => status !== 'locked' && onClick(mod)}
@@ -57,25 +79,46 @@ const MapNode = React.memo(({ mod, status, index, onClick }) => {
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         animation: `fadeUp .4s ${index * 80}ms ease both`,
       }}>
-      {isActive && (
+      {isActive && !isDoor && (
         <div style={{ position: 'absolute', top: -28, background: 'var(--dark)', color: '#fff',
           fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 6,
           letterSpacing: 1, animation: 'float 2s ease-in-out infinite', whiteSpace: 'nowrap' }}>AQUÍ</div>
       )}
-      {isActive && (
-        <div style={{ position: 'absolute', width: nodeSize, height: nodeSize, borderRadius: '50%',
-          border: '3px solid var(--orange)', animation: 'nodePing 2s ease-out infinite' }} />
+      {isActive && isDoor && (
+        <div style={{ position: 'absolute', top: -28, background: '#f0a500', color: '#080e08',
+          fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 6,
+          letterSpacing: 1, animation: 'float 2s ease-in-out infinite', whiteSpace: 'nowrap' }}>ABIERTA</div>
       )}
-      <div style={{
-        width: nodeSize, height: nodeSize, borderRadius: '50%',
-        background: colors.bg, border: `3px solid ${colors.border}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: hov && status !== 'locked' ? 'var(--sh-lg)' : colors.shadow,
-        transform: hov && status !== 'locked' ? 'scale(1.08)' : 'scale(1)',
-        transition: 'all .25s ease',
-      }}>
-        {status === 'locked' ? <LockIc s={26} c="#fff" /> : (NODE_ICONS[mod.type] || NODE_ICONS.lesson)(status)}
+      {isActive && (
+        <div style={{
+          position: 'absolute',
+          width: isDoor ? 58 : nodeSize,
+          height: isDoor ? 80 : nodeSize,
+          borderRadius: isDoor ? '50% 50% 6px 6px' : '50%',
+          border: `3px solid ${isDoor ? '#f0a500' : 'var(--orange)'}`,
+          animation: 'nodePing 2s ease-out infinite',
+        }} />
+      )}
+      <div className={isDoor ? `er-door-node ${status}` : ''}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transform: hov && status !== 'locked' ? 'scale(1.08)' : 'scale(1)',
+          transition: 'all .25s ease',
+          ...doorStyle,
+        }}>
+        {status === 'locked'
+          ? <LockIc s={isDoor ? 22 : 26} c={isDoor ? 'rgba(240,165,0,.4)' : '#fff'} />
+          : (NODE_ICONS[mod.type] || NODE_ICONS.lesson)(status)}
       </div>
+      {/* Marco de puerta decorativo */}
+      {isDoor && (
+        <div style={{
+          position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)',
+          width: 66, height: 6, borderRadius: '0 0 4px 4px',
+          background: status === 'locked' ? 'rgba(240,165,0,.1)' : 'rgba(240,165,0,.3)',
+          boxShadow: status !== 'locked' ? '0 2px 8px rgba(240,165,0,.2)' : 'none',
+        }} />
+      )}
     </div>
   );
 });
@@ -267,7 +310,9 @@ const LearningMap = () => {
     () => courses.find(c => c.id === enrolledCourseId),
     [courses, enrolledCourseId]
   );
-  const isDetective = enrolledCourse?.theme === 'detective';
+  const isDetective  = enrolledCourse?.theme === 'detective';
+  const isEscapeRoom = enrolledCourse?.theme === 'escape-room';
+  const courseTheme  = enrolledCourse?.theme || null;
 
   const level = React.useMemo(() => calcLevel(xp), [xp]);
   const pct = React.useMemo(
@@ -384,7 +429,73 @@ const LearningMap = () => {
         />
       )}
       {/* Hero banner */}
-      {isDetective ? (
+      {isEscapeRoom ? (
+        /* ── Hero: Sala de Escape (tema Matemáticas) ── */
+        <div style={{
+          margin: '0 24px 24px', padding: '28px 32px', borderRadius: 20,
+          background: 'linear-gradient(135deg, #060a06 0%, #0d1a0d 40%, #101c0a 100%)',
+          border: '1px solid rgba(240,165,0,.2)',
+          color: '#d8ccaa', position: 'relative', overflow: 'hidden',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexWrap: 'wrap', gap: 24,
+          boxShadow: '0 8px 40px rgba(0,0,0,.85), inset 0 1px 0 rgba(240,165,0,.08)',
+        }}>
+          {/* Engranaje de fondo */}
+          <div style={{ position: 'absolute', top: -40, right: -40, fontSize: 160,
+            opacity: .04, userSelect: 'none', pointerEvents: 'none', lineHeight: 1 }}>⚙️</div>
+          {/* Sello "MISIÓN ACTIVA" */}
+          <div style={{ position: 'absolute', top: 16, right: 20,
+            fontSize: 9, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase',
+            color: '#f0a500', border: '1.5px solid rgba(240,165,0,.35)',
+            padding: '3px 8px', borderRadius: 3, opacity: .75, transform: 'rotate(2deg)' }}>
+            MISIÓN ACTIVA
+          </div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(240,165,0,.7)',
+              textTransform: 'uppercase', letterSpacing: 2.5, marginBottom: 8 }}>
+              🔐 {enrolledCourse?.name || 'Sala de Escape — Matemáticas'}
+            </div>
+            <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8, color: '#d8ccaa' }}>
+              Panel de Control
+            </h2>
+            <p style={{ fontSize: 13, color: 'rgba(216,204,170,.6)', maxWidth: 380, lineHeight: 1.6 }}>
+              Cada módulo es una puerta cerrada. Resuelve el acertijo, abre la sala y avanza hacia la llave maestra.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', zIndex: 1, alignItems: 'flex-end' }}>
+            {/* Puertas abiertas */}
+            <div style={{ background: 'rgba(240,165,0,.08)', border: '1px solid rgba(240,165,0,.2)',
+              borderRadius: 10, padding: '10px 16px', textAlign: 'center', minWidth: 130 }}>
+              <div style={{ fontSize: 22, fontWeight: 900, color: '#f0a500' }}>
+                {completed.filter(id => studentModules.find(m => m.id === id)).length}
+                <span style={{ fontSize: 14, color: 'rgba(240,165,0,.4)' }}>/{studentModules.length}</span>
+              </div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: 'rgba(240,165,0,.6)',
+                textTransform: 'uppercase', marginTop: 2 }}>Puertas abiertas</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ background: 'rgba(240,165,0,.08)', border: '1px solid rgba(240,165,0,.15)',
+                borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#d8ccaa' }}>{xp}</div>
+                <div style={{ fontSize: 9, color: 'rgba(216,204,170,.4)', letterSpacing: 1 }}>XP</div>
+              </div>
+              <div style={{ background: 'rgba(240,165,0,.08)', border: '1px solid rgba(240,165,0,.15)',
+                borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#d8ccaa' }}>Nv.{level}</div>
+                <div style={{ fontSize: 9, color: 'rgba(216,204,170,.4)', letterSpacing: 1 }}>RANGO</div>
+              </div>
+            </div>
+            {allEnrollments.length > 1 && (
+              <button onClick={() => setShowCourseSelector(true)}
+                style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(240,165,0,.3)',
+                  background: 'rgba(240,165,0,.08)', color: 'rgba(240,165,0,.8)', fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'var(--font)' }}>
+                Cambiar sala
+              </button>
+            )}
+          </div>
+        </div>
+      ) : isDetective ? (
         /* ── Hero: Tablero del Caso (tema Detective) ── */
         <div style={{
           margin: '0 24px 24px', padding: '28px 32px', borderRadius: 20,
@@ -531,7 +642,7 @@ const LearningMap = () => {
               display: 'flex', alignItems: 'center', gap: 20,
               flexDirection: cardOnLeft ? 'row-reverse' : 'row',
             }}>
-              <MapNode mod={mod} status={status} index={i} onClick={handleNodeClick} />
+              <MapNode mod={mod} status={status} index={i} onClick={handleNodeClick} courseTheme={courseTheme} />
               <div style={{ animation: `${cardOnLeft ? 'slideL' : 'slideR'} .4s ${i * 80 + 100}ms ease both` }}>
                 <MapCard mod={mod} status={status} onClick={handleNodeClick} />
               </div>

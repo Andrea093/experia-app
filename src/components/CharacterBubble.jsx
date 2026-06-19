@@ -64,6 +64,48 @@ const REXAvatar = () => (
   </svg>
 )
 
+// ─── Prof. Axioma — guía del Escape Room Matemático ────────────────────────
+const PROFAxiomaAvatar = () => (
+  <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+    {/* Fondo oscuro de mazmorra */}
+    <circle cx="26" cy="26" r="26" fill="#0d150d"/>
+    {/* Pelaje salvaje hacia arriba */}
+    <path d="M15 20 C14 11 18 5 21 7 C21 13 20 17 19 19" fill="#2d3a10"/>
+    <path d="M37 20 C38 11 34 5 31 7 C31 13 32 17 33 19" fill="#2d3a10"/>
+    <path d="M21 9 C24 4 28 4 31 9" fill="#3a4a12"/>
+    <path d="M17 15 C19 8 22 5 24 7" fill="#3a4a12"/>
+    <path d="M35 15 C33 8 30 5 28 7" fill="#3a4a12"/>
+    {/* Cabeza */}
+    <ellipse cx="26" cy="30" rx="10" ry="11" fill="#c89060"/>
+    {/* Frente / raíz del cabello */}
+    <ellipse cx="26" cy="20.5" rx="10" ry="5.5" fill="#2d3a10"/>
+    {/* Gafas redondas amber */}
+    <circle cx="21.5" cy="28.5" r="4" stroke="#f0a500" strokeWidth="1.5" fill="rgba(240,165,0,.06)"/>
+    <circle cx="30.5" cy="28.5" r="4" stroke="#f0a500" strokeWidth="1.5" fill="rgba(240,165,0,.06)"/>
+    <line x1="25.5" y1="28.5" x2="26.5" y2="28.5" stroke="#f0a500" strokeWidth="1.1"/>
+    <line x1="17.5" y1="27.5" x2="15.5" y2="26.5" stroke="#f0a500" strokeWidth="1.1"/>
+    <line x1="34.5" y1="27.5" x2="36.5" y2="26.5" stroke="#f0a500" strokeWidth="1.1"/>
+    {/* Ojos */}
+    <circle cx="21.5" cy="28.5" r="1.8" fill="#1a0a05"/>
+    <circle cx="30.5" cy="28.5" r="1.8" fill="#1a0a05"/>
+    <circle cx="22" cy="28" r=".55" fill="white" opacity=".8"/>
+    <circle cx="31" cy="28" r=".55" fill="white" opacity=".8"/>
+    {/* Nariz */}
+    <ellipse cx="26" cy="32" rx="1.1" ry=".75" fill="#a07050" opacity=".5"/>
+    {/* Sonrisa entusiasta */}
+    <path d="M21.5 35.5 Q26 39.5 30.5 35.5" stroke="#a07050" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+    {/* Moñito amber */}
+    <polygon points="22.5,40 26,43 22.5,46" fill="#c0a000"/>
+    <polygon points="29.5,40 26,43 29.5,46" fill="#c0a000"/>
+    <circle cx="26" cy="43" r="2" fill="#f0a500"/>
+    {/* Llave — prop del escape room */}
+    <circle cx="40" cy="37.5" r="3.5" stroke="#f0a500" strokeWidth="1.5" fill="none" opacity=".85"/>
+    <line x1="43" y1="37.5" x2="48" y2="37.5" stroke="#f0a500" strokeWidth="1.5" strokeLinecap="round" opacity=".85"/>
+    <line x1="46" y1="37.5" x2="46" y2="40" stroke="#f0a500" strokeWidth="1.5" strokeLinecap="round" opacity=".85"/>
+    <line x1="48" y1="37.5" x2="48" y2="40" stroke="#f0a500" strokeWidth="1.5" strokeLinecap="round" opacity=".85"/>
+  </svg>
+)
+
 const CHARACTERS = {
   vera: {
     name: 'INSPECTORA VERA CLÍO',
@@ -74,6 +116,14 @@ const CHARACTERS = {
     name: 'AGENTE REX',
     Avatar: REXAvatar,
     defaultLine: '¡Oye! No te preocupes, a mí también me costó. Vuelve a revisar la evidencia.',
+  },
+}
+
+const ESCAPE_CHARACTERS = {
+  prof: {
+    name: 'PROF. AXIOMA',
+    Avatar: PROFAxiomaAvatar,
+    defaultLine: '¡Resuelve el acertijo y la puerta se abrira! Cada concepto es una clave.',
   },
 }
 
@@ -108,8 +158,7 @@ export const CharacterBubble = ({ character = 'vera', text, style }) => {
 
 // ─── CharacterFloat ─────────────────────────────────────────────
 // Versión flotante fija en esquina inferior izquierda.
-// Aparece en lessons/challenges cuando el tema es detective.
-// Toca al personaje para que "hable" (toggle del bubble).
+// Soporta temas 'detective' (Vera Clío) y 'escape-room' (Prof. Axioma).
 export const CharacterFloat = ({ moduleCharacterLine }) => {
   const theme = useStore(s => {
     const id = s.enrolledCourseId
@@ -118,26 +167,61 @@ export const CharacterFloat = ({ moduleCharacterLine }) => {
   const [open, setOpen] = React.useState(false)
   const [hasBeenOpened, setHasBeenOpened] = React.useState(false)
 
-  // Auto-abrir al montar por primera vez en cada módulo
-  React.useEffect(() => {
-    if (theme !== 'detective') return
-    const t = setTimeout(() => {
-      setOpen(true)
-      setHasBeenOpened(true)
-    }, 800)
-    return () => clearTimeout(t)
-  }, [theme, moduleCharacterLine])
+  const isDetective  = theme === 'detective'
+  const isEscapeRoom = theme === 'escape-room'
+  const isActive     = isDetective || isEscapeRoom
 
-  // Auto-cerrar después de 6 segundos
+  React.useEffect(() => {
+    if (!isActive) return
+    const t = setTimeout(() => { setOpen(true); setHasBeenOpened(true) }, 800)
+    return () => clearTimeout(t)
+  }, [theme, moduleCharacterLine, isActive])
+
   React.useEffect(() => {
     if (!open) return
     const t = setTimeout(() => setOpen(false), 6000)
     return () => clearTimeout(t)
   }, [open, moduleCharacterLine])
 
-  if (theme !== 'detective') return null
+  if (!isActive) return null
 
-  const line = moduleCharacterLine || CHARACTERS.vera.defaultLine
+  // Config según tema
+  const config = isEscapeRoom
+    ? {
+        char: ESCAPE_CHARACTERS.prof,
+        bgCard: 'rgba(10,18,10,.96)',
+        borderCard: 'rgba(240,165,0,.3)',
+        nameColor: '#f0a500',
+        textColor: '#d8ccaa',
+        bgAvatar: '#0d150d',
+        borderAvatar: open ? '#f0a500' : 'rgba(240,165,0,.4)',
+        shadowAvatar: open ? '0 0 16px rgba(240,165,0,.5)' : '0 4px 16px rgba(0,0,0,.7)',
+        animAvatar: 'er-idle-prof 3.5s ease-in-out infinite',
+        dotBg: '#f0a500',
+        dotBorder: '#080e08',
+        dotAnim: 'er-pulse-amber 1.5s ease-in-out infinite',
+        revealAnim: 'er-reveal .35s ease both',
+        bgBubbleBorder: '#080e08',
+      }
+    : {
+        char: CHARACTERS.vera,
+        bgCard: '#1C1A16',
+        borderCard: 'rgba(212,160,23,.3)',
+        nameColor: '#D4A017',
+        textColor: '#EDE8DC',
+        bgAvatar: '#1C1A16',
+        borderAvatar: open ? '#D4A017' : 'rgba(212,160,23,.4)',
+        shadowAvatar: open ? '0 0 16px rgba(212,160,23,.5)' : '0 4px 16px rgba(0,0,0,.7)',
+        animAvatar: 'det-idle-vera 3s ease-in-out infinite',
+        dotBg: '#D4A017',
+        dotBorder: '#0A0A0F',
+        dotAnim: 'det-pulse-amber 1.5s ease-in-out infinite',
+        revealAnim: 'det-reveal .35s ease both',
+        bgBubbleBorder: '#0A0A0F',
+      }
+
+  const { char } = config
+  const line = moduleCharacterLine || char.defaultLine
 
   return (
     <div style={{
@@ -145,50 +229,46 @@ export const CharacterFloat = ({ moduleCharacterLine }) => {
       display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
       pointerEvents: 'none',
     }}>
-      {/* Burbuja de diálogo */}
       {open && (
         <div style={{
-          maxWidth: 280, background: '#1C1A16',
-          border: '1px solid rgba(212,160,23,.3)',
+          maxWidth: 280, background: config.bgCard,
+          border: `1px solid ${config.borderCard}`,
           borderRadius: '12px 12px 12px 2px',
           padding: '10px 14px',
           boxShadow: '0 8px 32px rgba(0,0,0,.8)',
-          animation: 'det-reveal .35s ease both',
+          animation: config.revealAnim,
           pointerEvents: 'auto',
         }}>
           <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase',
-            color: '#D4A017', marginBottom: 4 }}>INSPECTORA VERA CLÍO</div>
-          <div style={{ fontSize: 12, color: '#EDE8DC', lineHeight: 1.6, fontStyle: 'italic' }}>
+            color: config.nameColor, marginBottom: 4 }}>{char.name}</div>
+          <div style={{ fontSize: 12, color: config.textColor, lineHeight: 1.6, fontStyle: 'italic' }}>
             "{line}"
           </div>
         </div>
       )}
 
-      {/* Avatar clickeable */}
       <div
         onClick={() => { setOpen(o => !o); setHasBeenOpened(true) }}
         style={{
           width: 52, height: 52, borderRadius: '50%',
-          border: `2px solid ${open ? '#D4A017' : 'rgba(212,160,23,.4)'}`,
-          background: '#1C1A16', overflow: 'hidden', cursor: 'pointer',
-          boxShadow: open ? '0 0 16px rgba(212,160,23,.5)' : '0 4px 16px rgba(0,0,0,.7)',
+          border: `2px solid ${config.borderAvatar}`,
+          background: config.bgAvatar, overflow: 'hidden', cursor: 'pointer',
+          boxShadow: config.shadowAvatar,
           transition: 'all .3s ease',
-          animation: 'det-idle-vera 3s ease-in-out infinite',
-          pointerEvents: 'auto',
-          flexShrink: 0,
+          animation: config.animAvatar,
+          pointerEvents: 'auto', flexShrink: 0,
         }}
-        title="Vera Clío — click para escuchar"
+        title={`${char.name} — clic para escuchar`}
       >
-        <VERAAvatar />
+        <char.Avatar />
       </div>
 
-      {/* Indicador de nuevo mensaje (punto ámbar parpadeante) */}
       {!hasBeenOpened && (
         <div style={{
           position: 'absolute', top: -4, right: -4,
           width: 10, height: 10, borderRadius: '50%',
-          background: '#D4A017', border: '2px solid #0A0A0F',
-          animation: 'det-pulse-amber 1.5s ease-in-out infinite',
+          background: config.dotBg, border: `2px solid ${config.bgBubbleBorder}`,
+          animation: config.dotAnim,
         }} />
       )}
     </div>
