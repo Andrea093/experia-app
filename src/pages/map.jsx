@@ -48,8 +48,21 @@ const MapNode = React.memo(({ mod, status, index, onClick, courseTheme }) => {
   const colors = NODE_COLORS[status];
   const isActive = status === 'available';
   const nodeSize = 72;
-  const isDoor  = courseTheme === 'escape-room';
-  const isFlask = courseTheme === 'lab';
+  const isDoor    = courseTheme === 'escape-room';
+  const isFlask   = courseTheme === 'lab';
+  const isPortal  = courseTheme === 'time-travel';
+
+  // Nodo portal temporal: círculo con glow cósmico
+  const portalStyle = isPortal ? {
+    width: nodeSize, height: nodeSize, borderRadius: '50%',
+    background: status === 'completed'
+      ? 'radial-gradient(circle at 50% 45%, rgba(201,162,39,.5) 0%, rgba(60,40,120,.5) 100%)'
+      : status === 'available'
+        ? 'radial-gradient(circle at 50% 45%, rgba(91,141,217,.55) 0%, rgba(40,20,100,.5) 100%)'
+        : 'radial-gradient(circle at 50% 45%, rgba(20,15,50,.6) 0%, rgba(10,8,30,.8) 100%)',
+    border: `3px solid ${status === 'completed' ? '#c9a227' : status === 'available' ? '#5b8dd9' : 'rgba(91,141,217,.15)'}`,
+    boxShadow: status === 'available' ? '0 0 0 6px rgba(91,141,217,.08), 0 0 0 12px rgba(168,85,247,.04)' : 'none',
+  } : null;
 
   // Forma de matraz: círculo con glow de laboratorio
   const flaskStyle = isFlask ? {
@@ -91,7 +104,7 @@ const MapNode = React.memo(({ mod, status, index, onClick, courseTheme }) => {
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         animation: `fadeUp .4s ${index * 80}ms ease both`,
       }}>
-      {isActive && !isDoor && !isFlask && (
+      {isActive && !isDoor && !isFlask && !isPortal && (
         <div style={{ position: 'absolute', top: -28, background: 'var(--dark)', color: '#fff',
           fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 6,
           letterSpacing: 1, animation: 'float 2s ease-in-out infinite', whiteSpace: 'nowrap' }}>AQUÍ</div>
@@ -106,21 +119,37 @@ const MapNode = React.memo(({ mod, status, index, onClick, courseTheme }) => {
           fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 6,
           letterSpacing: 1, animation: 'float 2s ease-in-out infinite', whiteSpace: 'nowrap' }}>ANALIZAR</div>
       )}
+      {isActive && isPortal && (
+        <div style={{ position: 'absolute', top: -28, background: '#5b8dd9', color: '#030510',
+          fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 6,
+          letterSpacing: 1, animation: 'float 2s ease-in-out infinite', whiteSpace: 'nowrap' }}>VIAJAR</div>
+      )}
       {isActive && (
         <div style={{
           position: 'absolute',
           width: nodeSize, height: nodeSize,
           borderRadius: isDoor ? '50% 50% 6px 6px' : '50%',
-          border: `3px solid ${isDoor ? '#f0a500' : isFlask ? '#00ff88' : 'var(--orange)'}`,
+          border: `3px solid ${isDoor ? '#f0a500' : isFlask ? '#00ff88' : isPortal ? '#5b8dd9' : 'var(--orange)'}`,
           animation: 'nodePing 2s ease-out infinite',
         }} />
       )}
-      <div className={isDoor ? `er-door-node ${status}` : isFlask ? `lab-node ${status}` : ''}
+      {/* Anillos del portal temporal (solo en time-travel, nodo available) */}
+      {isPortal && status === 'available' && [1, 2].map(r => (
+        <div key={r} style={{
+          position: 'absolute',
+          width: nodeSize + r * 18, height: nodeSize + r * 18,
+          borderRadius: '50%',
+          border: '1px solid rgba(91,141,217,.25)',
+          animation: `nodePing ${2 + r * 0.8}s ease-out ${r * 0.5}s infinite`,
+          pointerEvents: 'none',
+        }} />
+      ))}
+      <div className={isDoor ? `er-door-node ${status}` : isFlask ? `lab-node ${status}` : isPortal ? `tt-node ${status}` : ''}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transform: hov && status !== 'locked' ? 'scale(1.08)' : 'scale(1)',
           transition: 'all .25s ease',
-          ...(flaskStyle || doorStyle || {
+          ...(portalStyle || flaskStyle || doorStyle || {
             width: nodeSize, height: nodeSize, borderRadius: '50%',
             background: colors.bg, border: `3px solid ${colors.border}`,
             boxShadow: hov && status !== 'locked' ? 'var(--sh-lg)' : colors.shadow,
@@ -330,10 +359,11 @@ const LearningMap = () => {
     () => courses.find(c => c.id === enrolledCourseId),
     [courses, enrolledCourseId]
   );
-  const isDetective  = enrolledCourse?.theme === 'detective';
-  const isEscapeRoom = enrolledCourse?.theme === 'escape-room';
-  const isLab        = enrolledCourse?.theme === 'lab';
-  const courseTheme  = enrolledCourse?.theme || null;
+  const isDetective   = enrolledCourse?.theme === 'detective';
+  const isEscapeRoom  = enrolledCourse?.theme === 'escape-room';
+  const isLab         = enrolledCourse?.theme === 'lab';
+  const isTimeTravel  = enrolledCourse?.theme === 'time-travel';
+  const courseTheme   = enrolledCourse?.theme || null;
 
   const level = React.useMemo(() => calcLevel(xp), [xp]);
   const pct = React.useMemo(
@@ -450,7 +480,85 @@ const LearningMap = () => {
         />
       )}
       {/* Hero banner */}
-      {isLab ? (
+      {isTimeTravel ? (
+        /* ── Hero: Línea del Tiempo (tema Ciencias Sociales) ── */
+        <div style={{
+          margin: '0 24px 24px', padding: '28px 32px', borderRadius: 20,
+          background: 'linear-gradient(135deg, #02030d 0%, #060820 40%, #0b0f2e 100%)',
+          border: '1px solid rgba(201,162,39,.18)',
+          color: '#d4c8e8', position: 'relative', overflow: 'hidden',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexWrap: 'wrap', gap: 24,
+          boxShadow: '0 8px 40px rgba(0,0,0,.95), inset 0 1px 0 rgba(201,162,39,.07), 0 0 80px rgba(91,141,217,.03)',
+        }}>
+          {/* Reloj de fondo */}
+          <div style={{ position: 'absolute', top: -30, right: -30, fontSize: 160,
+            opacity: .035, userSelect: 'none', pointerEvents: 'none', lineHeight: 1 }}>🕰️</div>
+          {/* Anillos del portal de fondo */}
+          {[120, 180, 240].map((s, i) => (
+            <div key={i} style={{
+              position: 'absolute', width: s, height: s, borderRadius: '50%',
+              border: '1px solid rgba(91,141,217,.08)',
+              top: -s/2 + 40, right: -s/2 + 50,
+              animation: `nodePing ${5 + i * 2}s ease-out ${i * 1.5}s infinite`,
+              pointerEvents: 'none',
+            }} />
+          ))}
+          {/* Sello "EN MISIÓN" */}
+          <div style={{ position: 'absolute', top: 16, right: 20,
+            fontSize: 9, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase',
+            color: '#c9a227', border: '1.5px solid rgba(201,162,39,.35)',
+            padding: '3px 8px', borderRadius: 3, opacity: .75, transform: 'rotate(-2deg)' }}>
+            VIAJE ACTIVO
+          </div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(201,162,39,.7)',
+              textTransform: 'uppercase', letterSpacing: 2.5, marginBottom: 8 }}>
+              ⏳ {enrolledCourse?.name || 'Viajeros del Tiempo — Ciencias Sociales'}
+            </div>
+            <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8, color: '#d4c8e8',
+              textShadow: '0 0 24px rgba(201,162,39,.2)' }}>
+              Línea del Tiempo
+            </h2>
+            <p style={{ fontSize: 13, color: 'rgba(212,200,232,.6)', maxWidth: 380, lineHeight: 1.6 }}>
+              Cada módulo te transporta a una nueva época. Completa el viaje y regresa al presente con el conocimiento de la historia.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', zIndex: 1, alignItems: 'flex-end' }}>
+            {/* Épocas exploradas */}
+            <div style={{ background: 'rgba(201,162,39,.07)', border: '1px solid rgba(201,162,39,.2)',
+              borderRadius: 10, padding: '10px 16px', textAlign: 'center', minWidth: 140 }}>
+              <div style={{ fontSize: 22, fontWeight: 900, color: '#c9a227',
+                textShadow: '0 0 12px rgba(201,162,39,.4)' }}>
+                {completed.filter(id => studentModules.find(m => m.id === id)).length}
+                <span style={{ fontSize: 14, color: 'rgba(201,162,39,.35)' }}>/{studentModules.length}</span>
+              </div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: 'rgba(201,162,39,.6)',
+                textTransform: 'uppercase', marginTop: 2 }}>Épocas exploradas</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ background: 'rgba(201,162,39,.06)', border: '1px solid rgba(201,162,39,.12)',
+                borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#d4c8e8' }}>{xp}</div>
+                <div style={{ fontSize: 9, color: 'rgba(212,200,232,.4)', letterSpacing: 1 }}>XP</div>
+              </div>
+              <div style={{ background: 'rgba(91,141,217,.06)', border: '1px solid rgba(91,141,217,.12)',
+                borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#d4c8e8' }}>Nv.{level}</div>
+                <div style={{ fontSize: 9, color: 'rgba(212,200,232,.4)', letterSpacing: 1 }}>ERA</div>
+              </div>
+            </div>
+            {allEnrollments.length > 1 && (
+              <button onClick={() => setShowCourseSelector(true)}
+                style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(201,162,39,.3)',
+                  background: 'rgba(201,162,39,.07)', color: 'rgba(201,162,39,.8)', fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'var(--font)' }}>
+                Cambiar época
+              </button>
+            )}
+          </div>
+        </div>
+      ) : isLab ? (
         /* ── Hero: Laboratorio de Ciencias ── */
         <div style={{
           margin: '0 24px 24px', padding: '28px 32px', borderRadius: 20,

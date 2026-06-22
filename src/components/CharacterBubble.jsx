@@ -166,6 +166,80 @@ const DraNexusAvatar = () => (
   </svg>
 )
 
+// ─── Prof. Kronos — guía de Ciencias Sociales / Viajeros del Tiempo ─────────
+const ProfKronosAvatar = () => (
+  <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+    {/* Fondo cósmico profundo */}
+    <circle cx="26" cy="26" r="26" fill="#03050e"/>
+    {/* Estrellas de fondo */}
+    <circle cx="8"  cy="8"  r=".8" fill="#c9a227" opacity=".6"/>
+    <circle cx="44" cy="6"  r=".6" fill="#5b8dd9" opacity=".5"/>
+    <circle cx="46" cy="40" r=".7" fill="#a855f7" opacity=".4"/>
+    <circle cx="5"  cy="38" r=".5" fill="#c9a227" opacity=".3"/>
+    {/* Sombrero de copa */}
+    <rect x="18" y="5" width="16" height="13" rx="2" fill="#0e0c30"/>
+    <rect x="14" y="17" width="24" height="3.5" rx="1.5" fill="#181648"/>
+    {/* Engranaje dorado en el ala del sombrero */}
+    <circle cx="34" cy="12" r="4.5" stroke="#c9a227" strokeWidth="1.2" fill="none" opacity=".8"/>
+    <circle cx="34" cy="12" r="2" fill="#c9a227" opacity=".5"/>
+    <line x1="34" y1="7.5" x2="34" y2="9"   stroke="#c9a227" strokeWidth="1" opacity=".7"/>
+    <line x1="34" y1="15" x2="34" y2="16.5" stroke="#c9a227" strokeWidth="1" opacity=".7"/>
+    <line x1="29.5" y1="12" x2="31" y2="12" stroke="#c9a227" strokeWidth="1" opacity=".7"/>
+    <line x1="37"   y1="12" x2="38.5" y2="12" stroke="#c9a227" strokeWidth="1" opacity=".7"/>
+    {/* Cabello blanco salvaje tipo Einstein */}
+    <path d="M14 21 C11 13 13 6 16 8 C15 14 14 18 14 21" fill="#d8d0f0"/>
+    <path d="M38 21 C41 13 39 6 36 8 C37 14 38 18 38 21" fill="#d8d0f0"/>
+    <path d="M14 23 C10 17 11 10 13 11" stroke="#c0b8e8" strokeWidth="2" fill="none" strokeLinecap="round"/>
+    <path d="M38 23 C42 17 41 10 39 11" stroke="#c0b8e8" strokeWidth="2" fill="none" strokeLinecap="round"/>
+    {/* Cara envejecida */}
+    <ellipse cx="26" cy="31" rx="9.5" ry="10" fill="#c8a070"/>
+    {/* Arrugas de sabiduría */}
+    <path d="M17.5 27 Q20 26 22 27.5" stroke="#a07048" strokeWidth=".7" fill="none" opacity=".35"/>
+    <path d="M30 27.5 Q32 26 34.5 27" stroke="#a07048" strokeWidth=".7" fill="none" opacity=".35"/>
+    <path d="M22 37 Q26 38.5 30 37" stroke="#a07048" strokeWidth=".5" fill="none" opacity=".2"/>
+    {/* Gafas temporales (iridiscentes azul-violeta) */}
+    <circle cx="21" cy="29.5" r="4.5" stroke="#5b8dd9" strokeWidth="1.6" fill="rgba(91,141,217,.1)"/>
+    <circle cx="31" cy="29.5" r="4.5" stroke="#5b8dd9" strokeWidth="1.6" fill="rgba(91,141,217,.1)"/>
+    {/* Reflejo holográfico en las gafas */}
+    <path d="M17.5 28 Q19 26.5 20.5 28" stroke="rgba(168,85,247,.5)" strokeWidth=".8" fill="none"/>
+    <path d="M27.5 28 Q29 26.5 30.5 28" stroke="rgba(168,85,247,.5)" strokeWidth=".8" fill="none"/>
+    <line x1="25.5" y1="29.5" x2="26.5" y2="29.5" stroke="#5b8dd9" strokeWidth="1.2"/>
+    <line x1="16.5" y1="28.5" x2="14" y2="27.5" stroke="#5b8dd9" strokeWidth="1.2"/>
+    <line x1="35.5" y1="28.5" x2="38" y2="27.5" stroke="#5b8dd9" strokeWidth="1.2"/>
+    {/* Ojos sabios y brillantes */}
+    <ellipse cx="21" cy="29.5" rx="2" ry="2" fill="#150d25"/>
+    <ellipse cx="31" cy="29.5" rx="2" ry="2" fill="#150d25"/>
+    <circle cx="21.6" cy="29"   r=".65" fill="white" opacity=".9"/>
+    <circle cx="31.6" cy="29"   r=".65" fill="white" opacity=".9"/>
+    {/* Bigote blanco distinguido */}
+    <path d="M21.5 36 Q26 38.5 30.5 36" stroke="#d8d0f0" strokeWidth="1.6" fill="none" strokeLinecap="round"/>
+    {/* Pañuelo/corbata con motivo estelar */}
+    <path d="M22 41 L26 44 L30 41 L28 50 L26 52 L24 50Z" fill="#0e0c30"/>
+    <circle cx="26" cy="44"   r=".8" fill="#c9a227" opacity=".6"/>
+    <circle cx="25" cy="46.5" r=".5" fill="#5b8dd9" opacity=".5"/>
+    <circle cx="27" cy="48"   r=".5" fill="#a855f7" opacity=".4"/>
+    {/* Reloj de bolsillo dorado */}
+    <circle cx="38.5" cy="37" r="5.5" stroke="#c9a227" strokeWidth="1.4" fill="#06041a"/>
+    <circle cx="38.5" cy="37" r="4"   stroke="#c9a227" strokeWidth=".5" fill="none" opacity=".35"/>
+    {/* Manecillas del reloj */}
+    <line x1="38.5" y1="37" x2="38.5" y2="33"   stroke="#c9a227" strokeWidth="1.2" strokeLinecap="round"/>
+    <line x1="38.5" y1="37" x2="41"   y2="38.5"  stroke="#5b8dd9" strokeWidth=".9" strokeLinecap="round"/>
+    <circle cx="38.5" cy="37" r=".9" fill="#c9a227"/>
+    {/* Cadena del reloj */}
+    <path d="M34 37 C33 36 32 37 31.5 38.5" stroke="#c9a227" strokeWidth=".8" fill="none" strokeLinecap="round" opacity=".5"/>
+    {/* Punto de cadena */}
+    <circle cx="38.5" cy="31.5" r="1" fill="#c9a227" opacity=".5"/>
+  </svg>
+)
+
+const TT_CHARACTERS = {
+  kronos: {
+    name: 'PROF. KRONOS',
+    Avatar: ProfKronosAvatar,
+    defaultLine: 'El presente es solo un instante. El pasado y el futuro esperan a quien sabe observar con ojo critico.',
+  },
+}
+
 const LAB_CHARACTERS = {
   nexus: {
     name: 'DRA. NEXUS',
@@ -222,10 +296,11 @@ export const CharacterFloat = ({ moduleCharacterLine }) => {
   const [open, setOpen] = React.useState(false)
   const [hasBeenOpened, setHasBeenOpened] = React.useState(false)
 
-  const isDetective  = theme === 'detective'
-  const isEscapeRoom = theme === 'escape-room'
-  const isLab        = theme === 'lab'
-  const isActive     = isDetective || isEscapeRoom || isLab
+  const isDetective   = theme === 'detective'
+  const isEscapeRoom  = theme === 'escape-room'
+  const isLab         = theme === 'lab'
+  const isTimeTravel  = theme === 'time-travel'
+  const isActive      = isDetective || isEscapeRoom || isLab || isTimeTravel
 
   React.useEffect(() => {
     if (!isActive) return
@@ -242,7 +317,24 @@ export const CharacterFloat = ({ moduleCharacterLine }) => {
   if (!isActive) return null
 
   // Config según tema
-  const config = isLab
+  const config = isTimeTravel
+    ? {
+        char: TT_CHARACTERS.kronos,
+        bgCard: 'rgba(3,5,20,.97)',
+        borderCard: 'rgba(201,162,39,.3)',
+        nameColor: '#c9a227',
+        textColor: '#d4c8e8',
+        bgAvatar: '#03050e',
+        borderAvatar: open ? '#c9a227' : 'rgba(201,162,39,.4)',
+        shadowAvatar: open ? '0 0 16px rgba(201,162,39,.55), 0 0 32px rgba(91,141,217,.2)' : '0 4px 16px rgba(0,0,0,.9)',
+        animAvatar: 'tt-idle-kronos 4s ease-in-out infinite',
+        dotBg: '#c9a227',
+        dotBorder: '#03050e',
+        dotAnim: 'tt-pulse-gold 1.5s ease-in-out infinite',
+        revealAnim: 'tt-reveal-char .35s ease both',
+        bgBubbleBorder: '#03050e',
+      }
+    : isLab
     ? {
         char: LAB_CHARACTERS.nexus,
         bgCard: 'rgba(4,12,10,.97)',
