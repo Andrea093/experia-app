@@ -226,7 +226,7 @@ export const SimulationEditorContent = ({ mod, onChange }) => {
           </div>
         ))}
         <button onClick={() => { const id='end_'+Date.now(); upd({ ...nodes, [id]: { text:'📝 Resultado...', end:true } }) }}
-          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 7, border: '1.5px dashed var(--success)', background: '#F0FDF4', color: 'var(--success)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11, fontWeight: 600 }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 7, border: '1.5px dashed var(--success)', background: '#F0FDFA', color: 'var(--success)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11, fontWeight: 600 }}>
           <PlusIc s={10} c="var(--success)" /> Resultado
         </button>
       </div>

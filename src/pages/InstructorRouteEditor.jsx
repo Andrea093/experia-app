@@ -257,7 +257,7 @@ const InstructorRouteEditor = () => {
         {/* Banner curso vinculado */}
         {routeInstitution && (
           <div style={{ marginTop: 12, padding: '12px 16px', borderRadius: 10,
-            background: linkedCourse ? '#F0FDF4' : '#FFFBEB',
+            background: linkedCourse ? '#F0FDFA' : '#FFFBEB',
             border: `1.5px solid ${linkedCourse ? '#86EFAC' : '#FCD34D'}`,
             display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             {linkedCourses.length === 0 ? null : linkedCourses.length > 1 && !linkedCourse ? (
@@ -277,17 +277,17 @@ const InstructorRouteEditor = () => {
             ) : linkedCourse ? (
               <>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#15803D', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0F766E', display: 'flex', alignItems: 'center', gap: 8 }}>
                     📚 Curso vinculado: {linkedCourse.name}
                     {linkedCourses.length > 1 && (
                       <button onClick={() => setSelectedCourseId('')}
-                        style={{ fontSize: 10, color: '#15803D', background: 'none', border: '1px solid #86EFAC',
+                        style={{ fontSize: 10, color: '#0F766E', background: 'none', border: '1px solid #5EEAD4',
                           borderRadius: 4, padding: '1px 6px', cursor: 'pointer', fontFamily: 'var(--font)' }}>
                         cambiar
                       </button>
                     )}
                   </div>
-                  <div style={{ fontSize: 11, color: '#166534', marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: '#115E59', marginTop: 2 }}>
                     Al publicar, los docentes inscritos verán los cambios al recargar
                   </div>
                 </div>
@@ -406,13 +406,13 @@ const InstructorRouteEditor = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {customModules.map(mod => (
                   <div key={mod.id} style={{ borderRadius: 14, background: 'var(--white)',
-                    border: mod.type === 'final_delivery' ? '2px solid #6EE7B7' : mod.type === 'challenge' ? '2px solid var(--purple-bg)' : '2px solid #D1FAE5' }}>
+                    border: mod.type === 'final_delivery' ? '2px solid #5EEAD4' : mod.type === 'challenge' ? '2px solid var(--purple-bg)' : '2px solid #CCFBF1' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px' }}>
                       <span style={{ fontSize: 15, flexShrink: 0 }}>{mod.type === 'final_delivery' ? '🎯' : mod.type === 'challenge' ? '⚡' : '✨'}</span>
                       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
-                          background: mod.type === 'final_delivery' ? '#D1FAE5' : mod.type === 'challenge' ? 'var(--purple-bg)' : '#D1FAE5',
-                          color: mod.type === 'final_delivery' ? '#059669' : mod.type === 'challenge' ? 'var(--purple)' : 'var(--success)',
+                          background: mod.type === 'final_delivery' ? '#CCFBF1' : mod.type === 'challenge' ? 'var(--purple-bg)' : '#CCFBF1',
+                          color: mod.type === 'final_delivery' ? 'var(--success)' : mod.type === 'challenge' ? 'var(--purple)' : 'var(--success)',
                           textTransform: 'uppercase', letterSpacing: .8 }}>
                           {mod.type === 'final_delivery' ? 'ENTREGA FINAL' : mod.type === 'challenge' ? (CHALLENGE_TYPES.find(t => t.id === mod.ctype)?.label || 'Reto') : 'Módulo'}
                         </span>
@@ -446,12 +446,12 @@ const InstructorRouteEditor = () => {
           <button {...btnRow(() => setShowNewChallenge(true), 'var(--purple)', 'var(--purple-bg)', '#EDE9FE')}>
             <PlusIc s={18} c="var(--purple)" /> Crear nuevo reto
           </button>
-          <button {...btnRow(() => setShowAddModule(true), 'var(--success)', '#F0FDF4', '#D1FAE5')}>
+          <button {...btnRow(() => setShowAddModule(true), 'var(--success)', '#F0FDFA', '#CCFBF1')}>
             <PlusIc s={18} c="var(--success)" /> Crear módulo personalizado
           </button>
           {!customModules.some(m => m.type === 'final_delivery') && (
-            <button {...btnRow(addFinalDelivery, '#10B981', '#D1FAE5', '#A7F3D0')}>
-              <PlusIc s={18} c="#10B981" /> Agregar Entrega Final
+            <button {...btnRow(addFinalDelivery, 'var(--success)', '#CCFBF1', '#99F6E4')}>
+              <PlusIc s={18} c="var(--success)" /> Agregar Entrega Final
             </button>
           )}
         </div>

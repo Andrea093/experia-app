@@ -48,7 +48,7 @@ const LessonPreviewContent = ({ mod }) => {
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--error)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Enfoque Tradicional</div>
             <p style={{ fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.6, margin: 0 }}>{sec.trad}</p>
           </div>
-          <div style={{ padding: '14px 16px', borderRadius: 12, background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
+          <div style={{ padding: '14px 16px', borderRadius: 12, background: '#F0FDFA', border: '1px solid #99F6E4' }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Enfoque DCE</div>
             <p style={{ fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.6, margin: 0 }}>{sec.dce}</p>
           </div>
@@ -175,8 +175,8 @@ const ChallengePreviewContent = ({ mod }) => {
             const node = tree[nid]
             return (
               <div key={nid} style={{ padding: '12px 14px', borderRadius: 12,
-                background: node.end ? '#F0FDF4' : 'var(--white)',
-                border: node.end ? '1px solid #BBF7D0' : '1px solid var(--border)' }}>
+                background: node.end ? '#F0FDFA' : 'var(--white)',
+                border: node.end ? '1px solid #99F6E4' : '1px solid var(--border)' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: node.end ? 'var(--success)' : 'var(--orange)',
                   textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>
                   {nid === 'start' ? '🟢 INICIO' : node.end ? '✅ RESULTADO' : `📍 ${nid}`}
@@ -214,7 +214,7 @@ const ChallengePreviewContent = ({ mod }) => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {(q.options || []).map((opt, oi) => (
                   <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10,
-                    background: oi === q.correct ? '#F0FDF4' : 'var(--bg)',
+                    background: oi === q.correct ? '#F0FDFA' : 'var(--bg)',
                     border: oi === q.correct ? '1.5px solid var(--success)' : '1px solid var(--border)' }}>
                     <span style={{ width: 24, height: 24, borderRadius: 7, background: oi === q.correct ? 'var(--success)' : 'var(--bg-alt)',
                       color: oi === q.correct ? '#fff' : 'var(--muted)', fontWeight: 700, fontSize: 12,
@@ -269,7 +269,7 @@ const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules }) =
               </span>
             )}
             {viewing.isCustom && (
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 8px', borderRadius: 8, background: '#D1FAE5', color: 'var(--success)' }}>PERSONALIZADO</span>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 8px', borderRadius: 8, background: '#CCFBF1', color: 'var(--success)' }}>PERSONALIZADO</span>
             )}
           </div>
           <div style={{ padding: '20px 24px', borderRadius: 14, background: 'var(--gradient)', marginBottom: 24 }}>
@@ -319,7 +319,7 @@ const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules }) =
                 <div onClick={() => !isDisabled && setViewing(mod)}
                   style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
                     borderRadius: 12, background: isDisabled ? 'var(--bg)' : 'var(--white)',
-                    border: isDisabled ? '1px dashed var(--border)' : mod.isCustom ? '2px solid #D1FAE5' : '1px solid var(--border)',
+                    border: isDisabled ? '1px dashed var(--border)' : mod.isCustom ? '2px solid #CCFBF1' : '1px solid var(--border)',
                     opacity: isDisabled ? .45 : 1, cursor: isDisabled ? 'default' : 'pointer', transition: 'all .15s' }}
                   onMouseEnter={e => !isDisabled && (e.currentTarget.style.boxShadow = 'var(--sh-md)')}
                   onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
@@ -332,7 +332,7 @@ const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules }) =
                       <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4, background: bg, color, textTransform: 'uppercase', letterSpacing: .8 }}>
                         {isChallenge ? (CHALLENGE_TYPES.find(t => t.id === mod.ctype)?.label || 'RETO') : 'MÓDULO'}
                       </span>
-                      {mod.isCustom && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4, background: '#D1FAE5', color: 'var(--success)', textTransform: 'uppercase', letterSpacing: .8 }}>PERSONALIZADO</span>}
+                      {mod.isCustom && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4, background: '#CCFBF1', color: 'var(--success)', textTransform: 'uppercase', letterSpacing: .8 }}>PERSONALIZADO</span>}
                       {mod.override && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4, background: 'var(--orange-bg)', color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8 }}>EDITADO</span>}
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: isDisabled ? 'var(--subtle)' : 'var(--dark)',

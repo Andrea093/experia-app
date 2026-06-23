@@ -140,7 +140,7 @@ const InstructorStatsPage = () => {
                     style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '16px 20px',
                       border: 'none', cursor: 'pointer', background: 'transparent', fontFamily: 'var(--font)', textAlign: 'left' }}>
                     <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-                      background: ch.avgPct >= 75 ? '#D1FAE5' : ch.avgPct >= 50 ? '#FEF3C7' : '#FEE2E2',
+                      background: ch.avgPct >= 75 ? '#CCFBF1' : ch.avgPct >= 50 ? '#FEF3C7' : '#FEE2E2',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800,
                       color: ch.avgPct >= 75 ? 'var(--success)' : ch.avgPct >= 50 ? 'var(--warn)' : 'var(--error)' }}>
                       {ch.avgPct}%

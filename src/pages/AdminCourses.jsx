@@ -165,7 +165,7 @@ const CourseModulesPanel = ({ course, onClose }) => {
     setEditMod(null)
   }
 
-  const typeColor = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: '#10B981', final_delivery: '#0EA5E9' }
+  const typeColor = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: '#0D9488', final_delivery: '#0EA5E9' }
   const typeLabel = { lesson: 'LECCIÓN', challenge: 'RETO', evaluation: 'EVALUACIÓN', final_delivery: 'ENTREGA FINAL' }
 
   // Áreas que realmente tienen módulos en este curso (para no llenar de chips vacíos)
@@ -263,7 +263,7 @@ const CourseModulesPanel = ({ course, onClose }) => {
               </div>
               <button onClick={() => toggleEnabled(mod)}
                 style={{ padding: '4px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                  background: mod.is_enabled ? '#D1FAE5' : '#FEE2E2', color: mod.is_enabled ? 'var(--success)' : 'var(--error)' }}>
+                  background: mod.is_enabled ? '#CCFBF1' : '#FEE2E2', color: mod.is_enabled ? 'var(--success)' : 'var(--error)' }}>
                 {mod.is_enabled ? 'Activo' : 'Inactivo'}
               </button>
               <button onClick={() => setEditMod(mod)}
@@ -570,9 +570,9 @@ const ModuleForm = ({ initial, defaultArea = '', onSave, saving, onCancel }) => 
 }
 
 // ── Vista previa del mapa de un curso ───────────────────────
-const TYPE_COLORS_P = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: '#10B981' }
+const TYPE_COLORS_P = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: '#0D9488' }
 const TYPE_LABELS_P = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUACIÓN', final_delivery: 'ENTREGA FINAL' }
-const NODE_BG_P = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: '#10B981' }
+const NODE_BG_P = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: '#0D9488' }
 
 const CourseMapPreview = ({ course }) => {
   const [modules, setModules] = React.useState([])
@@ -782,7 +782,7 @@ const AdminCourses = () => {
                     {/* Toggle global */}
                     <button onClick={() => handleToggleGlobal(course)} disabled={togglingId === course.id}
                       style={{ padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                        background: course.is_active ? '#D1FAE5' : '#FEE2E2',
+                        background: course.is_active ? '#CCFBF1' : '#FEE2E2',
                         color: course.is_active ? 'var(--success)' : 'var(--error)' }}>
                       {course.is_active ? '✅ Activo' : '❌ Inactivo'}
                     </button>
@@ -808,7 +808,7 @@ const AdminCourses = () => {
                       return (
                         <button key={inst.id} onClick={() => handleToggleInstitution(course.id, inst.id, active)}
                           style={{ padding: '5px 12px', borderRadius: 20, border: `1.5px solid ${active ? 'var(--success)' : 'var(--border)'}`,
-                            background: active ? '#D1FAE5' : 'var(--white)', cursor: 'pointer',
+                            background: active ? '#CCFBF1' : 'var(--white)', cursor: 'pointer',
                             fontSize: 12, fontWeight: active ? 600 : 400,
                             color: active ? 'var(--success)' : 'var(--muted)', transition: 'all .15s',
                             display: 'flex', alignItems: 'center', gap: 5 }}>

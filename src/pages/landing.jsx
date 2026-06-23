@@ -78,8 +78,8 @@ const LandingPage = () => {
             border: '1px solid rgba(255,255,255,.25)',
             color: '#fff', fontSize: isMobile ? 11 : 13, fontWeight: 600, marginBottom: 16, letterSpacing: .5,
           }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6EE7B7',
-              boxShadow: '0 0 8px #6EE7B7', display: 'inline-block' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#5EEAD4',
+              boxShadow: '0 0 8px #5EEAD4', display: 'inline-block' }} />
             PLATAFORMA FORMATIVA · CEINFES
           </div>
           <h1 style={{

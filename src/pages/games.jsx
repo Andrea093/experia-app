@@ -89,7 +89,7 @@ const GamesPage = () => {
                 borderRadius: 16,
                 background: 'var(--white)',
                 border: isDone
-                  ? '2px solid #D1FAE5'
+                  ? '2px solid #CCFBF1'
                   : status === 'available'
                   ? '2px solid var(--orange-pale)'
                   : '1px solid var(--border)',

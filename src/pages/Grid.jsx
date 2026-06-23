@@ -22,7 +22,7 @@ const FileDrop = ({ label, fileName, onFile, accept }) => {
       style={{
         border:fileName?'2px solid var(--success)':dragOver?'2px dashed var(--orange)':'2px dashed var(--border)',
         borderRadius:16,padding:'28px 24px',textAlign:'center',cursor:'pointer',
-        background:fileName?'#F0FDF4':dragOver?'var(--orange-bg)':'var(--white)',
+        background:fileName?'#F0FDFA':dragOver?'var(--orange-bg)':'var(--white)',
         transition:'all .2s',minHeight:120,display:'flex',flexDirection:'column',
         alignItems:'center',justifyContent:'center',gap:8,
       }}
@@ -30,7 +30,7 @@ const FileDrop = ({ label, fileName, onFile, accept }) => {
       onMouseLeave={e=>!fileName&&!dragOver&&(e.currentTarget.style.borderColor='var(--border)')}>
       <input ref={inputRef} type="file" accept={accept} onChange={handleChange} style={{display:'none'}}/>
       {fileName ? (<>
-        <div style={{width:44,height:44,borderRadius:12,background:'#D1FAE5',display:'flex',alignItems:'center',justifyContent:'center'}}><CheckIc s={22} c="var(--success)"/></div>
+        <div style={{width:44,height:44,borderRadius:12,background:'#CCFBF1',display:'flex',alignItems:'center',justifyContent:'center'}}><CheckIc s={22} c="var(--success)"/></div>
         <span style={{fontSize:14,fontWeight:600,color:'var(--success)'}}>{label}</span>
         <span style={{fontSize:13,color:'var(--dark)',fontWeight:500,padding:'4px 12px',background:'var(--white)',borderRadius:8,border:'1px solid var(--border)'}}>{fileName}</span>
         <span style={{fontSize:11,color:'var(--muted)'}}>Clic para cambiar</span>
@@ -217,7 +217,7 @@ const CertificatePage = ({ submission, area }) => {
 // ---- Submission Status Badge ----
 const SubStatusBadge = ({ sub }) => {
   if (sub.status === 'approved') return (
-    <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: '#D1FAE5', color: 'var(--success)', whiteSpace: 'nowrap' }}>✅ Aprobado</span>
+    <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: '#CCFBF1', color: 'var(--success)', whiteSpace: 'nowrap' }}>✅ Aprobado</span>
   );
   if (sub.status === 'returned') return (
     <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6, background: '#FEF9E7', color: '#92400E', whiteSpace: 'nowrap' }}>↩️ Devuelto ({sub.returnCount}/2)</span>
@@ -475,7 +475,7 @@ const StudentProductUpload = () => {
               )}
             </div>
             {sub?.grade && (
-              <div style={{ marginTop: 20, padding: '16px', borderRadius: 12, background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
+              <div style={{ marginTop: 20, padding: '16px', borderRadius: 12, background: '#F0FDFA', border: '1px solid #99F6E4' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--success)', marginBottom: 8 }}>
                   Calificación: {gradeTotal(sub.grade)}/{gradeMax()}
                 </div>
@@ -689,7 +689,7 @@ export const InstructorDashboard = ({ onStudentClick }) => {
         <button onClick={() => setShowApproved(v => !v)}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8,
             border: showApproved ? '1.5px solid var(--success)' : '1.5px solid var(--border)',
-            background: showApproved ? '#D1FAE5' : 'var(--white)', cursor: 'pointer',
+            background: showApproved ? '#CCFBF1' : 'var(--white)', cursor: 'pointer',
             fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600,
             color: showApproved ? 'var(--success)' : 'var(--muted)' }}>
           {showApproved ? '✅ Ocultar aprobadas' : `✅ Mostrar aprobadas (${approvedCount})`}

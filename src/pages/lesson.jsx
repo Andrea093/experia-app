@@ -224,7 +224,7 @@ const LessonSection = React.memo(({ section, index }) => {
           </div>
           <div style={{
             padding: '18px 20px', borderRadius: 14, background: 'var(--success-bg)',
-            border: '1px solid #BBF7D0',
+            border: '1px solid #99F6E4',
           }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase',
               letterSpacing: 1, marginBottom: 8 }}>Enfoque DCE</div>
@@ -392,8 +392,8 @@ const LessonView = () => {
           {/* Completion */}
           <div style={{
             marginTop: 48, padding: '32px', borderRadius: 16, textAlign: 'center',
-            background: done || isCompleted ? '#F0FDF4' : 'var(--bg-alt)',
-            border: done || isCompleted ? '2px solid #BBF7D0' : '1px solid var(--border)',
+            background: done || isCompleted ? '#F0FDFA' : 'var(--bg-alt)',
+            border: done || isCompleted ? '2px solid #99F6E4' : '1px solid var(--border)',
             animation: 'fadeUp .4s ease both',
           }}>
             {isCompleted ? (

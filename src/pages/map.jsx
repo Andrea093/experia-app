@@ -34,7 +34,7 @@ const NODE_ICONS = {
 };
 
 const NODE_COLORS = {
-  completed: { bg: 'var(--success)', border: '#0D9668', shadow: '0 4px 16px rgba(16,185,129,.35)' },
+  completed: { bg: 'var(--success)', border: '#0F766E', shadow: '0 4px 16px rgba(13,148,136,.35)' },
   available: { bg: 'var(--orange)', border: 'var(--orange)', shadow: '0 4px 16px rgba(232,115,44,.4)' },
   locked: { bg: 'var(--subtle)', border: 'var(--border)', shadow: 'none' },
 };
@@ -189,7 +189,7 @@ const MapCard = React.memo(({ mod, status, onClick }) => {
       style={{
         background: 'var(--white)', borderRadius: 16, padding: '18px 22px',
         border: status === 'available' ? '2px solid var(--orange-pale)' :
-                status === 'completed' ? '2px solid #D1FAE5' : '1px solid var(--border)',
+                status === 'completed' ? '2px solid #CCFBF1' : '1px solid var(--border)',
         cursor: status === 'locked' ? 'default' : 'pointer',
         width: 280, transition: 'all .25s ease',
         transform: hov && status !== 'locked' ? 'translateY(-2px)' : 'none',
@@ -239,7 +239,7 @@ const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
       style={{
         display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
         borderRadius: 16, background: 'var(--white)',
-        border: isActive ? '2px solid var(--orange-pale)' : status === 'completed' ? '2px solid #D1FAE5' : '1px solid var(--border)',
+        border: isActive ? '2px solid var(--orange-pale)' : status === 'completed' ? '2px solid #CCFBF1' : '1px solid var(--border)',
         cursor: status === 'locked' ? 'default' : 'pointer',
         opacity: status === 'locked' ? .55 : 1,
         transition: 'all .2s',

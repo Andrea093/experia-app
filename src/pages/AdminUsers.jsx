@@ -162,7 +162,7 @@ const BulkUploadModal = ({ open, onClose }) => {
       {step === 2 && (
         <div>
           <div style={{ display:'flex', gap:10, marginBottom:16 }}>
-            <div style={{ flex:1, padding:'12px 16px', borderRadius:10, background:'#D1FAE5', border:'1px solid #6EE7B7' }}>
+            <div style={{ flex:1, padding:'12px 16px', borderRadius:10, background:'#CCFBF1', border:'1px solid #5EEAD4' }}>
               <div style={{ fontSize:22, fontWeight:800, color:'var(--success)' }}>{validRows.length}</div>
               <div style={{ fontSize:12, color:'var(--success)', fontWeight:600 }}>Válidos — se crearán</div>
             </div>
@@ -195,7 +195,7 @@ const BulkUploadModal = ({ open, onClose }) => {
                       <td style={{ padding:'7px 10px', color:'var(--muted)', fontSize:11 }}>{row.email||'—'}</td>
                       <td style={{ padding:'7px 10px' }}>
                         <span style={{ padding:'2px 7px', borderRadius:4, fontWeight:700, fontSize:10,
-                          background: row._role === 'student' ? 'var(--orange-bg)' : '#D1FAE5',
+                          background: row._role === 'student' ? 'var(--orange-bg)' : '#CCFBF1',
                           color: row._role === 'student' ? 'var(--orange)' : 'var(--success)' }}>
                           {row._role === 'student' ? 'Estudiante' : 'Instructor'}
                         </span>
@@ -206,7 +206,7 @@ const BulkUploadModal = ({ open, onClose }) => {
                       <td style={{ padding:'7px 10px', color:'var(--muted)', fontSize:11 }}>{row.institucion||'—'}</td>
                       <td style={{ padding:'7px 10px' }}>
                         {row._valid
-                          ? <span style={{ fontSize:10, fontWeight:700, color:'var(--success)', background:'#D1FAE5', padding:'2px 7px', borderRadius:4 }}>✓ OK</span>
+                          ? <span style={{ fontSize:10, fontWeight:700, color:'var(--success)', background:'#CCFBF1', padding:'2px 7px', borderRadius:4 }}>✓ OK</span>
                           : <span title={row._errors.join('\n')} style={{ fontSize:10, fontWeight:700, color:'var(--error)', background:'#FEE2E2', padding:'2px 7px', borderRadius:4, cursor:'help', whiteSpace:'nowrap' }}>✗ Error</span>
                         }
                       </td>
@@ -312,7 +312,7 @@ const InstructorAssignmentPanel = () => {
                   return (
                     <label key={inst.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:10,
                       border: checked ? '1.5px solid var(--success)' : '1px solid var(--border)',
-                      background: checked ? '#F0FDF4' : 'var(--bg)', cursor:'pointer', transition:'all .15s' }}>
+                      background: checked ? '#F0FDFA' : 'var(--bg)', cursor:'pointer', transition:'all .15s' }}>
                       <input type="checkbox" checked={checked} disabled={saving} onChange={() => toggleInstitution(inst.id)}
                         style={{ accentColor:'var(--success)', width:16, height:16 }} />
                       <span style={{ fontSize:13, fontWeight: checked ? 600 : 400, color:'var(--dark)' }}>{inst.name}</span>
@@ -339,7 +339,7 @@ const InstructorAssignmentPanel = () => {
                   {names.length === 0
                     ? <span style={{ fontSize:11, color:'var(--subtle)' }}>Sin colegios asignados</span>
                     : <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                        {names.map(n => <span key={n} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'#D1FAE5', color:'var(--success)', fontWeight:600 }}>{n}</span>)}
+                        {names.map(n => <span key={n} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'#CCFBF1', color:'var(--success)', fontWeight:600 }}>{n}</span>)}
                       </div>
                   }
                 </div>
@@ -442,7 +442,7 @@ const AdminPage = () => {
 
   const roleColor = { student:'var(--orange)', instructor:'var(--success)', admin:'var(--purple)' };
   const roleLabel = { student:'Estudiante', instructor:'Instructor', admin:'Admin' };
-  const roleBg    = { student:'var(--orange-bg)', instructor:'#D1FAE5', admin:'var(--purple-bg)' };
+  const roleBg    = { student:'var(--orange-bg)', instructor:'#CCFBF1', admin:'var(--purple-bg)' };
 
   // Filtered + searched accounts
   const visibleAccounts = React.useMemo(() => {
@@ -518,9 +518,9 @@ const AdminPage = () => {
           </button>
           {reminderResult && (
             <div style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, maxWidth:280, textAlign:'right',
-              background: reminderResult.ok ? '#D1FAE5' : '#FEE2E2',
+              background: reminderResult.ok ? '#CCFBF1' : '#FEE2E2',
               color: reminderResult.ok ? 'var(--success)' : 'var(--error)',
-              border: `1px solid ${reminderResult.ok ? '#6EE7B7' : '#FCA5A5'}` }}>
+              border: `1px solid ${reminderResult.ok ? '#5EEAD4' : '#FCA5A5'}` }}>
               {reminderResult.msg}
             </div>
           )}
@@ -528,7 +528,7 @@ const AdminPage = () => {
       </div>
 
       {created && (
-        <div style={{ padding:'12px 18px', borderRadius:12, background:'#D1FAE5', border:'1px solid #6EE7B7',
+        <div style={{ padding:'12px 18px', borderRadius:12, background:'#CCFBF1', border:'1px solid #5EEAD4',
           marginBottom:16, display:'flex', alignItems:'center', gap:10, animation:'fadeUp .3s ease' }}>
           <CheckIc s={18} c="var(--success)" />
           <span style={{ fontSize:14, fontWeight:600, color:'var(--success)' }}>Cuenta creada exitosamente</span>

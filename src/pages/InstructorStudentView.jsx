@@ -213,8 +213,8 @@ export function StudentProgressModal({ student, onClose }) {
               return (
                 <div key={m.id} style={{ display:'flex', alignItems:'center', gap:10,
                   padding:'8px 12px', borderRadius:8,
-                  background: done ? '#F0FDF4' : 'var(--bg)',
-                  border: `1px solid ${done ? '#BBF7D0' : 'var(--border)'}` }}>
+                  background: done ? '#F0FDFA' : 'var(--bg)',
+                  border: `1px solid ${done ? '#99F6E4' : 'var(--border)'}` }}>
                   <span style={{ fontSize:14, flexShrink:0 }}>
                     {done ? '✅' : m.type === 'challenge' ? '🎯' : '📖'}
                   </span>
@@ -239,7 +239,7 @@ export function StudentProgressModal({ student, onClose }) {
       {/* Entrega */}
       {latestSub && (
         <div style={{ padding:'14px 16px', borderRadius:12,
-          background: latestSub.status === 'approved' ? '#F0FDF4' : 'var(--bg)',
+          background: latestSub.status === 'approved' ? '#F0FDFA' : 'var(--bg)',
           border:`1.5px solid ${statusColor[latestSub.status] || 'var(--border)'}`,
           marginBottom:16 }}>
           <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)',
@@ -527,7 +527,7 @@ const InstructorHistorial = ({ onStudentClick }) => {
 
               {/* Feedback */}
               {detailSub.feedback && (
-                <div style={{ padding: '14px 16px', borderRadius: 12, background: '#F0FDF4', border: '1px solid #BBF7D0', marginBottom: 16 }}>
+                <div style={{ padding: '14px 16px', borderRadius: 12, background: '#F0FDFA', border: '1px solid #99F6E4', marginBottom: 16 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>Retroalimentación del instructor</div>
                   <p style={{ fontSize: 13, color: 'var(--dark)', lineHeight: 1.6 }}>{detailSub.feedback}</p>
                 </div>

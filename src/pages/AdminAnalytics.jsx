@@ -129,7 +129,7 @@ export default function AdminAnalytics() {
         <Stat label="Docentes registrados" value={students.length}    color="var(--orange)"  icon="👩‍🏫" />
         <Stat label="Instructores"          value={instructors.length} color="var(--success)" icon="🎓" />
         <Stat label="Instituciones"         value={institutions.length} color="var(--purple)" icon="🏫" />
-        <Stat label="Entregas aprobadas"    value={approved.length}    color="#10B981"        icon="✅" />
+        <Stat label="Entregas aprobadas"    value={approved.length}    color="var(--success)" icon="✅" />
         <Stat label="Intentos de retos"     value={attempts.length}    color="var(--warn)"    icon="⚡" />
         <Stat label="Promedio rúbrica"      value={`${avgGrade}/${gradeMax()}`} color="var(--orange)" icon="📊" />
       </div>

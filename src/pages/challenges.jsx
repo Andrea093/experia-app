@@ -63,7 +63,7 @@ const DragDropChallenge = ({ mod, onComplete }) => {
           return <div key={item} draggable onDragStart={()=>setDragIdx(i)} onDragOver={e=>{e.preventDefault();setOverIdx(i)}}
             onDrop={()=>handleDrop(i)} onDragEnd={()=>{setDragIdx(null);setOverIdx(null)}}
             style={{display:'flex',alignItems:'center',gap:14,padding:'14px 18px',borderRadius:12,
-              background:isRight?'#F0FDF4':isWrong?'#FEF2F2':'var(--white)',
+              background:isRight?'#F0FDFA':isWrong?'#FEF2F2':'var(--white)',
               border:isOver?'2px dashed var(--orange)':isRight?'2px solid var(--success)':isWrong?'2px solid var(--error)':'1.5px solid var(--border)',
               cursor:'grab',transition:'all .2s',transform:dragIdx===i?'scale(1.02)':'scale(1)',
               opacity:dragIdx===i?.6:1,boxShadow:dragIdx===i?'var(--sh-lg)':'var(--sh-sm)'}}>
@@ -93,7 +93,7 @@ const EmpathyMapChallenge = ({ mod, onComplete }) => {
   const quadrants=[
     {key:'piensa',label:'Piensa',icon:'🧠',color:'#3B82F6',bg:'#EFF6FF'},
     {key:'siente',label:'Siente',icon:'❤️',color:'#EF4444',bg:'#FEF2F2'},
-    {key:'dice',label:'Dice',icon:'💬',color:'#10B981',bg:'#F0FDF4'},
+    {key:'dice',label:'Dice',icon:'💬',color:'#10B981',bg:'#F0FDFA'},
     {key:'hace',label:'Hace',icon:'🤲',color:'#F59E0B',bg:'#FFFBEB'},
   ];
   const allCards = mod.empathyCards || [
@@ -193,7 +193,7 @@ const EmpathyMapChallenge = ({ mod, onComplete }) => {
                   onClick={()=>returnToUnplaced(c)}
                   title={done?'':'Clic para devolver · Arrastra para mover'}
                   style={{padding:'7px 12px',borderRadius:8,fontSize:12,fontWeight:500,
-                    background:isRight?'#D1FAE5':isWrong?'#FEE2E2':'var(--white)',
+                    background:isRight?'#CCFBF1':isWrong?'#FEE2E2':'var(--white)',
                     border:isRight?'1px solid var(--success)':isWrong?'1px solid var(--error)':'1px solid '+q.color+'30',
                     color:'var(--dark)',cursor:done?'default':'pointer',transition:'opacity .15s'}}
                   onMouseEnter={e=>{if(!done)e.currentTarget.style.opacity='.7';}}
@@ -280,7 +280,7 @@ const SimulationChallenge = ({ mod, onComplete }) => {
         {!current.end&&<div style={{width:10,height:10,borderRadius:'50%',background:'var(--border)'}}/>}
       </div>
       <div key={node} style={{padding:'24px 28px',borderRadius:16,
-        background:current.end?(pct>=80?'#F0FDF4':pct>=50?'#FFFBEB':'#FEF2F2'):'var(--white)',
+        background:current.end?(pct>=80?'#F0FDFA':pct>=50?'#FFFBEB':'#FEF2F2'):'var(--white)',
         border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)'}}>
         <p style={{fontSize:15,color:'var(--dark)',lineHeight:1.7,fontWeight:500}}>{current.text}</p>
         {current.options&&(
@@ -611,7 +611,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
           {questions.map((q,i) => {
             const ok = answers[i] === q.correct;
             return (
-              <div key={i} style={{padding:'12px 16px',borderRadius:12,background:ok?'#F0FDF4':'#FEF2F2',border:`1px solid ${ok?'#BBF7D0':'#FECACA'}`}}>
+              <div key={i} style={{padding:'12px 16px',borderRadius:12,background:ok?'#F0FDFA':'#FEF2F2',border:`1px solid ${ok?'#99F6E4':'#FECACA'}`}}>
                 <p style={{fontSize:13,fontWeight:600,color:'var(--dark)',marginBottom:4}}>{q.question}</p>
                 <p style={{fontSize:12,color:ok?'var(--success)':'var(--error)',fontWeight:500,margin:0}}>
                   {ok?'✓ ':'✗ '}{q.options[answers[i]]}
@@ -641,7 +641,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
               <button key={i} onClick={()=>!confirmed&&setSelected(i)} disabled={confirmed}
                 style={{display:'flex',alignItems:'center',gap:12,padding:'13px 16px',borderRadius:12,
                   border:isOk?'2px solid var(--success)':isWrong?'2px solid var(--error)':isSel?'2px solid var(--orange)':'1.5px solid var(--border)',
-                  background:isOk?'#F0FDF4':isWrong?'#FEF2F2':isSel?'var(--orange-bg)':'var(--bg)',
+                  background:isOk?'#F0FDFA':isWrong?'#FEF2F2':isSel?'var(--orange-bg)':'var(--bg)',
                   cursor:confirmed?'default':'pointer',fontFamily:'var(--font)',transition:'all .2s',textAlign:'left'}}>
                 <span style={{width:28,height:28,borderRadius:8,flexShrink:0,fontWeight:700,fontSize:12,
                   background:isOk?'var(--success)':isWrong?'var(--error)':isSel?'var(--orange)':'var(--bg-alt)',

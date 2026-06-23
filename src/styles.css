@@ -17,10 +17,10 @@
   --dark: #1A1A2E; --text: #2D2D44; --text-sec: #4A4A5E;
   --muted: #6B7280; --subtle: #9CA3AF;
   --border: #E5E7EB; --bg-alt: #F3F4F6; --bg: #F9FAFB; --white: #FFFFFF;
-  --success: #10B981; --warn: #F59E0B; --error: #EF4444;
+  --success: #0D9488; --warn: #F59E0B; --error: #EF4444;
 
   /* Tintes semánticos (adaptan en modo oscuro) */
-  --success-bg: #F0FDF4; --success-bg-strong: #D1FAE5;
+  --success-bg: #F0FDFA; --success-bg-strong: #CCFBF1; --success-border: #5EEAD4;
   --error-bg: #FEF2F2;   --error-bg-strong: #FEE2E2;
   --info-bg: #EFF6FF;    --warn-bg: #FFFBEB;  --violet-bg: #EDEAF7;
 
@@ -85,6 +85,7 @@
   --text-sec: #1F2937;
   --border: #6B7280;              /* bordes más visibles */
   --bg-alt: #EBEBEB;
+  --success: #0F766E;             /* teal oscuro — pasa WCAG AA en texto normal */
 }
 [data-contrast="alto"][data-theme="dark"] {
   --orange: #FFAA66;              /* más claro en oscuro para visibilidad */
@@ -93,6 +94,7 @@
   --subtle: #9CA3AF;
   --border: #9CA3AF;
   --bg-alt: #2D2B40;             /* gris-violeta, coherente con la base */
+  --success: #5EEAD4;            /* teal claro — alto contraste sobre oscuro */
 }
 /* Los botones con acento en alto contraste llevan borde explícito */
 [data-contrast="alto"] button,
@@ -121,7 +123,8 @@
   --orange-pale: rgba(232,115,44,.36);
   --purple-bg: rgba(var(--accent-rgb), .20);
 
-  --success-bg: rgba(16,185,129,.11);  --success-bg-strong: rgba(16,185,129,.19);
+  --success: #2DD4BF;  /* teal más claro para visibilidad sobre oscuro */
+  --success-bg: rgba(13,148,136,.13);  --success-bg-strong: rgba(13,148,136,.22); --success-border: rgba(45,212,191,.34);
   --error-bg: rgba(239,68,68,.11);     --error-bg-strong: rgba(239,68,68,.19);
   --info-bg: rgba(59,130,246,.13);     --warn-bg: rgba(245,158,11,.13);
   --violet-bg: rgba(139,92,246,.18);
@@ -2033,7 +2036,7 @@ table { min-width: 560px; }
 .ls-done-box {
   display: flex; align-items: center; gap: 12px;
   padding: 12px 18px; border-radius: 12px;
-  background: #F0FDF4; border: 1.5px solid #6EE7B7;
+  background: #F0FDFA; border: 1.5px solid #5EEAD4;
 }
 
 /* Detective */

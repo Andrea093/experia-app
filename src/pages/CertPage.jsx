@@ -87,11 +87,11 @@ const CertPage = () => {
         <div className="cert-no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px',
-            borderRadius: 12, background: '#ECFDF5', border: '1.5px solid #6EE7B7' }}>
+            borderRadius: 12, background: '#F0FDFA', border: '1.5px solid #5EEAD4' }}>
             <span style={{ fontSize: 20 }}>✅</span>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#065F46' }}>Certificado verificado</div>
-              <div style={{ fontSize: 11, color: '#047857' }}>Emitido por Experia · CEINFES</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#134E4A' }}>Certificado verificado</div>
+              <div style={{ fontSize: 11, color: '#0F766E' }}>Emitido por Experia · CEINFES</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -156,7 +156,7 @@ const CertPage = () => {
               marginBottom: 28, border: '1px solid #E5E7EB', borderRadius: 16, overflow: 'hidden',
               maxWidth: 360, margin: '0 auto 28px' }}>
               {[
-                { label: 'Puntuación', value: `${cert.score}/${cert.max_score}`, color: '#10B981' },
+                { label: 'Puntuación', value: `${cert.score}/${cert.max_score}`, color: '#0D9488' },
                 { label: 'Logro',      value: `${pct}%`,                         color: '#E8732C' },
                 { label: 'Programa',   value: 'DCE',                              color: '#7C3AED' },
               ].map((item, i, arr) => (
@@ -185,7 +185,7 @@ const CertPage = () => {
           {/* ID de verificación */}
           <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 16, display: 'flex', alignItems: 'center',
             justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <CheckIc s={13} c="#10B981" />
+            <CheckIc s={13} c="#0D9488" />
             <span style={{ fontSize: 10, color: '#9CA3AF', fontFamily: 'monospace', wordBreak: 'break-all' }}>
               ID: {cert.cert_uuid}
             </span>
