@@ -1,8 +1,9 @@
 import React from 'react'
 import {
   useStore, nav, completeNode, recordAttempt, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
-  getStudentModules, nodeStatus, calcLevel,
+  getStudentModules, nodeStatus, calcLevel, getActiveCourseTheme,
 } from '../store/store.jsx'
+import ThemeCelebration from '../components/ThemeCelebration.jsx'
 import {
   useMobile, LogoImg,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc,
@@ -680,6 +681,8 @@ const ChallengeView = () => {
   const [showConfetti,setShowConfetti]=React.useState(false);
   const isCompleted=completed.includes(nodeId);
 
+  const courseTheme=getActiveCourseTheme();
+
   const handleComplete=()=>{
     let routeNowComplete=false;
     if(!isCompleted){
@@ -687,7 +690,7 @@ const ChallengeView = () => {
       const newCompleted=[...completed,nodeId];
       routeNowComplete=isRouteComplete(newCompleted,selectedArea);
     }
-    setTimeout(()=>nav(routeNowComplete?'grid':'map'),1800);
+    setTimeout(()=>nav(routeNowComplete?'grid':'map'),courseTheme?2300:1800);
   };
 
   if(!mod)return <div style={{padding:40,textAlign:'center'}}><Btn variant="secondary" onClick={()=>nav('map')}><ArrowLIc s={16}/>Volver</Btn></div>;
@@ -697,7 +700,9 @@ const ChallengeView = () => {
 
   return (
     <div style={{height:'100%',display:'flex',flexDirection:'column'}}>
-      {showConfetti&&<Confetti onDone={()=>setShowConfetti(false)}/>}
+      {showConfetti&&(courseTheme
+        ? <ThemeCelebration theme={courseTheme} onDone={()=>setShowConfetti(false)}/>
+        : <Confetti onDone={()=>setShowConfetti(false)}/>)}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
         padding:isMobile?'12px 16px':'14px 28px',
         borderBottom:'1px solid var(--border)',flexShrink:0,background:'var(--white)'}}>
@@ -714,8 +719,7 @@ const ChallengeView = () => {
       </div>
       <div style={{flex:1,overflow:'auto',WebkitOverflowScrolling:'touch',padding:isMobile?'20px 16px':'32px 28px'}}>
         {isCompleted && (
-          <div style={{maxWidth:560,margin:'0 auto 20px',display:'flex',alignItems:'center',gap:12,
-            padding:'12px 18px',borderRadius:12,background:'#F0FDF4',border:'1.5px solid #6EE7B7'}}>
+          <div className="ls-done-box" style={{maxWidth:560,margin:'0 auto 20px'}}>
             <CheckIc s={18} c="var(--success)" />
             <span style={{fontSize:13,fontWeight:600,color:'var(--success)'}}>Ya completaste este reto · Puedes volver a practicarlo</span>
             <button onClick={()=>nav('map')} style={{marginLeft:'auto',fontSize:12,color:'var(--success)',
@@ -725,12 +729,11 @@ const ChallengeView = () => {
           </div>
         )}
         {mod.task && (
-          <div style={{maxWidth:560,margin:'0 auto 24px',display:'flex',alignItems:'flex-start',gap:12,
-            padding:'14px 18px',borderRadius:12,background:'#FFF7ED',border:'1.5px solid #FDBA74'}}>
+          <div className="ls-task-box" style={{maxWidth:560,margin:'0 auto 24px'}}>
             <span style={{fontSize:20,flexShrink:0}}>📋</span>
             <div>
-              <div style={{fontSize:11,fontWeight:800,color:'#C2410C',textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>¿Qué debes hacer?</div>
-              <p style={{fontSize:13,color:'#7C2D12',lineHeight:1.6,margin:0}}>{mod.task}</p>
+              <div className="ls-task-label" style={{fontSize:11,fontWeight:800,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>¿Qué debes hacer?</div>
+              <p className="ls-task-text" style={{fontSize:13,lineHeight:1.6,margin:0}}>{mod.task}</p>
             </div>
           </div>
         )}

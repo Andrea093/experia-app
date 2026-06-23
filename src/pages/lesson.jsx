@@ -1,9 +1,10 @@
 import React from 'react'
 import {
   useStore, nav, completeNode, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
-  getStudentModules, nodeStatus, calcLevel,
+  getStudentModules, nodeStatus, calcLevel, getActiveCourseTheme,
 } from '../store/store.jsx'
 import { CharacterFloat } from '../components/CharacterBubble.jsx'
+import ThemeCelebration from '../components/ThemeCelebration.jsx'
 import {
   useMobile, LogoImg,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc,
@@ -268,6 +269,8 @@ const LessonView = () => {
     return () => el.removeEventListener('scroll', handler);
   }, [nodeId]);
 
+  const courseTheme = getActiveCourseTheme();
+
   const handleComplete = () => {
     let routeNowComplete = false;
     if (!isCompleted) {
@@ -276,7 +279,7 @@ const LessonView = () => {
       const newCompleted = [...completed, nodeId];
       routeNowComplete = isRouteComplete(newCompleted, selectedArea);
     }
-    setTimeout(() => nav(routeNowComplete ? 'grid' : 'map'), 1500);
+    setTimeout(() => nav(routeNowComplete ? 'grid' : 'map'), courseTheme ? 2300 : 1500);
   };
 
   if (!mod || !mod.content) {
@@ -290,7 +293,9 @@ const LessonView = () => {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
+      {showConfetti && (courseTheme
+        ? <ThemeCelebration theme={courseTheme} onDone={() => setShowConfetti(false)} />
+        : <Confetti onDone={() => setShowConfetti(false)} />)}
 
       {/* Top progress bar */}
       <div style={{ height: 3, background: 'var(--border)', flexShrink: 0 }}>
@@ -336,15 +341,11 @@ const LessonView = () => {
 
           {/* Task instruction */}
           {mod.task && (
-            <div style={{
-              display: 'flex', alignItems: 'flex-start', gap: 14, padding: '16px 20px',
-              borderRadius: 14, background: '#FFF7ED', border: '1.5px solid #FDBA74',
-              marginBottom: 28, animation: 'fadeUp .4s ease',
-            }}>
+            <div className="ls-task-box" style={{ marginBottom: 28, animation: 'fadeUp .4s ease' }}>
               <span style={{ fontSize: 22, flexShrink: 0 }}>📋</span>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#C2410C', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>¿Qué debes hacer?</div>
-                <p style={{ fontSize: 14, color: '#7C2D12', lineHeight: 1.6, margin: 0 }}>{mod.task}</p>
+                <div className="ls-task-label" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>¿Qué debes hacer?</div>
+                <p className="ls-task-text" style={{ fontSize: 14, lineHeight: 1.6, margin: 0 }}>{mod.task}</p>
               </div>
             </div>
           )}
