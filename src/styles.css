@@ -92,7 +92,7 @@
   --muted: #D1D5DB;
   --subtle: #9CA3AF;
   --border: #9CA3AF;
-  --bg-alt: #2C2C44;
+  --bg-alt: #2D2B40;             /* gris-violeta, coherente con la base */
 }
 /* Los botones con acento en alto contraste llevan borde explícito */
 [data-contrast="alto"] button,
@@ -107,27 +107,34 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --dark: #F2F2F7; --text: #E4E4EE; --text-sec: #C2C2D2;
-  --muted: #9696AC; --subtle: #6E6E88;
-  --border: #2C2C44; --bg-alt: #232338; --bg: #121220; --white: #1A1A2E;
+  /* Texto: off-white suavizado para reducir el deslumbramiento.
+     Antes casi blanco puro (#F2F2F7/#E4E4EE) → demasiado duro sobre oscuro. */
+  --dark: #E7E7EF; --text: #D2D2DD; --text-sec: #ABABBC;
+  --muted: #9090A2; --subtle: #61617A;
 
-  --orange-bg: rgba(232,115,44,.16); --orange-50: rgba(232,115,44,.09);
-  --orange-pale: rgba(232,115,44,.40);
-  --purple-bg: rgba(var(--accent-rgb), .22);
+  /* Superficies: gris-violeta desaturado (tinte de marca), escalonado parejo.
+     Antes azul-marino frío que chocaba con el naranja y el esmeralda. */
+  --border: #2B2A3B; --bg-alt: #211F2D; --bg: #15141D; --white: #1C1B28;
 
-  --success-bg: rgba(16,185,129,.13);  --success-bg-strong: rgba(16,185,129,.22);
-  --error-bg: rgba(239,68,68,.13);     --error-bg-strong: rgba(239,68,68,.22);
-  --info-bg: rgba(59,130,246,.15);     --warn-bg: rgba(245,158,11,.15);
-  --violet-bg: rgba(139,92,246,.20);
+  /* Tintes de acento más sutiles sobre fondo oscuro */
+  --orange-bg: rgba(232,115,44,.12); --orange-50: rgba(232,115,44,.07);
+  --orange-pale: rgba(232,115,44,.36);
+  --purple-bg: rgba(var(--accent-rgb), .20);
 
-  --sh-sm: 0 1px 2px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.30);
-  --sh-md: 0 2px 4px rgba(0,0,0,.35), 0 6px 16px rgba(0,0,0,.40);
-  --sh-lg: 0 4px 8px rgba(0,0,0,.40), 0 12px 32px rgba(0,0,0,.50);
-  --sh-xl: 0 8px 16px rgba(0,0,0,.45), 0 24px 56px rgba(0,0,0,.60);
+  --success-bg: rgba(16,185,129,.11);  --success-bg-strong: rgba(16,185,129,.19);
+  --error-bg: rgba(239,68,68,.11);     --error-bg-strong: rgba(239,68,68,.19);
+  --info-bg: rgba(59,130,246,.13);     --warn-bg: rgba(245,158,11,.13);
+  --violet-bg: rgba(139,92,246,.18);
 
-  --glass-bg: rgba(20,20,36,.74);
-  --glass-border: rgba(255,255,255,.08);
-  --shimmer: rgba(255,255,255,.07);
+  /* Sombras: un punto más suaves para evitar halos duros */
+  --sh-sm: 0 1px 2px rgba(0,0,0,.30), 0 1px 3px rgba(0,0,0,.26);
+  --sh-md: 0 2px 4px rgba(0,0,0,.30), 0 6px 16px rgba(0,0,0,.34);
+  --sh-lg: 0 4px 8px rgba(0,0,0,.34), 0 12px 32px rgba(0,0,0,.44);
+  --sh-xl: 0 8px 16px rgba(0,0,0,.40), 0 24px 56px rgba(0,0,0,.54);
+
+  --glass-bg: rgba(21,20,29,.74);
+  --glass-border: rgba(255,255,255,.07);
+  --shimmer: rgba(255,255,255,.06);
 }
 
 /* En modo oscuro el logo pasa a silueta blanca (mismo filtro que onDark) */
@@ -144,9 +151,9 @@
 [data-theme="dark"] #certificate .logo-img { filter: none; }
 
 /* Scrollbar acorde al tema */
-[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3A3A55; background-clip: padding-box; }
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #4A4A68; background-clip: padding-box; }
-[data-theme="dark"] ::selection { background: rgba(232,115,44,.45); color: #fff; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #34334A; background-clip: padding-box; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #423F5C; background-clip: padding-box; }
+[data-theme="dark"] ::selection { background: rgba(232,115,44,.38); color: #fff; }
 
 html,body,#root{height:100%;width:100%;overflow:hidden}
 body{font-family:var(--font);color:var(--dark);background:var(--bg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;line-height:1.55}
