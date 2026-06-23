@@ -29,8 +29,15 @@
   <script>
     (function () {
       try {
+        // El modo oscuro solo se aplica si hay una sesión de Supabase activa.
+        // Sin sesión, el usuario verá la landing/login, que SIEMPRE es modo claro.
+        var hasSession = false;
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.lastIndexOf('sb-', 0) === 0 && k.indexOf('-auth-token') !== -1) { hasSession = true; break; }
+        }
         var theme = localStorage.getItem('experia-theme');
-        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        if (hasSession && (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches))) {
           document.documentElement.setAttribute('data-theme', 'dark');
         }
         var accent = localStorage.getItem('experia-accent');

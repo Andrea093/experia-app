@@ -41,6 +41,29 @@ export const toggleTheme = () => {
   return next
 }
 
+// Preferencia guardada por el usuario (sin tocar el DOM).
+// Sin preferencia explícita → sigue el sistema operativo.
+export const getSavedTheme = () => {
+  const saved = safeGet(THEME_KEY)
+  if (saved === 'dark') return 'dark'
+  if (saved === 'light') return 'light'
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  } catch { return 'light' }
+}
+
+// Aplica la preferencia guardada al DOM (páginas autenticadas).
+export const applySavedTheme = () => {
+  if (getSavedTheme() === 'dark') document.documentElement.setAttribute('data-theme', 'dark')
+  else document.documentElement.removeAttribute('data-theme')
+}
+
+// Fuerza modo claro SIN borrar la preferencia guardada (landing/login).
+// Al volver a la app se restaura con applySavedTheme().
+export const applyLightOnly = () => {
+  document.documentElement.removeAttribute('data-theme')
+}
+
 export const getAccent = () => safeGet(ACCENT_KEY) || 'morado'
 
 export const setAccent = (id) => {

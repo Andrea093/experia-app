@@ -1,6 +1,7 @@
 import React from 'react'
 import { useStore, nav } from './store/store.jsx'
 import { getActiveCourseTheme } from './store/store.jsx'
+import { applySavedTheme, applyLightOnly } from './lib/theme.js'
 import { NotifManager } from './components/ui.jsx'
 import DetectiveAmbient from './components/DetectiveAmbient.jsx'
 import EscapeRoomAmbient from './components/EscapeRoomAmbient.jsx'
@@ -129,6 +130,15 @@ const App = () => {
       root.removeAttribute('data-course-theme');
     }
   }, [isLoggedIn, enrolledCourse, courses]);
+
+  // El modo oscuro NUNCA debe aplicarse en la entrada pública (landing/login):
+  // esas páginas siempre se ven en modo claro. Dentro de la app se respeta
+  // la preferencia guardada por el usuario.
+  React.useEffect(() => {
+    const isPublicEntry = !isLoggedIn && (page === 'landing' || page === 'login');
+    if (isPublicEntry) applyLightOnly();
+    else applySavedTheme();
+  }, [page, isLoggedIn]);
   const [studentView, setStudentView] = React.useState(null);
 
   React.useEffect(() => { setMobileSidebarOpen(false); }, [page]);
