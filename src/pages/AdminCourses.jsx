@@ -3,6 +3,14 @@ import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse,
 import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal } from '../components/ui.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
+// Pista descriptiva por tema inmersivo (se muestra al seleccionarlo en el form).
+const THEME_HINTS = {
+  detective: '🕵️ Los estudiantes inscritos verán la experiencia noir: paleta ámbar/negro, animaciones de lluvia, personaje Vera Clío y sello ARCHIVADO al completar módulos.',
+  'escape-room': '🔐 Ambiente de sala de escape: candados, mecanismos y la metáfora de abrir puertas con el pensamiento matemático. Ideal para el curso de Matemáticas.',
+  lab: '🔬 Ambiente de laboratorio científico: probetas, burbujas y método científico. Ideal para el curso de Ciencias Naturales.',
+  'time-travel': '⏳ Ambiente de viaje en el tiempo: portal temporal, personaje Prof. Kronos y recorrido por épocas. Ideal para el curso de Ciencias Sociales.',
+}
+
 // ── Formulario de curso ──────────────────────────────────────
 const CourseForm = ({ initial, onSave, onCancel }) => {
   const [form, setForm] = React.useState({
@@ -74,12 +82,15 @@ const CourseForm = ({ initial, onSave, onCancel }) => {
         <select value={form.theme} onChange={e => set('theme', e.target.value)} style={inp}>
           <option value="">— Estándar (sin tema especial) —</option>
           <option value="detective">🕵️ Detectives de Texto — Lenguaje / Lectura Crítica</option>
+          <option value="escape-room">🔐 Sala de Escape — Matemáticas</option>
+          <option value="lab">🔬 Laboratorio de Ciencias Naturales — Ciencias</option>
+          <option value="time-travel">⏳ Viajeros del Tiempo — Ciencias Sociales</option>
         </select>
-        {form.theme === 'detective' && (
+        {THEME_HINTS[form.theme] && (
           <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 8,
             background: 'rgba(212,160,23,.08)', border: '1px solid rgba(212,160,23,.3)',
             fontSize: 12, color: '#D4A017' }}>
-            🕵️ Los estudiantes inscritos verán la experiencia noir: paleta ámbar/negro, animaciones de lluvia, personaje Vera Clío y sello ARCHIVADO al completar módulos.
+            {THEME_HINTS[form.theme]}
           </div>
         )}
       </div>
