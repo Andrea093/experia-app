@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > **Experia** is a web platform for teacher training in Experience-Centered Design (DCE). Teachers progress through interactive lessons, challenges, and final deliverables, supervised by instructors.
 
 **Production:** https://experia-app.pages.dev  
-**Version:** v14 (June 2026)
+**Version:** v14 (June 2026) — multi-course + 4 immersive course themes live
 
 ---
 
@@ -227,17 +227,37 @@ Next module unlocks (dependencies checked)
 
 ### 5. Challenge Types
 
-| Type | Mechanic |
-|------|----------|
-| **drag-drop** | Reorder phrases |
-| **empathy** | Sort cards into 4 quadrants |
-| **simulation** | Multi-step decision tree |
-| **matching** | Connect concepts ↔ definitions |
-| **designlab** | Open-ended final (rubric) |
+`challenge_type` value (exact string, **no hyphens**) → component in `challenges.jsx`. Unknown values fall back to `designlab`.
+
+| `challenge_type` | Mechanic | `challenge_data` shape |
+|------------------|----------|------------------------|
+| `dragdrop` | Reorder phrases | `{ dragItems: ["str", ...] }` (array of strings in correct order) |
+| `empathy` | Sort cards into 4 quadrants | `{ empathyCards: [{id,text,correct}] }`, `correct ∈ piensa\|siente\|dice\|hace` |
+| `simulation` | Multi-step decision tree | ⚠️ ignored — always renders the built-in generic `SIM_TREE` (store doesn't forward sim data) |
+| `matching` | Connect concepts ↔ definitions | `{ matchPairs: [{id,concept,def}] }` |
+| `quiz` | Multiple-choice questions | `{ questions: [{question,options,correct}] }` |
+| `designlab` | Open-ended final (rubric) | n/a (rubric in `content`) |
+
+**Lesson `content`** is an array of sections rendered by `lesson.jsx`. Supported `type`s: `intro`, `text`, `quote`, `steps`, `reveal`, `image`, `callout`, `concepts`, `compare`, `video`. There is **no** `heading` type. `steps`/`reveal`/`concepts` items use `t`/`d` keys; images use `url`.
 
 ### 6. Content as Code (No CMS)
 
 All lesson text, images, match pairs, simulations live in `store.jsx`. Change content → commit + push → auto-deploy. Version control built-in.
+
+### 7. Immersive Course Themes
+
+A course can have an immersive visual theme via the `courses.theme` column. Active themes:
+
+| `theme` | Course | Character |
+|---------|--------|-----------|
+| `detective` | Lenguaje | Vera Clío |
+| `escape-room` | Matemáticas | — |
+| `lab` | Ciencias Naturales | — |
+| `time-travel` | Ciencias Sociales | Prof. Kronos |
+
+- **Activation:** `getActiveCourseTheme()` reads `theme` of the enrolled course. `<CourseAmbient>` (in `app.jsx`) subscribes **once** to the active theme and lazy-loads the matching `*Ambient.jsx` overlay (each is a separate chunk — only downloaded when its course is active). Themed end-of-module celebration in `ThemeCelebration.jsx`.
+- **Adding a theme:** add the `theme` value to `AdminCourses.jsx` (`THEME_HINTS` + `<option>`), build a `*Ambient.jsx`, register it in `CourseAmbient.jsx`, and add a branch in `ThemeCelebration.jsx`.
+- **Seeds:** course content lives in `supabase/migrations/0013`–`0016`. These are **run manually** in the Supabase SQL Editor (git push deploys only the frontend; migrations are never automatic). Canonical correct template: `0013`. They must match the real `course_modules` schema (id uuid auto, `"order"`, `is_enabled`, `area_id`, `challenge_type`, `challenge_data`) and the content shapes in §5.
 
 ---
 
@@ -258,6 +278,9 @@ src/
 │   ├── Sidebar.jsx
 │   ├── Header.jsx
 │   ├── Onboarding.jsx
+│   ├── CourseAmbient.jsx    # Gate: lazy-loads the active course's theme overlay
+│   ├── DetectiveAmbient.jsx, EscapeRoomAmbient.jsx, LabAmbient.jsx, TimeTravelAmbient.jsx
+│   ├── ThemeCelebration.jsx, CharacterBubble.jsx  # Themed celebration + companion
 │   └── ErrorBoundary.jsx
 └── pages/
     ├── landing.jsx, login.jsx
@@ -267,10 +290,12 @@ src/
     └── InstructorStudentView.jsx, forum.jsx, etc.
 
 supabase/
-├── migrations/          # Database schema
+├── migrations/          # Database schema (run manually in Supabase SQL Editor)
 │   ├── 0001_init.sql
 │   ├── 0007_multi_course.sql
-│   └── 0009_forum_onboarding.sql
+│   ├── 0011_course_modules_area.sql   # adds area_id + allows type 'final_delivery'
+│   ├── 0012_course_theme.sql          # adds courses.theme + character_line
+│   └── 0013–0016_seed_*.sql           # themed course seeds (detective/escape/lab/time-travel)
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/

@@ -1,5 +1,4 @@
 import React from 'react'
-import { useStore } from '../store/store.jsx'
 
 // ── 90 estrellas titilando en el espacio ─────────────────────────────────────
 const STARS = Array.from({ length: 90 }, (_, i) => ({
@@ -119,12 +118,6 @@ const TemporalRift = ({ top, right, left, bottom, angle, delay, dur }) => (
 )
 
 export const TimeTravelAmbient = () => {
-  const theme = useStore(s => {
-    const id = s.enrolledCourseId
-    return (s.courses || []).find(c => c.id === id)?.theme || null
-  })
-  if (theme !== 'time-travel') return null
-
   return (
     <div className="tt-ambient" aria-hidden="true">
       {/* Viñeta cósmica */}

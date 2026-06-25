@@ -1,5 +1,4 @@
 import React from 'react'
-import { useStore } from '../store/store.jsx'
 
 // ── Burbujas en 4 corrientes (como 4 tubos de ensayo hirviendo) ──────────────
 const STREAM_CENTERS = [7, 28, 58, 88]
@@ -99,12 +98,6 @@ const Spark = ({ style, delay, dur }) => (
 )
 
 export const LabAmbient = () => {
-  const theme = useStore(s => {
-    const id = s.enrolledCourseId
-    return (s.courses || []).find(c => c.id === id)?.theme || null
-  })
-  if (theme !== 'lab') return null
-
   return (
     <div className="lab-ambient" aria-hidden="true">
       {/* Viñeta verde de laboratorio */}

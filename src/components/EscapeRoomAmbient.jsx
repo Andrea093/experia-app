@@ -1,5 +1,4 @@
 import React from 'react'
-import { useStore } from '../store/store.jsx'
 
 // Embers que suben (al revés que la lluvia detective)
 const EMBERS = Array.from({ length: 40 }, (_, i) => ({
@@ -50,12 +49,6 @@ const GearSVG = ({ size, opacity, duration, reverse, top, right, bottom, left })
 }
 
 export const EscapeRoomAmbient = () => {
-  const theme = useStore(s => {
-    const id = s.enrolledCourseId
-    return (s.courses || []).find(c => c.id === id)?.theme || null
-  })
-  if (theme !== 'escape-room') return null
-
   return (
     <div className="er-ambient" aria-hidden="true">
       {/* Viñeta de mazmorra */}

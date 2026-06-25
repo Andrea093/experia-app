@@ -3,10 +3,7 @@ import { useStore, nav } from './store/store.jsx'
 import { getActiveCourseTheme } from './store/store.jsx'
 import { applySavedTheme, applyLightOnly } from './lib/theme.js'
 import { NotifManager } from './components/ui.jsx'
-import DetectiveAmbient from './components/DetectiveAmbient.jsx'
-import EscapeRoomAmbient from './components/EscapeRoomAmbient.jsx'
-import LabAmbient from './components/LabAmbient.jsx'
-import TimeTravelAmbient from './components/TimeTravelAmbient.jsx'
+import CourseAmbient from './components/CourseAmbient.jsx'
 import { OnboardingModal } from './components/Onboarding.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Header from './components/Header.jsx'
@@ -200,10 +197,7 @@ const App = () => {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <DetectiveAmbient />
-      <EscapeRoomAmbient />
-      <LabAmbient />
-      <TimeTravelAmbient />
+      <CourseAmbient />
       <NotifManager />
       <PWAInstallPrompt />
       {/* Bienvenida: solo estudiantes que no han visto el onboarding (flag en profiles) */}

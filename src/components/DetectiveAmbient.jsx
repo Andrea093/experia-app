@@ -1,8 +1,7 @@
 import React from 'react'
-import { useStore } from '../store/store.jsx'
 
 // Capa ambiental inmersiva del tema Detective.
-// Solo se monta cuando el curso activo tiene theme='detective'.
+// El gate de tema vive en CourseAmbient; aquí solo está la presentación.
 // Renderiza efectos de movimiento sobre toda la pantalla (sin bloquear clics).
 
 // Genera N gotas de lluvia con posiciones y tiempos aleatorios pero estables
@@ -24,12 +23,6 @@ const DUST = Array.from({ length: 22 }, (_, i) => ({
 }))
 
 export const DetectiveAmbient = () => {
-  const theme = useStore(s => {
-    const id = s.enrolledCourseId
-    return (s.courses || []).find(c => c.id === id)?.theme || null
-  })
-  if (theme !== 'detective') return null
-
   return (
     <div className="det-ambient" aria-hidden="true">
       {/* Viñeta con parpadeo de lámpara */}
