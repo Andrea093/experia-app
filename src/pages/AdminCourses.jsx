@@ -1,6 +1,6 @@
 import React from 'react'
 import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, loadCourseModules } from '../store/store.jsx'
-import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal } from '../components/ui.jsx'
+import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal, ChecklistDropdown } from '../components/ui.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
 // Pista descriptiva por tema inmersivo (se muestra al seleccionarlo en el form).
@@ -809,26 +809,33 @@ const AdminCourses = () => {
                 </div>
 
                 {/* Asignación por institución */}
-                <div style={{ padding: '12px 20px 16px', borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                <div style={{ padding: '12px 20px 16px', borderTop: '1px solid var(--border)', background: 'var(--bg)',
+                  display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
                     Habilitar para instituciones
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {institutions.map(inst => {
-                      const active = isCourseActiveForInst(course.id, inst.id)
-                      return (
-                        <button key={inst.id} onClick={() => handleToggleInstitution(course.id, inst.id, active)}
-                          style={{ padding: '5px 12px', borderRadius: 20, border: `1.5px solid ${active ? 'var(--success)' : 'var(--border)'}`,
-                            background: active ? '#CCFBF1' : 'var(--white)', cursor: 'pointer',
-                            fontSize: 12, fontWeight: active ? 600 : 400,
-                            color: active ? 'var(--success)' : 'var(--muted)', transition: 'all .15s',
-                            display: 'flex', alignItems: 'center', gap: 5 }}>
-                          {active && <CheckIc s={11} c="var(--success)" />}
-                          {inst.name}
-                        </button>
-                      )
-                    })}
-                    {institutions.length === 0 && <span style={{ fontSize: 12, color: 'var(--subtle)' }}>No hay instituciones registradas.</span>}
+                  {(() => {
+                    const enabledCount = institutions.filter(i => isCourseActiveForInst(course.id, i.id)).length
+                    return (
+                      <ChecklistDropdown
+                        label={enabledCount === 0
+                          ? 'Ninguna institución'
+                          : `${enabledCount} de ${institutions.length} institucion${institutions.length !== 1 ? 'es' : ''}`}
+                        items={institutions.map(i => ({ id: i.id, label: i.name }))}
+                        stateOf={it => isCourseActiveForInst(course.id, it.id) ? 'all' : 'none'}
+                        onToggle={(it, next) => handleToggleInstitution(course.id, it.id, !next)}
+                        emptyText="No hay instituciones registradas."
+                        width={280}
+                      />
+                    )
+                  })()}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {institutions.filter(i => isCourseActiveForInst(course.id, i.id)).map(i => (
+                      <span key={i.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600,
+                        padding: '3px 9px', borderRadius: 20, background: '#CCFBF1', color: 'var(--success)' }}>
+                        <CheckIc s={11} c="var(--success)" /> {i.name}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>

@@ -273,8 +273,62 @@ const LogoImg = ({ h=34, w=null, onDark=false }) => (
   />
 );
 
+// --- Checklist desplegable (dropdown con checkboxes) ---
+// items: [{ id, label }]
+// stateOf(item) -> 'all' | 'some' | 'none'  (controla checked / indeterminate)
+// onToggle(item, nextActive) -> void
+const ChecklistItem = ({ item, state, onToggle, accent }) => {
+  const ref = React.useRef(null);
+  React.useEffect(() => { if (ref.current) ref.current.indeterminate = state === 'some'; }, [state]);
+  const checked = state === 'all';
+  return (
+    <label style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:8,
+      cursor:'pointer', fontSize:13, color:'var(--dark)', transition:'background .12s' }}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-alt)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+      <input ref={ref} type="checkbox" checked={checked} onChange={() => onToggle(item, !checked)}
+        style={{ accentColor: accent, width:15, height:15, flexShrink:0 }} />
+      <span style={{ fontWeight: state === 'none' ? 400 : 600 }}>{item.label}</span>
+    </label>
+  );
+};
+
+const ChecklistDropdown = ({ label, items, stateOf, onToggle, width=260, accent='var(--success)', emptyText='Sin opciones', disabled=false, buttonStyle={} }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div style={{ position:'relative', display:'inline-block' }}>
+      <button type="button" disabled={disabled} onClick={() => setOpen(o => !o)}
+        style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'8px 14px', borderRadius:10,
+          border:'1.5px solid var(--border)', background:'var(--white)', color:'var(--text-sec)',
+          fontFamily:'var(--font)', fontSize:13, fontWeight:600, cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? .6 : 1, whiteSpace:'nowrap', transition:'border-color .15s',
+          ...(open ? { borderColor: accent } : {}), ...buttonStyle }}>
+        {label}
+        <span style={{ display:'inline-block', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition:'transform .15s' }}>
+          <ChevRIc s={14} c="var(--muted)" />
+        </span>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position:'fixed', inset:0, zIndex:60 }} />
+          <div style={{ position:'absolute', top:'calc(100% + 6px)', left:0, zIndex:61, width,
+            maxHeight:320, overflowY:'auto', background:'var(--white)', border:'1px solid var(--border)',
+            borderRadius:12, boxShadow:'var(--sh-lg)', padding:6 }}>
+            {items.length === 0
+              ? <div style={{ padding:'10px 12px', fontSize:12, color:'var(--subtle)' }}>{emptyText}</div>
+              : items.map(it => (
+                  <ChecklistItem key={it.id} item={it} state={stateOf(it)} onToggle={onToggle} accent={accent} />
+                ))
+            }
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 export {
-  useMobile, LogoImg,
+  useMobile, LogoImg, ChecklistDropdown,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc, ArrowRIc, ArrowLIc,
   ChevRIc, StarIc, TrophyIc, ZapIc, AwardIc, BellIc, LogOutIc, ClockIc, XIc, PlusIc,
   TrashIc, EditIc, MenuIc, TargetIc, SettingsIc, BarIc, UsersIc, GripIc, MapIc,

@@ -3,10 +3,10 @@ import {
   useStore, INITIAL_INSTITUTIONS, AREAS,
   createAccount, deleteAccount, changeAccountArea, resetStudentProgress, setAccountActive,
   assignInstructorInstitution, removeInstructorInstitution, assignRouteToInstitution,
-  bulkCreateAccounts, setUserCourseAccess
+  bulkCreateAccounts, setUserCourseAccess, setUserCourseAccessBulk
 } from '../store/store.jsx'
 import {
-  useMobile, LogoImg, CheckIc, XIc, PlusIc, TrashIc, EditIc, UploadIc, Btn, Modal
+  useMobile, LogoImg, CheckIc, XIc, PlusIc, TrashIc, EditIc, UploadIc, Btn, Modal, ChecklistDropdown
 } from '../components/ui.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
@@ -472,6 +472,8 @@ const UserCoursesModal = ({ acc, onClose }) => {
 const AdminPage = () => {
   const accounts = useStore(s => s.accounts);
   const institutions = useStore(s => s.institutions || INITIAL_INSTITUTIONS);
+  const courses = useStore(s => s.courses || []);
+  const userCourses = useStore(s => s.userCourses || []);
   const isMobile = useMobile();
 
   // --- Create form ---
@@ -527,6 +529,7 @@ const AdminPage = () => {
   // --- Filter / Search ---
   const [search, setSearch] = React.useState('');
   const [filterRole, setFilterRole] = React.useState('all');
+  const [filterInstitution, setFilterInstitution] = React.useState('all');
 
   const roleColor = { student:'var(--orange)', instructor:'var(--success)', admin:'var(--purple)' };
   const roleLabel = { student:'Estudiante', instructor:'Instructor', admin:'Admin' };
@@ -537,6 +540,7 @@ const AdminPage = () => {
     const q = search.trim().toLowerCase();
     return accounts.filter(a => {
       if (filterRole !== 'all' && a.role !== filterRole) return false;
+      if (filterInstitution !== 'all' && (a.institution || '') !== filterInstitution) return false;
       if (!q) return true;
       return (
         a.name.toLowerCase().includes(q) ||
@@ -544,7 +548,31 @@ const AdminPage = () => {
         (a.institution || '').toLowerCase().includes(q)
       );
     });
-  }, [accounts, filterRole, search]);
+  }, [accounts, filterRole, filterInstitution, search]);
+
+  // --- Habilitación de cursos EN MASA (para el grupo filtrado) ---
+  const [bulkBusy, setBulkBusy] = React.useState(false);
+  // Usuarios objetivo del bulk: visibles, no-admin, con id real
+  const bulkTargetIds = React.useMemo(
+    () => visibleAccounts.filter(a => a.role !== 'admin' && a.id).map(a => a.id),
+    [visibleAccounts]
+  );
+  const activeCourses = React.useMemo(() => courses.filter(c => c.is_active), [courses]);
+  // Estado tri-estado de un curso sobre el grupo: 'all' | 'some' | 'none'
+  const courseGroupState = React.useCallback((courseId) => {
+    if (!bulkTargetIds.length) return 'none';
+    const granted = new Set(
+      userCourses.filter(uc => uc.course_id === courseId && uc.is_active).map(uc => uc.user_id)
+    );
+    const n = bulkTargetIds.filter(id => granted.has(id)).length;
+    return n === 0 ? 'none' : n === bulkTargetIds.length ? 'all' : 'some';
+  }, [bulkTargetIds, userCourses]);
+  const handleBulkCourse = async (course, nextActive) => {
+    if (!bulkTargetIds.length) return;
+    setBulkBusy(true);
+    await setUserCourseAccessBulk(bulkTargetIds, course.id, nextActive);
+    setBulkBusy(false);
+  };
 
   const students    = React.useMemo(() => accounts.filter(a => a.role === 'student'), [accounts]);
   const instructors = React.useMemo(() => accounts.filter(a => a.role === 'instructor'), [accounts]);
@@ -669,6 +697,29 @@ const AdminPage = () => {
             </button>
           ))}
         </div>
+        {/* Institution filter */}
+        <select value={filterInstitution} onChange={e => setFilterInstitution(e.target.value)}
+          style={{ padding:'8px 12px', borderRadius:8, border:'1.5px solid var(--border)', background:'var(--white)',
+            fontFamily:'var(--font)', fontSize:12, fontWeight:600, color:'var(--text-sec)', outline:'none',
+            cursor:'pointer', maxWidth:200 }}>
+          <option value="all">🏫 Todos los colegios</option>
+          {institutions.map(inst => <option key={inst.id} value={inst.name}>{inst.name}</option>)}
+        </select>
+
+        {/* Habilitar cursos en masa — solo al filtrar un colegio */}
+        {filterInstitution !== 'all' && (
+          <ChecklistDropdown
+            label={bulkBusy ? '⏳ Aplicando…' : `📚 Habilitar cursos · ${bulkTargetIds.length} usuario${bulkTargetIds.length !== 1 ? 's' : ''}`}
+            items={activeCourses.map(c => ({ id: c.id, label: c.name }))}
+            stateOf={it => courseGroupState(it.id)}
+            onToggle={(it, next) => handleBulkCourse(activeCourses.find(c => c.id === it.id), next)}
+            disabled={bulkBusy || bulkTargetIds.length === 0}
+            emptyText="No hay cursos activos."
+            width={280}
+            buttonStyle={{ borderColor:'var(--success)', color:'var(--success)', background:'#F0FDFA' }}
+          />
+        )}
+
         {/* Action buttons */}
         <Btn variant="secondary" onClick={() => setShowBulk(true)}>
           <UploadIc s={16} c="var(--text-sec)" /> Carga masiva

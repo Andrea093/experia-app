@@ -1015,6 +1015,17 @@ const setUserCourseAccess = async (userId, courseId, active) => {
   }
 };
 
+// Otorga/revoca el acceso a UN curso para MUCHOS usuarios a la vez (gestión en masa).
+const setUserCourseAccessBulk = async (userIds, courseId, active) => {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (!ids.length) return;
+  const rows = ids.map(uid => ({ user_id: uid, course_id: courseId, is_active: active }));
+  const { error } = await supabase.from('user_courses')
+    .upsert(rows, { onConflict: 'user_id,course_id' });
+  if (error) { console.error('setUserCourseAccessBulk:', error); return; }
+  await loadUserCourses();
+};
+
 // IDs de cursos accesibles para un usuario (acceso estricto)
 const allowedCourseIds = (userId) => {
   const { userCourses } = XS.get();
@@ -1275,7 +1286,7 @@ export {
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution, setInstitutionActive,
   getAccessBlockReason,
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,
-  loadUserCourses, setUserCourseAccess, allowedCourseIds,
+  loadUserCourses, setUserCourseAccess, setUserCourseAccessBulk, allowedCourseIds,
   loadCourseModules, enrollInCourse, dbModToAppMod, publishRouteToCourse, switchCourse,
   applyInitialHash, markOnboarded, claimOnboardingBonus, awardForumParticipation,
   hashFor, issueCertificate, getActiveCourseTheme, reactCharacter,
