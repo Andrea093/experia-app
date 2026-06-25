@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 import { BADGES, useStore, dismissNotif } from '../store/store.jsx'
 
 // --- Responsive hook ---
@@ -295,9 +296,41 @@ const ChecklistItem = ({ item, state, onToggle, accent }) => {
 
 const ChecklistDropdown = ({ label, items, stateOf, onToggle, width=260, accent='var(--success)', emptyText='Sin opciones', disabled=false, buttonStyle={} }) => {
   const [open, setOpen] = React.useState(false);
+  const [pos, setPos] = React.useState(null);
+  const btnRef = React.useRef(null);
+  const panelRef = React.useRef(null);
+
+  const place = React.useCallback(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const margin = 8;
+    // Mantener el panel dentro de la ventana (horizontal)
+    const left = Math.max(margin, Math.min(r.left, window.innerWidth - width - margin));
+    // Si no cabe abajo, abrir hacia arriba
+    const below = window.innerHeight - r.bottom;
+    const openUp = below < 260 && r.top > below;
+    setPos({ left, top: openUp ? undefined : r.bottom + 6, bottom: openUp ? (window.innerHeight - r.top + 6) : undefined });
+  }, [width]);
+
+  const toggle = () => {
+    if (disabled) return;
+    if (!open) place();
+    setOpen(o => !o);
+  };
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onScroll = (e) => { if (panelRef.current && panelRef.current.contains(e.target)) return; setOpen(false); };
+    const onResize = () => setOpen(false);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    return () => { window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', onResize); };
+  }, [open]);
+
   return (
     <div style={{ position:'relative', display:'inline-block' }}>
-      <button type="button" disabled={disabled} onClick={() => setOpen(o => !o)}
+      <button ref={btnRef} type="button" disabled={disabled} onClick={toggle}
         style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'8px 14px', borderRadius:10,
           border:'1.5px solid var(--border)', background:'var(--white)', color:'var(--text-sec)',
           fontFamily:'var(--font)', fontSize:13, fontWeight:600, cursor: disabled ? 'not-allowed' : 'pointer',
@@ -308,10 +341,10 @@ const ChecklistDropdown = ({ label, items, stateOf, onToggle, width=260, accent=
           <ChevRIc s={14} c="var(--muted)" />
         </span>
       </button>
-      {open && (
+      {open && pos && createPortal(
         <>
-          <div onClick={() => setOpen(false)} style={{ position:'fixed', inset:0, zIndex:60 }} />
-          <div style={{ position:'absolute', top:'calc(100% + 6px)', left:0, zIndex:61, width,
+          <div onClick={() => setOpen(false)} style={{ position:'fixed', inset:0, zIndex:1000 }} />
+          <div ref={panelRef} style={{ position:'fixed', left:pos.left, top:pos.top, bottom:pos.bottom, zIndex:1001, width,
             maxHeight:320, overflowY:'auto', background:'var(--white)', border:'1px solid var(--border)',
             borderRadius:12, boxShadow:'var(--sh-lg)', padding:6 }}>
             {items.length === 0
@@ -321,7 +354,8 @@ const ChecklistDropdown = ({ label, items, stateOf, onToggle, width=260, accent=
                 ))
             }
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
