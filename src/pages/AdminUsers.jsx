@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   useStore, INITIAL_INSTITUTIONS, AREAS,
-  createAccount, deleteAccount, changeAccountArea, resetStudentProgress,
+  createAccount, deleteAccount, changeAccountArea, resetStudentProgress, setAccountActive,
   assignInstructorInstitution, removeInstructorInstitution, assignRouteToInstitution,
   bulkCreateAccounts
 } from '../store/store.jsx'
@@ -613,8 +613,9 @@ const AdminPage = () => {
               const area = AREAS.find(a => a.id === acc.area);
               const isAdmin = acc.role === 'admin';
               const isStudent = acc.role === 'student';
+              const isActive = acc.is_active !== false;
               return (
-                <tr key={acc.email} style={{ borderBottom:'1px solid var(--border)', transition:'background .15s' }}
+                <tr key={acc.email} style={{ borderBottom:'1px solid var(--border)', transition:'background .15s', opacity: isActive ? 1 : .55 }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding:'11px 14px' }}>
@@ -627,6 +628,10 @@ const AdminPage = () => {
                           : acc.avatar}
                       </div>
                       <span style={{ fontSize:13, fontWeight:600, color:'var(--dark)' }}>{acc.name}</span>
+                      {!isActive && (
+                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:6,
+                          background:'var(--error-bg)', color:'var(--error)', whiteSpace:'nowrap' }}>Inactivo</span>
+                      )}
                     </div>
                   </td>
                   <td style={{ padding:'11px 14px', fontSize:12, color:'var(--muted)' }}>{acc.email}</td>
@@ -669,6 +674,15 @@ const AdminPage = () => {
                             🔄 Progreso
                           </button>
                         )}
+                        <button onClick={() => setAccountActive(acc.id, !isActive)}
+                          title={isActive ? 'Desactivar acceso de este usuario' : 'Reactivar acceso de este usuario'}
+                          style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
+                            border:`1.5px solid ${isActive ? 'var(--border)' : 'var(--success)'}`,
+                            background: isActive ? 'var(--white)' : '#CCFBF1',
+                            color: isActive ? 'var(--text-sec)' : 'var(--success)',
+                            cursor:'pointer', fontFamily:'var(--font)', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
+                          {isActive ? '🚫 Desactivar' : '✅ Activar'}
+                        </button>
                         <button onClick={() => setDeleteConfirm(acc.email)}
                           style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
                             border:'1.5px solid var(--error)', background:'none', color:'var(--error)',

@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   useStore, INITIAL_INSTITUTIONS,
-  createInstitution, updateInstitution, deleteInstitution
+  createInstitution, updateInstitution, deleteInstitution, setInstitutionActive
 } from '../store/store.jsx'
 import { useMobile, Btn, PlusIc, EditIc, TrashIc, Modal } from '../components/ui.jsx'
 
@@ -99,9 +99,11 @@ const SchoolsAdminPage = () => {
         )}
         {filtered.map(inst => {
           const count = studentsByInst[inst.name] || 0;
+          const isActive = inst.is_active !== false;
           return (
             <div key={inst.id} style={{ display:'flex', alignItems:'center', gap:14, padding:'16px 20px',
-              borderRadius:14, background:'var(--white)', border:'1px solid var(--border)', transition:'box-shadow .2s' }}
+              borderRadius:14, background:'var(--white)', border:'1px solid var(--border)', transition:'box-shadow .2s',
+              opacity: isActive ? 1 : .6 }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--sh-sm)'}
               onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
               <div style={{ width:46, height:46, borderRadius:12, background:'var(--purple-bg)',
@@ -109,13 +111,28 @@ const SchoolsAdminPage = () => {
                 🏫
               </div>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:15, fontWeight:700, color:'var(--dark)', marginBottom:2,
-                  overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{inst.name}</div>
-                <div style={{ fontSize:12, color:'var(--muted)' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <span style={{ fontSize:15, fontWeight:700, color:'var(--dark)',
+                    overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{inst.name}</span>
+                  {!isActive && (
+                    <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:6, flexShrink:0,
+                      background:'var(--error-bg)', color:'var(--error)', whiteSpace:'nowrap' }}>Suspendido</span>
+                  )}
+                </div>
+                <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
                   {count} docente{count !== 1 ? 's' : ''} registrado{count !== 1 ? 's' : ''}
                 </div>
               </div>
               <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                <button onClick={() => setInstitutionActive(inst.id, !isActive)}
+                  title={isActive ? 'Suspender el acceso de todos los usuarios de este colegio' : 'Reactivar el acceso de este colegio'}
+                  style={{ display:'flex', alignItems:'center', gap:4, padding:'7px 12px', borderRadius:8,
+                    border:`1.5px solid ${isActive ? 'var(--border)' : 'var(--success)'}`,
+                    background: isActive ? 'var(--white)' : '#CCFBF1',
+                    color: isActive ? 'var(--text-sec)' : 'var(--success)',
+                    cursor:'pointer', fontFamily:'var(--font)', fontSize:12, fontWeight:600, whiteSpace:'nowrap' }}>
+                  {isActive ? '🚫' : '✅'}{isMobile ? '' : (isActive ? ' Suspender' : ' Activar')}
+                </button>
                 <button onClick={() => { setEditId(inst.id); setEditName(inst.name); }}
                   style={{ display:'flex', alignItems:'center', gap:4, padding:'7px 12px', borderRadius:8,
                     border:'1.5px solid var(--border)', background:'var(--white)', color:'var(--text-sec)',

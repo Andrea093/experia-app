@@ -4,7 +4,7 @@ import './styles.css'
 import App from './app.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient.js'
-import { XS, useStore, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, applyInitialHash } from './store/store.jsx'
+import { XS, useStore, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, applyInitialHash, getAccessBlockReason } from './store/store.jsx'
 import { mapSubmission, mapAttempt } from './lib/mappers.js'
 import { loadStudentSession } from './lib/loadStudentSession.js'
 
@@ -84,6 +84,10 @@ async function restoreSession() {
   const profile = profileRes.data
   if (!profile) return
 
+  // Bloqueo de acceso: cuenta o institución desactivada por el admin.
+  const blockReason = await getAccessBlockReason(profile, institutionsRes.data || [])
+  if (blockReason) { await supabase.auth.signOut(); return }
+
   let page = 'map'
   if (profile.role === 'instructor') page = 'instructor-dashboard'
   if (profile.role === 'admin')      page = 'admin-dashboard'
@@ -111,6 +115,7 @@ async function restoreSession() {
       institution: instById[p.institution_id] || '',
       institution_id: p.institution_id || null,
       cohort_id: p.cohort_id || null,
+      is_active: p.is_active !== false,
       pass: '',
     }))
     submissions       = (subsData     || []).map(s => mapSubmission(s, allProfiles, instById))

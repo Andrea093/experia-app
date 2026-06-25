@@ -163,6 +163,11 @@ const useStore = (sel) => { /* React hook */ };
 - Instructors: read students in institution
 - Admins: full access
 
+**Active/inactive access control** (migration 0017):
+- `profiles.is_active` and `institutions.is_active` (both default `true`).
+- A non-admin is blocked if their profile **or** their institution is inactive. Admins are never blocked.
+- Enforced frontend-side via `getAccessBlockReason()` at login (`login.jsx`, shows message) and session restore (`main.jsx`, silent sign-out). Toggled from AdminUsers / AdminSchools. ⚠️ Currently logged-in users are blocked on next session, not kicked live.
+
 **Realtime:**
 - Subscribed to `route_configs` changes
 

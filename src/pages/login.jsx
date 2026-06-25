@@ -1,6 +1,6 @@
 import React from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { XS, nav, loadRouteConfigs, loadCourses, loadInstructorInstitutions, applyInitialHash } from '../store/store.jsx'
+import { XS, nav, loadRouteConfigs, loadCourses, loadInstructorInstitutions, applyInitialHash, getAccessBlockReason } from '../store/store.jsx'
 import { loadStudentSession } from '../lib/loadStudentSession.js'
 import { mapSubmission, mapAttempt } from '../lib/mappers.js'
 import {
@@ -29,6 +29,11 @@ const LoginPage = () => {
 
       const { data: profile, error: profErr } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
       if (profErr || !profile) { setError('No se encontró el perfil. Contacta al admin.'); setLoading(false); return; }
+
+      // Bloqueo de acceso: cuenta o institución desactivada por el admin.
+      const blockReason = await getAccessBlockReason(profile);
+      if (blockReason) { await supabase.auth.signOut(); setError(blockReason); setLoading(false); return; }
+
       const progress = null; // Legacy fallback handled inside loadStudentSession
 
       let page = 'map';
@@ -78,6 +83,7 @@ const LoginPage = () => {
           institution: instById[p.institution_id] || '',
           institution_id: p.institution_id || null,
           cohort_id: p.cohort_id || null,
+          is_active: p.is_active !== false,
           pass: '',
         }));
         submissions       = (subsData     || []).map(s => mapSubmission(s, allProfiles, instById));

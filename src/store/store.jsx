@@ -818,6 +818,36 @@ const changeAccountArea = (email, newArea) => {
     .then(({ error }) => { if (error) console.error('changeAccountArea:', error); });
 };
 
+// Activa/desactiva una cuenta. Inactiva bloquea el inicio de sesión del usuario.
+const setAccountActive = (id, active) => {
+  const { user } = XS.get();
+  if (user?.role !== 'admin') return;
+  XS.set(s => ({ accounts: s.accounts.map(a => a.id === id ? { ...a, is_active: active } : a) }));
+  supabase.from('profiles').update({ is_active: active }).eq('id', id)
+    .then(({ error }) => { if (error) console.error('setAccountActive:', error); });
+};
+
+// Determina si un perfil tiene el acceso bloqueado (cuenta o institución inactiva).
+// Los admin nunca se bloquean (para que no puedan dejarse fuera). Devuelve el
+// motivo (string) si está bloqueado, o null si puede acceder.
+// `institutions` es opcional: si se pasa la lista ya cargada, evita un fetch extra.
+async function getAccessBlockReason(profile, institutions) {
+  if (!profile || profile.role === 'admin') return null;
+  if (profile.is_active === false)
+    return 'Tu cuenta ha sido desactivada. Contacta al administrador.';
+  if (profile.institution_id) {
+    let inst = (institutions || []).find(i => i.id === profile.institution_id);
+    if (!inst) {
+      const { data } = await supabase.from('institutions')
+        .select('is_active').eq('id', profile.institution_id).single();
+      inst = data;
+    }
+    if (inst && inst.is_active === false)
+      return 'El acceso de tu institución ha sido suspendido. Contacta al administrador.';
+  }
+  return null;
+}
+
 const createAccount = (name, email, pass, role, area, institution) => {
   const { user } = XS.get();
   if (user?.role !== 'admin') return;
@@ -868,10 +898,17 @@ const bulkCreateAccounts = (users) => {
 
 const createInstitution = (name) => {
   const tempId = 'inst_' + Date.now();
-  XS.set(s => ({ institutions: [...(s.institutions || INITIAL_INSTITUTIONS), { id: tempId, name, logo: null }] }));
+  XS.set(s => ({ institutions: [...(s.institutions || INITIAL_INSTITUTIONS), { id: tempId, name, logo: null, is_active: true }] }));
   supabase.from('institutions').insert({ name }).select().single().then(({ data, error }) => {
     if (error) { console.error('createInstitution:', error); return; }
     XS.set(s => ({ institutions: (s.institutions || []).map(i => i.id === tempId ? { ...i, id: data.id } : i) }));
+  });
+};
+// Activa/desactiva un colegio. Inactivo bloquea el acceso de todos sus usuarios.
+const setInstitutionActive = (id, active) => {
+  XS.set(s => ({ institutions: (s.institutions || []).map(i => i.id === id ? { ...i, is_active: active } : i) }));
+  supabase.from('institutions').update({ is_active: active }).eq('id', id).then(({ error }) => {
+    if (error) console.error('setInstitutionActive:', error);
   });
 };
 const updateInstitution = (id, name) => {
@@ -1183,8 +1220,9 @@ export {
   loadRouteConfigs, saveRouteConfig, getRouteModules, findModuleInConfig, routeKey,
   loadInstructorInstitutions, assignInstructorInstitution, removeInstructorInstitution,
   assignRouteToInstitution,
-  createAccount, deleteAccount, changeAccountArea,
-  bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution,
+  createAccount, deleteAccount, changeAccountArea, setAccountActive,
+  bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution, setInstitutionActive,
+  getAccessBlockReason,
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,
   loadCourseModules, enrollInCourse, dbModToAppMod, publishRouteToCourse, switchCourse,
   applyInitialHash, markOnboarded, claimOnboardingBonus, awardForumParticipation,
