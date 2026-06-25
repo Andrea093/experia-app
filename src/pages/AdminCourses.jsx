@@ -660,6 +660,7 @@ const AdminCourses = () => {
   const [deleteConfirm, setDeleteConfirm] = React.useState(null)
   const [togglingId, setTogglingId]   = React.useState(null)
   const [addingFD, setAddingFD]       = React.useState(null)
+  const [enrollMsg, setEnrollMsg]     = React.useState(null)
 
   const handleAddFinalDelivery = async (course) => {
     setAddingFD(course.id)
@@ -707,7 +708,16 @@ const AdminCourses = () => {
   }
 
   const handleToggleInstitution = async (courseId, instId, currentActive) => {
-    await toggleCourseForInstitution(courseId, instId, !currentActive)
+    const enabling = !currentActive
+    setEnrollMsg(enabling ? { loading: true } : null)
+    const res = await toggleCourseForInstitution(courseId, instId, enabling)
+    if (enabling) {
+      const n = res?.count ?? 0
+      setEnrollMsg({ text: n > 0
+        ? `✅ ${n} estudiante${n !== 1 ? 's' : ''} del colegio inscrito${n !== 1 ? 's' : ''} automáticamente`
+        : 'Curso habilitado. El colegio no tiene estudiantes para inscribir.' })
+      setTimeout(() => setEnrollMsg(null), 5000)
+    }
   }
 
   const isCourseActiveForInst = (courseId, instId) => {
@@ -717,6 +727,13 @@ const AdminCourses = () => {
 
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: isMobile ? '16px 12px 48px' : '24px 24px 60px', background: 'var(--bg)' }}>
+      {enrollMsg && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 2000,
+          padding: '12px 20px', borderRadius: 12, background: 'var(--white)', border: '1px solid var(--success-border, #5EEAD4)',
+          boxShadow: 'var(--sh-lg)', fontSize: 13, fontWeight: 600, color: 'var(--dark)', maxWidth: 420, textAlign: 'center' }}>
+          {enrollMsg.loading ? '⏳ Inscribiendo estudiantes…' : enrollMsg.text}
+        </div>
+      )}
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
 
         {/* Header */}

@@ -10,7 +10,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo-ceinfes.png', 'pwa-icon.svg'],
+      includeAssets: ['favicon-experia.png', 'logo-ceinfes.png'],
       manifest: {
         name: 'Experia · CEINFES — Formación Docente',
         short_name: 'Experia',
@@ -23,19 +23,13 @@ export default defineConfig({
         orientation: 'portrait-primary',
         icons: [
           {
-            src: 'pwa-icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: 'favicon-experia.png',
+            sizes: '192x192',
+            type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'logo-ceinfes.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable',
-          },
-          {
-            src: 'logo-ceinfes.png',
+            src: 'favicon-experia.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable',

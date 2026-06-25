@@ -1059,6 +1059,39 @@ const deleteCourse = async (id) => {
   await loadCourses();
 };
 
+// Inscribe automáticamente a TODOS los estudiantes de una institución en un curso:
+// otorga acceso (user_courses), crea la matrícula (course_enrollments) y la fila
+// de progreso (course_progress, sin sobrescribir si ya existe). Devuelve el conteo.
+const autoEnrollInstitutionStudents = async (courseId, institutionId) => {
+  const { data: students, error } = await supabase.from('profiles')
+    .select('id').eq('role', 'student').eq('institution_id', institutionId);
+  if (error) { console.error('autoEnroll fetch students:', error); return { error: error.message }; }
+  const ids = (students || []).map(s => s.id);
+  if (!ids.length) return { ok: true, count: 0 };
+
+  const [ucRes, ceRes, cpRes] = await Promise.all([
+    // Acceso (estricto): asegurar is_active=true aunque ya exista la fila
+    supabase.from('user_courses').upsert(
+      ids.map(id => ({ user_id: id, course_id: courseId, is_active: true })),
+      { onConflict: 'user_id,course_id' }
+    ),
+    // Matrícula: no tocar si ya existe (preserva institution_id/fecha)
+    supabase.from('course_enrollments').upsert(
+      ids.map(id => ({ student_id: id, course_id: courseId, institution_id: institutionId })),
+      { onConflict: 'student_id,course_id', ignoreDuplicates: true }
+    ),
+    // Progreso: crear vacío solo si no existe (NUNCA resetear el de quien ya avanzó)
+    supabase.from('course_progress').upsert(
+      ids.map(id => ({ user_id: id, course_id: courseId, xp: 0, completed: [], badges: [] })),
+      { onConflict: 'user_id,course_id', ignoreDuplicates: true }
+    ),
+  ]);
+  if (ucRes.error) console.error('autoEnroll user_courses:', ucRes.error);
+  if (ceRes.error) console.error('autoEnroll course_enrollments:', ceRes.error);
+  if (cpRes.error) console.error('autoEnroll course_progress:', cpRes.error);
+  return { ok: true, count: ids.length };
+};
+
 const toggleCourseForInstitution = async (courseId, institutionId, active) => {
   const { institutionCourses } = XS.get();
   const existing = institutionCourses.find(
@@ -1072,6 +1105,13 @@ const toggleCourseForInstitution = async (courseId, institutionId, active) => {
       .insert({ course_id: courseId, institution_id: institutionId, is_active: active });
   }
   await loadCourses();
+  // Al ASIGNAR (active=true), inscribe automáticamente a todos los estudiantes
+  // del colegio. Al desasignar NO se les quita la matrícula ni el progreso.
+  if (active) {
+    const res = await autoEnrollInstitutionStudents(courseId, institutionId);
+    await loadUserCourses();
+    return res;
+  }
 };
 
 // Publica la ruta del instructor a course_modules del curso vinculado.
