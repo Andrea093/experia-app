@@ -21,9 +21,8 @@
   <meta name="apple-mobile-web-app-title" content="Experia" />
   <link rel="manifest" href="/manifest.webmanifest" />
 
-  <!-- Preconnect para Google Fonts (usado en styles.css) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Preload de la tipografía Inter (auto-alojada) para evitar parpadeo de fuente -->
+  <link rel="preload" href="/fonts/InterVariable.ttf" as="font" type="font/ttf" crossorigin />
 
   <!-- Tema: se aplica antes del primer paint para evitar flash (FOUC) -->
   <script>

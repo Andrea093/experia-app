@@ -37,21 +37,21 @@ const Loading = () => {
         animation:'logoPulse 1.8s ease-in-out infinite' }} />
       <div style={{ width:36, height:36, border:'3px solid var(--border, #E5E7EB)', borderTopColor:'#EC671A',
         borderRightColor:'#F59E33', borderRadius:'50%', animation:'spin .7s linear infinite' }} />
-      <span style={{ fontSize:13, color:'var(--subtle, #9CA3AF)', fontFamily:"'DM Sans', sans-serif" }}>Cargando...</span>
+      <span style={{ fontSize:13, color:'var(--subtle, #9CA3AF)', fontFamily:"'Inter', sans-serif" }}>Cargando...</span>
       {slow && !verySlow && (
-        <span style={{ fontSize:12, color:'var(--subtle, #9CA3AF)', fontFamily:"'DM Sans', sans-serif", maxWidth:260, textAlign:'center' }}>
+        <span style={{ fontSize:12, color:'var(--subtle, #9CA3AF)', fontFamily:"'Inter', sans-serif", maxWidth:260, textAlign:'center' }}>
           Conectando con el servidor, puede tomar unos segundos...
         </span>
       )}
       {verySlow && (
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:12, color:'var(--muted, #6B7280)', fontFamily:"'DM Sans', sans-serif" }}>
+          <span style={{ fontSize:12, color:'var(--muted, #6B7280)', fontFamily:"'Inter', sans-serif" }}>
             Tardando más de lo esperado.
           </span>
           <button onClick={() => window.location.reload()}
             style={{ padding:'8px 20px', borderRadius:8, border:'none', cursor:'pointer',
               background:'#EC671A', color:'#fff', fontSize:13, fontWeight:600,
-              fontFamily:"'DM Sans', sans-serif" }}>
+              fontFamily:"'Inter', sans-serif" }}>
             Recargar página
           </button>
         </div>

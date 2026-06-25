@@ -19,7 +19,7 @@ export default class ErrorBoundary extends React.Component {
     if (!this.state.error) return this.props.children
     return (
       <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center',
-        flexDirection:'column', gap:16, padding:24, background:'var(--bg, #F9FAFB)', fontFamily:"'DM Sans', sans-serif" }}>
+        flexDirection:'column', gap:16, padding:24, background:'var(--bg, #F9FAFB)', fontFamily:"'Inter', sans-serif" }}>
         <div style={{ fontSize:48 }}>⚠️</div>
         <h2 style={{ fontSize:20, fontWeight:700, color:'var(--dark, #1A1A2E)', margin:0 }}>Algo salió mal</h2>
         <p style={{ fontSize:14, color:'var(--muted, #6B7280)', maxWidth:400, textAlign:'center', lineHeight:1.6 }}>
@@ -28,7 +28,7 @@ export default class ErrorBoundary extends React.Component {
         <button onClick={() => window.location.reload()}
           style={{ padding:'10px 24px', borderRadius:10, border:'none', cursor:'pointer',
             background:'#E8732C', color:'#fff', fontSize:14, fontWeight:600,
-            fontFamily:"'DM Sans', sans-serif" }}>
+            fontFamily:"'Inter', sans-serif" }}>
           Recargar página
         </button>
         {import.meta.env.DEV && (
