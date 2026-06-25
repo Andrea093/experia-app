@@ -671,6 +671,90 @@ const QuizChallenge = ({ mod, onComplete }) => {
   );
 };
 
+// ---- TRUE / FALSE ----
+// challenge_data: { statements: [{ id, text, answer: true|false }] }
+const TrueFalseChallenge = ({ mod, onComplete }) => {
+  const statements = mod.statements || [];
+  const [answers, setAnswers] = React.useState({});
+  const [done, setDone] = React.useState(false);
+
+  if (!statements.length) return (
+    <div style={{ textAlign:'center', padding:40 }}>
+      <p style={{ color:'var(--muted)', marginBottom:16 }}>Este reto no tiene afirmaciones configuradas aún.</p>
+      <Btn variant="secondary" onClick={onComplete}>Continuar</Btn>
+    </div>
+  );
+
+  const allAnswered = statements.every(s => answers[s.id] !== undefined);
+  const correctCount = statements.filter(s => answers[s.id] === s.answer).length;
+  const pct = Math.round((correctCount / statements.length) * 100);
+
+  const choose = (id, val) => { if (!done) setAnswers(a => ({ ...a, [id]: val })); };
+
+  const handleCheck = () => {
+    setDone(true);
+    const qs = statements.map(s => ({ q: s.text, correct: answers[s.id] === s.answer }));
+    recordAttempt(mod.id, qs, correctCount, statements.length);
+  };
+
+  const optBtn = (active, tone) => ({
+    flex:1, padding:'9px 0', borderRadius:10, cursor: done ? 'default' : 'pointer',
+    fontFamily:'var(--font)', fontSize:13, fontWeight:700, transition:'all .15s',
+    border:`1.5px solid ${active ? (tone==='v'?'var(--success)':'var(--error)') : 'var(--border)'}`,
+    background: active ? (tone==='v'?'var(--success-bg)':'var(--error-bg)') : 'var(--white)',
+    color: active ? (tone==='v'?'var(--success)':'var(--error)') : 'var(--muted)',
+  });
+
+  return (
+    <div style={{ maxWidth:620, margin:'0 auto', paddingBottom:48 }}>
+      <div style={{ textAlign:'center', marginBottom:24 }}>
+        <span style={{ fontSize:40 }}>⚖️</span>
+        <h3 style={{ fontSize:20, fontWeight:700, marginTop:8, color:'var(--dark)' }}>Verdadero o Falso</h3>
+        <p style={{ fontSize:14, color:'var(--muted)', marginTop:6 }}>Marca cada afirmación según corresponda.</p>
+      </div>
+
+      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+        {statements.map((s, i) => {
+          const picked = answers[s.id];
+          const isWrong = done && picked !== undefined && picked !== s.answer;
+          return (
+            <div key={s.id ?? i} style={{ padding:'14px 16px', borderRadius:12, background:'var(--white)',
+              border:`1.5px solid ${isWrong ? 'var(--error)' : 'var(--border)'}`, boxShadow:'var(--sh-sm)' }}>
+              <p style={{ fontSize:14, color:'var(--dark)', lineHeight:1.6, marginBottom:10 }}>{s.text}</p>
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={() => choose(s.id, true)}  style={optBtn(picked === true,  'v')}>✓ Verdadero</button>
+                <button onClick={() => choose(s.id, false)} style={optBtn(picked === false, 'f')}>✗ Falso</button>
+              </div>
+              {done && (
+                <p style={{ fontSize:12, marginTop:8, fontWeight:600,
+                  color: picked === s.answer ? 'var(--success)' : 'var(--error)' }}>
+                  {picked === s.answer ? '¡Correcto!' : `Respuesta correcta: ${s.answer ? 'Verdadero' : 'Falso'}`}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {!done ? (
+        <Btn variant="gradient" size="lg" full disabled={!allAnswered} onClick={handleCheck} style={{ marginTop:20 }}>
+          Verificar respuestas
+        </Btn>
+      ) : (
+        <div style={{ marginTop:20, textAlign:'center' }}>
+          <div style={{ fontSize:14, fontWeight:600, color:'var(--muted)', marginBottom:12 }}>
+            {correctCount}/{statements.length} correctas ({pct}%)
+          </div>
+          <ProgressBar pct={pct} h={8} color={pct>=80?'var(--success)':pct>=50?'var(--warn)':'var(--error)'}/>
+          <Btn variant="gradient" size="lg" onClick={onComplete} style={{ marginTop:16 }}>
+            Continuar <ArrowRIc s={18} c="#fff"/>
+          </Btn>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ---- Challenge Router ----
 const ChallengeView = () => {
   const nodeId=useStore(s=>s.nodeId);
@@ -696,7 +780,8 @@ const ChallengeView = () => {
   if(!mod)return <div style={{padding:40,textAlign:'center'}}><Btn variant="secondary" onClick={()=>nav('map')}><ArrowLIc s={16}/>Volver</Btn></div>;
 
   const ChallengeComp={dragdrop:DragDropChallenge,empathy:EmpathyMapChallenge,simulation:SimulationChallenge,
-    matching:ConceptMatchingChallenge,designlab:DesignLabChallenge,quiz:QuizChallenge}[mod.ctype]||DesignLabChallenge;
+    matching:ConceptMatchingChallenge,designlab:DesignLabChallenge,quiz:QuizChallenge,
+    truefalse:TrueFalseChallenge}[mod.ctype]||DesignLabChallenge;
 
   return (
     <div style={{height:'100%',display:'flex',flexDirection:'column'}}>

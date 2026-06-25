@@ -51,6 +51,59 @@ export const DragDropEditorContent = ({ mod, onChange }) => {
   )
 }
 
+// ── True / False inline editor ───────────────────────────────
+export const TrueFalseEditorContent = ({ mod, onChange }) => {
+  const DEFAULT = [
+    { id: 1, text: 'El Diseño Centrado en la Experiencia parte de las necesidades del estudiante.', answer: true },
+    { id: 2, text: 'En el DCE el error del estudiante debe evitarse a toda costa.', answer: false },
+    { id: 3, text: 'Una buena experiencia de aprendizaje conecta el contenido con la vida real.', answer: true },
+  ]
+  const [items, setItems] = React.useState([])
+  React.useEffect(() => {
+    const init = mod?.statements || mod?.override?.statements || DEFAULT
+    setItems(init); onChange({ statements: init })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mod?.id])
+  const update = (next) => { setItems(next); onChange({ statements: next }) }
+  const setText   = (i, v) => { const n = [...items]; n[i] = { ...n[i], text: v }; update(n) }
+  const setAnswer = (i, v) => { const n = [...items]; n[i] = { ...n[i], answer: v }; update(n) }
+  const add = () => update([...items, { id: Date.now(), text: 'Nueva afirmación', answer: true }])
+  const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', flex: 1 }
+  const pill = (active, ok) => ({
+    padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700,
+    border: `1.5px solid ${active ? (ok ? 'var(--success)' : 'var(--error)') : 'var(--border)'}`,
+    background: active ? (ok ? 'var(--success-bg)' : 'var(--error-bg)') : 'var(--white)',
+    color: active ? (ok ? 'var(--success)' : 'var(--error)') : 'var(--muted)',
+  })
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Escribe cada afirmación y marca si es <strong>verdadera</strong> o <strong>falsa</strong>.</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {items.map((it, i) => (
+          <div key={it.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 10,
+            background: 'var(--white)', border: '1px solid var(--border)' }}>
+            <input value={it.text} onChange={e => setText(i, e.target.value)} placeholder="Afirmación" style={inp} />
+            <button onClick={() => setAnswer(i, true)}  style={pill(it.answer === true,  true)}>V</button>
+            <button onClick={() => setAnswer(i, false)} style={pill(it.answer === false, false)}>F</button>
+            <button onClick={() => { if (items.length > 2) update(items.filter((_, j) => j !== i)) }}
+              disabled={items.length <= 2}
+              style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: items.length <= 2 ? .3 : 1 }}>
+              <XIc s={12} c="var(--error)" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button onClick={add}
+        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, marginTop: 8,
+          border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)',
+          cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600 }}>
+        <PlusIc s={12} c="var(--orange)" /> Agregar afirmación
+      </button>
+    </div>
+  )
+}
+
 // ── Empathy inline editor ────────────────────────────────────
 export const EmpathyEditorContent = ({ mod, onChange }) => {
   const DEFAULT = [

@@ -10,9 +10,10 @@ export const CHALLENGE_TYPES = [
   { id:'simulation', label:'Simulación',           emoji:'🎭', desc:'Árbol de decisiones pedagógicas' },
   { id:'matching',   label:'Conectar conceptos',  emoji:'🔗', desc:'Empareja conceptos con definiciones' },
   { id:'quiz',       label:'Quiz',                 emoji:'📝', desc:'Preguntas de opción múltiple' },
+  { id:'truefalse',  label:'Verdadero / Falso',   emoji:'⚖️', desc:'Marca cada afirmación como verdadera o falsa' },
 ]
 
-export const CTYPE_EMOJI = { dragdrop:'🧩', empathy:'🗺️', simulation:'🎭', matching:'🔗', quiz:'📝' }
+export const CTYPE_EMOJI = { dragdrop:'🧩', empathy:'🗺️', simulation:'🎭', matching:'🔗', quiz:'📝', truefalse:'⚖️' }
 
 export const SECTION_TYPES = [
   { id: 'intro',   label: '📖 Introducción',  icon: '📖' },

@@ -16,7 +16,11 @@ const AMBIENTS = {
   'time-travel': React.lazy(() => import('./TimeTravelAmbient.jsx')),
 }
 
-// Monta la capa ambiental inmersiva correspondiente al curso activo (o nada).
+// El personaje guía (con su registro de avatares) también se carga bajo
+// demanda: solo pesa cuando hay un curso temático activo.
+const CharacterFloat = React.lazy(() => import('./CharacterBubble.jsx'))
+
+// Monta la capa ambiental + el personaje guía del curso activo (o nada).
 const CourseAmbient = () => {
   const theme = useStore(selectActiveCourseTheme)
   const Ambient = theme ? AMBIENTS[theme] : null
@@ -24,6 +28,7 @@ const CourseAmbient = () => {
   return (
     <React.Suspense fallback={null}>
       <Ambient />
+      <CharacterFloat />
     </React.Suspense>
   )
 }

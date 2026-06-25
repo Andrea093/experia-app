@@ -330,6 +330,7 @@ const dbModToAppMod = (row) => ({
   ...(row.challenge_data?.matchPairs   ? { matchPairs:   row.challenge_data.matchPairs }   : {}),
   ...(row.challenge_data?.simContext   ? { simContext:   row.challenge_data.simContext }    : {}),
   ...(row.challenge_data?.questions    ? { questions:    row.challenge_data.questions }     : {}),
+  ...(row.challenge_data?.statements   ? { statements:   row.challenge_data.statements }    : {}),
 });
 
 // findModule se define aquí pero accede a XS de forma lazy (XS se define más adelante)
@@ -387,6 +388,7 @@ const DEF = {
   xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
   submissions: [], challengeAttempts: [], studentMessages: [],
   accounts: [], institutions: INITIAL_INSTITUTIONS, cohorts: [],
+  charReaction: null,       // { context, ts } — dispara reacción del personaje del tema
   routeConfigs: {},
   namedRoutes: [],
   instructorInstitutions: [],
@@ -521,6 +523,8 @@ const recordAttempt = (challengeId, questions, score, maxScore) => {
     student_id: s.user.id, challenge_id: challengeId, area: s.selectedArea,
     questions, score, max_score: maxScore,
   }).then(({ error }) => { if (error) console.error('recordAttempt:', error); });
+  // El personaje del tema reacciona al desempeño (acierto si ≥60%).
+  reactCharacter(maxScore > 0 && score / maxScore >= 0.6 ? 'correct' : 'wrong');
 };
 
 const submitProduct = (rejillaName, preguntaName, rejillaData, preguntaData) => {
@@ -1053,6 +1057,7 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.matchPairs   || m.override?.matchPairs)   challengeData.matchPairs   = m.matchPairs   || m.override.matchPairs;
     if (m.simContext   || m.override?.simContext)    challengeData.simContext   = m.simContext   || m.override.simContext;
     if (m.questions    || m.override?.questions)     challengeData.questions    = m.questions    || m.override.questions;
+    if (m.statements   || m.override?.statements)    challengeData.statements   = m.statements   || m.override.statements;
     rows.push({
       course_id: courseId, type: m.type, area_id: areaIdVal,
       title: m.title, subtitle: m.subtitle || '',
@@ -1071,6 +1076,7 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.matchPairs)   challengeData.matchPairs   = m.matchPairs;
     if (m.simContext)   challengeData.simContext   = m.simContext;
     if (m.questions)    challengeData.questions    = m.questions;
+    if (m.statements)   challengeData.statements   = m.statements;
     rows.push({
       course_id: courseId, type: m.type || 'lesson', area_id: areaIdVal,
       title: m.title, subtitle: m.subtitle || (m.type === 'challenge' ? 'Reto' : 'Módulo'),
@@ -1209,6 +1215,15 @@ const getActiveCourseTheme = () => {
   return courses.find(c => c.id === enrolledCourseId)?.theme || null;
 };
 
+// Dispara una reacción contextual del personaje del tema activo (si hay tema).
+// El contexto debe ser uno de CHARACTER_CONTEXTS: 'correct' | 'wrong' |
+// 'moduleComplete' | 'lessonIntro' | 'routeComplete' | 'idle'.
+// CharacterFloat escucha `charReaction` y muestra la frase correspondiente.
+const reactCharacter = (context, line) => {
+  if (!getActiveCourseTheme()) return;
+  XS.set({ charReaction: { context, line: line || null, ts: Date.now() } });
+};
+
 export {
   useStore, AREAS, BADGES, LEVELS, RUBRIC_CRITERIA, ALL_MODULES, AREA_CONTENT,
   INITIAL_INSTITUTIONS,
@@ -1226,5 +1241,5 @@ export {
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,
   loadCourseModules, enrollInCourse, dbModToAppMod, publishRouteToCourse, switchCourse,
   applyInitialHash, markOnboarded, claimOnboardingBonus, awardForumParticipation,
-  hashFor, issueCertificate, getActiveCourseTheme,
+  hashFor, issueCertificate, getActiveCourseTheme, reactCharacter,
 };

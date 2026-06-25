@@ -39,6 +39,7 @@ const GamesPage = () => {
     matching:   '🔗',
     designlab:  '🏗️',
     quiz:       '❓',
+    truefalse:  '⚖️',
   };
 
   const typeLabels = {
@@ -48,6 +49,7 @@ const GamesPage = () => {
     matching:   'Conecta conceptos',
     designlab:  'Lab de diseño',
     quiz:       'Pregunta rápida',
+    truefalse:  'Verdadero o falso',
   };
 
   return (

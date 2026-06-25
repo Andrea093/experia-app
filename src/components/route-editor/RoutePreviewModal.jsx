@@ -233,6 +233,28 @@ const ChallengePreviewContent = ({ mod }) => {
     )
   }
 
+  if (mod.ctype === 'truefalse') {
+    const sts = mod.statements || mod.override?.statements || []
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>El estudiante marcará {sts.length} afirmación{sts.length !== 1 ? 'es' : ''} como verdadera o falsa:</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {sts.map((s, i) => (
+            <div key={s.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12,
+              background: 'var(--white)', border: '1px solid var(--border)' }}>
+              <span style={{ flex: 1, fontSize: 13, color: 'var(--dark)' }}>{s.text}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 7,
+                background: s.answer ? 'var(--success-bg)' : 'var(--error-bg)',
+                color: s.answer ? 'var(--success)' : 'var(--error)', flexShrink: 0 }}>
+                {s.answer ? 'Verdadero' : 'Falso'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return <p style={{ color: 'var(--muted)', fontStyle: 'italic', fontSize: 13 }}>Vista previa no disponible para este tipo de reto.</p>
 }
 

@@ -241,7 +241,10 @@ Next module unlocks (dependencies checked)
 | `simulation` | Multi-step decision tree | ⚠️ ignored — always renders the built-in generic `SIM_TREE` (store doesn't forward sim data) |
 | `matching` | Connect concepts ↔ definitions | `{ matchPairs: [{id,concept,def}] }` |
 | `quiz` | Multiple-choice questions | `{ questions: [{question,options,correct}] }` |
+| `truefalse` | Mark statements true/false | `{ statements: [{id,text,answer:bool}] }` |
 | `designlab` | Open-ended final (rubric) | n/a (rubric in `content`) |
+
+**Adding a challenge type** (e.g. `truefalse`) touches: `challenges.jsx` (render component + dispatcher map), `store.jsx` (`dbModToAppMod` forward + `publishRouteToCourse` ×2), `route-editor/constants.js` (`CHALLENGE_TYPES` + `CTYPE_EMOJI`), `route-editor/EditorContents.jsx` (author UI) + `ChallengeEditorModal.jsx` (register), `route-editor/RoutePreviewModal.jsx` (preview), `games.jsx` (icon/label).
 
 **Lesson `content`** is an array of sections rendered by `lesson.jsx`. Supported `type`s: `intro`, `text`, `quote`, `steps`, `reveal`, `image`, `callout`, `concepts`, `compare`, `video`. There is **no** `heading` type. `steps`/`reveal`/`concepts` items use `t`/`d` keys; images use `url`.
 
@@ -261,7 +264,8 @@ A course can have an immersive visual theme via the `courses.theme` column. Acti
 | `time-travel` | Ciencias Sociales | Prof. Kronos |
 
 - **Activation:** `getActiveCourseTheme()` reads `theme` of the enrolled course. `<CourseAmbient>` (in `app.jsx`) subscribes **once** to the active theme and lazy-loads the matching `*Ambient.jsx` overlay (each is a separate chunk — only downloaded when its course is active). Themed end-of-module celebration in `ThemeCelebration.jsx`.
-- **Adding a theme:** add the `theme` value to `AdminCourses.jsx` (`THEME_HINTS` + `<option>`), build a `*Ambient.jsx`, register it in `CourseAmbient.jsx`, and add a branch in `ThemeCelebration.jsx`.
+- **Adding a theme:** add the `theme` value to `AdminCourses.jsx` (`THEME_HINTS` + `<option>`), build a `*Ambient.jsx`, register it in `CourseAmbient.jsx`, add a branch in `ThemeCelebration.jsx`, and a character entry in `src/lib/characters.jsx`.
+- **Characters (reactive):** `src/lib/characters.jsx` is the single registry (theme → character: avatar, `ui` palette, `lines` per context). `CharacterFloat` (lazy-loaded via `CourseAmbient`) renders the active theme's character and reacts to events fired with `reactCharacter(context)` — contexts: `idle`, `lessonIntro`, `correct`, `wrong`, `moduleComplete`, `routeComplete`. Triggered from `lesson.jsx` (intro/complete) and `recordAttempt` in `store.jsx` (correct/wrong by score). Missing lines fall back to `idle`; missing character = nothing renders.
 - **Seeds:** course content lives in `supabase/migrations/0013`–`0016`. These are **run manually** in the Supabase SQL Editor (git push deploys only the frontend; migrations are never automatic). Canonical correct template: `0013`. They must match the real `course_modules` schema (id uuid auto, `"order"`, `is_enabled`, `area_id`, `challenge_type`, `challenge_data`) and the content shapes in §5.
 
 ---

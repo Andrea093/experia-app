@@ -1,9 +1,8 @@
 import React from 'react'
 import {
   useStore, nav, completeNode, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
-  getStudentModules, nodeStatus, calcLevel, getActiveCourseTheme,
+  getStudentModules, nodeStatus, calcLevel, getActiveCourseTheme, reactCharacter,
 } from '../store/store.jsx'
-import { CharacterFloat } from '../components/CharacterBubble.jsx'
 import ThemeCelebration from '../components/ThemeCelebration.jsx'
 import {
   useMobile, LogoImg,
@@ -254,7 +253,9 @@ const LessonView = () => {
   React.useEffect(() => {
     setProgress(0); setDone(false);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
-  }, [nodeId]);
+    // El personaje del tema saluda con la línea del módulo (si la tiene).
+    reactCharacter('lessonIntro', mod?.characterLine);
+  }, [nodeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track scroll progress
   React.useEffect(() => {
@@ -278,6 +279,7 @@ const LessonView = () => {
       setShowConfetti(true);
       const newCompleted = [...completed, nodeId];
       routeNowComplete = isRouteComplete(newCompleted, selectedArea);
+      reactCharacter(routeNowComplete ? 'routeComplete' : 'moduleComplete');
     }
     setTimeout(() => nav(routeNowComplete ? 'grid' : 'map'), courseTheme ? 2300 : 1500);
   };
@@ -438,9 +440,6 @@ const LessonView = () => {
           <div style={{ height: 80 }} />
         </div>
       </div>
-
-      {/* Personaje flotante — solo visible en tema detective */}
-      <CharacterFloat moduleCharacterLine={mod?.characterLine} />
     </div>
   );
 };
