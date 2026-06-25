@@ -104,6 +104,53 @@ export const TrueFalseEditorContent = ({ mod, onChange }) => {
   )
 }
 
+// ── Fill in the blanks inline editor ─────────────────────────
+export const FillBlankEditorContent = ({ mod, onChange }) => {
+  const DEFAULT = [
+    { id: 1, before: 'El DCE pone al', answer: 'estudiante', after: 'en el centro del aprendizaje.' },
+    { id: 2, before: 'La primera fase del proceso de diseño es', answer: 'empatizar', after: 'con el usuario.' },
+    { id: 3, before: 'Un prototipo permite', answer: 'probar', after: 'la idea antes de implementarla.' },
+  ]
+  const [items, setItems] = React.useState([])
+  React.useEffect(() => {
+    const init = mod?.blanks || mod?.override?.blanks || DEFAULT
+    setItems(init); onChange({ blanks: init })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mod?.id])
+  const update = (next) => { setItems(next); onChange({ blanks: next }) }
+  const setField = (i, k, v) => { const n = [...items]; n[i] = { ...n[i], [k]: v }; update(n) }
+  const add = () => update([...items, { id: Date.now(), before: '', answer: '', after: '' }])
+  const inp = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none' }
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Para cada hueco: texto <strong>antes</strong>, la <strong>palabra correcta</strong> (irá al banco) y el texto <strong>después</strong>.</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {items.map((it, i) => (
+          <div key={it.id ?? i} style={{ padding: '8px 10px', borderRadius: 10, background: 'var(--white)', border: '1px solid var(--border)',
+            display: 'grid', gridTemplateColumns: '1fr 130px 1fr 26px', gap: 6, alignItems: 'center' }}>
+            <input value={it.before} onChange={e => setField(i, 'before', e.target.value)} placeholder="Texto antes…" style={inp} />
+            <input value={it.answer} onChange={e => setField(i, 'answer', e.target.value)} placeholder="Respuesta"
+              style={{ ...inp, fontWeight: 700, color: 'var(--purple)', textAlign: 'center', borderColor: 'var(--purple)' }} />
+            <input value={it.after} onChange={e => setField(i, 'after', e.target.value)} placeholder="Texto después…" style={inp} />
+            <button onClick={() => { if (items.length > 2) update(items.filter((_, j) => j !== i)) }}
+              disabled={items.length <= 2}
+              style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: items.length <= 2 ? .3 : 1 }}>
+              <XIc s={12} c="var(--error)" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button onClick={add}
+        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, marginTop: 8,
+          border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)',
+          cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600 }}>
+        <PlusIc s={12} c="var(--orange)" /> Agregar espacio
+      </button>
+    </div>
+  )
+}
+
 // ── Empathy inline editor ────────────────────────────────────
 export const EmpathyEditorContent = ({ mod, onChange }) => {
   const DEFAULT = [

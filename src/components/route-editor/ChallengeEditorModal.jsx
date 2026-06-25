@@ -1,6 +1,6 @@
 import React from 'react'
 import { Btn, Modal } from '../ui.jsx'
-import { DragDropEditorContent, EmpathyEditorContent, MatchingEditorContent, SimulationEditorContent, TrueFalseEditorContent } from './EditorContents.jsx'
+import { DragDropEditorContent, EmpathyEditorContent, MatchingEditorContent, SimulationEditorContent, TrueFalseEditorContent, FillBlankEditorContent } from './EditorContents.jsx'
 
 const TYPE_CONTENT_MAP = {
   dragdrop:   DragDropEditorContent,
@@ -8,6 +8,7 @@ const TYPE_CONTENT_MAP = {
   matching:   MatchingEditorContent,
   simulation: SimulationEditorContent,
   truefalse:  TrueFalseEditorContent,
+  fillblank:  FillBlankEditorContent,
 }
 const TYPE_TITLE = {
   dragdrop:   'Arrastrar y ordenar',
@@ -15,6 +16,7 @@ const TYPE_TITLE = {
   matching:   'Conectar conceptos',
   simulation: 'Simulación',
   truefalse:  'Verdadero / Falso',
+  fillblank:  'Completar espacios',
 }
 
 const ChallengeEditorModal = ({ open, mod, onClose, onSave }) => {

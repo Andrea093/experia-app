@@ -255,6 +255,27 @@ const ChallengePreviewContent = ({ mod }) => {
     )
   }
 
+  if (mod.ctype === 'fillblank') {
+    const bl = mod.blanks || mod.override?.blanks || []
+    return (
+      <div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>El estudiante completará {bl.length} espacio{bl.length !== 1 ? 's' : ''} eligiendo del banco de palabras:</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+          {bl.map((b, i) => b.answer && (
+            <span key={i} style={{ padding: '4px 10px', borderRadius: 20, background: 'var(--purple-bg)', color: 'var(--purple)', fontSize: 12, fontWeight: 600 }}>{b.answer}</span>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {bl.map((b, i) => (
+            <div key={b.id ?? i} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--white)', border: '1px solid var(--border)', fontSize: 13, color: 'var(--dark)', lineHeight: 1.7 }}>
+              {b.before} <strong style={{ color: 'var(--success)', borderBottom: '2px solid var(--success)' }}>{b.answer}</strong> {b.after}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return <p style={{ color: 'var(--muted)', fontStyle: 'italic', fontSize: 13 }}>Vista previa no disponible para este tipo de reto.</p>
 }
 

@@ -755,6 +755,101 @@ const TrueFalseChallenge = ({ mod, onComplete }) => {
   );
 };
 
+// ---- FILL IN THE BLANKS ----
+// challenge_data: { blanks: [{ id, before, answer, after }] }
+// El estudiante completa cada hueco eligiendo del banco de palabras (las
+// respuestas barajadas). Se califica por coincidencia exacta con `answer`.
+const FillBlankChallenge = ({ mod, onComplete }) => {
+  const blanks = mod.blanks || [];
+  const wordBank = React.useMemo(() => {
+    const words = blanks.map(b => b.answer).filter(Boolean);
+    for (let i = words.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [words[i], words[j]] = [words[j], words[i]]; }
+    return words;
+  }, [mod.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [answers, setAnswers] = React.useState({});
+  const [done, setDone] = React.useState(false);
+
+  if (!blanks.length) return (
+    <div style={{ textAlign:'center', padding:40 }}>
+      <p style={{ color:'var(--muted)', marginBottom:16 }}>Este reto no tiene espacios configurados aún.</p>
+      <Btn variant="secondary" onClick={onComplete}>Continuar</Btn>
+    </div>
+  );
+
+  const allFilled = blanks.every(b => answers[b.id] !== undefined && answers[b.id] !== '');
+  const correctCount = blanks.filter(b => answers[b.id] === b.answer).length;
+  const pct = Math.round((correctCount / blanks.length) * 100);
+
+  const handleCheck = () => {
+    setDone(true);
+    const qs = blanks.map(b => ({ q: `${b.before || ''} ___ ${b.after || ''}`.trim(), correct: answers[b.id] === b.answer }));
+    recordAttempt(mod.id, qs, correctCount, blanks.length);
+  };
+
+  const selStyle = (b) => {
+    const ok = answers[b.id] === b.answer;
+    const border = done ? (ok ? 'var(--success)' : 'var(--error)') : (answers[b.id] ? 'var(--orange)' : 'var(--border)');
+    const color  = done ? (ok ? 'var(--success)' : 'var(--error)') : 'var(--dark)';
+    return { display:'inline-block', margin:'0 4px', padding:'3px 8px', borderRadius:8, fontFamily:'var(--font)',
+      fontSize:14, fontWeight:600, color, border:`1.5px solid ${border}`, background:'var(--white)',
+      outline:'none', cursor: done ? 'default' : 'pointer' };
+  };
+
+  return (
+    <div style={{ maxWidth:620, margin:'0 auto', paddingBottom:48 }}>
+      <div style={{ textAlign:'center', marginBottom:24 }}>
+        <span style={{ fontSize:40 }}>✏️</span>
+        <h3 style={{ fontSize:20, fontWeight:700, marginTop:8, color:'var(--dark)' }}>Completar espacios</h3>
+        <p style={{ fontSize:14, color:'var(--muted)', marginTop:6 }}>Elige la palabra correcta para cada hueco.</p>
+      </div>
+
+      {/* Banco de palabras */}
+      <div style={{ display:'flex', flexWrap:'wrap', gap:8, justifyContent:'center', marginBottom:20 }}>
+        {wordBank.map((w, i) => (
+          <span key={i} style={{ padding:'6px 12px', borderRadius:20, background:'var(--purple-bg)',
+            color:'var(--purple)', fontSize:13, fontWeight:600 }}>{w}</span>
+        ))}
+      </div>
+
+      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+        {blanks.map((b, i) => (
+          <div key={b.id ?? i} style={{ padding:'14px 16px', borderRadius:12, background:'var(--white)',
+            border:'1.5px solid var(--border)', boxShadow:'var(--sh-sm)', fontSize:14, lineHeight:2, color:'var(--dark)' }}>
+            {b.before}
+            <select disabled={done} value={answers[b.id] || ''} style={selStyle(b)}
+              onChange={e => setAnswers(a => ({ ...a, [b.id]: e.target.value }))}>
+              <option value="">— elige —</option>
+              {wordBank.map((w, wi) => <option key={wi} value={w}>{w}</option>)}
+            </select>
+            {b.after}
+            {done && answers[b.id] !== b.answer && (
+              <span style={{ display:'block', fontSize:12, color:'var(--error)', fontWeight:600, marginTop:4 }}>
+                Respuesta correcta: {b.answer}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {!done ? (
+        <Btn variant="gradient" size="lg" full disabled={!allFilled} onClick={handleCheck} style={{ marginTop:20 }}>
+          Verificar respuestas
+        </Btn>
+      ) : (
+        <div style={{ marginTop:20, textAlign:'center' }}>
+          <div style={{ fontSize:14, fontWeight:600, color:'var(--muted)', marginBottom:12 }}>
+            {correctCount}/{blanks.length} correctas ({pct}%)
+          </div>
+          <ProgressBar pct={pct} h={8} color={pct>=80?'var(--success)':pct>=50?'var(--warn)':'var(--error)'}/>
+          <Btn variant="gradient" size="lg" onClick={onComplete} style={{ marginTop:16 }}>
+            Continuar <ArrowRIc s={18} c="#fff"/>
+          </Btn>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ---- Challenge Router ----
 const ChallengeView = () => {
   const nodeId=useStore(s=>s.nodeId);
@@ -781,7 +876,7 @@ const ChallengeView = () => {
 
   const ChallengeComp={dragdrop:DragDropChallenge,empathy:EmpathyMapChallenge,simulation:SimulationChallenge,
     matching:ConceptMatchingChallenge,designlab:DesignLabChallenge,quiz:QuizChallenge,
-    truefalse:TrueFalseChallenge}[mod.ctype]||DesignLabChallenge;
+    truefalse:TrueFalseChallenge,fillblank:FillBlankChallenge}[mod.ctype]||DesignLabChallenge;
 
   return (
     <div style={{height:'100%',display:'flex',flexDirection:'column'}}>

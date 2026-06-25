@@ -40,6 +40,7 @@ const GamesPage = () => {
     designlab:  '🏗️',
     quiz:       '❓',
     truefalse:  '⚖️',
+    fillblank:  '✏️',
   };
 
   const typeLabels = {
@@ -50,6 +51,7 @@ const GamesPage = () => {
     designlab:  'Lab de diseño',
     quiz:       'Pregunta rápida',
     truefalse:  'Verdadero o falso',
+    fillblank:  'Completar espacios',
   };
 
   return (

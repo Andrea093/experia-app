@@ -242,6 +242,7 @@ Next module unlocks (dependencies checked)
 | `matching` | Connect concepts ↔ definitions | `{ matchPairs: [{id,concept,def}] }` |
 | `quiz` | Multiple-choice questions | `{ questions: [{question,options,correct}] }` |
 | `truefalse` | Mark statements true/false | `{ statements: [{id,text,answer:bool}] }` |
+| `fillblank` | Fill blanks from a word bank | `{ blanks: [{id,before,answer,after}] }` |
 | `designlab` | Open-ended final (rubric) | n/a (rubric in `content`) |
 
 **Adding a challenge type** (e.g. `truefalse`) touches: `challenges.jsx` (render component + dispatcher map), `store.jsx` (`dbModToAppMod` forward + `publishRouteToCourse` ×2), `route-editor/constants.js` (`CHALLENGE_TYPES` + `CTYPE_EMOJI`), `route-editor/EditorContents.jsx` (author UI) + `ChallengeEditorModal.jsx` (register), `route-editor/RoutePreviewModal.jsx` (preview), `games.jsx` (icon/label).
