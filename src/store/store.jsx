@@ -396,6 +396,7 @@ const DEF = {
   // Multi-curso
   courses: [],              // [{ id, name, description, cover_image, color, is_active }]
   institutionCourses: [],   // [{ id, institution_id, course_id, is_active }]
+  userCourses: [],          // [{ id, user_id, course_id, is_active }] acceso por usuario
   courseModules: [],        // módulos del curso activo (ya convertidos con dbModToAppMod)
   enrolledCourseId: null,   // id del curso activo del estudiante
   allEnrollments: [],       // todos los cursos en los que está inscrito el estudiante
@@ -988,6 +989,38 @@ const loadCourses = async () => {
   });
 };
 
+// ---- Acceso a cursos por usuario (estricto) ----
+// Carga las filas de user_courses visibles según RLS:
+// admin/instructor ven todas; un estudiante solo las suyas.
+const loadUserCourses = async () => {
+  const { data, error } = await supabase.from('user_courses').select('*');
+  if (error) { console.error('loadUserCourses:', error); return; }
+  XS.set({ userCourses: data || [] });
+};
+
+// Otorga (active=true) o revoca (active=false) el acceso de un usuario a un curso.
+const setUserCourseAccess = async (userId, courseId, active) => {
+  const { userCourses } = XS.get();
+  const existing = userCourses.find(uc => uc.user_id === userId && uc.course_id === courseId);
+  if (existing) {
+    XS.set({ userCourses: userCourses.map(uc => uc.id === existing.id ? { ...uc, is_active: active } : uc) });
+    const { error } = await supabase.from('user_courses').update({ is_active: active }).eq('id', existing.id);
+    if (error) { console.error('setUserCourseAccess update:', error); await loadUserCourses(); }
+  } else {
+    const { data, error } = await supabase.from('user_courses')
+      .insert({ user_id: userId, course_id: courseId, is_active: active })
+      .select().single();
+    if (error) { console.error('setUserCourseAccess insert:', error); return; }
+    XS.set({ userCourses: [...XS.get().userCourses, data] });
+  }
+};
+
+// IDs de cursos accesibles para un usuario (acceso estricto)
+const allowedCourseIds = (userId) => {
+  const { userCourses } = XS.get();
+  return new Set(userCourses.filter(uc => uc.user_id === userId && uc.is_active).map(uc => uc.course_id));
+};
+
 const createCourse = async ({ name, description, color, coverImage, areaId, theme }) => {
   const { data, error } = await supabase.from('courses').insert({
     name, description, color: color || '#E8732C',
@@ -1242,6 +1275,7 @@ export {
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution, setInstitutionActive,
   getAccessBlockReason,
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,
+  loadUserCourses, setUserCourseAccess, allowedCourseIds,
   loadCourseModules, enrollInCourse, dbModToAppMod, publishRouteToCourse, switchCourse,
   applyInitialHash, markOnboarded, claimOnboardingBonus, awardForumParticipation,
   hashFor, issueCertificate, getActiveCourseTheme, reactCharacter,

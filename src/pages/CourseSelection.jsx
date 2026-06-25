@@ -4,16 +4,19 @@ import { useMobile, LogoImg, Btn } from '../components/ui.jsx'
 
 const CourseSelection = () => {
   const courses            = useStore(s => s.courses || []);
-  const institutionCourses = useStore(s => s.institutionCourses || []);
+  const userCourses        = useStore(s => s.userCourses || []);
+  const user               = useStore(s => s.user);
   const isMobile           = useMobile();
   const [pending, setPending]   = React.useState(null);
   const [enrolling, setEnrolling] = React.useState(false);
 
-  // Cursos disponibles: activos globalmente + habilitados para alguna institución
+  // Cursos disponibles: activos globalmente + asignados a ESTE usuario (acceso estricto)
   const availableCourses = React.useMemo(() => {
-    const enabledIds = institutionCourses.filter(ic => ic.is_active).map(ic => ic.course_id);
-    return courses.filter(c => c.is_active && (enabledIds.length === 0 || enabledIds.includes(c.id)));
-  }, [courses, institutionCourses]);
+    const allowed = new Set(
+      userCourses.filter(uc => uc.user_id === user?.id && uc.is_active).map(uc => uc.course_id)
+    );
+    return courses.filter(c => c.is_active && allowed.has(c.id));
+  }, [courses, userCourses, user]);
 
   const handleConfirm = async () => {
     if (!pending) return;

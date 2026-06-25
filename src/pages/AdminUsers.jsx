@@ -3,7 +3,7 @@ import {
   useStore, INITIAL_INSTITUTIONS, AREAS,
   createAccount, deleteAccount, changeAccountArea, resetStudentProgress, setAccountActive,
   assignInstructorInstitution, removeInstructorInstitution, assignRouteToInstitution,
-  bulkCreateAccounts
+  bulkCreateAccounts, setUserCourseAccess
 } from '../store/store.jsx'
 import {
   useMobile, LogoImg, CheckIc, XIc, PlusIc, TrashIc, EditIc, UploadIc, Btn, Modal
@@ -382,6 +382,91 @@ const InstructorAssignmentPanel = () => {
 };
 
 // =============================================
+// MODAL: ACCESO A CURSOS POR USUARIO
+// =============================================
+const UserCoursesModal = ({ acc, onClose }) => {
+  const courses     = useStore(s => s.courses || []);
+  const userCourses = useStore(s => s.userCourses || []);
+  const [savingId, setSavingId] = React.useState(null);
+
+  const activeCourses = React.useMemo(() => courses.filter(c => c.is_active), [courses]);
+  const granted = React.useMemo(
+    () => new Set(userCourses.filter(uc => uc.user_id === acc?.id && uc.is_active).map(uc => uc.course_id)),
+    [userCourses, acc]
+  );
+
+  const toggle = async (courseId) => {
+    setSavingId(courseId);
+    await setUserCourseAccess(acc.id, courseId, !granted.has(courseId));
+    setSavingId(null);
+  };
+
+  return (
+    <Modal open={!!acc} onClose={onClose} title="Acceso a cursos" width={460}>
+      {acc && (
+        <div>
+          <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 16px', borderRadius:10,
+            background:'var(--bg-alt)', marginBottom:18 }}>
+            <div style={{ width:36, height:36, borderRadius:'50%', overflow:'hidden', background:'var(--orange-bg)',
+              display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700, color:'var(--orange)' }}>
+              {acc.avatar?.startsWith('http')
+                ? <img src={acc.avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                : acc.avatar}
+            </div>
+            <div>
+              <div style={{ fontSize:14, fontWeight:600, color:'var(--dark)' }}>{acc.name}</div>
+              <div style={{ fontSize:12, color:'var(--muted)' }}>{acc.email}</div>
+            </div>
+          </div>
+
+          <p style={{ fontSize:13, color:'var(--muted)', marginBottom:14, lineHeight:1.5 }}>
+            Marca los cursos a los que este usuario puede acceder. Sin cursos marcados, no verá ninguno.
+          </p>
+
+          {!acc.id ? (
+            <div style={{ padding:'14px 16px', borderRadius:10, background:'#FEF3C7', border:'1px solid #FDE68A',
+              fontSize:13, color:'#92400E', lineHeight:1.5 }}>
+              Esta cuenta se acaba de crear. Recarga la página para poder asignarle cursos.
+            </div>
+          ) : activeCourses.length === 0 ? (
+            <div style={{ padding:'14px 16px', borderRadius:10, background:'#FEF3C7', border:'1px solid #FDE68A',
+              fontSize:13, color:'#92400E' }}>
+              No hay cursos activos. Crea o activa cursos en <strong>Gestor de Cursos</strong> primero.
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:340, overflow:'auto', marginBottom:8 }}>
+              {activeCourses.map(course => {
+                const checked = granted.has(course.id);
+                return (
+                  <label key={course.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:12,
+                    border: checked ? '1.5px solid var(--success)' : '1.5px solid var(--border)',
+                    background: checked ? '#F0FDFA' : 'var(--white)', cursor:'pointer', transition:'all .15s',
+                    opacity: savingId === course.id ? .6 : 1 }}>
+                    <input type="checkbox" checked={checked} disabled={savingId === course.id}
+                      onChange={() => toggle(course.id)}
+                      style={{ accentColor:'var(--success)', width:16, height:16 }} />
+                    <span style={{ width:30, height:30, borderRadius:8, flexShrink:0, display:'flex', alignItems:'center',
+                      justifyContent:'center', fontSize:15, background:(course.color || 'var(--orange)') + '20' }}>
+                      {course.cover_image ? <img src={course.cover_image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:7 }} /> : '📖'}
+                    </span>
+                    <span style={{ flex:1, fontSize:14, fontWeight: checked ? 600 : 500, color:'var(--dark)' }}>{course.name}</span>
+                    {checked && <CheckIc s={16} c="var(--success)" />}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ marginTop:18 }}>
+            <Btn variant="gradient" full onClick={onClose}>Listo</Btn>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+};
+
+// =============================================
 // ADMIN PANEL / USERS MANAGEMENT
 // =============================================
 const AdminPage = () => {
@@ -435,6 +520,9 @@ const AdminPage = () => {
   // --- Edit area ---
   const [editAreaEmail, setEditAreaEmail] = React.useState(null);
   const [editAreaValue, setEditAreaValue] = React.useState('');
+
+  // --- Acceso a cursos por usuario ---
+  const [coursesAcc, setCoursesAcc] = React.useState(null);
 
   // --- Filter / Search ---
   const [search, setSearch] = React.useState('');
@@ -658,6 +746,13 @@ const AdminPage = () => {
                       <span style={{ fontSize:11, color:'var(--subtle)' }}>—</span>
                     ) : (
                       <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                        <button onClick={() => setCoursesAcc(acc)}
+                          title="Gestionar a qué cursos tiene acceso este usuario"
+                          style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
+                            border:'1.5px solid var(--success)', background:'#F0FDFA', color:'var(--success)',
+                            cursor:'pointer', fontFamily:'var(--font)', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
+                          📚 Cursos
+                        </button>
                         {isStudent && (
                           <button onClick={() => openEditArea(acc)}
                             style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
@@ -875,6 +970,8 @@ const AdminPage = () => {
       </Modal>
 
       <BulkUploadModal open={showBulk} onClose={() => setShowBulk(false)} />
+
+      <UserCoursesModal acc={coursesAcc} onClose={() => setCoursesAcc(null)} />
 
       <InstructorAssignmentPanel />
     </div>

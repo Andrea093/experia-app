@@ -22,6 +22,8 @@ const InstructorRouteEditor = () => {
   const institutions  = useStore(s => s.institutions)
   const institutionCourses = useStore(s => s.institutionCourses || [])
   const courses       = useStore(s => s.courses || [])
+  const userCourses   = useStore(s => s.userCourses || [])
+  const user          = useStore(s => s.user)
   const isMobile = useMobile()
   const [activeArea, setActiveArea] = React.useState(TRANSVERSAL_AREA)
   const [moduleList, setModuleList] = React.useState([])
@@ -156,14 +158,20 @@ const InstructorRouteEditor = () => {
     ))
   }
 
-  // Todos los cursos activos asignados a la institución seleccionada
+  // Cursos a los que este instructor tiene acceso (acceso estricto por usuario)
+  const allowedCourseIds = React.useMemo(() =>
+    new Set(userCourses.filter(uc => uc.user_id === user?.id && uc.is_active).map(uc => uc.course_id)),
+    [userCourses, user]
+  )
+
+  // Cursos activos asignados a la institución seleccionada Y permitidos al instructor
   const linkedCourses = React.useMemo(() => {
     if (!routeInstitution) return []
     return institutionCourses
       .filter(r => r.institution_id === routeInstitution && r.is_active)
       .map(r => courses.find(c => c.id === r.course_id))
-      .filter(Boolean)
-  }, [routeInstitution, institutionCourses, courses])
+      .filter(c => c && allowedCourseIds.has(c.id))
+  }, [routeInstitution, institutionCourses, courses, allowedCourseIds])
 
   const [selectedCourseId, setSelectedCourseId] = React.useState('')
 

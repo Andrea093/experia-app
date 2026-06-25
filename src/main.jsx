@@ -4,7 +4,7 @@ import './styles.css'
 import App from './app.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient.js'
-import { XS, useStore, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, applyInitialHash, getAccessBlockReason } from './store/store.jsx'
+import { XS, useStore, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, loadUserCourses, applyInitialHash, getAccessBlockReason } from './store/store.jsx'
 import { mapSubmission, mapAttempt } from './lib/mappers.js'
 import { loadStudentSession } from './lib/loadStudentSession.js'
 
@@ -142,6 +142,7 @@ async function restoreSession() {
 
   loadRouteConfigs()
   loadCourses()
+  loadUserCourses()
   if (profile.role === 'admin' || profile.role === 'instructor') loadInstructorInstitutions()
 
   // Suscripción en tiempo real: cuando el instructor guarda una ruta,
