@@ -824,6 +824,20 @@ const changeAccountArea = (email, newArea) => {
     .then(({ error }) => { if (error) console.error('changeAccountArea:', error); });
 };
 
+// Reasigna el colegio de una cuenta ya creada. `institutionName` es el nombre
+// visible; se resuelve a institution_id para persistir en profiles.
+const changeAccountInstitution = (email, institutionName) => {
+  const { user, institutions } = XS.get();
+  if (user?.role !== 'admin') return;
+  const instByName = {};
+  (institutions || []).forEach(i => { instByName[i.name.toLowerCase().trim()] = i.id; });
+  const institution_id = instByName[(institutionName || '').toLowerCase().trim()] || null;
+  XS.set(s => ({ accounts: s.accounts.map(a => a.email === email
+    ? { ...a, institution: institutionName || '', institution_id } : a) }));
+  supabase.from('profiles').update({ institution_id }).eq('email', email)
+    .then(({ error }) => { if (error) console.error('changeAccountInstitution:', error); });
+};
+
 // Activa/desactiva una cuenta. Inactiva bloquea el inicio de sesión del usuario.
 const setAccountActive = (id, active) => {
   const { user } = XS.get();
@@ -855,12 +869,16 @@ async function getAccessBlockReason(profile, institutions) {
 }
 
 const createAccount = (name, email, pass, role, area, institution) => {
-  const { user } = XS.get();
+  const { user, institutions } = XS.get();
   if (user?.role !== 'admin') return;
   const avatar = name.trim().charAt(0).toUpperCase();
+  // Resolver institution_id desde el nombre para enviarlo al edge function
+  const instByName = {};
+  (institutions || []).forEach(i => { instByName[i.name.toLowerCase().trim()] = i.id; });
+  const institution_id = instByName[(institution || '').toLowerCase().trim()] || null;
   XS.set(s => ({ accounts: [...s.accounts, { email:email.trim(), name:name.trim(), avatar, role, area:area||null, institution:institution||'' }] }));
   supabase.functions.invoke('bulk-create-users', {
-    body: { users: [{ name: name.trim(), email: email.trim(), pass, role, area: area||null }] }
+    body: { users: [{ name: name.trim(), email: email.trim(), pass, role, area: area||null, institution_id }] }
   }).then(({ data, error }) => {
     if (error) console.error('createAccount error:', error);
     else if (data?.results?.[0]?.ok === false) console.error('createAccount failed:', data.results[0].error);
@@ -1322,7 +1340,7 @@ export {
   loadRouteConfigs, saveRouteConfig, getRouteModules, findModuleInConfig, routeKey,
   loadInstructorInstitutions, assignInstructorInstitution, removeInstructorInstitution,
   assignRouteToInstitution,
-  createAccount, deleteAccount, changeAccountArea, setAccountActive,
+  createAccount, deleteAccount, changeAccountArea, changeAccountInstitution, setAccountActive,
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution, setInstitutionActive,
   getAccessBlockReason,
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,

@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   useStore, INITIAL_INSTITUTIONS, AREAS,
-  createAccount, deleteAccount, changeAccountArea, resetStudentProgress, setAccountActive,
+  createAccount, deleteAccount, changeAccountArea, changeAccountInstitution, resetStudentProgress, setAccountActive,
   assignInstructorInstitution, removeInstructorInstitution, assignRouteToInstitution,
   bulkCreateAccounts, setUserCourseAccess, setUserCourseAccessBulk
 } from '../store/store.jsx'
@@ -523,6 +523,10 @@ const AdminPage = () => {
   const [editAreaEmail, setEditAreaEmail] = React.useState(null);
   const [editAreaValue, setEditAreaValue] = React.useState('');
 
+  // --- Edit institution ---
+  const [editInstEmail, setEditInstEmail] = React.useState(null);
+  const [editInstValue, setEditInstValue] = React.useState('');
+
   // --- Acceso a cursos por usuario ---
   const [coursesAcc, setCoursesAcc] = React.useState(null);
 
@@ -615,6 +619,18 @@ const AdminPage = () => {
   const openEditArea = (acc) => {
     setEditAreaEmail(acc.email);
     setEditAreaValue(acc.area || '');
+  };
+
+  const openEditInstitution = (acc) => {
+    setEditInstEmail(acc.email);
+    setEditInstValue(acc.institution || '');
+  };
+
+  const handleEditInstitution = () => {
+    if (!editInstEmail) return;
+    changeAccountInstitution(editInstEmail, editInstValue);
+    setEditInstEmail(null);
+    setEditInstValue('');
   };
 
   return (
@@ -812,6 +828,13 @@ const AdminPage = () => {
                             <EditIc s={12} c="var(--orange)" /> Área
                           </button>
                         )}
+                        <button onClick={() => openEditInstitution(acc)}
+                          title="Reasignar el colegio de este usuario"
+                          style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
+                            border:'1.5px solid var(--purple-deep)', background:'var(--purple-bg)', color:'var(--purple-deep)',
+                            cursor:'pointer', fontFamily:'var(--font)', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
+                          🏫 Colegio
+                        </button>
                         {isStudent && (
                           <button onClick={() => setResetConfirm(acc)}
                             style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
@@ -959,6 +982,50 @@ const AdminPage = () => {
               <div style={{ display:'flex', gap:10 }}>
                 <Btn variant="secondary" full onClick={() => setEditAreaEmail(null)}>Cancelar</Btn>
                 <Btn variant="gradient" full disabled={!editAreaValue || editAreaValue === acc.area} onClick={handleEditArea}>
+                  Guardar cambio
+                </Btn>
+              </div>
+            </div>
+          ) : null;
+        })()}
+      </Modal>
+
+      {/* Edit institution modal */}
+      <Modal open={!!editInstEmail} onClose={() => setEditInstEmail(null)} title="Reasignar colegio" width={420}>
+        {editInstEmail && (() => {
+          const acc = accounts.find(a => a.email === editInstEmail);
+          return acc ? (
+            <div>
+              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 16px', borderRadius:10,
+                background:'var(--bg-alt)', marginBottom:20 }}>
+                <div style={{ width:36, height:36, borderRadius:'50%', overflow:'hidden', background:'var(--purple-bg)',
+                  display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700, color:'var(--purple-deep)' }}>
+                  {acc.avatar?.startsWith('http')
+                    ? <img src={acc.avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    : acc.avatar}
+                </div>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:600, color:'var(--dark)' }}>{acc.name}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)' }}>{acc.email}</div>
+                </div>
+              </div>
+              <label style={{ fontSize:13, fontWeight:600, color:'var(--dark)', display:'block', marginBottom:10 }}>
+                Selecciona el colegio:
+              </label>
+              {institutions.length === 0 ? (
+                <p style={{ fontSize:13, color:'var(--muted)', marginBottom:24 }}>No hay colegios registrados.</p>
+              ) : (
+                <select value={editInstValue} onChange={e => setEditInstValue(e.target.value)}
+                  style={{ ...inputSt(false), marginBottom:24 }}>
+                  <option value="">— Sin colegio —</option>
+                  {institutions.map(inst => (
+                    <option key={inst.id} value={inst.name}>{inst.name}</option>
+                  ))}
+                </select>
+              )}
+              <div style={{ display:'flex', gap:10 }}>
+                <Btn variant="secondary" full onClick={() => setEditInstEmail(null)}>Cancelar</Btn>
+                <Btn variant="gradient" full disabled={editInstValue === (acc.institution || '')} onClick={handleEditInstitution}>
                   Guardar cambio
                 </Btn>
               </div>
