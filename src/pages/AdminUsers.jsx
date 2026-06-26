@@ -388,6 +388,7 @@ const UserCoursesModal = ({ acc, onClose }) => {
   const courses     = useStore(s => s.courses || []);
   const userCourses = useStore(s => s.userCourses || []);
   const [savingId, setSavingId] = React.useState(null);
+  const [error, setError] = React.useState(null);
 
   const activeCourses = React.useMemo(() => courses.filter(c => c.is_active), [courses]);
   const granted = React.useMemo(
@@ -396,9 +397,11 @@ const UserCoursesModal = ({ acc, onClose }) => {
   );
 
   const toggle = async (courseId) => {
+    setError(null);
     setSavingId(courseId);
-    await setUserCourseAccess(acc.id, courseId, !granted.has(courseId));
+    const res = await setUserCourseAccess(acc.id, courseId, !granted.has(courseId));
     setSavingId(null);
+    if (res?.error) setError(res.error);
   };
 
   return (
@@ -454,6 +457,14 @@ const UserCoursesModal = ({ acc, onClose }) => {
                   </label>
                 );
               })}
+            </div>
+          )}
+
+          {error && (
+            <div style={{ marginTop:12, padding:'10px 14px', borderRadius:10, background:'var(--error-bg)',
+              border:'1px solid var(--error)', fontSize:12, color:'var(--error)', lineHeight:1.5 }}>
+              No se pudo guardar: {error}. Si menciona permisos o que la tabla no existe, aplica las migraciones
+              <strong> 0018</strong> y <strong>0019</strong> en el SQL Editor de Supabase.
             </div>
           )}
 

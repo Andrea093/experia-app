@@ -1017,20 +1017,29 @@ const loadUserCourses = async () => {
 };
 
 // Otorga (active=true) o revoca (active=false) el acceso de un usuario a un curso.
+// Usa upsert con onConflict para no chocar con la restricción UNIQUE cuando la
+// fila ya existe en la BD pero no está en el estado local. Devuelve { error }
+// para que la UI pueda mostrar el motivo (RLS, etc.) en vez de fallar en silencio.
 const setUserCourseAccess = async (userId, courseId, active) => {
   const { userCourses } = XS.get();
   const existing = userCourses.find(uc => uc.user_id === userId && uc.course_id === courseId);
+  // Actualización optimista (se revierte si la BD rechaza)
   if (existing) {
     XS.set({ userCourses: userCourses.map(uc => uc.id === existing.id ? { ...uc, is_active: active } : uc) });
-    const { error } = await supabase.from('user_courses').update({ is_active: active }).eq('id', existing.id);
-    if (error) { console.error('setUserCourseAccess update:', error); await loadUserCourses(); }
-  } else {
-    const { data, error } = await supabase.from('user_courses')
-      .insert({ user_id: userId, course_id: courseId, is_active: active })
-      .select().single();
-    if (error) { console.error('setUserCourseAccess insert:', error); return; }
-    XS.set({ userCourses: [...XS.get().userCourses, data] });
   }
+  const { data, error } = await supabase.from('user_courses')
+    .upsert({ user_id: userId, course_id: courseId, is_active: active }, { onConflict: 'user_id,course_id' })
+    .select().single();
+  if (error) {
+    console.error('setUserCourseAccess:', error);
+    await loadUserCourses(); // revierte el optimismo al estado real de la BD
+    return { error: error.message };
+  }
+  XS.set(s => {
+    const others = (s.userCourses || []).filter(uc => !(uc.user_id === userId && uc.course_id === courseId));
+    return { userCourses: [...others, data] };
+  });
+  return { ok: true };
 };
 
 // Otorga/revoca el acceso a UN curso para MUCHOS usuarios a la vez (gestión en masa).
