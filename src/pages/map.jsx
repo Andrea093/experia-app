@@ -205,8 +205,10 @@ const MapCard = React.memo(({ mod, status, onClick }) => {
         }}>{TYPE_LABELS[mod.type] || 'MÓDULO'}</span>
         {status === 'completed' && <CheckIc s={14} c="var(--success)" />}
       </div>
-      <h4 style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', marginBottom: 4, lineHeight: 1.3 }}>{mod.title}</h4>
-      <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{mod.desc}</p>
+      <h4 style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', marginBottom: 4, lineHeight: 1.3,
+        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{mod.title}</h4>
+      <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5,
+        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{mod.desc}</p>
       {status === 'available' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, fontSize: 12, fontWeight: 600, color: 'var(--orange)' }}>
           Comenzar <ChevRIc s={14} c="var(--orange)" />
@@ -393,7 +395,7 @@ const LearningMap = () => {
   }, [completed, selectedArea, studentModules, enrolledCourseId]);
 
   // Desktop layout constants
-  const nodeSpacing = 180;
+  const nodeSpacing = 210;
   const mapHeight = studentModules.length * nodeSpacing + 120;
   const mapWidth = 800;
 
