@@ -423,6 +423,8 @@ const nav = (page, nodeId) => {
 // --- Hash routing ligero ---
 // Sincroniza page/nodeId con location.hash (#/pagina/nodo) sin librería de
 // router: habilita el botón atrás del navegador y deep links compartibles.
+// Páginas accesibles sin sesión (deep links públicos)
+const PUBLIC_PAGES = ['cert', 'live'];
 const hashFor = (page, nodeId) => '#/' + page + (nodeId ? '/' + encodeURIComponent(nodeId) : '');
 const parseHash = () => {
   const h = window.location.hash.replace(/^#\/?/, '');
@@ -433,7 +435,7 @@ const parseHash = () => {
 let hashSelfUpdate = false;
 // Estado → URL (cubre nav(), login y guards, todos pasan por XS.set)
 XS.sub(s => {
-  if (!s.isLoggedIn) return;
+  if (!s.isLoggedIn && !PUBLIC_PAGES.includes(s.page)) return;
   const target = hashFor(s.page, s.nodeId);
   if (window.location.hash !== target) {
     hashSelfUpdate = true;
@@ -445,7 +447,8 @@ window.addEventListener('hashchange', () => {
   if (hashSelfUpdate) { hashSelfUpdate = false; return; }
   const r = parseHash();
   const s = XS.get();
-  if (!r || !s.isLoggedIn) return;
+  if (!r) return;
+  if (!s.isLoggedIn && !PUBLIC_PAGES.includes(r.page)) return;
   if (r.page === s.page && (r.nodeId || null) === (s.nodeId || null)) return;
   XS.set({ page: r.page, nodeId: r.nodeId });
 });
@@ -461,6 +464,14 @@ const applyInitialHash = () => {
   if (r.page === s.page && (r.nodeId || null) === (s.nodeId || null)) return;
   XS.set({ page: r.page, nodeId: r.nodeId });
 };
+
+// Deep links públicos (cert/live): visibles sin sesión. Se aplican al cargar,
+// independientemente del login (restoreSession no corre para usuarios anónimos).
+// No consumimos initialRoute: si el usuario SÍ tiene sesión, applyInitialHash lo
+// re-aplica después de restoreSession (que reescribe page al default del rol).
+if (initialRoute && PUBLIC_PAGES.includes(initialRoute.page)) {
+  XS.set({ page: initialRoute.page, nodeId: initialRoute.nodeId });
+}
 
 const doLogout = () => {
   const wasLoggedIn = XS.get().isLoggedIn;

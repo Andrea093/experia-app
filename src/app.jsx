@@ -89,6 +89,8 @@ const SchoolsAdminPage      = React.lazy(() => import('./pages/AdminSchools.jsx'
 const AdminPage             = React.lazy(() => import('./pages/AdminUsers.jsx'))
 const ForumPage             = React.lazy(() => import('./pages/forum.jsx'))
 const CertPage              = React.lazy(() => import('./pages/CertPage.jsx'))
+const LivePlayPage          = React.lazy(() => import('./pages/LivePlay.jsx'))
+const LiveHostPage          = React.lazy(() => import('./pages/LiveHost.jsx'))
 
 const PageSpinner = () => (
   <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -153,6 +155,8 @@ const App = () => {
   if (page === 'login'   && !isLoggedIn) return <React.Suspense fallback={null}><LoginPage /></React.Suspense>;
   // Verificación pública de certificado — no requiere autenticación
   if (page === 'cert') return <React.Suspense fallback={<PageSpinner />}><CertPage /></React.Suspense>;
+  // Aula en Vivo (estudiante) — página pública, se entra con PIN sin login
+  if (page === 'live') return <React.Suspense fallback={<PageSpinner />}><LivePlayPage /></React.Suspense>;
   if (!isLoggedIn) { setTimeout(() => nav('landing'), 0); return null; }
 
   const role = user?.role;
@@ -175,6 +179,7 @@ const App = () => {
         case 'admin-courses':    return <AdminCourses />;
         case 'admin-schools':    return <SchoolsAdminPage />;
         case 'admin-analytics':  return <AdminAnalytics />;
+        case 'live-host':        return <LiveHostPage />;
         case 'forum':            return <ForumPage />;
         case 'profile':          return <ProfilePage />;
         default:                 return <AdminPage />;
@@ -191,6 +196,7 @@ const App = () => {
           );
         case 'instructor-stats': return <InstructorStatsPage />;
         case 'instructor-route': return <InstructorRouteEditor />;
+        case 'live-host':        return <LiveHostPage />;
         case 'forum':            return <ForumPage />;
         case 'profile':          return <ProfilePage />;
         default:                 return <InstructorDashboard />;

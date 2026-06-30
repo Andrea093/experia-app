@@ -26,6 +26,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
     { key: 'instructor-dashboard', label: 'Entregas',     icon: <FileIc s={19} />, active: ['instructor-dashboard'] },
     { key: 'instructor-stats',     label: 'Estadísticas', icon: <BarIc s={19} />,  active: ['instructor-stats'] },
     { key: 'instructor-route',     label: 'Ruta',         icon: <MapIc s={19} />,  active: ['instructor-route'] },
+    { key: 'live-host',            label: 'Aula en Vivo', icon: <GameIc s={19} />, active: ['live-host'] },
     { key: 'forum',                label: 'Comunidad',    icon: <MsgIc s={19} />,  active: ['forum'] },
     { key: 'profile',              label: 'Perfil',       icon: <UserIc s={19} />, active: ['profile'] },
   ];
