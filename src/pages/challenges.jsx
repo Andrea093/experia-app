@@ -679,6 +679,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
                   {ok?'✓ ':'✗ '}{q.options[answers[i]]}
                   {!ok&&<span style={{color:'var(--success)',marginLeft:8}}>→ Correcta: {q.options[q.correct]}</span>}
                 </p>
+                {q.explanation&&<p style={{fontSize:12,color:'var(--muted)',lineHeight:1.6,margin:'8px 0 0',fontStyle:'italic'}}>💡 {q.explanation}</p>}
               </div>
             );
           })}
@@ -696,6 +697,10 @@ const QuizChallenge = ({ mod, onComplete }) => {
         <span style={{fontSize:12,color:'var(--muted)',whiteSpace:'nowrap',fontWeight:600}}>{current+1}/{questions.length}</span>
       </div>
       <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
+        {q.image && (
+          <img src={q.image} alt="" style={{width:'100%',maxHeight:q.imageHeight||320,objectFit:'contain',borderRadius:12,
+            display:'block',marginBottom:16,border:'1px solid var(--border)'}} />
+        )}
         <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.question}</h4>
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
           {(q.options||[]).map((opt,i) => {
@@ -722,6 +727,13 @@ const QuizChallenge = ({ mod, onComplete }) => {
           <p style={{fontSize:13,fontWeight:600,marginTop:14,color:answers[answers.length-1]===q.correct?'var(--success)':'var(--error)'}}>
             {answers[answers.length-1]===q.correct?'✓ ¡Correcto!':'✗ Respuesta correcta: '+q.options[q.correct]}
           </p>
+        )}
+        {confirmed&&(q.explanation||q.explanationImage)&&(
+          <div style={{marginTop:14,padding:'14px 16px',borderRadius:12,background:'var(--purple-bg)',borderLeft:'3px solid var(--purple)'}}>
+            <div style={{fontSize:11,fontWeight:800,color:'var(--purple)',textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>💡 Explicación</div>
+            {q.explanation&&<p style={{fontSize:14,color:'var(--text-sec)',lineHeight:1.7,margin:0}}>{q.explanation}</p>}
+            {q.explanationImage&&<img src={q.explanationImage} alt="" style={{width:'100%',maxHeight:280,objectFit:'contain',borderRadius:10,display:'block',marginTop:10,border:'1px solid var(--border)'}} />}
+          </div>
         )}
       </div>
       {!confirmed
