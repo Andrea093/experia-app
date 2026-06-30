@@ -1,6 +1,7 @@
 import React from 'react'
-import { useStore, nav } from './store/store.jsx'
+import { useStore, nav, doLogout } from './store/store.jsx'
 import { getActiveCourseTheme } from './store/store.jsx'
+import { startIdleWatch } from './lib/idleTimeout.js'
 import { applySavedTheme, applyLightOnly } from './lib/theme.js'
 import { NotifManager } from './components/ui.jsx'
 import CourseAmbient from './components/CourseAmbient.jsx'
@@ -127,6 +128,13 @@ const App = () => {
       root.removeAttribute('data-course-theme');
     }
   }, [isLoggedIn, enrolledCourse, courses]);
+
+  // Cierre de sesión automático por inactividad (solo con sesión activa).
+  React.useEffect(() => {
+    if (!isLoggedIn) return;
+    const stop = startIdleWatch(doLogout);
+    return stop;
+  }, [isLoggedIn]);
 
   // El modo oscuro NUNCA debe aplicarse en la entrada pública (landing/login):
   // esas páginas siempre se ven en modo claro. Dentro de la app se respeta

@@ -9,6 +9,7 @@
 --  "student enroll" WITH CHECK is_admin de 0007.)
 -- ============================================================
 
+DROP POLICY IF EXISTS "admin manage course_progress" ON public.course_progress;
 CREATE POLICY "admin manage course_progress"
   ON public.course_progress FOR ALL
   USING (public.is_admin()) WITH CHECK (public.is_admin());

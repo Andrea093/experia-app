@@ -1,5 +1,6 @@
 import React from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { clearIdleActivity } from '../lib/idleTimeout.js'
 // =============================================
 // EXPERIA — State Store & Data (v12)
 // =============================================
@@ -468,6 +469,7 @@ const doLogout = () => {
   });
   // Limpia el hash sin crear entrada de historial (evita deep links huérfanos)
   history.replaceState(null, '', window.location.pathname + window.location.search);
+  clearIdleActivity();
   if (wasLoggedIn) supabase.auth.signOut();
 };
 const selectArea = (areaId) => {

@@ -7,6 +7,7 @@ import { supabase } from './lib/supabaseClient.js'
 import { XS, useStore, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, loadUserCourses, applyInitialHash, getAccessBlockReason } from './store/store.jsx'
 import { mapSubmission, mapAttempt } from './lib/mappers.js'
 import { loadStudentSession } from './lib/loadStudentSession.js'
+import { isSessionExpired, clearIdleActivity, markActivity } from './lib/idleTimeout.js'
 
 // Wrapper que pasa el page actual como resetKey al ErrorBoundary
 const PagedErrorBoundary = ({ children }) => {
@@ -74,6 +75,16 @@ async function restoreSession() {
   ).catch(() => ({ data: { session: null }, error: new Error('timeout') }))
 
   if (!session) return
+
+  // Cierre por inactividad: si la sesión guardada lleva demasiado tiempo
+  // inactiva (incluyendo navegador cerrado), no la restauramos.
+  if (isSessionExpired()) {
+    clearIdleActivity()
+    await supabase.auth.signOut()
+    return
+  }
+  // Sesión válida: refrescar el marcador de actividad para esta visita.
+  markActivity()
 
   const [profileRes, institutionsRes, cohortsRes] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', session.user.id).single(),
