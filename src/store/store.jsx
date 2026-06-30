@@ -333,6 +333,7 @@ const dbModToAppMod = (row) => ({
   ...(row.challenge_data?.questions    ? { questions:    row.challenge_data.questions }     : {}),
   ...(row.challenge_data?.statements   ? { statements:   row.challenge_data.statements }    : {}),
   ...(row.challenge_data?.blanks       ? { blanks:       row.challenge_data.blanks }        : {}),
+  ...(row.challenge_data?.passage      ? { passage:      row.challenge_data.passage }       : {}),
 });
 
 // findModule se define aquí pero accede a XS de forma lazy (XS se define más adelante)
@@ -1208,6 +1209,7 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.questions    || m.override?.questions)     challengeData.questions    = m.questions    || m.override.questions;
     if (m.statements   || m.override?.statements)    challengeData.statements   = m.statements   || m.override.statements;
     if (m.blanks       || m.override?.blanks)        challengeData.blanks       = m.blanks       || m.override.blanks;
+    if (m.passage      || m.override?.passage)       challengeData.passage      = m.passage      || m.override.passage;
     rows.push({
       course_id: courseId, type: m.type, area_id: areaIdVal,
       title: m.title, subtitle: m.subtitle || '',
@@ -1228,6 +1230,7 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.questions)    challengeData.questions    = m.questions;
     if (m.statements)   challengeData.statements   = m.statements;
     if (m.blanks)       challengeData.blanks       = m.blanks;
+    if (m.passage)      challengeData.passage      = m.passage;
     rows.push({
       course_id: courseId, type: m.type || 'lesson', area_id: areaIdVal,
       title: m.title, subtitle: m.subtitle || (m.type === 'challenge' ? 'Reto' : 'Módulo'),

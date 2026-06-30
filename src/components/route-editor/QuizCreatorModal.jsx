@@ -1,5 +1,5 @@
 import React from 'react'
-import { PlusIc, XIc, CheckIc, Btn, Modal } from '../ui.jsx'
+import { PlusIc, XIc, CheckIc, Btn, Modal, ImageUploader } from '../ui.jsx'
 
 const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
   const [title, setTitle]   = React.useState('')
@@ -8,6 +8,13 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
   const [xp, setXp]         = React.useState(100)
   const [questions, setQs]  = React.useState([])
   const [err, setErr]       = React.useState('')
+  // --- Passage (texto/imágenes de apoyo, opcional) ---
+  const [pOn, setPOn]       = React.useState(false)
+  const [pIntro, setPIntro] = React.useState('')
+  const [pTitle, setPTitle] = React.useState('')
+  const [pText, setPText]   = React.useState('')
+  const [pSource, setPSrc]  = React.useState('')
+  const [pImgs, setPImgs]   = React.useState([])
 
   React.useEffect(() => {
     if (open) {
@@ -17,8 +24,38 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
       setXp(initial?.xp || 100)
       setQs(initial?.questions || [{ id: 1, question: '', options: ['', '', '', ''], correct: 0 }])
       setErr('')
+      const ps = initial?.passage
+      setPOn(!!ps)
+      setPIntro(ps?.intro || '')
+      setPTitle(ps?.title || '')
+      setPText((ps?.paragraphs || []).join('\n\n'))
+      setPSrc(ps?.source || '')
+      setPImgs(ps?.images || [])
     }
   }, [open, initial])
+
+  const addImg = (url) => setPImgs(l => [...l, { url, caption: '', width: 340, height: 420 }])
+  const updImg = (i, k, v) => setPImgs(l => l.map((im, idx) => idx === i ? { ...im, [k]: v } : im))
+  const rmImg  = (i) => setPImgs(l => l.filter((_, idx) => idx !== i))
+
+  const buildPassage = () => {
+    if (!pOn) return null
+    const blocks = pText.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean)
+    const paragraphs = blocks.length > 1 ? blocks : pText.split('\n').map(s => s.trim()).filter(Boolean)
+    const images = pImgs.filter(im => im.url).map(im => ({
+      url: im.url,
+      ...(im.caption ? { caption: im.caption } : {}),
+      ...(im.width  ? { width:  Number(im.width)  } : {}),
+      ...(im.height ? { height: Number(im.height) } : {}),
+    }))
+    const p = {}
+    if (pIntro.trim())  p.intro = pIntro.trim()
+    if (pTitle.trim())  p.title = pTitle.trim()
+    if (paragraphs.length) p.paragraphs = paragraphs
+    if (images.length) { p.images = images; p.imagesLayout = 'row' }
+    if (pSource.trim()) p.source = pSource.trim()
+    return Object.keys(p).length ? p : null
+  }
 
   const addQ = () => setQs(q => [...q, { id: Date.now(), question: '', options: ['', '', '', ''], correct: 0 }])
   const removeQ = (id) => setQs(q => q.filter(x => x.id !== id))
@@ -34,7 +71,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
     if (!questions.length) { setErr('Agrega al menos una pregunta'); return }
     const incomplete = questions.find(q => !q.question.trim() || q.options.some(o => !o.trim()))
     if (incomplete) { setErr('Completa todas las preguntas y opciones'); return }
-    onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100, questions, type: 'challenge', ctype: 'quiz' })
+    onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100, questions, passage: buildPassage(), type: 'challenge', ctype: 'quiz' })
   }
 
   const inp = { padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }
@@ -59,6 +96,49 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Instrucción al estudiante</label>
           <input value={task} onChange={e => setTask(e.target.value)} placeholder="Ej: Responde todas las preguntas y confirma cada respuesta" style={inp} />
+        </div>
+
+        {/* ── Texto / imágenes de apoyo (passage) ── */}
+        <div style={{ padding: '14px', borderRadius: 12, background: 'var(--purple-bg)', border: '1px solid var(--purple)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--purple)' }}>
+            <input type="checkbox" checked={pOn} onChange={e => setPOn(e.target.checked)} />
+            Agregar texto o imágenes de apoyo (se muestran encima de las preguntas)
+          </label>
+
+          {pOn && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+              <input value={pIntro} onChange={e => setPIntro(e.target.value)} placeholder="Instrucción (ej: DE ACUERDO CON EL SIGUIENTE TEXTO RESPONDE LAS PREGUNTAS 1 A 3)" style={inp} />
+              <input value={pTitle} onChange={e => setPTitle(e.target.value)} placeholder="Título del texto (opcional)" style={inp} />
+              <textarea value={pText} onChange={e => setPText(e.target.value)} rows={6}
+                placeholder="Pega aquí el texto de lectura. Separa los párrafos con una línea en blanco."
+                style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} />
+
+              {/* Imágenes */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {pImgs.map((im, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: 10, borderRadius: 10, background: 'var(--white)', border: '1px solid var(--border)' }}>
+                    <img src={im.url} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', flexShrink: 0 }} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <input value={im.caption} onChange={e => updImg(i, 'caption', e.target.value)} placeholder="Pie de imagen (ej: Recuadro 1)" style={{ ...inp, fontSize: 12 }} />
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <label style={{ fontSize: 11, color: 'var(--muted)' }}>Ancho px</label>
+                        <input type="number" value={im.width || ''} onChange={e => updImg(i, 'width', e.target.value)} placeholder="auto" min={40} style={{ ...inp, width: 80, fontSize: 12 }} />
+                        <label style={{ fontSize: 11, color: 'var(--muted)' }}>Alto máx px</label>
+                        <input type="number" value={im.height || ''} onChange={e => updImg(i, 'height', e.target.value)} placeholder="auto" min={40} style={{ ...inp, width: 80, fontSize: 12 }} />
+                      </div>
+                    </div>
+                    <button onClick={() => rmImg(i)} title="Quitar imagen"
+                      style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <XIc s={13} c="var(--error)" />
+                    </button>
+                  </div>
+                ))}
+                <ImageUploader label="Subir imagen" compact onUploaded={addImg} />
+              </div>
+
+              <input value={pSource} onChange={e => setPSrc(e.target.value)} placeholder="Fuente / autor (opcional)" style={inp} />
+            </div>
+          )}
         </div>
 
         <div>

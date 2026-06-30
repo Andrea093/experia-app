@@ -556,6 +556,68 @@ const DesignLabChallenge = ({ mod, onComplete }) => {
   );
 };
 
+// ---- PASSAGE (texto / imágenes de apoyo para un reto) ----
+// Se muestra encima de las preguntas y permanece visible mientras se responde.
+// challenge_data.passage: {
+//   title, intro, paragraphs: [str], source,
+//   images: [{ url, caption, width, height, align }],  // width/height en px o string CSS
+//   imagesLayout: 'row' | 'column'
+// }
+const QuizPassage = ({ passage }) => {
+  const isMobile = useMobile();
+  if (!passage) return null;
+  const { title, intro, paragraphs, source, images, imagesLayout } = passage;
+  const hasImages = Array.isArray(images) && images.length > 0;
+
+  // Tamaño ajustable por imagen: width/height aceptan número (px) o string CSS.
+  // objectFit:'contain' evita recortar la imagen (importante para textos/cómics).
+  const sizeVal = (v) => (typeof v === 'number' ? `${v}px` : v);
+  const imgStyle = (img) => ({
+    width: sizeVal(img.width) || '100%',
+    maxWidth: '100%',
+    maxHeight: sizeVal(img.height) || sizeVal(img.maxHeight) || 'none',
+    height: 'auto',
+    objectFit: 'contain',
+    borderRadius: 12,
+    display: 'block',
+    boxShadow: 'var(--sh-md)',
+    border: '1px solid var(--border)',
+    background: 'var(--white)',
+  });
+
+  return (
+    <div style={{ maxWidth: 720, margin: '0 auto 24px', padding: isMobile ? '18px 18px' : '24px 28px',
+      borderRadius: 16, background: 'var(--white)', border: '1.5px solid var(--border)', boxShadow: 'var(--sh-sm)' }}>
+      {intro && (
+        <p style={{ fontSize: 12, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase',
+          letterSpacing: 1, marginBottom: 10 }}>{intro}</p>
+      )}
+      {title && (
+        <h3 style={{ fontSize: 19, fontWeight: 800, color: 'var(--dark)', marginBottom: 14, lineHeight: 1.3 }}>{title}</h3>
+      )}
+      {Array.isArray(paragraphs) && paragraphs.map((p, i) => (
+        <p key={i} style={{ fontSize: 15, color: 'var(--text-sec)', lineHeight: 1.8, marginBottom: 12, textAlign: 'justify' }}>{p}</p>
+      ))}
+      {hasImages && (
+        <div style={{ display: 'flex', flexDirection: imagesLayout === 'column' ? 'column' : 'row',
+          flexWrap: 'wrap', gap: 16, justifyContent: 'center', alignItems: 'flex-start', margin: '18px 0 4px' }}>
+          {images.map((img, i) => (
+            <figure key={i} style={{ margin: 0, maxWidth: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <img src={img.url} alt={img.caption || title || `Imagen ${i + 1}`} style={imgStyle(img)} />
+              {img.caption && (
+                <figcaption style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, textAlign: 'center', fontStyle: 'italic' }}>{img.caption}</figcaption>
+              )}
+            </figure>
+          ))}
+        </div>
+      )}
+      {source && (
+        <p style={{ fontSize: 12, color: 'var(--subtle)', marginTop: 14, fontStyle: 'italic' }}>{source}</p>
+      )}
+    </div>
+  );
+};
+
 // ---- QUIZ ----
 const QuizChallenge = ({ mod, onComplete }) => {
   const isMobile = useMobile();
@@ -628,6 +690,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
 
   return (
     <div style={{maxWidth:560,margin:'0 auto',paddingBottom:48}}>
+      {mod.passage && <QuizPassage passage={mod.passage} />}
       <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:24}}>
         <ProgressBar pct={(current/questions.length)*100} h={6} color="var(--orange)"/>
         <span style={{fontSize:12,color:'var(--muted)',whiteSpace:'nowrap',fontWeight:600}}>{current+1}/{questions.length}</span>

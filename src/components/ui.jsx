@@ -1,6 +1,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { BADGES, useStore, dismissNotif } from '../store/store.jsx'
+import { supabase } from '../lib/supabaseClient.js'
 
 // --- Responsive hook ---
 const useMobile = (bp = 768) => {
@@ -361,8 +362,60 @@ const ChecklistDropdown = ({ label, items, stateOf, onToggle, width=260, accent=
   );
 };
 
+// --- Image uploader (sube a Supabase Storage y devuelve la URL pública) ---
+// Reutilizable: el padre recibe la URL en onUploaded(url) y la guarda donde
+// corresponda (p. ej. en el passage de un quiz o en una sección de imagen).
+const ImageUploader = ({ value, onUploaded, label = 'Subir imagen', bucket = 'attachments', folder = 'passage-images', compact = false }) => {
+  const [uploading, setUploading] = React.useState(false);
+  const [err, setErr] = React.useState('');
+  const fileRef = React.useRef(null);
+
+  const pick = () => fileRef.current?.click();
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite re-subir el mismo archivo
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setErr('El archivo debe ser una imagen'); return; }
+    if (file.size > 10 * 1024 * 1024) { setErr('Máximo 10 MB por imagen'); return; }
+    setErr(''); setUploading(true);
+    try {
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `${folder}/${Date.now()}_${safe}`;
+      const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
+      onUploaded?.(publicUrl);
+    } catch (e2) {
+      console.error('ImageUploader:', e2);
+      setErr('No se pudo subir la imagen. Revisa el bucket de Storage.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <button type="button" onClick={pick} disabled={uploading}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 10,
+            border: '1.5px dashed var(--purple)', background: 'var(--purple-bg)', color: 'var(--purple)',
+            cursor: uploading ? 'wait' : 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600,
+            opacity: uploading ? .6 : 1 }}>
+          <UploadIc s={15} c="var(--purple)" /> {uploading ? 'Subiendo…' : label}
+        </button>
+        {value && !compact && (
+          <img src={value} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+        )}
+      </div>
+      {err && <span style={{ fontSize: 12, color: 'var(--error)' }}>{err}</span>}
+    </div>
+  );
+};
+
 export {
-  useMobile, LogoImg, ChecklistDropdown,
+  useMobile, LogoImg, ChecklistDropdown, ImageUploader,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc, ArrowRIc, ArrowLIc,
   ChevRIc, StarIc, TrophyIc, ZapIc, AwardIc, BellIc, LogOutIc, ClockIc, XIc, PlusIc,
   TrashIc, EditIc, MenuIc, TargetIc, SettingsIc, BarIc, UsersIc, GripIc, MapIc,
