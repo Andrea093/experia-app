@@ -978,7 +978,7 @@ const loadCourseModules = async (courseId, areaId = null) => {
 const enrollInCourse = async (courseId) => {
   const { user } = XS.get();
   if (!user?.id) return { error: 'No autenticado' };
-  const [{ error: e1 }, { error: e2 }] = await Promise.all([
+  const [{ error: e1 }, { error: e2 }, { error: e3 }] = await Promise.all([
     supabase.from('course_enrollments').upsert(
       { student_id: user.id, course_id: courseId, institution_id: null },
       { onConflict: 'student_id,course_id' }
@@ -987,9 +987,15 @@ const enrollInCourse = async (courseId) => {
       { user_id: user.id, course_id: courseId, xp: 0, completed: [], badges: [] },
       { onConflict: 'user_id,course_id' }
     ),
+    // Acceso y matrícula van siempre juntos (modelo estricto user_courses)
+    supabase.from('user_courses').upsert(
+      { user_id: user.id, course_id: courseId, is_active: true },
+      { onConflict: 'user_id,course_id' }
+    ),
   ]);
   if (e1) { console.error('enrollInCourse enrollment:', e1); return { error: e1.message }; }
   if (e2) { console.error('enrollInCourse progress:', e2); return { error: e2.message }; }
+  if (e3) console.error('enrollInCourse access:', e3);
   await loadCourseModules(courseId);
   const { data: cp } = await supabase.from('course_progress')
     .select('*').eq('user_id', user.id).eq('course_id', courseId).maybeSingle();
@@ -1037,6 +1043,20 @@ const setUserCourseAccess = async (userId, courseId, active) => {
     await loadUserCourses(); // revierte el optimismo al estado real de la BD
     return { error: error.message };
   }
+  // Acceso y matrícula van juntos: al CONCEDER acceso, asegurar matrícula y
+  // progreso (sin resetear a quien ya avanzó). Al revocar NO se quita nada.
+  if (active) {
+    await Promise.all([
+      supabase.from('course_enrollments').upsert(
+        { student_id: userId, course_id: courseId, institution_id: null },
+        { onConflict: 'student_id,course_id', ignoreDuplicates: true }
+      ),
+      supabase.from('course_progress').upsert(
+        { user_id: userId, course_id: courseId, xp: 0, completed: [], badges: [] },
+        { onConflict: 'user_id,course_id', ignoreDuplicates: true }
+      ),
+    ]);
+  }
   XS.set(s => {
     const others = (s.userCourses || []).filter(uc => !(uc.user_id === userId && uc.course_id === courseId));
     return { userCourses: [...others, data] };
@@ -1052,6 +1072,20 @@ const setUserCourseAccessBulk = async (userIds, courseId, active) => {
   const { error } = await supabase.from('user_courses')
     .upsert(rows, { onConflict: 'user_id,course_id' });
   if (error) { console.error('setUserCourseAccessBulk:', error); return; }
+  // Acceso y matrícula van juntos: al CONCEDER, asegurar matrícula y progreso
+  // de todos (sin resetear). Al revocar NO se quita nada.
+  if (active) {
+    await Promise.all([
+      supabase.from('course_enrollments').upsert(
+        ids.map(uid => ({ student_id: uid, course_id: courseId, institution_id: null })),
+        { onConflict: 'student_id,course_id', ignoreDuplicates: true }
+      ),
+      supabase.from('course_progress').upsert(
+        ids.map(uid => ({ user_id: uid, course_id: courseId, xp: 0, completed: [], badges: [] })),
+        { onConflict: 'user_id,course_id', ignoreDuplicates: true }
+      ),
+    ]);
+  }
   await loadUserCourses();
 };
 
@@ -1219,8 +1253,24 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
 
 // Cambia el curso activo del estudiante (multi-inscripción)
 const switchCourse = async (courseId) => {
-  const { user, selectedArea } = XS.get();
+  const { user, selectedArea, allEnrollments } = XS.get();
   if (!user?.id || !courseId) return;
+  // Si el estudiante tiene ACCESO pero aún no MATRÍCULA en este curso
+  // (desfase user_courses ↔ course_enrollments), créala antes de entrar
+  // para que su progreso se persista correctamente.
+  if (!(allEnrollments || []).includes(courseId)) {
+    await Promise.all([
+      supabase.from('course_enrollments').upsert(
+        { student_id: user.id, course_id: courseId, institution_id: null },
+        { onConflict: 'student_id,course_id', ignoreDuplicates: true }
+      ),
+      supabase.from('course_progress').upsert(
+        { user_id: user.id, course_id: courseId, xp: 0, completed: [], badges: [] },
+        { onConflict: 'user_id,course_id', ignoreDuplicates: true }
+      ),
+    ]);
+    XS.set({ allEnrollments: [...(allEnrollments || []), courseId] });
+  }
   const { data: modulesData } = await supabase.from('course_modules')
     .select('*').eq('course_id', courseId).eq('is_enabled', true).order('"order"');
   const filtered = selectedArea

@@ -336,9 +336,22 @@ const LearningMap = () => {
   const enrolledCourseId = useStore(s => s.enrolledCourseId);
   const courses         = useStore(s => s.courses);
   const allEnrollments  = useStore(s => s.allEnrollments);
+  const userCourses     = useStore(s => s.userCourses);
+  const user            = useStore(s => s.user);
   const isMobile = useMobile();
   const [showCourseSelector, setShowCourseSelector] = React.useState(false);
   const [switching, setSwitching] = React.useState(false);
+
+  // Cursos entre los que el estudiante puede cambiar: unión de matrículas
+  // (course_enrollments) y accesos activos (user_courses), limitada a cursos
+  // activos y existentes. Robusto ante desfase entre ambas tablas.
+  const switchableCourseIds = React.useMemo(() => {
+    const ids = new Set(allEnrollments || []);
+    (userCourses || []).forEach(uc => {
+      if (uc.user_id === user?.id && uc.is_active) ids.add(uc.course_id);
+    });
+    return (courses || []).filter(c => c.is_active && ids.has(c.id)).map(c => c.id);
+  }, [allEnrollments, userCourses, user, courses]);
 
   const handleCourseSelect = React.useCallback(async (id) => {
     setSwitching(true);
@@ -398,9 +411,9 @@ const LearningMap = () => {
   if (isMobile) {
     return (
       <div style={{ height: '100%', overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 0 40px' }}>
-        {showCourseSelector && allEnrollments.length > 1 && (
+        {showCourseSelector && switchableCourseIds.length > 1 && (
           <CourseSelector
-            enrollments={allEnrollments}
+            enrollments={switchableCourseIds}
             courses={courses}
             currentId={enrolledCourseId}
             onSelect={handleCourseSelect}
@@ -416,7 +429,7 @@ const LearningMap = () => {
             borderRadius: '50%', background: 'rgba(255,255,255,.06)' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.7)', textTransform: 'uppercase', letterSpacing: 1.5 }}>{enrolledCourse?.name || 'Tu Ruta DCE'}</div>
-            {allEnrollments.length > 1 && (
+            {switchableCourseIds.length > 1 && (
               <button onClick={() => setShowCourseSelector(true)}
                 style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.4)',
                   background: 'rgba(255,255,255,.1)', color: '#fff', fontSize: 11, fontWeight: 600,
@@ -471,7 +484,7 @@ const LearningMap = () => {
   // ---- DESKTOP VIEW (original zigzag) ----
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: '0 0 40px' }}>
-      {showCourseSelector && allEnrollments.length > 1 && (
+      {showCourseSelector && switchableCourseIds.length > 1 && (
         <CourseSelector
           enrollments={allEnrollments}
           courses={courses}
@@ -548,7 +561,7 @@ const LearningMap = () => {
                 <div style={{ fontSize: 9, color: 'rgba(212,200,232,.4)', letterSpacing: 1 }}>ERA</div>
               </div>
             </div>
-            {allEnrollments.length > 1 && (
+            {switchableCourseIds.length > 1 && (
               <button onClick={() => setShowCourseSelector(true)}
                 style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(201,162,39,.3)',
                   background: 'rgba(201,162,39,.07)', color: 'rgba(201,162,39,.8)', fontSize: 11, fontWeight: 600,
@@ -616,7 +629,7 @@ const LearningMap = () => {
                 <div style={{ fontSize: 9, color: 'rgba(192,240,216,.4)', letterSpacing: 1 }}>GRADO</div>
               </div>
             </div>
-            {allEnrollments.length > 1 && (
+            {switchableCourseIds.length > 1 && (
               <button onClick={() => setShowCourseSelector(true)}
                 style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(0,255,136,.3)',
                   background: 'rgba(0,255,136,.07)', color: 'rgba(0,255,136,.8)', fontSize: 11, fontWeight: 600,
@@ -682,7 +695,7 @@ const LearningMap = () => {
                 <div style={{ fontSize: 9, color: 'rgba(216,204,170,.4)', letterSpacing: 1 }}>RANGO</div>
               </div>
             </div>
-            {allEnrollments.length > 1 && (
+            {switchableCourseIds.length > 1 && (
               <button onClick={() => setShowCourseSelector(true)}
                 style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(240,165,0,.3)',
                   background: 'rgba(240,165,0,.08)', color: 'rgba(240,165,0,.8)', fontSize: 11, fontWeight: 600,
@@ -748,7 +761,7 @@ const LearningMap = () => {
                 <div style={{ fontSize: 9, color: 'rgba(237,232,220,.4)', letterSpacing: 1 }}>RANGO</div>
               </div>
             </div>
-            {allEnrollments.length > 1 && (
+            {switchableCourseIds.length > 1 && (
               <button onClick={() => setShowCourseSelector(true)}
                 style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(212,160,23,.3)',
                   background: 'rgba(212,160,23,.08)', color: 'rgba(212,160,23,.8)', fontSize: 11, fontWeight: 600,
@@ -782,7 +795,7 @@ const LearningMap = () => {
               <StatChip icon={<ZapIc s={18} c="var(--orange-light)" />} label="XP" value={xp} />
               <StatChip icon={<TargetIc s={18} c="var(--orange-light)" />} label="Nivel" value={level} />
             </div>
-            {allEnrollments.length > 1 && (
+            {switchableCourseIds.length > 1 && (
               <button onClick={() => setShowCourseSelector(true)}
                 style={{ padding: '6px 14px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.5)',
                   background: 'rgba(255,255,255,.12)', color: '#fff', fontSize: 12, fontWeight: 600,
