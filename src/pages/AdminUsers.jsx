@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 import {
   useStore, INITIAL_INSTITUTIONS, AREAS,
   createAccount, deleteAccount, changeAccountArea, changeAccountInstitution, resetStudentProgress, setAccountActive,
@@ -254,6 +255,80 @@ const BulkUploadModal = ({ open, onClose }) => {
         </div>
       )}
     </Modal>
+  );
+};
+
+// =============================================
+// ROW ACTIONS MENU — menú desplegable de acciones por usuario.
+// Usa portal + getBoundingClientRect para no recortarse con el overflow
+// de la tabla (mismo patrón que ChecklistDropdown).
+// =============================================
+const RowMenu = ({ items }) => {
+  const [open, setOpen] = React.useState(false);
+  const [pos, setPos]   = React.useState(null);
+  const btnRef   = React.useRef(null);
+  const panelRef = React.useRef(null);
+  const width = 210;
+
+  const place = React.useCallback(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const margin = 8;
+    // Alinea el panel a la derecha del botón, sin salirse de la ventana
+    const left = Math.max(margin, Math.min(r.right - width, window.innerWidth - width - margin));
+    const panelH = items.length * 40 + 12;
+    const below = window.innerHeight - r.bottom;
+    const openUp = below < panelH && r.top > below;
+    setPos({
+      left,
+      top:    openUp ? undefined : r.bottom + 6,
+      bottom: openUp ? (window.innerHeight - r.top + 6) : undefined,
+    });
+  }, [items.length]);
+
+  const toggle = () => { if (!open) place(); setOpen(o => !o); };
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onScroll = (e) => { if (panelRef.current && panelRef.current.contains(e.target)) return; setOpen(false); };
+    const onResize = () => setOpen(false);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    return () => { window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', onResize); };
+  }, [open]);
+
+  return (
+    <div style={{ position:'relative', display:'inline-block' }}>
+      <button ref={btnRef} type="button" onClick={toggle} title="Acciones"
+        style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
+          width:32, height:32, borderRadius:8, border:'1.5px solid var(--border)',
+          background: open ? 'var(--bg)' : 'var(--white)', color:'var(--text-sec)',
+          cursor:'pointer', fontSize:18, fontWeight:700, lineHeight:1, padding:0 }}>
+        ⋯
+      </button>
+      {open && pos && createPortal(
+        <>
+          <div onClick={() => setOpen(false)} style={{ position:'fixed', inset:0, zIndex:1000 }} />
+          <div ref={panelRef} style={{ position:'fixed', left:pos.left, top:pos.top, bottom:pos.bottom,
+            zIndex:1001, width, background:'var(--white)', border:'1px solid var(--border)',
+            borderRadius:12, boxShadow:'var(--sh-lg)', padding:6 }}>
+            {items.map((it, i) => (
+              <button key={i} type="button" onClick={() => { setOpen(false); it.onClick(); }}
+                style={{ display:'flex', alignItems:'center', gap:9, width:'100%', textAlign:'left',
+                  padding:'9px 12px', borderRadius:8, border:'none', background:'none',
+                  color: it.danger ? 'var(--error)' : 'var(--text-sec)', cursor:'pointer',
+                  fontFamily:'var(--font)', fontSize:13, fontWeight:600, whiteSpace:'nowrap' }}
+                onMouseEnter={e => e.currentTarget.style.background = it.danger ? 'var(--error-bg)' : 'var(--bg)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                <span style={{ width:18, textAlign:'center' }}>{it.icon}</span>{it.label}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
+      )}
+    </div>
   );
 };
 
@@ -762,7 +837,7 @@ const AdminPage = () => {
         <table style={{ width:'100%', borderCollapse:'collapse', minWidth:600 }}>
           <thead>
             <tr style={{ background:'var(--bg-alt)' }}>
-              {['Usuario','Email','Institución','Rol','Área','Acciones'].map(h => (
+              {['Usuario','Institución','Rol','Área','Acciones'].map(h => (
                 <th key={h} style={{ padding:'10px 14px', fontSize:11, fontWeight:700, color:'var(--muted)',
                   textTransform:'uppercase', letterSpacing:.8, textAlign:'left',
                   borderBottom:'1.5px solid var(--border)', whiteSpace:'nowrap' }}>{h}</th>
@@ -771,7 +846,7 @@ const AdminPage = () => {
           </thead>
           <tbody>
             {visibleAccounts.length === 0 && (
-              <tr><td colSpan={6} style={{ padding:'32px', textAlign:'center', color:'var(--muted)', fontSize:14 }}>
+              <tr><td colSpan={5} style={{ padding:'32px', textAlign:'center', color:'var(--muted)', fontSize:14 }}>
                 No se encontraron cuentas con ese criterio.
               </td></tr>
             )}
@@ -786,21 +861,25 @@ const AdminPage = () => {
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding:'11px 14px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                      <div style={{ width:30, height:30, borderRadius:'50%', flexShrink:0, overflow:'hidden',
+                      <div style={{ width:34, height:34, borderRadius:'50%', flexShrink:0, overflow:'hidden',
                         background: roleBg[acc.role], display:'flex', alignItems:'center', justifyContent:'center',
                         fontSize:12, fontWeight:700, color: roleColor[acc.role] }}>
                         {acc.avatar?.startsWith('http')
                           ? <img src={acc.avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                           : acc.avatar}
                       </div>
-                      <span style={{ fontSize:13, fontWeight:600, color:'var(--dark)' }}>{acc.name}</span>
-                      {!isActive && (
-                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:6,
-                          background:'var(--error-bg)', color:'var(--error)', whiteSpace:'nowrap' }}>Inactivo</span>
-                      )}
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <span style={{ fontSize:13, fontWeight:600, color:'var(--dark)' }}>{acc.name}</span>
+                          {!isActive && (
+                            <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:6,
+                              background:'var(--error-bg)', color:'var(--error)', whiteSpace:'nowrap' }}>Inactivo</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize:11.5, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{acc.email}</div>
+                      </div>
                     </div>
                   </td>
-                  <td style={{ padding:'11px 14px', fontSize:12, color:'var(--muted)' }}>{acc.email}</td>
                   <td style={{ padding:'11px 14px', fontSize:12, color:'var(--purple-deep)', fontWeight:500 }}>
                     {acc.institution ? `🏫 ${acc.institution}` : <span style={{ color:'var(--subtle)' }}>—</span>}
                   </td>
@@ -823,53 +902,14 @@ const AdminPage = () => {
                     {isAdmin ? (
                       <span style={{ fontSize:11, color:'var(--subtle)' }}>—</span>
                     ) : (
-                      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                        <button onClick={() => setCoursesAcc(acc)}
-                          title="Gestionar a qué cursos tiene acceso este usuario"
-                          style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
-                            border:'1.5px solid var(--success)', background:'#F0FDFA', color:'var(--success)',
-                            cursor:'pointer', fontFamily:'var(--font)', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
-                          📚 Cursos
-                        </button>
-                        {isStudent && (
-                          <button onClick={() => openEditArea(acc)}
-                            style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
-                              border:'1.5px solid var(--orange)', background:'var(--orange-bg)', color:'var(--orange)',
-                              cursor:'pointer', fontFamily:'var(--font)', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
-                            <EditIc s={12} c="var(--orange)" /> Área
-                          </button>
-                        )}
-                        <button onClick={() => openEditInstitution(acc)}
-                          title="Reasignar el colegio de este usuario"
-                          style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
-                            border:'1.5px solid var(--purple-deep)', background:'var(--purple-bg)', color:'var(--purple-deep)',
-                            cursor:'pointer', fontFamily:'var(--font)', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
-                          🏫 Colegio
-                        </button>
-                        {isStudent && (
-                          <button onClick={() => setResetConfirm(acc)}
-                            style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
-                              border:'1.5px solid var(--purple)', background:'var(--purple-bg)', color:'var(--purple)',
-                              cursor:'pointer', fontFamily:'var(--font)', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
-                            🔄 Progreso
-                          </button>
-                        )}
-                        <button onClick={() => setAccountActive(acc.id, !isActive)}
-                          title={isActive ? 'Desactivar acceso de este usuario' : 'Reactivar acceso de este usuario'}
-                          style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
-                            border:`1.5px solid ${isActive ? 'var(--border)' : 'var(--success)'}`,
-                            background: isActive ? 'var(--white)' : '#CCFBF1',
-                            color: isActive ? 'var(--text-sec)' : 'var(--success)',
-                            cursor:'pointer', fontFamily:'var(--font)', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
-                          {isActive ? '🚫 Desactivar' : '✅ Activar'}
-                        </button>
-                        <button onClick={() => setDeleteConfirm(acc.email)}
-                          style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:8,
-                            border:'1.5px solid var(--error)', background:'none', color:'var(--error)',
-                            cursor:'pointer', fontFamily:'var(--font)', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
-                          <TrashIc s={12} c="var(--error)" /> Eliminar
-                        </button>
-                      </div>
+                      <RowMenu items={[
+                        { icon:'📚', label:'Cursos',            onClick:() => setCoursesAcc(acc) },
+                        ...(isStudent ? [{ icon:'✏️', label:'Editar área',       onClick:() => openEditArea(acc) }] : []),
+                        { icon:'🏫', label:'Cambiar colegio',   onClick:() => openEditInstitution(acc) },
+                        ...(isStudent ? [{ icon:'🔄', label:'Resetear progreso', onClick:() => setResetConfirm(acc) }] : []),
+                        { icon: isActive ? '🚫' : '✅', label: isActive ? 'Desactivar' : 'Activar', onClick:() => setAccountActive(acc.id, !isActive) },
+                        { icon:'🗑️', label:'Eliminar', danger:true, onClick:() => setDeleteConfirm(acc.email) },
+                      ]} />
                     )}
                   </td>
                 </tr>
