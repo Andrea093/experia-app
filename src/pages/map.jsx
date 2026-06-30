@@ -848,17 +848,24 @@ const LearningMap = () => {
           const pos = getNodePos(mod, i);
           const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
           const cardOnLeft = mod.side === 'left' || (mod.pos?.x || 50) > 50;
+          // Nodo y tarjeta posicionados de forma independiente, ambos centrados
+          // verticalmente en pos.y. Así el nodo queda exactamente en pos (centro
+          // = pos.y) y las líneas SVG (pos.y ± 36) siempre coinciden con él,
+          // sin depender de la altura de la tarjeta. (gap 20 + radio 36 = 56)
           return (
-            <div key={mod.id} style={{
-              position: 'absolute', left: pos.x - 36, top: pos.y - 36,
-              display: 'flex', alignItems: 'center', gap: 20,
-              flexDirection: cardOnLeft ? 'row-reverse' : 'row',
-            }}>
-              <MapNode mod={mod} status={status} index={i} onClick={handleNodeClick} courseTheme={courseTheme} />
-              <div style={{ animation: `${cardOnLeft ? 'slideL' : 'slideR'} .4s ${i * 80 + 100}ms ease both` }}>
+            <React.Fragment key={mod.id}>
+              <div style={{ position: 'absolute', left: pos.x - 36, top: pos.y - 36,
+                width: 72, display: 'flex', justifyContent: 'center' }}>
+                <MapNode mod={mod} status={status} index={i} onClick={handleNodeClick} courseTheme={courseTheme} />
+              </div>
+              <div style={{
+                position: 'absolute', top: pos.y, transform: 'translateY(-50%)',
+                ...(cardOnLeft ? { left: pos.x - 56 - 280 } : { left: pos.x + 56 }),
+                animation: `${cardOnLeft ? 'slideL' : 'slideR'} .4s ${i * 80 + 100}ms ease both`,
+              }}>
                 <MapCard mod={mod} status={status} onClick={handleNodeClick} />
               </div>
-            </div>
+            </React.Fragment>
           );
         })}
       </div>
