@@ -152,8 +152,12 @@ async function restoreSession() {
   }
 
   loadRouteConfigs()
-  loadCourses()
-  loadUserCourses()
+  // courses + userCourses determinan el guard de "selección de curso". Marcamos
+  // coursesLoaded solo cuando AMBAS terminan, para que App no decida la ruta del
+  // estudiante con datos a medias (eso causaba el parpadeo curso/onboarding).
+  Promise.all([loadCourses(), loadUserCourses()])
+    .catch(err => console.error('loadCourses/loadUserCourses:', err))
+    .finally(() => XS.set({ coursesLoaded: true }))
   if (profile.role === 'admin' || profile.role === 'instructor') loadInstructorInstitutions()
 
   // Suscripción en tiempo real: cuando el instructor guarda una ruta,

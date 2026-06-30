@@ -401,6 +401,7 @@ const DEF = {
   courseModules: [],        // módulos del curso activo (ya convertidos con dbModToAppMod)
   enrolledCourseId: null,   // id del curso activo del estudiante
   allEnrollments: [],       // todos los cursos en los que está inscrito el estudiante
+  coursesLoaded: false,     // true cuando courses + userCourses ya se cargaron (evita parpadeo en el guard de selección de curso)
 };
 export const XS = createExpStore(DEF);
 
@@ -465,7 +466,7 @@ const doLogout = () => {
   XS.set({
     isLoggedIn: false, user: null, page: 'landing', nodeId: null,
     xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
-    enrolledCourseId: null, allEnrollments: [], courseModules: [],
+    enrolledCourseId: null, allEnrollments: [], courseModules: [], coursesLoaded: false,
   });
   // Limpia el hash sin crear entrada de historial (evita deep links huérfanos)
   history.replaceState(null, '', window.location.pathname + window.location.search);

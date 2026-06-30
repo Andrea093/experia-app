@@ -114,6 +114,7 @@ const App = () => {
   const selectedArea   = useStore(s => s.selectedArea);
   const hasCourses     = useStore(s => (s.courses || []).some(c => c.is_active));
   const enrolledCourse = useStore(s => s.enrolledCourseId);
+  const coursesLoaded  = useStore(s => s.coursesLoaded);
   const courses        = useStore(s => s.courses);
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
 
@@ -155,6 +156,10 @@ const App = () => {
   if (!isLoggedIn) { setTimeout(() => nav('landing'), 0); return null; }
 
   const role = user?.role;
+  // Esperar a que courses + userCourses estén cargados antes de decidir la ruta
+  // del estudiante. Sin esto, el primer render ocurre con datos a medias y se ve
+  // un parpadeo entre el mapa/onboarding y la selección de curso.
+  if (role === 'student' && !coursesLoaded) return <PageSpinner />;
   // Guard estudiante: si hay cursos en BD y no está inscrito → selección de curso
   if (role === 'student' && hasCourses && !enrolledCourse) return <React.Suspense fallback={<PageSpinner />}><CourseSelection /></React.Suspense>;
   // Guard legado: sin cursos en BD y sin área → selección de área
