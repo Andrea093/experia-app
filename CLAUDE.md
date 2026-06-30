@@ -155,6 +155,9 @@ const useStore = (sel) => { /* React hook */ };
 | `route_configs` | Custom learning routes |
 | `courses` | Course definitions |
 | `course_modules` | Modules per course |
+| `course_enrollments` | Student ↔ course matrícula (drives course switcher + `enrolledCourseId`) |
+| `user_courses` | Per-user course access grant (strict gate, migration 0018) |
+| `institution_courses` | Course enabled per institution |
 
 **Security:**
 - RLS (Row Level Security) per role
@@ -167,6 +170,15 @@ const useStore = (sel) => { /* React hook */ };
 - `profiles.is_active` and `institutions.is_active` (both default `true`).
 - A non-admin is blocked if their profile **or** their institution is inactive. Admins are never blocked.
 - Enforced frontend-side via `getAccessBlockReason()` at login (`login.jsx`, shows message) and session restore (`main.jsx`, silent sign-out). Toggled from AdminUsers / AdminSchools. ⚠️ Currently logged-in users are blocked on next session, not kicked live.
+
+**Course access — THREE tables that must stay in sync** (migration 0018):
+A student seeing/entering a course depends on three separate tables. Mismatches between them are a recurring source of "el curso no aparece" bugs:
+- `user_courses` (**strict gate**) — drives *"Elige tu curso"* (`CourseSelection.jsx`). A course only shows if there's a row here with `is_active=true` for that user. Managed from AdminUsers.
+- `course_enrollments` (**matrícula**) — drives the multi-course switcher in `map.jsx` (`allEnrollments`) and `enrolledCourseId` (via `loadStudentSession`). Also gates `CourseSelection` vs `map` in `app.jsx`.
+- `course_progress` — XP/completed/badges per enrollment.
+
+⚠️ **Access and enrollment must go together.** The store keeps them synced per action: `enrollInCourse`, `setUserCourseAccess`/`Bulk`, and `autoEnrollInstitutionStudents` all upsert *both* `user_courses` **and** `course_enrollments` (+ empty `course_progress`, never resetting existing). `switchCourse` creates a missing enrollment on the fly. The map switcher shows the **union** of enrollments + active access (`switchableCourseIds`) so a lagging table self-heals. Granting access never resets progress; revoking access removes nothing.
+- ⚠️ Creating a course (seed or AdminCourses) grants **no** access — assign it per institution (Admin → Cursos, runs `autoEnroll`) or per user (AdminUsers) afterwards, or it appears to nobody.
 
 **Realtime:**
 - Subscribed to `route_configs` changes
@@ -185,6 +197,8 @@ const useStore = (sel) => { /* React hook */ };
 7. Support deep links via hash
 8. Render App with XS store hydrated
 9. Timeout: 20 seconds max
+
+**Idle auto-logout** (`src/lib/idleTimeout.js`): logs out after **30 min of inactivity** (`IDLE_LIMIT_MS`). Tracks last activity (mouse/keyboard/scroll/touch/click) in `localStorage` (`experia:last-activity`). `App` starts `startIdleWatch(doLogout)` while logged in; `restoreSession` (`main.jsx`) checks `isSessionExpired()` and refuses to restore a stale session on browser reopen; `doLogout` clears the marker.
 
 ---
 
@@ -282,6 +296,7 @@ src/
 ├── lib/
 │   ├── supabaseClient.js    # Supabase init
 │   ├── loadStudentSession.js # Load XP, badges
+│   ├── idleTimeout.js       # Idle auto-logout (30 min)
 │   └── theme.js             # Dark/light + accents
 ├── components/
 │   ├── ui.jsx               # Reusable components
@@ -305,7 +320,11 @@ supabase/
 │   ├── 0007_multi_course.sql
 │   ├── 0011_course_modules_area.sql   # adds area_id + allows type 'final_delivery'
 │   ├── 0012_course_theme.sql          # adds courses.theme + character_line
-│   └── 0013–0016_seed_*.sql           # themed course seeds (detective/escape/lab/time-travel)
+│   ├── 0013–0016_seed_*.sql           # themed course seeds (detective/escape/lab/time-travel)
+│   ├── 0017_active_users_institutions.sql  # is_active gate
+│   ├── 0018_user_course_access.sql    # user_courses (strict per-user access)
+│   ├── 0019_admin_manage_course_progress.sql
+│   └── 0020_seed_ecosistema_ia_course.sql  # 8-module video MOOC, sequential unlock
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/
