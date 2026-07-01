@@ -224,6 +224,18 @@ Login → Selección de área → Mapa de aprendizaje
 
 ---
 
+## Modo Aula en Vivo (quiz sincrónico tipo Kahoot)
+
+Para usar en clase: el profesor lanza un reto **Quiz** en vivo y los estudiantes responden contra reloj, con tabla de posiciones y podio. El estudiante no puede adelantarse: la pantalla sigue el ritmo del profesor.
+
+- **Activar (una sola vez):** ejecuta `supabase/migrations/0022_live_classroom.sql` en el SQL Editor de Supabase.
+- **Profesor:** menú lateral → **Aula en Vivo** → elige curso y un reto Quiz → *Iniciar*. Se muestra un **PIN** y un **QR**.
+- **Estudiantes:** entran a `…/#/live` (sin login), escriben el PIN y sus datos (nombre, apellido, correo, salón), o escanean el QR.
+- **Flujo por pregunta:** pregunta (con cuenta regresiva) → resultados → explicación → ranking → siguiente; al final, **podio**.
+- El contenido sale de los retos `quiz` del curso. Edita preguntas, explicaciones, tiempo y puntos en **Ruta → reto Quiz** (incluye subida de imágenes y un texto/imágenes de apoyo "passage").
+
+---
+
 ## Carga masiva de usuarios (Excel)
 
 El admin puede importar usuarios desde un archivo `.xlsx` / `.csv` con las columnas:

@@ -34,7 +34,7 @@ const Launcher = ({ onStarted }) => {
   React.useEffect(() => {
     if (!courseId) { setQuizzes([]); return }
     setLoading(true); setErr('')
-    supabase.from('course_modules').select('id,title,challenge_data,"order"')
+    supabase.from('course_modules').select('id,title,challenge_data')
       .eq('course_id', courseId).eq('challenge_type', 'quiz').order('order')
       .then(({ data, error }) => {
         if (error) setErr('No se pudieron cargar los retos: ' + error.message)
@@ -145,22 +145,27 @@ const Control = ({ session: initial, quiz, onExit }) => {
 
   const answeredCount = counts.reduce((a, b) => a + b, 0)
 
+  // Ejecuta una RPC de control y muestra el error si lo hubiera (clave para depurar)
+  const run = (promise) => Promise.resolve(promise)
+    .then(r => { if (r?.error) alert('Error: ' + r.error.message) })
+    .catch(e => alert('Error: ' + (e?.message || e)))
+
   const Big = ({ children, ...p }) => <Btn variant="gradient" size="lg" {...p}>{children}</Btn>
 
   // ----- Controles según fase -----
   const Controls = () => {
-    if (phase === 'lobby') return <Big disabled={total === 0} onClick={() => liveGoto(session.id, 0)}>Comenzar juego ▶</Big>
-    if (phase === 'question') return <Big onClick={() => liveSetPhase(session.id, 'reveal')}>Mostrar resultados ({answeredCount}/{parts.length})</Big>
+    if (phase === 'lobby') return <Big disabled={total === 0} onClick={() => run(liveGoto(session.id, 0))}>Comenzar juego ▶</Big>
+    if (phase === 'question') return <Big onClick={() => run(liveSetPhase(session.id, 'reveal'))}>Mostrar resultados ({answeredCount}/{parts.length})</Big>
     if (phase === 'reveal') return (
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {hasExplanation && <Big onClick={() => liveSetPhase(session.id, 'explanation')}>Ver explicación 💡</Big>}
-        <Btn variant="primary" size="lg" onClick={() => liveSetPhase(session.id, 'leaderboard')}>Tabla de posiciones 🏆</Btn>
+        {hasExplanation && <Big onClick={() => run(liveSetPhase(session.id, 'explanation'))}>Ver explicación 💡</Big>}
+        <Btn variant="primary" size="lg" onClick={() => run(liveSetPhase(session.id, 'leaderboard'))}>Tabla de posiciones 🏆</Btn>
       </div>
     )
-    if (phase === 'explanation') return <Big onClick={() => liveSetPhase(session.id, 'leaderboard')}>Tabla de posiciones 🏆</Big>
+    if (phase === 'explanation') return <Big onClick={() => run(liveSetPhase(session.id, 'leaderboard'))}>Tabla de posiciones 🏆</Big>
     if (phase === 'leaderboard') return idx < total - 1
-      ? <Big onClick={() => liveGoto(session.id, idx + 1)}>Siguiente pregunta →</Big>
-      : <Big onClick={() => liveEnd(session.id)}>Finalizar y ver podio 🏁</Big>
+      ? <Big onClick={() => run(liveGoto(session.id, idx + 1))}>Siguiente pregunta →</Big>
+      : <Big onClick={() => run(liveEnd(session.id))}>Finalizar y ver podio 🏁</Big>
     if (phase === 'podium') return (
       <Btn variant="secondary" size="lg" onClick={() => { try { sessionStorage.removeItem(HOST_KEY) } catch (_) {} onExit() }}>Nueva sesión</Btn>
     )

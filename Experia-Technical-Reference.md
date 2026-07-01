@@ -222,6 +222,23 @@ profiles.cohort_id
 | `read` | boolean | |
 | `created_at` | timestamptz | |
 
+#### Modo Aula en Vivo (migración `0022`)
+
+Quiz sincrónico tipo Kahoot, dirigido por el profesor. Cuatro tablas:
+
+- **`live_sessions`** — estado de la sesión: `code` (PIN 6 dígitos), `host_id`, `status` (lobby/active/ended), `phase` (lobby/question/reveal/explanation/leaderboard/podium), `current_index`, `total_questions`, `question_started_at`, `questions` (jsonb, **snapshot SIN la respuesta correcta**), `current_reveal` (jsonb con correct+explicación, solo durante reveal/explanation). **Lectura pública** (RLS `using (true)`).
+- **`live_session_keys`** — `session_id` PK, `answer_key` (jsonb: `[{correct,points,time_limit_s,explanation,explanationImage}]`). **Solo el host la lee** (RLS `host_id = auth.uid()`); el resto de accesos van por funciones `SECURITY DEFINER`.
+- **`live_participants`** — `session_id`, `user_id?`, `nombre`, `apellido`, `correo`, `salon`, `score`, `streak`. Lectura pública (leaderboard).
+- **`live_answers`** — `participant_id`, `question_index`, `answer_index`, `is_correct`, `response_ms`, `points`. `UNIQUE(participant_id, question_index)` (1 respuesta por pregunta).
+
+**RPCs (`SECURITY DEFINER`)** — toda escritura de estudiante pasa por aquí (anti-trampa, cálculo de puntaje server-side):
+| Función | Rol | Hace |
+|---|---|---|
+| `create_live_session(course,module,title,questions,default_time)` | authenticated | Arma snapshot (sin `correct`) + `answer_key`, genera PIN único |
+| `join_live_session(code,nombre,apellido,correo,salon)` | anon | Inserta participante |
+| `submit_live_answer(session,participant,index,answer)` | anon | Valida fase, calcula puntaje `base*(1-0.5*tiempo/límite)` + racha, idempotente |
+| `live_set_phase(session,phase)` / `live_goto(session,index)` / `live_end(session)` | authenticated (solo host) | Avanzan la sesión; en reveal copian la llave a `current_reveal` |
+
 ---
 
 ## Seguridad (RLS)
@@ -324,6 +341,10 @@ Límite de advertencia: 600 KB.
 | Empathy map | Costruir mapa de empatía del estudiante |
 | Simulation | Escenarios de decisión con consecuencias |
 | Matching pairs | Emparejar términos con definiciones |
+| Quiz | Opción múltiple. Soporta `passage` (texto/imágenes encima) y, por pregunta: imagen, explicación (texto+imagen), `timeLimit`, `points`, `difficulty`. Se autora en `route-editor/QuizCreatorModal.jsx` con subida de imágenes in-app (`ImageUploader` → bucket `attachments`) |
+| True/False, Fill-blank | Verdadero/falso y completar espacios |
+
+> **Modo Aula en Vivo:** los retos `quiz` también se pueden jugar en una sesión sincrónica tipo Kahoot (páginas `LiveHost.jsx`/`LivePlay.jsx`, `lib/liveClient.js`). Ver "Modo Aula en Vivo" en la sección de Base de datos y CLAUDE.md §8.
 
 ---
 
@@ -370,6 +391,13 @@ Campos relevantes para presencia:
 - `profiles.current_module` — módulo activo en este momento
 
 El frontend suscribe a cambios en `profiles` y actualiza la UI de presencia en el panel de instructor/admin sin necesidad de polling.
+
+También está habilitado en `route_configs` (rutas personalizadas) y en `live_sessions` + `live_participants` (Modo Aula en Vivo):
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.live_sessions;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.live_participants;
+```
+En el modo en vivo, host y estudiantes se suscriben a la sesión por su `id` y a los participantes por `session_id` (`lib/liveClient.js`), con un re-sync de respaldo por poll cada 7 s y en `visibilitychange` por si el realtime se cae en el aula.
 
 ---
 

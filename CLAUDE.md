@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > **Experia** is a web platform for teacher training in Experience-Centered Design (DCE). Teachers progress through interactive lessons, challenges, and final deliverables, supervised by instructors.
 
 **Production:** https://experia-app.pages.dev  
-**Version:** v14 (June 2026) — multi-course + 4 immersive course themes live
+**Version:** v15 (June 2026) — multi-course + 4 immersive themes + **Modo Aula en Vivo** (quiz sincrónico tipo Kahoot)
 
 ---
 
@@ -158,6 +158,10 @@ const useStore = (sel) => { /* React hook */ };
 | `course_enrollments` | Student ↔ course matrícula (drives course switcher + `enrolledCourseId`) |
 | `user_courses` | Per-user course access grant (strict gate, migration 0018) |
 | `institution_courses` | Course enabled per institution |
+| `live_sessions` | Live quiz session state (phase, current question, **snapshot SIN respuestas**) — migration 0022 |
+| `live_session_keys` | Respuestas correctas + explicación de la sesión (SOLO el host las lee) |
+| `live_participants` | Quien se unió por PIN (nombre, apellido, correo, salón) + puntaje/racha |
+| `live_answers` | Respuestas enviadas (1 por participante/pregunta) |
 
 **Security:**
 - RLS (Row Level Security) per role
@@ -254,7 +258,7 @@ Next module unlocks (dependencies checked)
 | `empathy` | Sort cards into 4 quadrants | `{ empathyCards: [{id,text,correct}] }`, `correct ∈ piensa\|siente\|dice\|hace` |
 | `simulation` | Multi-step decision tree | ⚠️ ignored — always renders the built-in generic `SIM_TREE` (store doesn't forward sim data) |
 | `matching` | Connect concepts ↔ definitions | `{ matchPairs: [{id,concept,def}] }` |
-| `quiz` | Multiple-choice questions | `{ questions: [{question,options,correct}] }` |
+| `quiz` | Multiple-choice questions | `{ questions: [{question,options,correct, image?,imageHeight?,explanation?,explanationImage?,timeLimit?,points?,difficulty?}], passage? }` |
 | `truefalse` | Mark statements true/false | `{ statements: [{id,text,answer:bool}] }` |
 | `fillblank` | Fill blanks from a word bank | `{ blanks: [{id,before,answer,after}] }` |
 | `designlab` | Open-ended final (rubric) | n/a (rubric in `content`) |
@@ -262,6 +266,12 @@ Next module unlocks (dependencies checked)
 **Adding a challenge type** (e.g. `truefalse`) touches: `challenges.jsx` (render component + dispatcher map), `store.jsx` (`dbModToAppMod` forward + `publishRouteToCourse` ×2), `route-editor/constants.js` (`CHALLENGE_TYPES` + `CTYPE_EMOJI`), `route-editor/EditorContents.jsx` (author UI) + `ChallengeEditorModal.jsx` (register), `route-editor/RoutePreviewModal.jsx` (preview), `games.jsx` (icon/label).
 
 **Lesson `content`** is an array of sections rendered by `lesson.jsx`. Supported `type`s: `intro`, `text`, `quote`, `steps`, `reveal`, `image`, `callout`, `concepts`, `compare`, `video`. There is **no** `heading` type. `steps`/`reveal`/`concepts` items use `t`/`d` keys; images use `url`.
+
+**Quiz `passage` + per-question fields** (lectura crítica y similares): a `quiz` reto can carry an optional `challenge_data.passage` (texto/imágenes mostrados **encima** de las preguntas) and each question accepts optional fields:
+- `passage`: `{ intro, title, paragraphs:[str], source, images:[{url,caption,width,height}], imagesLayout:'row'|'column' }`. Rendered by `QuizPassage` in `challenges.jsx` con `objectFit:contain` (no recorta); `width`/`height` aceptan número (px) o string CSS.
+- Por pregunta: `image`+`imageHeight` (mostrada sobre el enunciado), `explanation`+`explanationImage` (se muestran tras responder y en el repaso), `timeLimit`/`points`/`difficulty` (metadatos que alimentan el **Modo Aula en Vivo**).
+- Se autoran en `route-editor/QuizCreatorModal.jsx` (sección "texto/imágenes de apoyo" + "⚙️ Opciones avanzadas" por pregunta, con reordenar/duplicar). El store reenvía `passage` y el array `questions` completo, así que campos nuevos por pregunta viajan solos.
+- **Subida de imágenes in-app:** componente reutilizable `ImageUploader` (`ui.jsx`) → sube a Supabase Storage bucket `attachments` (carpeta `passage-images`) y devuelve la URL pública vía `onUploaded(url)`. El bucket `attachments` debe ser **público**.
 
 ### 6. Content as Code (No CMS)
 
@@ -283,6 +293,17 @@ A course can have an immersive visual theme via the `courses.theme` column. Acti
 - **Characters (reactive):** `src/lib/characters.jsx` is the single registry (theme → character: avatar, `ui` palette, `lines` per context). `CharacterFloat` (lazy-loaded via `CourseAmbient`) renders the active theme's character and reacts to events fired with `reactCharacter(context)` — contexts: `idle`, `lessonIntro`, `correct`, `wrong`, `moduleComplete`, `routeComplete`. Triggered from `lesson.jsx` (intro/complete) and `recordAttempt` in `store.jsx` (correct/wrong by score). Missing lines fall back to `idle`; missing character = nothing renders.
 - **Seeds:** course content lives in `supabase/migrations/0013`–`0016`. These are **run manually** in the Supabase SQL Editor (git push deploys only the frontend; migrations are never automatic). Canonical correct template: `0013`. They must match the real `course_modules` schema (id uuid auto, `"order"`, `is_enabled`, `area_id`, `challenge_type`, `challenge_data`) and the content shapes in §5.
 
+### 8. Modo Aula en Vivo (quiz sincrónico tipo Kahoot)
+
+Capa **sincrónica** sobre los cursos existentes: el profesor lanza un quiz en vivo y la pantalla de cada estudiante queda **encadenada a su ritmo** (no puede adelantarse). Pensado para el aula. Backend en `0022_live_classroom.sql` (ejecutar manual en SQL Editor).
+
+- **Ingreso del estudiante:** página **pública** `#/live` (sin login, ver routing abajo) → PIN + registro ligero (nombre, apellido, correo, salón) en `live_participants`. El profe lanza desde el sidebar instructor → "Aula en Vivo" (page `live-host`, también en switch admin).
+- **Flujo por pregunta (lo dicta el profe):** `lobby → question → reveal → explanation → leaderboard → podium`. El estado vive en `live_sessions`; estudiantes y host se suscriben por realtime (`subscribeSession`/`subscribeParticipants` en `lib/liveClient.js`) + red de seguridad por poll cada 7s y en `visibilitychange`.
+- **Anti-trampa:** la respuesta correcta NO está en lo que leen los estudiantes. `live_sessions.questions` es un snapshot **sin `correct`**; las respuestas/explicación viven en `live_session_keys` (solo el host la lee por RLS). Toda escritura de estudiante pasa por RPCs **SECURITY DEFINER**: `join_live_session`, `submit_live_answer` (calcula el puntaje **en el servidor**: `base*(1-0.5*tiempo/límite)`, racha). Control del profe: `create_live_session` (arma snapshot+keys), `live_set_phase`, `live_goto`, `live_end`. El "revelado" lo dispara el host (copia correct+explicación a `live_sessions.current_reveal`).
+- **Routing público:** `PUBLIC_PAGES=['cert','live']` en `store.jsx` permite el deep link sin sesión (3 puntos gated del hash routing + un bootstrap inicial); `app.jsx` renderiza `live` **antes** del gate de login (igual que `cert`).
+- **Pulido:** `lib/sound.js` (beeps; el acierto/error suena en `reveal`, no al enviar, para no adelantar el resultado), QR del PIN (api.qrserver.com), `Podium` animado + `Confetti`, botón de silencio (`experia:live-muted`).
+- **Origen del contenido:** reúsa los retos `quiz` del curso (incluye `timeLimit`/`points`/`difficulty`/`explanation` por pregunta, §5). El host snapshotea las `questions` del módulo elegido.
+
 ---
 
 ## File Structure
@@ -297,7 +318,9 @@ src/
 │   ├── supabaseClient.js    # Supabase init
 │   ├── loadStudentSession.js # Load XP, badges
 │   ├── idleTimeout.js       # Idle auto-logout (30 min)
-│   └── theme.js             # Dark/light + accents
+│   ├── theme.js             # Dark/light + accents
+│   ├── liveClient.js        # Modo Aula en Vivo: RPCs + suscripciones realtime
+│   └── sound.js             # Beeps Web Audio (sin archivos) + mute para el modo en vivo
 ├── components/
 │   ├── ui.jsx               # Reusable components
 │   ├── Sidebar.jsx
@@ -311,6 +334,8 @@ src/
     ├── landing.jsx, login.jsx
     ├── map.jsx, lesson.jsx, challenges.jsx
     ├── Grid.jsx, profile.jsx
+    ├── LivePlay.jsx            # Modo Aula en Vivo — estudiante (página PÚBLICA #/live, sin login)
+    ├── LiveHost.jsx            # Modo Aula en Vivo — profesor (page 'live-host': lanzador + panel)
     ├── AdminUsers.jsx, AdminCourses.jsx, etc.
     └── InstructorStudentView.jsx, forum.jsx, etc.
 
@@ -324,7 +349,9 @@ supabase/
 │   ├── 0017_active_users_institutions.sql  # is_active gate
 │   ├── 0018_user_course_access.sql    # user_courses (strict per-user access)
 │   ├── 0019_admin_manage_course_progress.sql
-│   └── 0020_seed_ecosistema_ia_course.sql  # 8-module video MOOC, sequential unlock
+│   ├── 0020_seed_ecosistema_ia_course.sql  # 8-module video MOOC, sequential unlock
+│   ├── 0021_seed_lectura_critica_llanto.sql # seed quiz con passage (texto+imágenes) — reemplazar URLs PLACEHOLDER
+│   └── 0022_live_classroom.sql             # Modo Aula en Vivo: tablas live_* + RLS + RPCs (scoring server-side)
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/
@@ -426,7 +453,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 
 1. **Hash routing:** URLs use `#/page/nodeId` (not pathname)
 2. **RLS policies:** Check Supabase if students can't read data
-3. **Realtime:** Only route_configs subscribed; others need refresh
+3. **Realtime:** `route_configs` + `live_sessions`/`live_participants` (Modo Aula en Vivo) subscribed; other tables need refresh
 4. **XP migrations:** Still migrating to course_progress table
 5. **Content changes:** Require `git push` (no hot reload)
 
