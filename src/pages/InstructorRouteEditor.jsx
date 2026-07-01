@@ -318,14 +318,42 @@ const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
 
 // ─── Selector: colegio → curso → crear/abrir copia ───────────────────────────
 const InstructorRouteEditor = () => {
-  const routeConfigs        = useStore(s => s.routeConfigs)
-  const namedRoutes         = useStore(s => s.namedRoutes)
-  const institutions        = useStore(s => s.institutions)
-  const institutionCourses  = useStore(s => s.institutionCourses || [])
-  const courses             = useStore(s => s.courses || [])
-  const userCourses         = useStore(s => s.userCourses || [])
-  const user                = useStore(s => s.user)
+  const routeConfigs           = useStore(s => s.routeConfigs)
+  const namedRoutes            = useStore(s => s.namedRoutes)
+  const institutions           = useStore(s => s.institutions)
+  const instructorInstitutions = useStore(s => s.instructorInstitutions || [])
+  const institutionCourses     = useStore(s => s.institutionCourses || [])
+  const courses                = useStore(s => s.courses || [])
+  const userCourses            = useStore(s => s.userCourses || [])
+  const user                   = useStore(s => s.user)
   const isMobile = useMobile()
+
+  // Instituciones a las que este instructor está asignado.
+  // Si no tiene ninguna asignada en instructor_institutions pero sí tiene
+  // institution_id en su perfil, se usa esa como fallback (ej. instructores
+  // creados antes de que existiera la tabla instructor_institutions).
+  const myInstitutions = React.useMemo(() => {
+    const assigned = instructorInstitutions
+      .filter(ii => ii.instructor_id === user?.id)
+      .map(ii => institutions.find(i => i.id === ii.institution_id))
+      .filter(Boolean)
+    if (assigned.length > 0) return assigned
+    // fallback: institución del perfil
+    if (user?.institution_id) {
+      const inst = institutions.find(i => i.id === user.institution_id)
+      return inst ? [inst] : []
+    }
+    return []
+  }, [instructorInstitutions, institutions, user])
+
+  // Si solo tiene una institución, pre-seleccionarla
+  const [routeInstitution, setRouteInstitution] = React.useState(() =>
+    myInstitutions.length === 1 ? myInstitutions[0].id : '')
+
+  React.useEffect(() => {
+    if (myInstitutions.length === 1 && !routeInstitution)
+      setRouteInstitution(myInstitutions[0].id)
+  }, [myInstitutions])
 
   // ── Modo curso (fork activo) ──
   const [activeFork, setActiveFork] = React.useState(null) // { id, name }
@@ -339,7 +367,6 @@ const InstructorRouteEditor = () => {
   const [publishing, setPublishing]       = React.useState(false)
   const [publishResult, setPublishResult] = React.useState(null)
   const [routeName, setRouteName]         = React.useState('')
-  const [routeInstitution, setRouteInstitution] = React.useState('')
   const [dragIdx, setDragIdx]     = React.useState(null)
   const [overIdx, setOverIdx]     = React.useState(null)
   const [showAddModule, setShowAddModule]         = React.useState(false)
@@ -562,7 +589,7 @@ const InstructorRouteEditor = () => {
               <select value={routeInstitution} onChange={e => { setRouteInstitution(e.target.value); setSelectedCourseId('') }}
                 style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', background: 'var(--white)', boxSizing: 'border-box' }}>
                 <option value="">— Elige un colegio —</option>
-                {institutions.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
+                {myInstitutions.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
               </select>
             </div>
             {/* Curso */}
@@ -629,7 +656,7 @@ const InstructorRouteEditor = () => {
             <select value={routeInstitution} onChange={e => setRouteInstitution(e.target.value)}
               style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '2px solid var(--orange)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', background: 'var(--white)', boxSizing: 'border-box', fontWeight: 600 }}>
               <option value="">— Ruta global (sin colegio) —</option>
-              {institutions.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
+              {myInstitutions.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
             </select>
           </div>
           <div style={{ flex: 1, minWidth: 200 }}>
