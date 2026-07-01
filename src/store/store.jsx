@@ -1266,10 +1266,181 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
   return { ok: true, count: rows.length };
 };
 
+// ── FORK DE CURSO POR TUTOR + COLEGIO ─────────────────────────────────────
+// Dado un courseId (default) y un institutionId, busca si ya existe una copia
+// del tutor actual para ese colegio. Si no, la crea clonando el curso y sus
+// módulos. Devuelve { id, isNew } con el id de la copia.
+const forkCourseForInstitution = async (courseId, institutionId) => {
+  const { user } = XS.get();
+  if (!user?.id || !courseId || !institutionId) return { error: 'Faltan parámetros' };
+
+  // 1) ¿Ya existe una copia de este tutor para este colegio?
+  const { data: existing } = await supabase.from('courses')
+    .select('id,name')
+    .eq('parent_course_id', courseId)
+    .eq('institution_id', institutionId)
+    .eq('owner_id', user.id)
+    .maybeSingle();
+  if (existing) return { id: existing.id, name: existing.name, isNew: false };
+
+  // 2) Trae el curso default
+  const { data: parent, error: pe } = await supabase.from('courses')
+    .select('*').eq('id', courseId).single();
+  if (pe || !parent) return { error: 'No se encontró el curso original' };
+
+  // 3) Crea la copia
+  const { data: copy, error: ce } = await supabase.from('courses').insert({
+    name: parent.name + ' — mi versión',
+    description: parent.description,
+    cover_image: parent.cover_image,
+    color: parent.color,
+    theme: parent.theme,
+    area_id: parent.area_id,
+    is_active: true,
+    owner_id: user.id,
+    parent_course_id: courseId,
+    institution_id: institutionId,
+  }).select().single();
+  if (ce || !copy) return { error: ce?.message || 'No se pudo crear la copia' };
+
+  // 4) Clona los módulos
+  const { data: modules } = await supabase.from('course_modules')
+    .select('*').eq('course_id', courseId).order('"order"');
+  if (modules?.length) {
+    const cloned = modules.map(({ id: _id, course_id: _cid, created_at: _ca, updated_at: _ua, ...rest }) => ({
+      ...rest,
+      course_id: copy.id,
+    }));
+    await supabase.from('course_modules').insert(cloned);
+  }
+
+  await loadCourses();
+  return { id: copy.id, name: copy.name, isNew: true };
+};
+
+// Carga los módulos de un curso para edición en el editor de rutas del instructor.
+// Devuelve los módulos convertidos al formato del editor (mismo shape que los módulos
+// DCE de getScopeModules) para que las acciones de edición existentes sigan funcionando.
+const loadCourseForEditing = async (courseId) => {
+  const { data, error } = await supabase.from('course_modules')
+    .select('*').eq('course_id', courseId).order('"order"');
+  if (error) return { error: error.message, modules: [], customModules: [] };
+
+  const standard = [], custom = [];
+  (data || []).forEach(row => {
+    const mod = {
+      ...dbModToAppMod(row),
+      // Conserva campos del editor que dbModToAppMod no mapea
+      subtitle: row.subtitle || '',
+      desc: row.description || '',
+      task: '',
+      enabled: row.is_enabled !== false,
+      override: null,
+      _dbRow: row, // referencia para UPDATE en sitio
+    };
+    // Los módulos personalizados del tutor (creados con el editor) tienen ids no-uuid-fijo
+    // pero aquí tratamos TODOS como "módulos reales del curso" — el editor los muestra
+    // en la lista principal, sin distinción base/custom.
+    standard.push(mod);
+  });
+  return { modules: standard, customModules: custom };
+};
+
+// Guarda los cambios del editor sobre un curso real (la copia del tutor).
+// Estrategia UPDATE en sitio para los módulos existentes (preserva UUIDs →
+// no rompe course_progress.completed[]), INSERT para los nuevos, DELETE para
+// los quitados. Devuelve { ok, count } o { error }.
+const saveCourseModules = async (courseId, moduleList, courseName) => {
+  if (!courseId) return { error: 'Sin curso seleccionado' };
+
+  // Renombrar el curso si cambió el nombre
+  if (courseName !== undefined) {
+    await supabase.from('courses').update({ name: courseName, updated_at: new Date().toISOString() }).eq('id', courseId);
+    await loadCourses();
+  }
+
+  // IDs existentes en la BD
+  const { data: existingRows } = await supabase.from('course_modules')
+    .select('id').eq('course_id', courseId);
+  const existingIds = new Set((existingRows || []).map(r => r.id));
+
+  const toUpdate = [], toInsert = [], toDeleteIds = [];
+  const seen = new Set();
+
+  moduleList.forEach((m, i) => {
+    const payload = {
+      course_id: courseId,
+      title: m.title,
+      subtitle: m.subtitle || '',
+      description: m.desc || '',
+      type: m.type || 'lesson',
+      challenge_type: m.ctype || null,
+      area_id: m._dbRow?.area_id ?? null,
+      character_line: m.characterLine || m._dbRow?.character_line || null,
+      requirements: m.req || [],
+      xp: m.xp || 100,
+      order: i + 1,
+      is_enabled: m.enabled !== false,
+      content: m.content || [],
+      challenge_data: (() => {
+        const cd = {};
+        if (m.dragItems)    cd.dragItems    = m.dragItems;
+        if (m.empathyCards) cd.empathyCards = m.empathyCards;
+        if (m.matchPairs)   cd.matchPairs   = m.matchPairs;
+        if (m.simContext)   cd.simContext   = m.simContext;
+        if (m.questions)    cd.questions    = m.questions;
+        if (m.statements)   cd.statements   = m.statements;
+        if (m.blanks)       cd.blanks       = m.blanks;
+        if (m.passage)      cd.passage      = m.passage;
+        return cd;
+      })(),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (m.id && existingIds.has(m.id)) {
+      toUpdate.push({ id: m.id, ...payload });
+      seen.add(m.id);
+    } else {
+      toInsert.push(payload);
+    }
+  });
+
+  existingIds.forEach(id => { if (!seen.has(id)) toDeleteIds.push(id); });
+
+  const ops = [];
+  if (toDeleteIds.length) ops.push(supabase.from('course_modules').delete().in('id', toDeleteIds));
+  if (toUpdate.length)   ops.push(...toUpdate.map(({ id, ...rest }) => supabase.from('course_modules').update(rest).eq('id', id)));
+  if (toInsert.length)   ops.push(supabase.from('course_modules').insert(toInsert));
+
+  const results = await Promise.all(ops);
+  const firstError = results.find(r => r.error)?.error;
+  if (firstError) return { error: firstError.message };
+  return { ok: true, count: toUpdate.length + toInsert.length };
+};
+
+// Dada la matrícula de un estudiante en courseId + su institution_id,
+// resuelve qué course_id debe usar: la copia del tutor de su colegio (si existe)
+// o el default. Retorna el courseId efectivo.
+const resolveCourseForStudent = async (courseId, institutionId) => {
+  if (!institutionId || !courseId) return courseId;
+  const { data } = await supabase.from('courses')
+    .select('id')
+    .eq('parent_course_id', courseId)
+    .eq('institution_id', institutionId)
+    .eq('is_active', true)
+    .maybeSingle();
+  return data?.id || courseId;
+};
+
 // Cambia el curso activo del estudiante (multi-inscripción)
+// Resuelve si existe una copia del tutor para el colegio del estudiante.
 const switchCourse = async (courseId) => {
   const { user, selectedArea, allEnrollments } = XS.get();
   if (!user?.id || !courseId) return;
+
+  // Resolver copia efectiva para el colegio del usuario
+  const effectiveCourseId = await resolveCourseForStudent(courseId, user.institution_id);
+
   // Si el estudiante tiene ACCESO pero aún no MATRÍCULA en este curso
   // (desfase user_courses ↔ course_enrollments), créala antes de entrar
   // para que su progreso se persista correctamente.
@@ -1287,7 +1458,7 @@ const switchCourse = async (courseId) => {
     XS.set({ allEnrollments: [...(allEnrollments || []), courseId] });
   }
   const { data: modulesData } = await supabase.from('course_modules')
-    .select('*').eq('course_id', courseId).eq('is_enabled', true).order('"order"');
+    .select('*').eq('course_id', effectiveCourseId).eq('is_enabled', true).order('"order"');
   const filtered = selectedArea
     ? (modulesData || []).filter(row => !row.area_id || row.area_id === selectedArea)
     : (modulesData || []);
@@ -1422,6 +1593,7 @@ export {
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,
   loadUserCourses, setUserCourseAccess, setUserCourseAccessBulk, allowedCourseIds,
   loadCourseModules, enrollInCourse, dbModToAppMod, publishRouteToCourse, switchCourse,
+  forkCourseForInstitution, loadCourseForEditing, saveCourseModules, resolveCourseForStudent,
   applyInitialHash, markOnboarded, claimOnboardingBonus, awardForumParticipation,
   hashFor, issueCertificate, getActiveCourseTheme, reactCharacter,
 };

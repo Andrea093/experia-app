@@ -138,7 +138,7 @@ async function restoreSession() {
     const [{ data: subsData }, { data: attemptsData }, studentSess] = await Promise.all([
       supabase.from('submissions').select('*').eq('student_id', session.user.id).limit(100),
       supabase.from('challenge_attempts').select('*').eq('student_id', session.user.id).limit(200),
-      loadStudentSession(session.user.id, profile.area || null),
+      loadStudentSession(session.user.id, profile.area || null, profile.institution_id || null),
     ])
     submissions       = (subsData     || []).map(s => mapSubmission(s, me))
     challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, me))
@@ -173,6 +173,7 @@ async function restoreSession() {
     isLoggedIn: true,
     user: { id: session.user.id, name: profile.name, email: profile.email,
             avatar: profile.avatar, role: profile.role,
+            institution_id: profile.institution_id || null,
             // ?? true: si la migración 0009 no está aplicada, no molestar con onboarding
             onboarded: profile.onboarded ?? true,
             onboardingBonus: profile.onboarding_bonus ?? true },

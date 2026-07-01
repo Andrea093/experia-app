@@ -5,9 +5,11 @@ import { dbModToAppMod } from '../store/store.jsx'
  * Loads all course-related state for a student in a single optimised call.
  * - If enrolled: fetches course_modules + course_progress in parallel.
  * - If not enrolled: falls back to legacy `progress` table.
+ * - Resolves a tutor's fork of the course for the student's institution
+ *   (if one exists) so the student sees the customised version.
  * Returns { enrolledCourseId, courseModules, allEnrollments, xp, completed, badges }
  */
-export async function loadStudentSession(userId, area) {
+export async function loadStudentSession(userId, area, institutionId) {
   const [{ data: enrollmentsData }, { data: legacyProgress }] = await Promise.all([
     supabase.from('course_enrollments').select('course_id').eq('student_id', userId),
     supabase.from('progress').select('xp,completed,badges').eq('user_id', userId).maybeSingle(),
@@ -27,9 +29,21 @@ export async function loadStudentSession(userId, area) {
     }
   }
 
+  // Resolver si existe una copia del tutor para el colegio del estudiante
+  let effectiveCourseId = enrolledCourseId
+  if (institutionId) {
+    const { data: fork } = await supabase.from('courses')
+      .select('id')
+      .eq('parent_course_id', enrolledCourseId)
+      .eq('institution_id', institutionId)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (fork?.id) effectiveCourseId = fork.id
+  }
+
   const [{ data: modulesData }, { data: cp }] = await Promise.all([
     supabase.from('course_modules').select('*')
-      .eq('course_id', enrolledCourseId).eq('is_enabled', true).order('"order"'),
+      .eq('course_id', effectiveCourseId).eq('is_enabled', true).order('"order"'),
     supabase.from('course_progress').select('xp,completed,badges')
       .eq('user_id', userId).eq('course_id', enrolledCourseId).maybeSingle(),
   ])
