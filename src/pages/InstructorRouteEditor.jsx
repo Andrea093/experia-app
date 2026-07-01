@@ -1,21 +1,14 @@
 import React from 'react'
 import {
-  useStore, AREAS, getScopeModules, TRANSVERSAL_AREA,
-  saveRouteConfig, routeKey, publishRouteToCourse,
+  useStore,
   forkCourseForInstitution, loadCourseForEditing, saveCourseModules,
 } from '../store/store.jsx'
-import { useMobile, ChevRIc, XIc, PlusIc, TrashIc, EditIc, GripIc, CheckIc, Btn, Modal } from '../components/ui.jsx'
+import { useMobile, PlusIc, TrashIc, EditIc, GripIc, Btn } from '../components/ui.jsx'
 import {
-  TYPE_LABELS, TYPE_COLORS, TYPE_BG, CHALLENGE_TYPES,
+  TYPE_LABELS, TYPE_COLORS, TYPE_BG,
   ChallengeEditorModal, QuizCreatorModal, CustomModuleModal,
   NewChallengeModal, RoutePreviewModal,
 } from '../components/route-editor/index.js'
-
-// Pestañas del modo DCE (fallback sin curso)
-const TRANSVERSAL_SCOPE = { id: TRANSVERSAL_AREA, name: 'Transversal', icon: '🌐', color: '#4F46E5' }
-const SCOPES = [TRANSVERSAL_SCOPE, ...AREAS]
-const scopeName = (id) => SCOPES.find(s => s.id === id)?.name || id
-const isTransversal = (id) => id === TRANSVERSAL_AREA
 
 // ─── Módulo individual en la lista ───────────────────────────────────────────
 const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
@@ -314,15 +307,13 @@ const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
         onClose={() => setShowAddModule(false)}
         onSave={mod => { addCustomModule(mod); setShowAddModule(false) }} />
       <RoutePreviewModal open={showPreview} onClose={() => setShowPreview(false)}
-        area={SCOPES[0]} moduleList={moduleList} customModules={[]} theme={courseTheme} />
+        area={null} moduleList={moduleList} customModules={[]} theme={courseTheme} />
     </div>
   )
 }
 
 // ─── Selector: colegio → curso → crear/abrir copia ───────────────────────────
 const InstructorRouteEditor = () => {
-  const routeConfigs           = useStore(s => s.routeConfigs)
-  const namedRoutes            = useStore(s => s.namedRoutes)
   const institutions           = useStore(s => s.institutions)
   const instructorInstitutions = useStore(s => s.instructorInstitutions || [])
   const institutionCourses     = useStore(s => s.institutionCourses || [])
@@ -360,25 +351,6 @@ const InstructorRouteEditor = () => {
 
   // ── Modo curso (fork activo) ──
   const [activeFork, setActiveFork] = React.useState(null) // { id, name }
-
-  // ── Modo DCE (fallback) ──
-  const [activeArea, setActiveArea]       = React.useState(TRANSVERSAL_AREA)
-  const [moduleList, setModuleList]       = React.useState([])
-  const [customModules, setCustomModules] = React.useState([])
-  const [saving, setSaving]               = React.useState(false)
-  const [saved, setSaved]                 = React.useState(false)
-  const [publishing, setPublishing]       = React.useState(false)
-  const [publishResult, setPublishResult] = React.useState(null)
-  const [routeName, setRouteName]         = React.useState('')
-  const [dragIdx, setDragIdx]     = React.useState(null)
-  const [overIdx, setOverIdx]     = React.useState(null)
-  const [showAddModule, setShowAddModule]         = React.useState(false)
-  const [editingModule, setEditingModule]         = React.useState(null)
-  const [editingBaseModule, setEditingBaseModule] = React.useState(null)
-  const [editingChallenge, setEditingChallenge]   = React.useState(null)
-  const [editingQuiz, setEditingQuiz]             = React.useState(null)
-  const [showNewChallenge, setShowNewChallenge]   = React.useState(false)
-  const [showPreview, setShowPreview]             = React.useState(false)
 
   // ── Selector de curso (dentro del colegio) ──
   const [selectedCourseId, setSelectedCourseId] = React.useState('')
@@ -430,177 +402,43 @@ const InstructorRouteEditor = () => {
     setActiveFork({ id: result.id, name: result.name })
   }
 
-  // ── Modo DCE: carga de módulos por área ──
-  React.useEffect(() => {
-    if (activeFork) return
-    const defaults = getScopeModules(activeArea)
-    const key = routeKey(activeArea, routeInstitution || null)
-    const globalKey = routeKey(activeArea, null)
-    const config = routeConfigs?.[key] || routeConfigs?.[globalKey]
-    if (config?.modules?.length) {
-      const cm = {}
-      config.modules.forEach(mc => { cm[mc.id] = mc })
-      const sorted = [...defaults]
-        .sort((a, b) => (cm[a.id]?.order ?? 999) - (cm[b.id]?.order ?? 999))
-        .map(m => ({
-          ...m, enabled: cm[m.id]?.enabled !== false,
-          ...(cm[m.id]?.override || {}), override: cm[m.id]?.override || null,
-        }))
-      setModuleList(sorted)
-    } else {
-      setModuleList(defaults.map(m => ({ ...m, enabled: true })))
-    }
-    setCustomModules(config?.customModules || [])
-    const namedRoute = namedRoutes.find(r => r.area === activeArea && r.institution_id === (routeInstitution || null))
-    setRouteName(namedRoute?.name || scopeName(activeArea) || '')
-  }, [activeArea, routeInstitution, routeConfigs, namedRoutes, activeFork])
-
-  // ── Modo DCE: drag & drop ──
-  const handleDrop = (i) => {
-    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return }
-    const next = [...moduleList]; const [moved] = next.splice(dragIdx, 1); next.splice(i, 0, moved)
-    setModuleList(next); setDragIdx(null); setOverIdx(null)
-  }
-  const toggleEnabled = (id) => setModuleList(l => l.map(m => m.id === id ? { ...m, enabled: !m.enabled } : m))
-  const addCustomModule  = (mod) => setCustomModules(l => [...l, { id: 'custom_' + Date.now(), ...mod, enabled: true, order: moduleList.length + l.length }])
-  const saveEditedModule = (mod) => setCustomModules(l => l.map(m => m.id === editingModule?.id ? { ...m, ...mod } : m))
-  const deleteCustom     = (id)  => setCustomModules(l => l.filter(m => m.id !== id))
-
-  const duplicateModule = (mod) => setCustomModules(l => [...l, {
-    id: 'custom_' + Date.now(), title: 'Copia — ' + mod.title,
-    desc: mod.desc || '', task: mod.task || '', xp: mod.xp || 0,
-    type: mod.type || 'lesson', ctype: mod.ctype || null,
-    content: mod.content ? [...mod.content] : [],
-    questions: mod.questions ? [...mod.questions] : [],
-    dragItems: mod.dragItems || mod.override?.dragItems,
-    empathyCards: mod.empathyCards || mod.override?.empathyCards,
-    matchPairs: mod.matchPairs || mod.override?.matchPairs,
-    enabled: true, order: moduleList.length + l.length,
-  }])
-
-  const addFinalDelivery = () => {
-    if (customModules.some(m => m.type === 'final_delivery')) return
-    setCustomModules(l => [...l, {
-      id: 'final_delivery_' + Date.now(), type: 'final_delivery', ctype: null,
-      title: 'Entrega Final', desc: 'Sube tu rejilla pedagógica.',
-      task: '', xp: 300, enabled: true, order: moduleList.length + l.length,
-    }])
-  }
-
-  const saveChallengeOverride = (override) => {
-    if (override.__clearOverride) {
-      const original = getScopeModules(activeArea).find(m => m.id === editingChallenge?.id)
-      if (original) setModuleList(l => l.map(m => m.id === editingChallenge.id ? { ...original, enabled: m.enabled, override: null } : m))
-    } else if (editingChallenge?.isNew) {
-      setCustomModules(l => [...l, { id: 'challenge_' + Date.now(), type: 'challenge', ctype: editingChallenge.ctype, ...override, enabled: true, order: moduleList.length + l.length }])
-    } else {
-      setModuleList(l => l.map(m => m.id === editingChallenge?.id
-        ? { ...m, ...override, override: { ...(m.override || {}), ...override } } : m))
-    }
-    setEditingChallenge(null)
-  }
-
-  const saveQuizCustom = (mod) => {
-    if (editingQuiz?.isNew || !editingQuiz?.id) setCustomModules(l => [...l, { id: 'quiz_' + Date.now(), ...mod, enabled: true, order: moduleList.length + l.length }])
-    else setCustomModules(l => l.map(m => m.id === editingQuiz.id ? { ...m, ...mod } : m))
-    setEditingQuiz(null)
-  }
-
-  const handleNewChallenge = ({ ctype, title, desc, task, xp }) => {
-    setShowNewChallenge(false)
-    const template = { isNew: true, type: 'challenge', ctype, title, desc, task, xp }
-    if (ctype === 'quiz') setEditingQuiz({ ...template, questions: [] })
-    else setEditingChallenge(template)
-  }
-
-  const saveBaseModuleOverride = (mod) => {
-    const { title, desc, task, xp, content } = mod
-    setModuleList(l => l.map(m => m.id === editingBaseModule?.id
-      ? { ...m, title, desc, task, xp, content, override: { title, desc, task, xp, content } } : m))
-    setEditingBaseModule(null)
-  }
-
-  const clearOverride = (modId) => {
-    const original = getScopeModules(activeArea).find(m => m.id === modId)
-    if (!original) return
-    setModuleList(l => l.map(m => m.id === modId
-      ? { ...m, title: original.title, desc: original.desc, task: original.task, xp: original.xp, content: original.content, override: null } : m))
-  }
-
-  const linkedCourse = linkedCourses.find(c => c.id === selectedCourseId) || null
-
-  const handlePublish = async () => {
-    if (!linkedCourse) return
-    setPublishing(true); setPublishResult(null)
-    const result = await publishRouteToCourse(linkedCourse.id, activeArea, moduleList, customModules)
-    setPublishing(false)
-    setPublishResult(result.error ? { error: result.error } : { ok: true, count: result.count })
-    if (!result.error) setTimeout(() => setPublishResult(null), 4000)
-  }
-
-  const handleSaveDCE = async () => {
-    setSaving(true)
-    const modulesConfig = moduleList.map((m, i) => ({ id: m.id, enabled: m.enabled, order: i, ...(m.override ? { override: m.override } : {}) }))
-    const instId = routeInstitution || null
-    const existingRoute = namedRoutes.find(r => r.area === activeArea && r.institution_id === instId)
-    await saveRouteConfig(activeArea, modulesConfig, customModules, routeName || scopeName(activeArea), instId, existingRoute?.id)
-    setSaving(false); setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
-  }
-
-  const activeCount = moduleList.filter(m => m.enabled).length
-
-  const btnRow = (onClick, color, bg, hoverBg) => ({
-    onClick, onMouseEnter: e => e.currentTarget.style.background = hoverBg,
-    onMouseLeave: e => e.currentTarget.style.background = bg,
-    style: { marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px', borderRadius: 12,
-      border: `2px dashed ${color}`, background: bg, color, cursor: 'pointer',
-      fontFamily: 'var(--font)', fontSize: 14, fontWeight: 600, width: '100%', justifyContent: 'center', transition: 'all .2s' },
-  })
-
   // ── Si hay un fork activo, renderiza el editor de curso ──
   if (activeFork) {
     return <CourseEditor courseId={activeFork.id} courseName={activeFork.name} onBack={() => setActiveFork(null)} />
   }
 
-  // ── Vista principal: selector de colegio + curso, y modo DCE por área ──
+  // ── Vista principal: selector de los cursos asignados al instructor ──
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: isMobile ? '0 16px 40px' : '0 24px 40px' }}>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-          <div>
-            <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>Editor de Ruta de Formación</h2>
-            <p style={{ fontSize: 14, color: 'var(--muted)' }}>Elige un curso para personalizar su contenido, o edita la ruta DCE por área</p>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Btn variant="secondary" onClick={() => setShowPreview(true)}>👁 Vista previa</Btn>
-            <Btn variant={saved ? 'secondary' : 'gradient'} disabled={saving} onClick={handleSaveDCE}>
-              {saving ? '⏳ Guardando...' : saved ? '✅ Guardado' : '💾 Guardar ruta DCE'}
-            </Btn>
-          </div>
+        <div style={{ marginBottom: 16 }}>
+          <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>Editor de Ruta de Formación</h2>
+          <p style={{ fontSize: 14, color: 'var(--muted)' }}>Elige uno de tus cursos para crear y editar tu versión personalizada.</p>
         </div>
 
         {/* ── Selector: colegio + curso ── */}
         <div style={{ padding: '16px 18px', borderRadius: 14, background: 'var(--white)', border: '2px solid var(--orange)', marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
-            📚 Personalizar un curso específico
+            📚 Tus cursos
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {/* Colegio */}
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 5 }}>🏫 Colegio</label>
-              <select value={routeInstitution} onChange={e => { setRouteInstitution(e.target.value); setSelectedCourseId('') }}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', background: 'var(--white)', boxSizing: 'border-box' }}>
-                <option value="">— Elige un colegio —</option>
-                {myInstitutions.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
-              </select>
-            </div>
+            {/* Colegio (solo si el instructor tiene más de uno) */}
+            {myInstitutions.length > 1 && (
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 5 }}>🏫 Colegio</label>
+                <select value={routeInstitution} onChange={e => { setRouteInstitution(e.target.value); setSelectedCourseId('') }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', background: 'var(--white)', boxSizing: 'border-box' }}>
+                  <option value="">— Elige un colegio —</option>
+                  {myInstitutions.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
+                </select>
+              </div>
+            )}
             {/* Curso */}
             {routeInstitution && (
               <div style={{ flex: 1, minWidth: 200 }}>
                 <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 5 }}>📖 Curso</label>
                 {linkedCourses.length === 0 ? (
-                  <p style={{ fontSize: 13, color: 'var(--muted)', padding: '8px 0' }}>No tienes cursos disponibles en este colegio.</p>
+                  <p style={{ fontSize: 13, color: 'var(--muted)', padding: '8px 0' }}>No tienes cursos asignados en este colegio.</p>
                 ) : (
                   <select value={selectedCourseId} onChange={e => { setSelectedCourseId(e.target.value); setForkErr('') }}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', background: 'var(--white)', boxSizing: 'border-box' }}>
@@ -643,166 +481,23 @@ const InstructorRouteEditor = () => {
           )}
         </div>
 
-        {/* ── Separador modo DCE ── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0 16px' }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>o edita la ruta DCE por área</span>
-          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-        </div>
-
-        {/* ── Colegio para ruta DCE ── */}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', padding: '14px 18px', borderRadius: 12, background: 'var(--bg-alt)', border: '1px solid var(--border)', marginBottom: 16 }}>
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>
-              🏫 Colegio (la ruta DCE se guarda por colegio)
-            </label>
-            <select value={routeInstitution} onChange={e => setRouteInstitution(e.target.value)}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '2px solid var(--orange)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', background: 'var(--white)', boxSizing: 'border-box', fontWeight: 600 }}>
-              <option value="">— Ruta global (sin colegio) —</option>
-              {myInstitutions.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
-            </select>
-          </div>
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 5 }}>Nombre de la ruta</label>
-            <input value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="Ej: Ruta DCE — Colegio San Francisco"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-          </div>
-          {routeInstitution && (
-            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <div style={{ padding: '6px 12px', borderRadius: 8, background: '#FEF3E8', border: '1px solid var(--orange-pale)', fontSize: 12, color: 'var(--orange)', fontWeight: 600 }}>
-                ✏️ Editando ruta exclusiva para este colegio
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Banner publicar al curso (modo DCE) */}
-        {routeInstitution && linkedCourse && (
-          <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, background: '#F0FDFA', border: '1.5px solid #86EFAC', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#0F766E' }}>📚 Publicar ruta DCE al curso: {linkedCourse.name}</div>
-              <div style={{ fontSize: 11, color: '#115E59', marginTop: 2 }}>Al publicar, los docentes inscritos verán los cambios al recargar</div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-              <button onClick={handlePublish} disabled={publishing}
-                style={{ padding: '8px 16px', borderRadius: 8, border: 'none', cursor: publishing ? 'wait' : 'pointer',
-                  background: publishing ? '#86EFAC' : '#16A34A', color: '#fff', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700 }}>
-                {publishing ? '⏳ Publicando...' : '🚀 Publicar al curso'}
-              </button>
-              {publishResult?.ok    && <span style={{ fontSize: 11, color: '#16A34A', fontWeight: 600 }}>✅ {publishResult.count} módulos publicados</span>}
-              {publishResult?.error && <span style={{ fontSize: 11, color: 'var(--error)', fontWeight: 600 }}>⚠️ {publishResult.error}</span>}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* ── Tabs de área (modo DCE) ── */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        {SCOPES.map((scope, idx) => (
-          <React.Fragment key={scope.id}>
-            <button onClick={() => setActiveArea(scope.id)}
-              style={{ padding: '8px 16px', borderRadius: 10,
-                border: isTransversal(scope.id) && activeArea !== scope.id ? `1.5px solid ${scope.color}` : 'none',
-                cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, transition: 'all .2s',
-                background: activeArea === scope.id ? scope.color : 'var(--bg-alt)',
-                color: activeArea === scope.id ? '#fff' : isTransversal(scope.id) ? scope.color : 'var(--muted)' }}>
-              {scope.icon} {!isMobile && scope.name}
-            </button>
-            {idx === 0 && <div style={{ width: 1, height: 24, background: 'var(--border)', margin: '0 4px' }} />}
-          </React.Fragment>
+      {/* Ayuda: cómo funciona el editor por curso */}
+      <div style={{ padding: 18, borderRadius: 16, background: 'var(--white)', border: '1px solid var(--border)', maxWidth: 560 }}>
+        <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>Cómo funciona</h4>
+        {[
+          { icon: '📚', text: 'Elige uno de los cursos que tienes asignados.' },
+          { icon: '✨', text: 'La primera vez se crea tu versión personal (una copia del curso). El original queda intacto.' },
+          { icon: '✏️', text: 'Edita módulos, retos, su orden y contenido a tu antojo.' },
+          { icon: '💾', text: 'Guarda: solo tú y tus estudiantes de ese colegio verán tus cambios.' },
+        ].map((tip, i) => (
+          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 15, flexShrink: 0 }}>{tip.icon}</span>
+            <p style={{ fontSize: 12, color: 'var(--text-sec)', lineHeight: 1.6, margin: 0 }}>{tip.text}</p>
+          </div>
         ))}
       </div>
-      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 20 }}>
-        {isTransversal(activeArea)
-          ? '🌐 Estos módulos se muestran a los estudiantes de TODAS las áreas.'
-          : `Módulos específicos de ${scopeName(activeArea)}.`}
-      </p>
-
-      {/* Lista de módulos DCE */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 280px', gap: 20, alignItems: 'start' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)' }}>Módulos — {activeCount} activo{activeCount !== 1 ? 's' : ''} de {moduleList.length}</h3>
-            <span style={{ fontSize: 11, color: 'var(--subtle)' }}>⋮⋮ Arrastra para reordenar</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {moduleList.map((mod, i) => (
-              <ModuleRow key={mod.id} mod={mod} idx={i} dragIdx={dragIdx} overIdx={overIdx} isMobile={isMobile}
-                onDragStart={() => setDragIdx(i)} onDragOver={() => setOverIdx(i)}
-                onDrop={() => handleDrop(i)} onDragEnd={() => { setDragIdx(null); setOverIdx(null) }}
-                onEdit={() => mod.type === 'lesson' ? setEditingBaseModule(mod) : setEditingChallenge(mod)}
-                onDuplicate={() => duplicateModule(mod)}
-                onToggle={() => toggleEnabled(mod.id)}
-                onDelete={() => {}} showDelete={false}
-              />
-            ))}
-          </div>
-          {customModules.length > 0 && (
-            <div style={{ marginTop: 20 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', marginBottom: 10 }}>Personalizados ({customModules.length})</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {customModules.map(mod => (
-                  <div key={mod.id} style={{ borderRadius: 14, background: 'var(--white)', border: mod.type === 'final_delivery' ? '2px solid #5EEAD4' : '2px solid var(--purple-bg)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px' }}>
-                      <span style={{ fontSize: 15 }}>{mod.type === 'final_delivery' ? '🎯' : '⚡'}</span>
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--dark)' }}>{mod.title}</span>
-                      {mod.type !== 'final_delivery' && (
-                        <button onClick={() => mod.ctype === 'quiz' ? setEditingQuiz(mod) : setEditingChallenge(mod)}
-                          style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <EditIc s={14} c="var(--muted)" />
-                        </button>
-                      )}
-                      <button onClick={() => deleteCustom(mod.id)}
-                        style={{ background: '#FEE2E2', border: 'none', cursor: 'pointer', width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <TrashIc s={13} c="var(--error)" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <button {...btnRow(() => setShowNewChallenge(true), 'var(--purple)', 'var(--purple-bg)', '#EDE9FE')}>
-            <PlusIc s={18} c="var(--purple)" /> Crear nuevo reto
-          </button>
-          <button {...btnRow(() => setShowAddModule(true), 'var(--success)', '#F0FDFA', '#CCFBF1')}>
-            <PlusIc s={18} c="var(--success)" /> Crear módulo personalizado
-          </button>
-          {!customModules.some(m => m.type === 'final_delivery') && (
-            <button {...btnRow(addFinalDelivery, 'var(--success)', '#CCFBF1', '#99F6E4')}>
-              <PlusIc s={18} c="var(--success)" /> Agregar Entrega Final
-            </button>
-          )}
-        </div>
-        <div style={{ padding: 18, borderRadius: 16, background: 'var(--white)', border: '1px solid var(--border)' }}>
-          <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>Cómo usar el editor</h4>
-          {[
-            { icon: '📚', text: 'Elige un curso arriba para crear tu versión personalizada.' },
-            { icon: '⋮⋮', text: 'Arrastra para cambiar el orden de los módulos.' },
-            { icon: '✏️', text: 'Edita el contenido de cualquier módulo o reto.' },
-            { icon: '🟢', text: 'Activa o desactiva módulos con el toggle.' },
-            { icon: '💾', text: 'Guarda para que tus estudiantes vean los cambios.' },
-          ].map((tip, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 15, flexShrink: 0 }}>{tip.icon}</span>
-              <p style={{ fontSize: 12, color: 'var(--text-sec)', lineHeight: 1.6, margin: 0 }}>{tip.text}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Modals modo DCE */}
-      <NewChallengeModal open={showNewChallenge} onClose={() => setShowNewChallenge(false)} onCreate={handleNewChallenge} />
-      <ChallengeEditorModal open={!!editingChallenge} mod={editingChallenge} onClose={() => setEditingChallenge(null)} onSave={saveChallengeOverride} />
-      <QuizCreatorModal open={!!editingQuiz} initial={editingQuiz?.isNew ? null : editingQuiz} onClose={() => setEditingQuiz(null)} onSave={saveQuizCustom} />
-      <CustomModuleModal open={!!editingBaseModule} initial={editingBaseModule}
-        extraActions={editingBaseModule?.override ? (<Btn variant="secondary" onClick={() => { clearOverride(editingBaseModule.id); setEditingBaseModule(null) }}>Restablecer original</Btn>) : null}
-        onClose={() => setEditingBaseModule(null)} onSave={saveBaseModuleOverride} />
-      <CustomModuleModal open={showAddModule || !!editingModule} initial={editingModule}
-        onClose={() => { setShowAddModule(false); setEditingModule(null) }}
-        onSave={mod => { if (editingModule) saveEditedModule(mod); else addCustomModule(mod); setShowAddModule(false); setEditingModule(null) }} />
-      <RoutePreviewModal open={showPreview} onClose={() => setShowPreview(false)}
-        area={SCOPES.find(s => s.id === activeArea)} moduleList={moduleList} customModules={customModules} />
     </div>
   )
 }
