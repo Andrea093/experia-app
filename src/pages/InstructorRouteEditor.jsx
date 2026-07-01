@@ -78,6 +78,9 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
 // ─── Modo Curso: edita los módulos reales de la copia del tutor ───────────────
 const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
   const isMobile = useMobile()
+  const courses  = useStore(s => s.courses || [])
+  // El tema del curso (los forks copian el theme del padre) alimenta el preview temático.
+  const courseTheme = React.useMemo(() => courses.find(c => c.id === courseId)?.theme || null, [courses, courseId])
   const [moduleList, setModuleList]     = React.useState([])
   const [loading, setLoading]           = React.useState(true)
   const [loadErr, setLoadErr]           = React.useState('')
@@ -311,7 +314,7 @@ const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
         onClose={() => setShowAddModule(false)}
         onSave={mod => { addCustomModule(mod); setShowAddModule(false) }} />
       <RoutePreviewModal open={showPreview} onClose={() => setShowPreview(false)}
-        area={SCOPES[0]} moduleList={moduleList} customModules={[]} />
+        area={SCOPES[0]} moduleList={moduleList} customModules={[]} theme={courseTheme} />
     </div>
   )
 }

@@ -1,6 +1,31 @@
 import React from 'react'
 import { Modal } from '../ui.jsx'
 import { CHALLENGE_TYPES, CTYPE_EMOJI } from './constants.js'
+import { getCharacter } from '../../lib/characters.jsx'
+
+// Etiqueta legible por tema inmersivo (el personaje/paleta viene de characters.jsx)
+const THEME_LABELS = {
+  detective: 'Tema Detective',
+  'escape-room': 'Tema Escape Room',
+  lab: 'Tema Laboratorio',
+  'time-travel': 'Tema Viaje en el Tiempo',
+}
+
+// Deriva la paleta visual del preview a partir del personaje del tema.
+const themePalette = (theme) => {
+  const character = theme ? getCharacter(theme) : null
+  if (!character) return null
+  const accent = character.ui.nameColor
+  const base = character.ui.bgAvatar
+  return {
+    accent, base,
+    gradient: `linear-gradient(135deg, ${base} 0%, ${accent}26 140%)`,
+    glow: character.ui.glow,
+    Avatar: character.Avatar,
+    charName: character.name,
+    label: THEME_LABELS[theme] || 'Tema inmersivo',
+  }
+}
 
 // ── Lesson content display (read-only) ──────────────────────
 const LessonPreviewContent = ({ mod }) => {
@@ -280,8 +305,9 @@ const ChallengePreviewContent = ({ mod }) => {
 }
 
 // ── Route Preview Modal (list + drill-down) ──────────────────
-const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules }) => {
+const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules, theme }) => {
   const [viewing, setViewing] = React.useState(null)
+  const themed = React.useMemo(() => themePalette(theme), [theme])
 
   React.useEffect(() => { if (!open) setViewing(null) }, [open])
 
@@ -315,11 +341,20 @@ const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules }) =
               <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 8px', borderRadius: 8, background: '#CCFBF1', color: 'var(--success)' }}>PERSONALIZADO</span>
             )}
           </div>
-          <div style={{ padding: '20px 24px', borderRadius: 14, background: 'var(--gradient)', marginBottom: 24 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.7)', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 }}>
+          <div style={{ position: 'relative', overflow: 'hidden', padding: '20px 24px', borderRadius: 14,
+            background: themed ? themed.gradient : 'var(--gradient)',
+            border: themed ? `1.5px solid ${themed.accent}40` : 'none',
+            boxShadow: themed ? themed.glow : 'none', marginBottom: 24 }}>
+            {themed && (
+              <div style={{ position: 'absolute', top: 14, right: 16, width: 46, height: 46, borderRadius: '50%',
+                overflow: 'hidden', border: `2px solid ${themed.accent}`, background: themed.base }}>
+                <themed.Avatar />
+              </div>
+            )}
+            <div style={{ fontSize: 10, fontWeight: 700, color: themed ? themed.accent : 'rgba(255,255,255,.7)', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 4 }}>
               {viewing.subtitle || (isLesson ? 'Módulo' : 'Reto')}
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 6 }}>{viewing.title}</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 6, paddingRight: themed ? 52 : 0 }}>{viewing.title}</h2>
             {viewing.desc && <p style={{ fontSize: 13, color: 'rgba(255,255,255,.75)' }}>{viewing.desc}</p>}
             <div style={{ marginTop: 10, padding: '6px 12px', borderRadius: 8, background: 'rgba(0,0,0,.2)', display: 'inline-block' }}>
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,.8)', fontWeight: 600 }}>👁 MODO VISTA PREVIA — Solo visible para el instructor</span>
@@ -334,7 +369,27 @@ const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules }) =
   return (
     <Modal open={open} onClose={onClose} title="Vista previa de la ruta" width={600}>
       <div style={{ maxHeight: '75vh', overflow: 'auto', paddingRight: 4 }}>
-        {area && (
+        {themed ? (
+          <div style={{ padding: '16px 18px', borderRadius: 14, marginBottom: 18,
+            background: themed.gradient, border: `1.5px solid ${themed.accent}40`,
+            boxShadow: themed.glow, display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+              overflow: 'hidden', border: `2px solid ${themed.accent}`, background: themed.base }}>
+              <themed.Avatar />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: themed.accent, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 3 }}>
+                {themed.label}
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>{themed.charName}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.7)', marginTop: 3 }}>
+                {enabled.length} activo{enabled.length !== 1 ? 's' : ''}
+                {' · '}{enabled.reduce((s, m) => s + (m.xp || 0), 0)} XP
+                {' · '}<span style={{ color: themed.accent }}>Así verán tus estudiantes esta ruta</span>
+              </div>
+            </div>
+          </div>
+        ) : area && (
           <div style={{ padding: '14px 18px', borderRadius: 14, marginBottom: 18,
             background: `linear-gradient(135deg, ${area.color}18, ${area.color}06)`,
             border: `2px solid ${area.color}25`, display: 'flex', alignItems: 'center', gap: 12 }}>
