@@ -237,6 +237,74 @@ const LessonSection = React.memo(({ section, index }) => {
   return null;
 });
 
+// ─── Cuerpo de la lección: hero + tarea + secciones + extras ───
+// Es EXACTAMENTE lo que ve el estudiante. Se reutiliza en LessonView y en la
+// vista previa del instructor para que el preview sea fiel al 100%.
+export const LessonBody = ({ mod }) => (
+  <>
+    {/* Hero */}
+    <div style={{
+      padding: '32px 28px', borderRadius: 16, background: 'var(--gradient)',
+      marginBottom: 36, animation: 'fadeUp .5s ease',
+    }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.6)',
+        textTransform: 'uppercase', letterSpacing: 1.5 }}>{mod.subtitle}</span>
+      <h1 style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginTop: 6 }}>{mod.title}</h1>
+      <p style={{ fontSize: 14, color: 'rgba(255,255,255,.75)', marginTop: 8 }}>{mod.desc}</p>
+    </div>
+
+    {/* Task instruction */}
+    {mod.task && (
+      <div className="ls-task-box" style={{ marginBottom: 28, animation: 'fadeUp .4s ease' }}>
+        <span style={{ fontSize: 22, flexShrink: 0 }}>📋</span>
+        <div>
+          <div className="ls-task-label" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>¿Qué debes hacer?</div>
+          <p className="ls-task-text" style={{ fontSize: 14, lineHeight: 1.6, margin: 0 }}>{mod.task}</p>
+        </div>
+      </div>
+    )}
+
+    {/* Sections */}
+    {(mod.content || []).map((sec, i) => <LessonSection key={i} section={sec} index={i} />)}
+
+    {/* Extras added by instructor */}
+    {mod.extras?.length > 0 && (
+      <div style={{ margin: '32px 0', padding: '20px 24px', borderRadius: 16, background: 'var(--white)', border: '1px solid var(--border)' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>📎</span> Recursos adicionales del instructor
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {mod.extras.map((extra, i) => {
+            if (extra.type === 'video') {
+              const videoId = extra.url?.includes('youtube.com/watch?v=')
+                ? extra.url.split('v=')[1]?.split('&')[0]
+                : extra.url?.includes('youtu.be/')
+                  ? extra.url.split('youtu.be/')[1]?.split('?')[0]
+                  : extra.url;
+              return (
+                <div key={i}>
+                  {extra.title && <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--dark)', marginBottom: 8 }}>{extra.title}</h4>}
+                  <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--sh-md)' }}>
+                    <iframe key={videoId} src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+                      title={extra.title || 'Video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div key={i} style={{ padding: '14px 18px', borderRadius: 12, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+                {extra.title && <h4 style={{ fontSize: 14, fontWeight: 600, color: '#92400E', marginBottom: 6 }}>{extra.title}</h4>}
+                <p style={{ fontSize: 14, color: 'var(--text-sec)', lineHeight: 1.7, margin: 0 }}>{extra.text}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    )}
+  </>
+);
+
 const LessonView = () => {
   const nodeId = useStore(s => s.nodeId);
   const completed = useStore(s => s.completed);
@@ -330,66 +398,7 @@ const LessonView = () => {
       {/* Content */}
       <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '20px 16px' : '32px 28px' }}>
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
-          {/* Hero */}
-          <div style={{
-            padding: '32px 28px', borderRadius: 16, background: 'var(--gradient)',
-            marginBottom: 36, animation: 'fadeUp .5s ease',
-          }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.6)',
-              textTransform: 'uppercase', letterSpacing: 1.5 }}>{mod.subtitle}</span>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginTop: 6 }}>{mod.title}</h1>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,.75)', marginTop: 8 }}>{mod.desc}</p>
-          </div>
-
-          {/* Task instruction */}
-          {mod.task && (
-            <div className="ls-task-box" style={{ marginBottom: 28, animation: 'fadeUp .4s ease' }}>
-              <span style={{ fontSize: 22, flexShrink: 0 }}>📋</span>
-              <div>
-                <div className="ls-task-label" style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>¿Qué debes hacer?</div>
-                <p className="ls-task-text" style={{ fontSize: 14, lineHeight: 1.6, margin: 0 }}>{mod.task}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Sections */}
-          {mod.content.map((sec, i) => <LessonSection key={i} section={sec} index={i} />)}
-
-          {/* Extras added by instructor */}
-          {mod.extras?.length > 0 && (
-            <div style={{ margin: '32px 0', padding: '20px 24px', borderRadius: 16, background: 'var(--white)', border: '1px solid var(--border)' }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>📎</span> Recursos adicionales del instructor
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {mod.extras.map((extra, i) => {
-                  if (extra.type === 'video') {
-                    const videoId = extra.url?.includes('youtube.com/watch?v=')
-                      ? extra.url.split('v=')[1]?.split('&')[0]
-                      : extra.url?.includes('youtu.be/')
-                        ? extra.url.split('youtu.be/')[1]?.split('?')[0]
-                        : extra.url;
-                    return (
-                      <div key={i}>
-                        {extra.title && <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--dark)', marginBottom: 8 }}>{extra.title}</h4>}
-                        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--sh-md)' }}>
-                          <iframe key={videoId} src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
-                            title={extra.title || 'Video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
-                        </div>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div key={i} style={{ padding: '14px 18px', borderRadius: 12, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
-                      {extra.title && <h4 style={{ fontSize: 14, fontWeight: 600, color: '#92400E', marginBottom: 6 }}>{extra.title}</h4>}
-                      <p style={{ fontSize: 14, color: 'var(--text-sec)', lineHeight: 1.7, margin: 0 }}>{extra.text}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <LessonBody mod={mod} />
 
           {/* Completion */}
           <div style={{

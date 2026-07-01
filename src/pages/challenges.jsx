@@ -926,6 +926,14 @@ const FillBlankChallenge = ({ mod, onComplete }) => {
 };
 
 // ---- Challenge Router ----
+// Mapa tipo-de-reto → componente. Exportado para reutilizarlo en la vista previa
+// del instructor (renderiza el reto EXACTAMENTE como lo ve el estudiante).
+export const CHALLENGE_COMPONENTS = {
+  dragdrop: DragDropChallenge, empathy: EmpathyMapChallenge, simulation: SimulationChallenge,
+  matching: ConceptMatchingChallenge, designlab: DesignLabChallenge, quiz: QuizChallenge,
+  truefalse: TrueFalseChallenge, fillblank: FillBlankChallenge,
+};
+
 const ChallengeView = () => {
   const nodeId=useStore(s=>s.nodeId);
   const completed=useStore(s=>s.completed);
@@ -949,9 +957,7 @@ const ChallengeView = () => {
 
   if(!mod)return <div style={{padding:40,textAlign:'center'}}><Btn variant="secondary" onClick={()=>nav('map')}><ArrowLIc s={16}/>Volver</Btn></div>;
 
-  const ChallengeComp={dragdrop:DragDropChallenge,empathy:EmpathyMapChallenge,simulation:SimulationChallenge,
-    matching:ConceptMatchingChallenge,designlab:DesignLabChallenge,quiz:QuizChallenge,
-    truefalse:TrueFalseChallenge,fillblank:FillBlankChallenge}[mod.ctype]||DesignLabChallenge;
+  const ChallengeComp = CHALLENGE_COMPONENTS[mod.ctype] || DesignLabChallenge;
 
   return (
     <div style={{height:'100%',display:'flex',flexDirection:'column'}}>

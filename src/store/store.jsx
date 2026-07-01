@@ -529,7 +529,13 @@ const completeNode = (id) => {
     }
   }
 };
+// Modo vista previa (instructor): cuando está activo, los retos se renderizan
+// tal cual los ve el estudiante pero NADA se persiste ni afecta al progreso real.
+let _previewMode = false;
+const setPreviewMode = (v) => { _previewMode = !!v; };
+
 const recordAttempt = (challengeId, questions, score, maxScore) => {
+  if (_previewMode) return; // vista previa: no se registra ningún intento
   const s = XS.get();
   if (s.challengeAttempts.some(a => a.studentEmail === s.user.email && a.challengeId === challengeId)) return;
   const att = { id:'att_'+Date.now(), studentEmail:s.user.email, studentName:s.user.name,
@@ -1596,4 +1602,5 @@ export {
   forkCourseForInstitution, loadCourseForEditing, saveCourseModules, resolveCourseForStudent,
   applyInitialHash, markOnboarded, claimOnboardingBonus, awardForumParticipation,
   hashFor, issueCertificate, getActiveCourseTheme, reactCharacter,
+  setPreviewMode,
 };
