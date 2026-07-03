@@ -649,6 +649,9 @@ const CourseMapPreview = ({ course }) => {
 // ── Página principal del gestor de cursos ────────────────────
 const AdminCourses = () => {
   const courses          = useStore(s => s.courses || [])
+  // Solo cursos base: los forks de tutor (parent_course_id != null) no se gestionan
+  // desde aquí — el tutor los edita en su editor de ruta y se aplican solos por colegio.
+  const defaultCourses   = React.useMemo(() => courses.filter(c => !c.parent_course_id), [courses])
   const institutions     = useStore(s => s.institutions || [])
   const institutionCourses = useStore(s => s.institutionCourses || [])
   const isMobile         = useMobile()
@@ -780,8 +783,10 @@ const AdminCourses = () => {
           )}
         </Modal>
 
-        {/* Lista de cursos */}
-        {courses.length === 0 ? (
+        {/* Lista de cursos — solo cursos base (sin las copias/forks de los tutores,
+            parent_course_id != null). Asignar un fork a un colegio matriculaba a
+            todos sus estudiantes en la copia, generando cursos duplicados en su selector. */}
+        {defaultCourses.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 24px', borderRadius: 16, border: '2px dashed var(--border)', background: 'var(--white)' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
             <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 6 }}>Sin cursos aún</p>
@@ -790,7 +795,7 @@ const AdminCourses = () => {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {courses.map(course => (
+            {defaultCourses.map(course => (
               <div key={course.id} style={{ borderRadius: 16, background: 'var(--white)', border: '1px solid var(--border)', overflow: 'hidden' }}>
                 {/* Header del curso */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px',

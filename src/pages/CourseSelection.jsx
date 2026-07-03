@@ -10,12 +10,14 @@ const CourseSelection = () => {
   const [pending, setPending]   = React.useState(null);
   const [enrolling, setEnrolling] = React.useState(false);
 
-  // Cursos disponibles: activos globalmente + asignados a ESTE usuario (acceso estricto)
+  // Cursos disponibles: activos globalmente + asignados a ESTE usuario (acceso estricto).
+  // Se excluyen los "forks" (copias del tutor por colegio, parent_course_id != null):
+  // el estudiante elige el curso padre; la copia de su colegio se aplica sola.
   const availableCourses = React.useMemo(() => {
     const allowed = new Set(
       userCourses.filter(uc => uc.user_id === user?.id && uc.is_active).map(uc => uc.course_id)
     );
-    return courses.filter(c => c.is_active && allowed.has(c.id));
+    return courses.filter(c => c.is_active && !c.parent_course_id && allowed.has(c.id));
   }, [courses, userCourses, user]);
 
   const handleConfirm = async () => {

@@ -352,7 +352,10 @@ const LearningMap = () => {
     (userCourses || []).forEach(uc => {
       if (uc.user_id === user?.id && uc.is_active) ids.add(uc.course_id);
     });
-    return (courses || []).filter(c => c.is_active && ids.has(c.id)).map(c => c.id);
+    // Excluir los "forks" (copias del tutor por colegio, parent_course_id != null):
+    // son reemplazos transparentes del curso padre, nunca cursos seleccionables aparte.
+    // Sin esto, el selector muestra el curso original Y su copia como si fueran dos.
+    return (courses || []).filter(c => c.is_active && !c.parent_course_id && ids.has(c.id)).map(c => c.id);
   }, [allEnrollments, userCourses, user, courses]);
 
   const handleCourseSelect = React.useCallback(async (id) => {
