@@ -64,13 +64,17 @@ SELECT ce.student_id, c.parent_course_id, ce.institution_id
   WHERE c.parent_course_id IS NOT NULL
 ON CONFLICT (student_id, course_id) DO NOTHING;
 
--- B.2 · Asegurar acceso (user_courses) en el curso PADRE
+-- B.2 · Asegurar acceso ACTIVO (user_courses) en el curso PADRE.
+--       DO UPDATE (no DO NOTHING): si ya existía una fila del padre con
+--       is_active=false (acceso revocado antes), hay que reactivarla — de lo
+--       contrario, al borrar el acceso del fork en B.4 el estudiante quedaría
+--       sin ningún acceso activo.
 INSERT INTO public.user_courses (user_id, course_id, is_active)
-SELECT uc.user_id, c.parent_course_id, true
+SELECT DISTINCT uc.user_id, c.parent_course_id, true
   FROM public.user_courses uc
   JOIN public.courses c ON c.id = uc.course_id
   WHERE c.parent_course_id IS NOT NULL AND uc.is_active
-ON CONFLICT (user_id, course_id) DO NOTHING;
+ON CONFLICT (user_id, course_id) DO UPDATE SET is_active = true;
 
 -- B.3 · Migrar progreso del fork al padre (solo si el padre no tiene)
 INSERT INTO public.course_progress (user_id, course_id, xp, completed, badges)

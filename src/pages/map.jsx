@@ -348,13 +348,19 @@ const LearningMap = () => {
   // (course_enrollments) y accesos activos (user_courses), limitada a cursos
   // activos y existentes. Robusto ante desfase entre ambas tablas.
   const switchableCourseIds = React.useMemo(() => {
+    const mine = (userCourses || []).filter(uc => uc.user_id === user?.id);
+    const activeAccess = new Set(mine.filter(uc =>  uc.is_active).map(uc => uc.course_id));
+    const revoked      = new Set(mine.filter(uc => !uc.is_active).map(uc => uc.course_id));
+    // Partimos de las matrículas + accesos activos, y luego quitamos los accesos
+    // REVOCADOS explícitamente (fila en user_courses con is_active=false). Sin esto
+    // una matrícula vieja seguía mostrando el curso aunque el admin ya le quitó el
+    // acceso (revocar acceso no borra la matrícula, por diseño). Los accesos activos
+    // "auto-sanan" una matrícula faltante; una fila missing (no revocada) no se toca.
     const ids = new Set(allEnrollments || []);
-    (userCourses || []).forEach(uc => {
-      if (uc.user_id === user?.id && uc.is_active) ids.add(uc.course_id);
-    });
+    activeAccess.forEach(id => ids.add(id));
+    revoked.forEach(id => ids.delete(id));
     // Excluir los "forks" (copias del tutor por colegio, parent_course_id != null):
     // son reemplazos transparentes del curso padre, nunca cursos seleccionables aparte.
-    // Sin esto, el selector muestra el curso original Y su copia como si fueran dos.
     return (courses || []).filter(c => c.is_active && !c.parent_course_id && ids.has(c.id)).map(c => c.id);
   }, [allEnrollments, userCourses, user, courses]);
 
