@@ -4,7 +4,7 @@ import {
   useStore, INITIAL_INSTITUTIONS, AREAS,
   createAccount, deleteAccount, changeAccountArea, changeAccountInstitution, resetStudentProgress, setAccountActive,
   assignInstructorInstitution, removeInstructorInstitution, assignRouteToInstitution,
-  bulkCreateAccounts, setUserCourseAccess, setUserCourseAccessBulk
+  bulkCreateAccounts, setUserCourseAccess, setUserCourseAccessBulk, isBaseCourse
 } from '../store/store.jsx'
 import {
   useMobile, LogoImg, CheckIc, XIc, PlusIc, TrashIc, EditIc, UploadIc, Btn, Modal, ChecklistDropdown
@@ -465,9 +465,8 @@ const UserCoursesModal = ({ acc, onClose }) => {
   const [savingId, setSavingId] = React.useState(null);
   const [error, setError] = React.useState(null);
 
-  // Solo cursos base: los forks (copias de tutor por colegio, parent_course_id != null)
-  // no se asignan a mano — se aplican solos al colegio. Nunca deben ofrecerse aquí.
-  const activeCourses = React.useMemo(() => courses.filter(c => c.is_active && !c.parent_course_id), [courses]);
+  // Solo cursos base (isBaseCourse): los forks no se asignan a mano — se aplican solos al colegio.
+  const activeCourses = React.useMemo(() => courses.filter(isBaseCourse), [courses]);
   const granted = React.useMemo(
     () => new Set(userCourses.filter(uc => uc.user_id === acc?.id && uc.is_active).map(uc => uc.course_id)),
     [userCourses, acc]
@@ -649,9 +648,8 @@ const AdminPage = () => {
     () => visibleAccounts.filter(a => a.role !== 'admin' && a.id).map(a => a.id),
     [visibleAccounts]
   );
-  // Solo cursos base: los forks (copias de tutor por colegio, parent_course_id != null)
-  // no se asignan a mano — se aplican solos al colegio. Nunca deben ofrecerse aquí.
-  const activeCourses = React.useMemo(() => courses.filter(c => c.is_active && !c.parent_course_id), [courses]);
+  // Solo cursos base (isBaseCourse): los forks no se asignan a mano — se aplican solos al colegio.
+  const activeCourses = React.useMemo(() => courses.filter(isBaseCourse), [courses]);
   // Estado tri-estado de un curso sobre el grupo: 'all' | 'some' | 'none'
   const courseGroupState = React.useCallback((courseId) => {
     if (!bulkTargetIds.length) return 'none';

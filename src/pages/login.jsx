@@ -1,8 +1,7 @@
 import React from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { XS, nav, loadRouteConfigs, loadCourses, loadUserCourses, loadWorkshopAccess, loadInstructorInstitutions, applyInitialHash, getAccessBlockReason } from '../store/store.jsx'
-import { loadStudentSession } from '../lib/loadStudentSession.js'
-import { mapSubmission, mapAttempt } from '../lib/mappers.js'
+import { XS, nav, loadSessionCatalogs, loadInstructorInstitutions, applyInitialHash, getAccessBlockReason } from '../store/store.jsx'
+import { loadStaffData, loadStudentData } from '../lib/sessionData.js'
 import {
   useMobile, LogoImg, LockIc, ArrowRIc, ArrowLIc, CheckIc, XIc, Btn,
 } from '../components/ui.jsx'
@@ -34,8 +33,6 @@ const LoginPage = () => {
       const blockReason = await getAccessBlockReason(profile);
       if (blockReason) { await supabase.auth.signOut(); setError(blockReason); setLoading(false); return; }
 
-      const progress = null; // Legacy fallback handled inside loadStudentSession
-
       let page = 'map';
       if (profile.role === 'instructor') page = 'instructor-dashboard';
       if (profile.role === 'admin')      page = 'admin-dashboard';
@@ -46,70 +43,41 @@ const LoginPage = () => {
       let institutions = [], cohorts = [];
 
       if (profile.role === 'student') {
-        // institution_id se pasa para resolver la copia del curso del colegio
-        // (fork del tutor). Sin él, tras el login el estudiante ve el curso
-        // default y solo al recargar veía la versión de su colegio.
-        const studentSess = await loadStudentSession(data.user.id, profile.area || null, profile.institution_id || null);
-        xp             = studentSess.xp;
-        completed      = studentSess.completed;
-        badges         = studentSess.badges;
-        enrolledCourseId = studentSess.enrolledCourseId;
-        courseModules  = studentSess.courseModules;
-        allEnrollments = studentSess.allEnrollments;
+        const sd = await loadStudentData(data.user.id, profile);
+        xp             = sd.xp;
+        completed      = sd.completed;
+        badges         = sd.badges;
+        enrolledCourseId = sd.enrolledCourseId;
+        courseModules  = sd.courseModules;
+        allEnrollments = sd.allEnrollments;
+        submissions       = sd.submissions;
+        challengeAttempts = sd.challengeAttempts;
       }
 
       if (profile.role === 'admin' || profile.role === 'instructor') {
-        const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 86_400_000).toISOString();
-        const isInstructor = profile.role === 'instructor';
-        const profilesQuery = isInstructor && profile.institution_id
-          ? supabase.from('profiles').select('*').eq('institution_id', profile.institution_id).order('name')
-          : supabase.from('profiles').select('*').order('name').limit(500);
-        const [
-          { data: profilesData },
-          { data: subsData },
-          { data: attemptsData },
-          { data: institutionsData },
-          { data: cohortsData },
-        ] = await Promise.all([
-          profilesQuery,
-          supabase.from('submissions').select('*').gte('created_at', THIRTY_DAYS_AGO).order('created_at', { ascending: false }).limit(300),
-          supabase.from('challenge_attempts').select('*').gte('created_at', THIRTY_DAYS_AGO).order('created_at', { ascending: false }).limit(300),
+        const [{ data: institutionsData }, { data: cohortsData }] = await Promise.all([
           supabase.from('institutions').select('*').order('name'),
           supabase.from('cohorts').select('*').order('created_at'),
         ]);
-        const allProfiles = profilesData || [];
-        const instById = {};
-        (institutionsData || []).forEach(i => { instById[i.id] = i.name; });
-        accounts = allProfiles.map(p => ({
-          id: p.id, email: p.email, name: p.name, avatar: p.avatar,
-          role: p.role, area: p.area || null,
-          institution: instById[p.institution_id] || '',
-          institution_id: p.institution_id || null,
-          cohort_id: p.cohort_id || null,
-          is_active: p.is_active !== false,
-          pass: '',
-        }));
-        submissions       = (subsData     || []).map(s => mapSubmission(s, allProfiles, instById));
-        challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, allProfiles));
         institutions = institutionsData || [];
         cohorts      = cohortsData      || [];
+        const staff = await loadStaffData(profile, institutions);
+        accounts          = staff.accounts;
+        submissions       = staff.submissions;
+        challengeAttempts = staff.challengeAttempts;
       }
 
-      // Cargar configs de ruta y cursos para todos los roles.
-      // coursesLoaded se marca solo cuando courses + userCourses terminan, igual
-      // que en restoreSession (main.jsx). Sin esto, el guard de estudiante en
-      // app.jsx (`!coursesLoaded → PageSpinner`) se quedaba cargando para siempre
-      // tras el login y solo se resolvía al recargar la página.
-      loadRouteConfigs();
-      loadWorkshopAccess();
-      Promise.all([loadCourses(), loadUserCourses()])
-        .catch(err => console.error('loadCourses/loadUserCourses:', err))
-        .finally(() => XS.set({ coursesLoaded: true }));
+      // Cargas comunes (rutas, cursos, accesos, taller) — compartidas con la
+      // restauración de sesión de main.jsx vía loadSessionCatalogs.
+      loadSessionCatalogs();
       if (profile.role === 'instructor') loadInstructorInstitutions();
 
       XS.set({
         isLoggedIn: true,
         user: { id: data.user.id, name: profile.name, email: profile.email, avatar: profile.avatar, role: profile.role,
+                // institution_id igual que en restoreSession (main.jsx): sin él,
+                // switchCourse no resuelve la copia del colegio hasta recargar.
+                institution_id: profile.institution_id || null,
                 onboarded: profile.onboarded ?? true,
                 onboardingBonus: profile.onboarding_bonus ?? true },
         page,

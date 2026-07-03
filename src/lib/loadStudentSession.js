@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient.js'
-import { dbModToAppMod } from '../store/store.jsx'
+import { dbRowsToCourseModules } from '../store/store.jsx'
 
 /**
  * Loads all course-related state for a student in a single optimised call.
@@ -58,16 +58,7 @@ export async function loadStudentSession(userId, area, institutionId) {
       .eq('user_id', userId).eq('course_id', enrolledCourseId).maybeSingle(),
   ])
 
-  const filtered = area
-    ? (modulesData || []).filter(row => !row.area_id || row.area_id === area)
-    : (modulesData || [])
-
-  const courseModules = filtered.map((row, i) => {
-    const mod = dbModToAppMod(row)
-    mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i }
-    mod.side = i % 2 === 0 ? 'right' : 'left'
-    return mod
-  })
+  const courseModules = dbRowsToCourseModules(modulesData, area)
 
   // course_progress wins; fallback to legacy XP when student has no course_progress yet
   const xp        = cp?.xp        ?? legacyProgress?.xp        ?? 0

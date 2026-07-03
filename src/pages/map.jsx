@@ -3,7 +3,7 @@ import {
   useStore, nav, completeNode, AREAS, BADGES, LEVELS,
   getStudentModules, getRouteModules, findModule,
   calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete,
-  gradeTotal, gradeMax, switchCourse, hashFor,
+  gradeTotal, gradeMax, switchCourse, hashFor, isBaseCourse,
 } from '../store/store.jsx'
 
 const hrefForMod = (mod) => {
@@ -359,9 +359,9 @@ const LearningMap = () => {
     const ids = new Set(allEnrollments || []);
     activeAccess.forEach(id => ids.add(id));
     revoked.forEach(id => ids.delete(id));
-    // Excluir los "forks" (copias del tutor por colegio, parent_course_id != null):
-    // son reemplazos transparentes del curso padre, nunca cursos seleccionables aparte.
-    return (courses || []).filter(c => c.is_active && !c.parent_course_id && ids.has(c.id)).map(c => c.id);
+    // isBaseCourse excluye los forks (copias por colegio): son reemplazos
+    // transparentes del curso padre, nunca cursos seleccionables aparte.
+    return (courses || []).filter(c => isBaseCourse(c) && ids.has(c.id)).map(c => c.id);
   }, [allEnrollments, userCourses, user, courses]);
 
   const handleCourseSelect = React.useCallback(async (id) => {

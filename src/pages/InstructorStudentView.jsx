@@ -2,7 +2,7 @@ import React from 'react'
 import {
   useStore, AREAS, BADGES, ALL_MODULES, RUBRIC_CRITERIA, getStudentModules,
   gradeTotal, gradeMax, calcLevel, xpForNext, nav,
-  setWorkshopAccess, setWorkshopAccessBulk,
+  setWorkshopAccess, setWorkshopAccessBulk, isBaseCourse,
 } from '../store/store.jsx'
 import {
   useMobile, CheckIc, ClockIc, ZapIc, AwardIc, XIc,
@@ -572,7 +572,7 @@ const WorkshopAccessPanel = () => {
 
   // Cursos que usan taller (los únicos donde tiene sentido habilitar)
   const workshopCourses = React.useMemo(
-    () => courses.filter(c => c.is_active && !c.parent_course_id && c.requires_workshop),
+    () => courses.filter(c => isBaseCourse(c) && c.requires_workshop),
     [courses]
   )
   const [courseId, setCourseId] = React.useState('')

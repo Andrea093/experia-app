@@ -336,6 +336,32 @@ const dbModToAppMod = (row) => ({
   ...(row.challenge_data?.passage      ? { passage:      row.challenge_data.passage }       : {}),
 });
 
+// Convierte filas de course_modules (ya ordenadas por "order") en los módulos
+// que consume el mapa, aplicando el filtro de área y el layout zigzag de nodos.
+// ÚNICA fuente de esa transformación — antes vivía copiada en loadCourseModules,
+// switchCourse y loadStudentSession, y las copias tendían a divergir.
+const dbRowsToCourseModules = (rows, areaId = null) => {
+  const filtered = areaId
+    ? (rows || []).filter(row => !row.area_id || row.area_id === areaId)
+    : (rows || []);
+  return filtered.map((row, i) => {
+    const mod = dbModToAppMod(row);
+    mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i };
+    mod.side = i % 2 === 0 ? 'right' : 'left';
+    return mod;
+  });
+};
+
+// Curso "base" listable para estudiantes/admin: activo y NO fork. Las copias por
+// colegio (parent_course_id != null) se resuelven de forma transparente al cargar
+// módulos y NUNCA se ofrecen como cursos seleccionables ni asignables.
+const isBaseCourse = (c) => !!c && c.is_active && !c.parent_course_id;
+
+// Selector del tema inmersivo del curso activo (para useStore). Compartido por
+// CourseAmbient y CharacterBubble para no duplicar la lógica de resolución.
+const selectActiveCourseTheme = (s) =>
+  (s.courses || []).find(c => c.id === s.enrolledCourseId)?.theme || null;
+
 // findModule se define aquí pero accede a XS de forma lazy (XS se define más adelante)
 // Funciona porque JS evalúa el cuerpo de la función solo cuando se llama, no cuando se declara
 function findModule(id) {
@@ -986,17 +1012,8 @@ const loadCourseModules = async (courseId, areaId = null) => {
     .eq('is_enabled', true)
     .order('"order"');
   if (error) { console.error('loadCourseModules:', error); return; }
-  // Filtra por área si la fila tiene area_id (columna opcional — null = aplica a todas las áreas)
-  const rows = areaId
-    ? (data || []).filter(row => !row.area_id || row.area_id === areaId)
-    : (data || []);
   XS.set({
-    courseModules: rows.map((row, i) => {
-      const mod = dbModToAppMod(row);
-      mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i };
-      mod.side = i % 2 === 0 ? 'right' : 'left';
-      return mod;
-    }),
+    courseModules: dbRowsToCourseModules(data, areaId),
     enrolledCourseId: courseId,
   });
 };
@@ -1162,6 +1179,19 @@ const setWorkshopAccessBulk = async (studentIds, courseId, enabled) => {
   if (error) { console.error('setWorkshopAccessBulk:', error); return { error: error.message }; }
   await loadWorkshopAccess();
   return { ok: true };
+};
+
+// Cargas comunes tras autenticar (las usan TANTO el login como la restauración
+// de sesión — mantenerlas en un solo lugar evita que los dos flujos diverjan,
+// que fue la causa del "login pegado": login.jsx olvidó marcar coursesLoaded).
+// coursesLoaded se marca solo cuando courses + userCourses terminan, porque el
+// guard de estudiante en app.jsx espera ese flag antes de decidir la ruta.
+const loadSessionCatalogs = () => {
+  loadRouteConfigs();
+  loadWorkshopAccess();
+  return Promise.all([loadCourses(), loadUserCourses()])
+    .catch(err => console.error('loadCourses/loadUserCourses:', err))
+    .finally(() => XS.set({ coursesLoaded: true }));
 };
 
 const createCourse = async ({ name, description, color, coverImage, areaId, theme }) => {
@@ -1518,15 +1548,7 @@ const switchCourse = async (courseId) => {
   }
   const { data: modulesData } = await supabase.from('course_modules')
     .select('*').eq('course_id', effectiveCourseId).eq('is_enabled', true).order('"order"');
-  const filtered = selectedArea
-    ? (modulesData || []).filter(row => !row.area_id || row.area_id === selectedArea)
-    : (modulesData || []);
-  const courseModules = filtered.map((row, i) => {
-    const mod = dbModToAppMod(row);
-    mod.pos  = { x: i % 2 === 0 ? 38 : 62, y: row.order || i };
-    mod.side = i % 2 === 0 ? 'right' : 'left';
-    return mod;
-  });
+  const courseModules = dbRowsToCourseModules(modulesData, selectedArea);
   const { data: cp } = await supabase.from('course_progress')
     .select('*').eq('user_id', user.id).eq('course_id', courseId).maybeSingle();
   XS.set({
@@ -1619,12 +1641,9 @@ const issueCertificate = async (submissionId, studentName, areaId, score, maxSco
   return data;
 };
 
-// Devuelve el tema visual del curso en el que está inscrito el estudiante ('detective' | null)
-const getActiveCourseTheme = () => {
-  const { enrolledCourseId, courses } = XS.get();
-  if (!enrolledCourseId) return null;
-  return courses.find(c => c.id === enrolledCourseId)?.theme || null;
-};
+// Devuelve el tema visual del curso en el que está inscrito el estudiante ('detective' | null).
+// Versión imperativa del selector selectActiveCourseTheme (misma lógica, fuera de React).
+const getActiveCourseTheme = () => selectActiveCourseTheme(XS.get());
 
 // Dispara una reacción contextual del personaje del tema activo (si hay tema).
 // El contexto debe ser uno de CHARACTER_CONTEXTS: 'correct' | 'wrong' |
@@ -1657,4 +1676,5 @@ export {
   hashFor, issueCertificate, getActiveCourseTheme, reactCharacter,
   setPreviewMode,
   loadWorkshopAccess, isWorkshopEnabled, setWorkshopAccess, setWorkshopAccessBulk,
+  dbRowsToCourseModules, isBaseCourse, selectActiveCourseTheme, loadSessionCatalogs,
 };

@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore } from '../store/store.jsx'
+import { useStore, selectActiveCourseTheme } from '../store/store.jsx'
 import { getCharacter, getCharacterLine } from '../lib/characters.jsx'
 
 // =============================================================================
@@ -14,11 +14,8 @@ import { getCharacter, getCharacterLine } from '../lib/characters.jsx'
 // o el tema no tiene personaje en el registro, no renderiza nada.
 // =============================================================================
 
-const selectActiveTheme = (s) =>
-  (s.courses || []).find(c => c.id === s.enrolledCourseId)?.theme || null
-
 export const CharacterFloat = () => {
-  const theme = useStore(selectActiveTheme)
+  const theme = useStore(selectActiveCourseTheme)
   const reaction = useStore(s => s.charReaction)
   const char = theme ? getCharacter(theme) : null
 

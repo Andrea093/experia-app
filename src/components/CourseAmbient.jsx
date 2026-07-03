@@ -1,10 +1,5 @@
 import React from 'react'
-import { useStore } from '../store/store.jsx'
-
-// Selector único del tema del curso activo. Reemplaza las 4 suscripciones
-// duplicadas que antes hacía cada capa ambiental por su cuenta.
-const selectActiveCourseTheme = (s) =>
-  (s.courses || []).find(c => c.id === s.enrolledCourseId)?.theme || null
+import { useStore, selectActiveCourseTheme } from '../store/store.jsx'
 
 // Cada capa ambiental se carga bajo demanda: su código (SVGs y arrays de
 // partículas) solo se descarga cuando un curso con ese tema está activo,

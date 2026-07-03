@@ -4,9 +4,8 @@ import './styles.css'
 import App from './app.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient.js'
-import { XS, useStore, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, loadUserCourses, loadWorkshopAccess, applyInitialHash, getAccessBlockReason } from './store/store.jsx'
-import { mapSubmission, mapAttempt } from './lib/mappers.js'
-import { loadStudentSession } from './lib/loadStudentSession.js'
+import { XS, useStore, doLogout, loadInstructorInstitutions, loadSessionCatalogs, loadRouteConfigs, applyInitialHash, getAccessBlockReason } from './store/store.jsx'
+import { loadStaffData, loadStudentData } from './lib/sessionData.js'
 import { isSessionExpired, clearIdleActivity, markActivity } from './lib/idleTimeout.js'
 
 // Wrapper que pasa el page actual como resetKey al ErrorBoundary
@@ -107,58 +106,26 @@ async function restoreSession() {
   let xp = 0, completed = [], badges = [], allEnrollments = []
 
   if (profile.role === 'admin' || profile.role === 'instructor') {
-    const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 86_400_000).toISOString()
-    const isInstructor = profile.role === 'instructor'
-    const profilesQuery = isInstructor && profile.institution_id
-      ? supabase.from('profiles').select('*').eq('institution_id', profile.institution_id).order('name')
-      : supabase.from('profiles').select('*').order('name').limit(500)
-    const [{ data: profilesData }, { data: subsData }, { data: attemptsData }] = await Promise.all([
-      profilesQuery,
-      supabase.from('submissions').select('*').gte('created_at', THIRTY_DAYS_AGO).order('created_at', { ascending: false }).limit(300),
-      supabase.from('challenge_attempts').select('*').gte('created_at', THIRTY_DAYS_AGO).order('created_at', { ascending: false }).limit(300),
-    ])
-    const allProfiles = profilesData || []
-    const instById = {}
-    ;(institutionsRes.data || []).forEach(i => { instById[i.id] = i.name })
-    accounts = allProfiles.map(p => ({
-      id: p.id, email: p.email, name: p.name, avatar: p.avatar,
-      role: p.role, area: p.area || null,
-      institution: instById[p.institution_id] || '',
-      institution_id: p.institution_id || null,
-      cohort_id: p.cohort_id || null,
-      is_active: p.is_active !== false,
-      pass: '',
-    }))
-    submissions       = (subsData     || []).map(s => mapSubmission(s, allProfiles, instById))
-    challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, allProfiles))
+    const staff = await loadStaffData(profile, institutionsRes.data || [])
+    accounts          = staff.accounts
+    submissions       = staff.submissions
+    challengeAttempts = staff.challengeAttempts
   }
 
   if (profile.role === 'student') {
-    const me = [{ id: session.user.id, ...profile }]
-    const [{ data: subsData }, { data: attemptsData }, studentSess] = await Promise.all([
-      supabase.from('submissions').select('*').eq('student_id', session.user.id).limit(100),
-      supabase.from('challenge_attempts').select('*').eq('student_id', session.user.id).limit(200),
-      loadStudentSession(session.user.id, profile.area || null, profile.institution_id || null),
-    ])
-    submissions       = (subsData     || []).map(s => mapSubmission(s, me))
-    challengeAttempts = (attemptsData || []).map(a => mapAttempt(a, me))
-    xp             = studentSess.xp
-    completed      = studentSess.completed
-    badges         = studentSess.badges
-    allEnrollments = studentSess.allEnrollments || []
-    if (studentSess.enrolledCourseId) {
-      XS.set({ courseModules: studentSess.courseModules, enrolledCourseId: studentSess.enrolledCourseId })
+    const sd = await loadStudentData(session.user.id, profile)
+    submissions       = sd.submissions
+    challengeAttempts = sd.challengeAttempts
+    xp             = sd.xp
+    completed      = sd.completed
+    badges         = sd.badges
+    allEnrollments = sd.allEnrollments || []
+    if (sd.enrolledCourseId) {
+      XS.set({ courseModules: sd.courseModules, enrolledCourseId: sd.enrolledCourseId })
     }
   }
 
-  loadRouteConfigs()
-  loadWorkshopAccess()
-  // courses + userCourses determinan el guard de "selección de curso". Marcamos
-  // coursesLoaded solo cuando AMBAS terminan, para que App no decida la ruta del
-  // estudiante con datos a medias (eso causaba el parpadeo curso/onboarding).
-  Promise.all([loadCourses(), loadUserCourses()])
-    .catch(err => console.error('loadCourses/loadUserCourses:', err))
-    .finally(() => XS.set({ coursesLoaded: true }))
+  loadSessionCatalogs()
   if (profile.role === 'admin' || profile.role === 'instructor') loadInstructorInstitutions()
 
   // Suscripción en tiempo real: cuando el instructor guarda una ruta,
