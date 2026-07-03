@@ -357,11 +357,17 @@ const nodeStatus = (id, done, areaId, modulesOverride) => {
   const m = mods.find(x => x.id === id) || findModule(id);
   if (!m) return 'locked';
   if (done.includes(id)) return 'completed';
+  const others = mods.filter(x => x.type !== 'final_delivery');
   if (m.type === 'final_delivery') {
-    const others = mods.filter(x => x.type !== 'final_delivery');
     return others.every(x => done.includes(x.id)) ? 'available' : 'locked';
   }
-  return (m.req || []).every(r => done.includes(r)) ? 'available' : 'locked';
+  // Si el módulo no trae requisitos explícitos (p.ej. módulos creados o editados
+  // desde el editor de cursos, que no tiene UI para definir prerrequisitos), cae
+  // por defecto a exigir el módulo anterior en el orden — así se conserva el
+  // desbloqueo secuencial esperado en vez de dejarlo abierto sin bloqueo.
+  const idx = others.findIndex(x => x.id === id);
+  const req = (m.req && m.req.length) ? m.req : (idx > 0 ? [others[idx - 1].id] : []);
+  return req.every(r => done.includes(r)) ? 'available' : 'locked';
 };
 const progressPct = (done, areaId, modulesOverride) => {
   if (!Array.isArray(done)) return 0;
