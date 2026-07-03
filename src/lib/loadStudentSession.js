@@ -10,13 +10,23 @@ import { dbModToAppMod } from '../store/store.jsx'
  * Returns { enrolledCourseId, courseModules, allEnrollments, xp, completed, badges }
  */
 export async function loadStudentSession(userId, area, institutionId) {
-  const [{ data: enrollmentsData }, { data: legacyProgress }] = await Promise.all([
+  const [{ data: enrollmentsData }, { data: legacyProgress }, { data: accessData }] = await Promise.all([
     supabase.from('course_enrollments').select('course_id').eq('student_id', userId),
     supabase.from('progress').select('xp,completed,badges').eq('user_id', userId).maybeSingle(),
+    supabase.from('user_courses').select('course_id').eq('user_id', userId).eq('is_active', true),
   ])
 
-  const allEnrollments   = (enrollmentsData || []).map(e => e.course_id)
-  const enrolledCourseId = allEnrollments[0] || null
+  const allEnrollments = (enrollmentsData || []).map(e => e.course_id)
+  const allowedIds     = new Set((accessData || []).map(a => a.course_id))
+  // user_courses es el gate estricto: si el estudiante tiene acceso gestionado
+  // (alguna fila en user_courses), la matrícula "actual" debe ser una a la que
+  // siga teniendo acceso activo — nunca una matrícula vieja/revocada que quedó
+  // en course_enrollments (revocar acceso no borra la matrícula, ver CLAUDE.md).
+  // Si no tiene NINGUNA fila en user_courses (acceso aún no gestionado para
+  // este usuario), se conserva el comportamiento legacy de usar la primera matrícula.
+  const enrolledCourseId =
+    allEnrollments.find(id => allowedIds.has(id)) ??
+    (allowedIds.size === 0 ? (allEnrollments[0] || null) : null)
 
   if (!enrolledCourseId) {
     return {
