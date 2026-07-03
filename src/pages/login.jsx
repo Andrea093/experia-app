@@ -1,6 +1,6 @@
 import React from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { XS, nav, loadRouteConfigs, loadCourses, loadInstructorInstitutions, applyInitialHash, getAccessBlockReason } from '../store/store.jsx'
+import { XS, nav, loadRouteConfigs, loadCourses, loadUserCourses, loadInstructorInstitutions, applyInitialHash, getAccessBlockReason } from '../store/store.jsx'
 import { loadStudentSession } from '../lib/loadStudentSession.js'
 import { mapSubmission, mapAttempt } from '../lib/mappers.js'
 import {
@@ -46,7 +46,10 @@ const LoginPage = () => {
       let institutions = [], cohorts = [];
 
       if (profile.role === 'student') {
-        const studentSess = await loadStudentSession(data.user.id, profile.area || null);
+        // institution_id se pasa para resolver la copia del curso del colegio
+        // (fork del tutor). Sin él, tras el login el estudiante ve el curso
+        // default y solo al recargar veía la versión de su colegio.
+        const studentSess = await loadStudentSession(data.user.id, profile.area || null, profile.institution_id || null);
         xp             = studentSess.xp;
         completed      = studentSess.completed;
         badges         = studentSess.badges;
@@ -92,9 +95,15 @@ const LoginPage = () => {
         cohorts      = cohortsData      || [];
       }
 
-      // Cargar configs de ruta y cursos para todos los roles
+      // Cargar configs de ruta y cursos para todos los roles.
+      // coursesLoaded se marca solo cuando courses + userCourses terminan, igual
+      // que en restoreSession (main.jsx). Sin esto, el guard de estudiante en
+      // app.jsx (`!coursesLoaded → PageSpinner`) se quedaba cargando para siempre
+      // tras el login y solo se resolvía al recargar la página.
       loadRouteConfigs();
-      loadCourses();
+      Promise.all([loadCourses(), loadUserCourses()])
+        .catch(err => console.error('loadCourses/loadUserCourses:', err))
+        .finally(() => XS.set({ coursesLoaded: true }));
       if (profile.role === 'instructor') loadInstructorInstitutions();
 
       XS.set({
