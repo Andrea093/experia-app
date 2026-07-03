@@ -1,6 +1,6 @@
 import React from 'react'
 import { supabase } from '../lib/supabaseClient.js'
-import { XS, nav, loadRouteConfigs, loadCourses, loadUserCourses, loadInstructorInstitutions, applyInitialHash, getAccessBlockReason } from '../store/store.jsx'
+import { XS, nav, loadRouteConfigs, loadCourses, loadUserCourses, loadWorkshopAccess, loadInstructorInstitutions, applyInitialHash, getAccessBlockReason } from '../store/store.jsx'
 import { loadStudentSession } from '../lib/loadStudentSession.js'
 import { mapSubmission, mapAttempt } from '../lib/mappers.js'
 import {
@@ -101,6 +101,7 @@ const LoginPage = () => {
       // app.jsx (`!coursesLoaded → PageSpinner`) se quedaba cargando para siempre
       // tras el login y solo se resolvía al recargar la página.
       loadRouteConfigs();
+      loadWorkshopAccess();
       Promise.all([loadCourses(), loadUserCourses()])
         .catch(err => console.error('loadCourses/loadUserCourses:', err))
         .finally(() => XS.set({ coursesLoaded: true }));

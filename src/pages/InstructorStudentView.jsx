@@ -2,6 +2,7 @@ import React from 'react'
 import {
   useStore, AREAS, BADGES, ALL_MODULES, RUBRIC_CRITERIA, getStudentModules,
   gradeTotal, gradeMax, calcLevel, xpForNext, nav,
+  setWorkshopAccess, setWorkshopAccessBulk,
 } from '../store/store.jsx'
 import {
   useMobile, CheckIc, ClockIc, ZapIc, AwardIc, XIc,
@@ -550,6 +551,116 @@ const InstructorHistorial = ({ onStudentClick }) => {
 }
 
 // ── Default export: página con tabs Pendientes / Historial ──
+// ── Habilitar producto final tras el taller (individual + masiva) ──────────
+const WorkshopAccessPanel = () => {
+  const accounts       = useStore(s => s.accounts || [])
+  const courses        = useStore(s => s.courses || [])
+  const workshopAccess = useStore(s => s.workshopAccess || [])
+  const user           = useStore(s => s.user)
+  const institutions   = useStore(s => s.institutions || [])
+  const instructorInstitutions = useStore(s => s.instructorInstitutions || [])
+  const isMobile = useMobile()
+
+  const isAdmin = user?.role === 'admin'
+  // Colegios del instructor (admin: todos)
+  const myInstitutionIds = React.useMemo(() => {
+    if (isAdmin) return null // null = todos
+    const ids = instructorInstitutions.filter(ii => ii.instructor_id === user?.id).map(ii => ii.institution_id)
+    if (ids.length) return new Set(ids)
+    return new Set(user?.institution_id ? [user.institution_id] : [])
+  }, [isAdmin, instructorInstitutions, user])
+
+  // Cursos que usan taller (los únicos donde tiene sentido habilitar)
+  const workshopCourses = React.useMemo(
+    () => courses.filter(c => c.is_active && !c.parent_course_id && c.requires_workshop),
+    [courses]
+  )
+  const [courseId, setCourseId] = React.useState('')
+  React.useEffect(() => {
+    if (!courseId && workshopCourses.length) setCourseId(workshopCourses[0].id)
+  }, [workshopCourses]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Estudiantes de mis colegios (admin: todos)
+  const students = React.useMemo(() => accounts.filter(a =>
+    a.role === 'student' && (myInstitutionIds === null || myInstitutionIds.has(a.institution_id))
+  ), [accounts, myInstitutionIds])
+
+  const enabledSet = React.useMemo(() => new Set(
+    workshopAccess.filter(w => w.course_id === courseId && w.enabled).map(w => w.student_id)
+  ), [workshopAccess, courseId])
+
+  const [sel, setSel] = React.useState(new Set())
+  const [busy, setBusy] = React.useState(false)
+  React.useEffect(() => { setSel(new Set()) }, [courseId])
+
+  const toggleSel = (id) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleOne = async (id, next) => { await setWorkshopAccess(id, courseId, next) }
+  const bulk = async (next) => {
+    if (!sel.size || !courseId) return
+    setBusy(true); await setWorkshopAccessBulk([...sel], courseId, next); setBusy(false); setSel(new Set())
+  }
+
+  if (!workshopCourses.length) {
+    return (
+      <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
+        Ningún curso tiene activado el <strong>taller presencial</strong>. Un administrador lo activa en
+        <em> Cursos → 🎓 Requiere taller</em>. Solo esos cursos gatean la entrega final.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ height: '100%', overflow: 'auto', padding: isMobile ? '16px' : '20px 24px' }}>
+      <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>
+        Marca a los estudiantes que asistieron al taller para habilitarles el tramo final (producto). Solo los habilitados podrán entregarlo.
+      </p>
+
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+        <select value={courseId} onChange={e => setCourseId(e.target.value)}
+          style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, background: 'var(--white)' }}>
+          {workshopCourses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        {sel.size > 0 && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>{sel.size} seleccionado{sel.size !== 1 ? 's' : ''}</span>
+            <Btn variant="gradient" size="sm" disabled={busy} onClick={() => bulk(true)}>✅ Habilitar</Btn>
+            <Btn variant="secondary" size="sm" disabled={busy} onClick={() => bulk(false)}>🔒 Bloquear</Btn>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {students.length === 0 && (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>No hay estudiantes en tu colegio.</div>
+        )}
+        {students.map(st => {
+          const on = enabledSet.has(st.id)
+          return (
+            <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12,
+              background: 'var(--white)', border: '1px solid var(--border)' }}>
+              <input type="checkbox" checked={sel.has(st.id)} onChange={() => toggleSel(st.id)}
+                style={{ width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--dark)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.email}{st.institution ? ` · ${st.institution}` : ''}</div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: on ? 'var(--success)' : 'var(--subtle)' }}>
+                {on ? 'Habilitado' : 'Bloqueado'}
+              </span>
+              <div onClick={() => toggleOne(st.id, !on)}
+                style={{ width: 40, height: 22, borderRadius: 11, flexShrink: 0, cursor: 'pointer',
+                  background: on ? 'var(--success)' : 'var(--border)', position: 'relative', transition: 'background .2s' }}>
+                <div style={{ position: 'absolute', top: 2, width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                  left: on ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 const InstructorStudentViewPage = ({ studentView, setStudentView }) => {
   const [tab, setTab] = React.useState('pending')
   const submissions   = useStore(s => s.submissions)
@@ -588,13 +699,16 @@ const InstructorStudentViewPage = ({ studentView, setStudentView }) => {
       <div style={{ display: 'flex', borderBottom: '2px solid var(--border)', background: 'var(--white)', flexShrink: 0, paddingLeft: isMobile ? 16 : 24 }}>
         {tabBtn('pending',   '📋 Pendientes', pendingCount,  'var(--orange)')}
         {tabBtn('historial', '📚 Historial',  historialCount, 'var(--success)')}
+        {tabBtn('taller',    '🎓 Taller',     0,             'var(--purple)')}
       </div>
 
       <div style={{ flex: 1, overflow: 'hidden' }}>
         {tab === 'pending' ? (
           <InstructorDashboard onStudentClick={setStudentView} />
-        ) : (
+        ) : tab === 'historial' ? (
           <InstructorHistorial onStudentClick={setStudentView} />
+        ) : (
+          <WorkshopAccessPanel />
         )}
       </div>
 

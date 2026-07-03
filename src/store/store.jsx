@@ -409,6 +409,7 @@ const DEF = {
   enrolledCourseId: null,   // id del curso activo del estudiante
   allEnrollments: [],       // todos los cursos en los que está inscrito el estudiante
   coursesLoaded: false,     // true cuando courses + userCourses ya se cargaron (evita parpadeo en el guard de selección de curso)
+  workshopAccess: [],       // [{ id, student_id, course_id, enabled }] habilitación del taller/producto final por estudiante (tutor)
 };
 export const XS = createExpStore(DEF);
 
@@ -1120,6 +1121,49 @@ const allowedCourseIds = (userId) => {
   return new Set(userCourses.filter(uc => uc.user_id === userId && uc.is_active).map(uc => uc.course_id));
 };
 
+// ---- Habilitación del taller / producto final por estudiante (tutor) ----
+// Carga las filas de workshop_access visibles según RLS: admin/instructor ven
+// todas; un estudiante solo la suya.
+const loadWorkshopAccess = async () => {
+  const { data, error } = await supabase.from('workshop_access').select('*');
+  if (error) { console.error('loadWorkshopAccess:', error); return; }
+  XS.set({ workshopAccess: data || [] });
+};
+
+// ¿Un estudiante tiene habilitado el tramo post-taller (producto final) en un curso?
+const isWorkshopEnabled = (userId, courseId) => {
+  const { workshopAccess } = XS.get();
+  return (workshopAccess || []).some(w => w.student_id === userId && w.course_id === courseId && w.enabled);
+};
+
+// Habilita (enabled=true) o bloquea (false) el tramo post-taller de UN estudiante
+// en un curso. Actualiza de forma optimista y revierte si la BD lo rechaza (RLS).
+const setWorkshopAccess = async (studentId, courseId, enabled) => {
+  const { workshopAccess, user } = XS.get();
+  const { data, error } = await supabase.from('workshop_access')
+    .upsert({ student_id: studentId, course_id: courseId, enabled, granted_by: user?.id || null, updated_at: new Date().toISOString() },
+            { onConflict: 'student_id,course_id' })
+    .select().single();
+  if (error) { console.error('setWorkshopAccess:', error); return { error: error.message }; }
+  const others = (workshopAccess || []).filter(w => !(w.student_id === studentId && w.course_id === courseId));
+  XS.set({ workshopAccess: [...others, data] });
+  return { ok: true };
+};
+
+// Habilita/bloquea el taller para MUCHOS estudiantes de un curso a la vez
+// (marcar a todos los asistentes al taller de una sola acción).
+const setWorkshopAccessBulk = async (studentIds, courseId, enabled) => {
+  const ids = [...new Set((studentIds || []).filter(Boolean))];
+  if (!ids.length || !courseId) return { ok: true };
+  const { user } = XS.get();
+  const rows = ids.map(sid => ({ student_id: sid, course_id: courseId, enabled, granted_by: user?.id || null, updated_at: new Date().toISOString() }));
+  const { error } = await supabase.from('workshop_access')
+    .upsert(rows, { onConflict: 'student_id,course_id' });
+  if (error) { console.error('setWorkshopAccessBulk:', error); return { error: error.message }; }
+  await loadWorkshopAccess();
+  return { ok: true };
+};
+
 const createCourse = async ({ name, description, color, coverImage, areaId, theme }) => {
   const { data, error } = await supabase.from('courses').insert({
     name, description, color: color || '#E8732C',
@@ -1612,4 +1656,5 @@ export {
   applyInitialHash, markOnboarded, claimOnboardingBonus, awardForumParticipation,
   hashFor, issueCertificate, getActiveCourseTheme, reactCharacter,
   setPreviewMode,
+  loadWorkshopAccess, isWorkshopEnabled, setWorkshopAccess, setWorkshopAccessBulk,
 };

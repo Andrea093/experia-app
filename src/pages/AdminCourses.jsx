@@ -819,6 +819,14 @@ const AdminCourses = () => {
                         color: course.is_active ? 'var(--success)' : 'var(--error)' }}>
                       {course.is_active ? '✅ Activo' : '❌ Inactivo'}
                     </button>
+                    {/* Requiere taller presencial: gatea la entrega final tras el taller */}
+                    <button onClick={() => updateCourse(course.id, { requires_workshop: !course.requires_workshop })}
+                      title="Si se activa, la entrega final se habilita por estudiante tras el taller presencial (el tutor la activa)."
+                      style={{ padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                        background: course.requires_workshop ? '#EDE9FE' : 'var(--bg-alt)',
+                        color: course.requires_workshop ? 'var(--purple)' : 'var(--muted)' }}>
+                      {course.requires_workshop ? '🎓 Requiere taller' : '🎓 Sin taller'}
+                    </button>
                     <Btn variant="secondary" size="sm" onClick={() => setModsCourse(course)}>📋 Módulos</Btn>
                     <Btn variant="secondary" size="sm" onClick={() => setPreviewCourse(course)}>👁 Vista previa</Btn>
                     <Btn variant="secondary" size="sm" disabled={addingFD === course.id}

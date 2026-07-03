@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   useStore, nav, submitProduct, resubmitProduct, returnSubmission, approveSubmission,
-  dismissStudentMessage, AREAS, RUBRIC_CRITERIA,
+  dismissStudentMessage, AREAS, RUBRIC_CRITERIA, getStudentModules,
   isRouteComplete, progressPct, gradeTotal, gradeMax, gradeSubmission, issueCertificate,
 } from '../store/store.jsx'
 import {
@@ -312,6 +312,10 @@ const StudentProductUpload = () => {
   const user = useStore(s => s.user);
   const selectedArea = useStore(s => s.selectedArea);
   const submissions = useStore(s => s.submissions);
+  const enrolledCourseId = useStore(s => s.enrolledCourseId);
+  const courseModules = useStore(s => s.courseModules);
+  const courses = useStore(s => s.courses);
+  const workshopAccess = useStore(s => s.workshopAccess);
   const isMobile = useMobile();
   const completed = useStore(s => s.completed);
   const [rejillaFile, setRejillaFile] = React.useState(null);
@@ -325,7 +329,24 @@ const StudentProductUpload = () => {
   const [preguntaError, setPreguntaError] = React.useState('');
 
   const area = AREAS.find(a => a.id === selectedArea);
-  const routeComplete = isRouteComplete(completed, selectedArea);
+
+  // Módulos reales de la ruta: los del curso si está inscrito (no los legacy del
+  // área). Sin esto la comprobación comparaba contra ids que no existían en su
+  // avance y siempre marcaba 0% / "ruta no completada".
+  const studentModules = enrolledCourseId ? courseModules : getStudentModules(selectedArea);
+  const requiredMods = studentModules.filter(m => m.type !== 'final_delivery');
+  const routeComplete = requiredMods.length === 0 || requiredMods.every(m => completed.includes(m.id));
+  const routePct = progressPct(completed, selectedArea, enrolledCourseId ? studentModules : null);
+
+  // Gate del taller: solo si el curso lo requiere (requires_workshop). El tutor
+  // habilita por estudiante tras el taller presencial. Si el curso no lo usa,
+  // no bloquea nada.
+  const course = courses.find(c => c.id === enrolledCourseId);
+  const requiresWorkshop = !!course?.requires_workshop;
+  const workshopEnabled = !requiresWorkshop
+    || (workshopAccess || []).some(w => w.student_id === user?.id && w.course_id === enrolledCourseId && w.enabled);
+  const canProceed = routeComplete && workshopEnabled;
+
   const existingSub = submissions.find(s => s.studentEmail === user?.email && s.area === selectedArea);
 
   const handleRejilla = async (f) => {
@@ -344,7 +365,7 @@ const StudentProductUpload = () => {
   };
 
   const handleSubmit = () => {
-    if (!rejillaFile || !preguntaFile || !routeComplete) return;
+    if (!rejillaFile || !preguntaFile || !canProceed) return;
     setSubmitting(true);
     setTimeout(() => {
       if (existingSub && existingSub.status === 'returned') {
@@ -356,7 +377,7 @@ const StudentProductUpload = () => {
     }, 600);
   };
 
-  const canSubmit = rejillaFile && preguntaFile && routeComplete && !rejillaError && !preguntaError;
+  const canSubmit = rejillaFile && preguntaFile && canProceed && !rejillaError && !preguntaError;
 
   const WordNotice = () => (
     <div style={{ padding: '12px 16px', borderRadius: 10, background: '#EFF6FF', border: '1px solid #BFDBFE', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -503,7 +524,19 @@ const StudentProductUpload = () => {
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--error)' }}>Ruta no completada</div>
               <p style={{ fontSize: 13, color: 'var(--text-sec)', marginTop: 2 }}>
                 Debes completar todos los módulos y retos de tu ruta antes de poder entregar el producto final.
-                Progreso: {progressPct(completed, selectedArea)}%
+                Progreso: {routePct}%
+              </p>
+            </div>
+          </div>
+        )}
+        {routeComplete && !workshopEnabled && (
+          <div style={{ padding: '18px 22px', borderRadius: 14, background: '#FFFBEB', border: '1.5px solid #FCD34D', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <LockIc s={22} c="#B45309" />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#B45309' }}>Producto final pendiente de habilitación</div>
+              <p style={{ fontSize: 13, color: 'var(--text-sec)', marginTop: 2 }}>
+                Completaste tu ruta. La entrega del producto final se habilita después del taller presencial;
+                tu tutor te la activará una vez confirmada tu asistencia.
               </p>
             </div>
           </div>
@@ -525,7 +558,7 @@ const StudentProductUpload = () => {
             <li><strong>Archivo de la Pregunta</strong> — La pregunta formulada para tu área</li>
           </ol>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28, opacity: routeComplete ? 1 : .5, pointerEvents: routeComplete ? 'auto' : 'none' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28, opacity: canProceed ? 1 : .5, pointerEvents: canProceed ? 'auto' : 'none' }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--orange)', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>1</span>
@@ -544,7 +577,7 @@ const StudentProductUpload = () => {
           </div>
         </div>
         <Btn variant="gradient" size="lg" full disabled={!canSubmit || submitting} onClick={handleSubmit}>
-          {submitting ? 'Enviando...' : canSubmit ? 'Enviar producto final' : !routeComplete ? 'Completa tu ruta primero' : `Adjunta ${!rejillaFile && !preguntaFile ? 'ambos archivos' : '1 archivo más'}`}
+          {submitting ? 'Enviando...' : canSubmit ? 'Enviar producto final' : !routeComplete ? 'Completa tu ruta primero' : !workshopEnabled ? 'Pendiente de habilitación del tutor' : `Adjunta ${!rejillaFile && !preguntaFile ? 'ambos archivos' : '1 archivo más'}`}
         </Btn>
       </div>
     </div>

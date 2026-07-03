@@ -4,7 +4,7 @@ import './styles.css'
 import App from './app.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient.js'
-import { XS, useStore, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, loadUserCourses, applyInitialHash, getAccessBlockReason } from './store/store.jsx'
+import { XS, useStore, doLogout, loadRouteConfigs, loadInstructorInstitutions, loadCourses, loadUserCourses, loadWorkshopAccess, applyInitialHash, getAccessBlockReason } from './store/store.jsx'
 import { mapSubmission, mapAttempt } from './lib/mappers.js'
 import { loadStudentSession } from './lib/loadStudentSession.js'
 import { isSessionExpired, clearIdleActivity, markActivity } from './lib/idleTimeout.js'
@@ -152,6 +152,7 @@ async function restoreSession() {
   }
 
   loadRouteConfigs()
+  loadWorkshopAccess()
   // courses + userCourses determinan el guard de "selección de curso". Marcamos
   // coursesLoaded solo cuando AMBAS terminan, para que App no decida la ruta del
   // estudiante con datos a medias (eso causaba el parpadeo curso/onboarding).
