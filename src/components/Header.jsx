@@ -12,13 +12,6 @@ const Header = React.memo(({ onMenuClick }) => {
   const [showNotifs, setShowNotifs] = React.useState(false);
   const { theme, toggle } = useTheme();
   const { contrast, toggle: toggleContrast } = useContrast();
-  if (!isLoggedIn || !user) return null;
-  const level = calcLevel(xp);
-
-  const myUnread = user.role === 'student'
-    ? (studentMessages || []).filter(m => m.toEmail === user.email && !m.read)
-    : [];
-
   React.useEffect(() => {
     if (!showNotifs) return;
     const onKey = (e) => { if (e.key === 'Escape') setShowNotifs(false); };
@@ -27,6 +20,16 @@ const Header = React.memo(({ onMenuClick }) => {
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('click', onClick); document.removeEventListener('keydown', onKey); };
   }, [showNotifs]);
+
+  // El early-return va DESPUÉS de todos los hooks: si estuviera antes del
+  // useEffect, al cerrar sesión (isLoggedIn=false con Header montado) React
+  // lanzaría "Rendered fewer hooks than expected" y la app crashearía.
+  if (!isLoggedIn || !user) return null;
+  const level = calcLevel(xp);
+
+  const myUnread = user.role === 'student'
+    ? (studentMessages || []).filter(m => m.toEmail === user.email && !m.read)
+    : [];
 
   return (
     <header style={{ height: 'var(--header-h)', display: 'flex', alignItems: 'center',

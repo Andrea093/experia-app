@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   useStore, nav, completeNode, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
-  getStudentModules, nodeStatus, calcLevel, getActiveCourseTheme, reactCharacter,
+  getStudentModules, nodeStatus, calcLevel, getActiveCourseTheme, reactCharacter, isRouteComplete,
 } from '../store/store.jsx'
 import ThemeCelebration from '../components/ThemeCelebration.jsx'
 import {

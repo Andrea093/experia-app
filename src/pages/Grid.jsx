@@ -877,12 +877,12 @@ export const InstructorDashboard = ({ onStudentClick }) => {
                     <div>
                       <div style={{ fontSize: 11, color: '#92400E', marginBottom: 4 }}>Rejilla corregida</div>
                       <FileDrop label="Rejilla (corregida)" fileName={instrRejillaFile?.name} accept=".doc,.docx,.xls,.xlsx"
-                        onFile={async (f) => { if (!isWordFile(f)) return; setInstrRejillaFile(f); setInstrRejillaData(await readFileAsDataURL(f)); }} />
+                        onFile={async (f) => { if (!isValidFile(f)) return; setInstrRejillaFile(f); setInstrRejillaData(await readFileAsDataURL(f)); }} />
                     </div>
                     <div>
                       <div style={{ fontSize: 11, color: '#92400E', marginBottom: 4 }}>Pregunta corregida</div>
                       <FileDrop label="Pregunta (corregida)" fileName={instrPreguntaFile?.name} accept=".doc,.docx,.xls,.xlsx"
-                        onFile={async (f) => { if (!isWordFile(f)) return; setInstrPreguntaFile(f); setInstrPreguntaData(await readFileAsDataURL(f)); }} />
+                        onFile={async (f) => { if (!isValidFile(f)) return; setInstrPreguntaFile(f); setInstrPreguntaData(await readFileAsDataURL(f)); }} />
                     </div>
                   </div>
                 </div>
