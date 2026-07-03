@@ -465,7 +465,9 @@ const UserCoursesModal = ({ acc, onClose }) => {
   const [savingId, setSavingId] = React.useState(null);
   const [error, setError] = React.useState(null);
 
-  const activeCourses = React.useMemo(() => courses.filter(c => c.is_active), [courses]);
+  // Solo cursos base: los forks (copias de tutor por colegio, parent_course_id != null)
+  // no se asignan a mano — se aplican solos al colegio. Nunca deben ofrecerse aquí.
+  const activeCourses = React.useMemo(() => courses.filter(c => c.is_active && !c.parent_course_id), [courses]);
   const granted = React.useMemo(
     () => new Set(userCourses.filter(uc => uc.user_id === acc?.id && uc.is_active).map(uc => uc.course_id)),
     [userCourses, acc]
@@ -647,7 +649,9 @@ const AdminPage = () => {
     () => visibleAccounts.filter(a => a.role !== 'admin' && a.id).map(a => a.id),
     [visibleAccounts]
   );
-  const activeCourses = React.useMemo(() => courses.filter(c => c.is_active), [courses]);
+  // Solo cursos base: los forks (copias de tutor por colegio, parent_course_id != null)
+  // no se asignan a mano — se aplican solos al colegio. Nunca deben ofrecerse aquí.
+  const activeCourses = React.useMemo(() => courses.filter(c => c.is_active && !c.parent_course_id), [courses]);
   // Estado tri-estado de un curso sobre el grupo: 'all' | 'some' | 'none'
   const courseGroupState = React.useCallback((courseId) => {
     if (!bulkTargetIds.length) return 'none';
