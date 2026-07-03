@@ -1286,12 +1286,15 @@ const forkCourseForInstitution = async (courseId, institutionId) => {
   const { user } = XS.get();
   if (!user?.id || !courseId || !institutionId) return { error: 'Faltan parámetros' };
 
-  // 1) ¿Ya existe una copia de este tutor para este colegio?
+  // 1) ¿Ya existe una copia para este colegio? (compartida entre todos los
+  // tutores asignados a él, sin importar quién la haya creado — así dos
+  // tutores del mismo colegio siempre editan la MISMA ruta que verá el
+  // estudiante, en vez de generar copias duplicadas que se pisan entre sí).
   const { data: existing } = await supabase.from('courses')
     .select('id,name')
     .eq('parent_course_id', courseId)
     .eq('institution_id', institutionId)
-    .eq('owner_id', user.id)
+    .eq('is_active', true)
     .maybeSingle();
   if (existing) return { id: existing.id, name: existing.name, isNew: false };
 

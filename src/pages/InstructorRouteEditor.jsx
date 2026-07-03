@@ -209,7 +209,7 @@ const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
           </button>
           <div>
             <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 2 }}>Editar módulos del curso</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Esta es tu versión personal — los cambios solo aplican a tu colegio</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Versión de este colegio — los cambios los verán todos sus estudiantes (y cualquier otro tutor asignado a este colegio la comparte contigo)</p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -291,7 +291,7 @@ const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
           ))}
           <div style={{ marginTop: 14, padding: 10, borderRadius: 10, background: 'var(--orange-bg)', border: '1px solid var(--orange-pale)' }}>
             <p style={{ fontSize: 11, color: 'var(--orange)', fontWeight: 600, margin: 0, lineHeight: 1.5 }}>
-              ✏️ Estás editando tu versión personal del curso. Los cambios solo afectan a los estudiantes de tu colegio.
+              ✏️ Estás editando la versión de este colegio. Los cambios los verán sus estudiantes, y cualquier otro tutor asignado a este colegio ve y puede seguir editando esta misma versión.
             </p>
           </div>
         </div>
@@ -379,15 +379,17 @@ const InstructorRouteEditor = () => {
 
   const selectedCourse = linkedCourses.find(c => c.id === selectedCourseId) || null
 
-  // ¿Ya existe una copia de este tutor para este colegio?
+  // ¿Ya existe una copia para este colegio? Es compartida entre todos los
+  // tutores asignados a él (no solo quien la creó), para que todos editen
+  // la MISMA ruta que verá el estudiante.
   const existingFork = React.useMemo(() => {
-    if (!selectedCourseId || !routeInstitution || !user?.id) return null
+    if (!selectedCourseId || !routeInstitution) return null
     return courses.find(c =>
       c.parent_course_id === selectedCourseId &&
       c.institution_id === routeInstitution &&
-      c.owner_id === user.id
+      c.is_active
     ) || null
-  }, [courses, selectedCourseId, routeInstitution, user])
+  }, [courses, selectedCourseId, routeInstitution])
 
   const handleOpenFork = async (useExisting) => {
     if (useExisting && existingFork) {
@@ -413,7 +415,7 @@ const InstructorRouteEditor = () => {
       <div style={{ marginBottom: 24 }}>
         <div style={{ marginBottom: 16 }}>
           <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>Editor de Ruta de Formación</h2>
-          <p style={{ fontSize: 14, color: 'var(--muted)' }}>Elige uno de tus cursos para crear y editar tu versión personalizada.</p>
+          <p style={{ fontSize: 14, color: 'var(--muted)' }}>Elige uno de tus cursos para crear y editar la versión de tu colegio.</p>
         </div>
 
         {/* ── Selector: colegio + curso ── */}
@@ -458,21 +460,21 @@ const InstructorRouteEditor = () => {
               {existingFork ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0F766E' }}>✅ Ya tienes una versión personalizada de "{selectedCourse.name}"</div>
-                    <div style={{ fontSize: 12, color: '#115E59', marginTop: 2 }}>"{existingFork.name}" — solo visible para ti y tus estudiantes</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0F766E' }}>✅ Ya existe una versión personalizada de "{selectedCourse.name}" para este colegio</div>
+                    <div style={{ fontSize: 12, color: '#115E59', marginTop: 2 }}>"{existingFork.name}" — esto es exactamente lo que ven tus estudiantes. Si otro tutor de este colegio la edita, tú verás sus cambios y viceversa.</div>
                   </div>
                   <Btn variant="gradient" onClick={() => handleOpenFork(true)}>✏️ Seguir editando</Btn>
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E' }}>📋 Crear mi versión de "{selectedCourse.name}"</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E' }}>📋 Crear la versión de "{selectedCourse.name}" para este colegio</div>
                     <div style={{ fontSize: 12, color: '#78350F', marginTop: 2 }}>
-                      Se generará una copia completa del curso solo para ti y tu colegio. El original queda intacto.
+                      Se generará una copia completa del curso para este colegio. El original queda intacto. Cualquier tutor asignado a este colegio podrá seguir editándola después.
                     </div>
                   </div>
                   <Btn variant="gradient" disabled={forking} onClick={() => handleOpenFork(false)}>
-                    {forking ? '⏳ Creando copia…' : '✨ Crear mi versión'}
+                    {forking ? '⏳ Creando copia…' : '✨ Crear versión del colegio'}
                   </Btn>
                 </div>
               )}
@@ -488,9 +490,10 @@ const InstructorRouteEditor = () => {
         <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>Cómo funciona</h4>
         {[
           { icon: '📚', text: 'Elige uno de los cursos que tienes asignados.' },
-          { icon: '✨', text: 'La primera vez se crea tu versión personal (una copia del curso). El original queda intacto.' },
+          { icon: '✨', text: 'La primera vez se crea la versión de ese colegio (una copia del curso). El original queda intacto.' },
           { icon: '✏️', text: 'Edita módulos, retos, su orden y contenido a tu antojo.' },
-          { icon: '💾', text: 'Guarda: solo tú y tus estudiantes de ese colegio verán tus cambios.' },
+          { icon: '👥', text: 'Es compartida: si otro tutor asignado al mismo colegio también la edita, ambos ven y modifican la misma versión.' },
+          { icon: '💾', text: 'Guarda: los estudiantes de ese colegio verán tus cambios.' },
         ].map((tip, i) => (
           <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
             <span style={{ fontSize: 15, flexShrink: 0 }}>{tip.icon}</span>
