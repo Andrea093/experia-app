@@ -1,3 +1,4 @@
+import React from 'react'
 import { supabase } from './supabaseClient.js'
 // =============================================
 // EXPERIA — Modo Aula en Vivo (cliente)
@@ -5,13 +6,30 @@ import { supabase } from './supabaseClient.js'
 // =============================================
 
 // --- Profesor ---
-export const createLiveSession = async ({ courseId, moduleId, title, questions, defaultTime = 20 }) => {
+// Crea el "cascarón" de una clase en vivo para un curso completo (sin módulo
+// aún) — el profesor entra al primer módulo llamando aparte a liveGotoModule.
+export const createLiveSession = async ({ courseId, title }) => {
   const { data, error } = await supabase.rpc('create_live_session', {
-    p_course_id: courseId || null, p_module_id: moduleId || null,
-    p_title: title || null, p_questions: questions || [], p_default_time: defaultTime,
+    p_course_id: courseId || null, p_title: title || null,
   })
   if (error) throw error
   return data
+}
+// Mueve el puntero de módulo actual dentro de la ruta del curso (lección,
+// encuesta, quiz interactivo, o pass-through para lo no sincrónico).
+export const liveGotoModule = async ({ session, moduleId, defaultTime = 20 }) => {
+  const { data, error } = await supabase.rpc('live_goto_module', {
+    p_session: session, p_module_id: moduleId, p_default_time: defaultTime,
+  })
+  if (error) throw error
+  return data
+}
+// Otorga XP/completado a los participantes conectados por el módulo que se deja atrás.
+export const liveCompleteModuleForParticipants = async ({ session, moduleId }) => {
+  const { error } = await supabase.rpc('live_complete_module_for_participants', {
+    p_session: session, p_module_id: moduleId,
+  })
+  if (error) throw error
 }
 export const liveSetPhase = (session, phase) => supabase.rpc('live_set_phase', { p_session: session, p_phase: phase })
 export const liveGoto     = (session, index) => supabase.rpc('live_goto',     { p_session: session, p_index: index })
@@ -22,6 +40,13 @@ export const joinLiveSession = async ({ code, nombre, apellido, correo, salon })
   const { data, error } = await supabase.rpc('join_live_session', {
     p_code: code, p_nombre: nombre, p_apellido: apellido || null, p_correo: correo || null, p_salon: salon || null,
   })
+  if (error) throw error
+  return data
+}
+// Unirse a la sesión guiada activa de un curso como estudiante logueado (sin
+// PIN; nombre/correo se autocompletan desde el perfil en el servidor).
+export const joinLiveSessionForCourse = async (courseId) => {
+  const { data, error } = await supabase.rpc('join_live_session_for_course', { p_course_id: courseId })
   if (error) throw error
   return data
 }
@@ -42,6 +67,13 @@ export const fetchSession = async (id) => {
 export const fetchSessionByCode = async (code) => {
   const { data } = await supabase.from('live_sessions').select('id,code,status,title')
     .eq('code', code).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
+  return data
+}
+// Sesión guiada activa de un curso (para el banner de invitación / vista del
+// estudiante). live_sessions tiene lectura pública, no requiere RPC.
+export const fetchActiveSessionForCourse = async (courseId) => {
+  const { data } = await supabase.from('live_sessions').select('*')
+    .eq('course_id', courseId).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
   return data
 }
 // Solo columnas públicas del leaderboard. correo/user_id/claim_token NO son
@@ -72,4 +104,56 @@ export const subscribeParticipants = (sessionId, cb) =>
     .on('postgres_changes', { event: '*', schema: 'public', table: 'live_participants', filter: `session_id=eq.${sessionId}` },
         () => cb())
     .subscribe()
+// Antes de unirse no hay session id todavía — se escucha por curso. cb() se
+// reinvoca en cualquier cambio; quien la use debe re-consultar fetchActiveSessionForCourse.
+export const subscribeCourseSessions = (courseId, cb) =>
+  supabase.channel('live-course-' + courseId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'live_sessions', filter: `course_id=eq.${courseId}` },
+        () => cb())
+    .subscribe()
 export const unsubscribe = (ch) => { if (ch) supabase.removeChannel(ch) }
+
+// --- Hook: sesión guiada del curso del estudiante ---
+// Detecta si el profesor tiene una Clase en Vivo Guiada activa para
+// `courseId`, expone la sesión (para el banner de invitación) y una acción
+// `join()` para unirse con la identidad del estudiante logueado.
+const GUIDED_JOINED_KEY = 'experia:guided-joined' // { [courseId]: sessionId } — re-unirse tras recargar
+
+export const useGuidedSession = (courseId) => {
+  const [session, setSession]         = React.useState(null)
+  const [participant, setParticipant] = React.useState(null)
+
+  const join = React.useCallback(async () => {
+    const p = await joinLiveSessionForCourse(courseId)
+    setParticipant(p)
+    try {
+      const raw = JSON.parse(sessionStorage.getItem(GUIDED_JOINED_KEY) || '{}')
+      raw[courseId] = p.session_id
+      sessionStorage.setItem(GUIDED_JOINED_KEY, JSON.stringify(raw))
+    } catch (_) { /* modo incógnito */ }
+    return p
+  }, [courseId])
+
+  React.useEffect(() => {
+    setSession(null); setParticipant(null)
+    if (!courseId) return
+    const resync = () => fetchActiveSessionForCourse(courseId).then(s => {
+      setSession(s)
+      // Re-unirse automáticamente si ya estaba dentro de ESTA sesión antes de recargar.
+      if (s) {
+        try {
+          const raw = JSON.parse(sessionStorage.getItem(GUIDED_JOINED_KEY) || '{}')
+          if (raw[courseId] === s.id) join()
+        } catch (_) { /* modo incógnito */ }
+      }
+    })
+    resync()
+    const ch = subscribeCourseSessions(courseId, resync)
+    const poll = setInterval(resync, 7000)
+    return () => { unsubscribe(ch); clearInterval(poll) }
+  }, [courseId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const leave = React.useCallback(() => setParticipant(null), [])
+
+  return { session, isJoined: !!participant, participant, join, leave }
+}

@@ -1,7 +1,8 @@
 import React from 'react'
 import { PlusIc, XIc, CheckIc, ChevRIc, ArrowLIc, ArrowRIc, Btn, Modal, ImageUploader } from '../ui.jsx'
 
-const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
+const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) => {
+  const isPoll = variant === 'poll'
   const [title, setTitle]   = React.useState('')
   const [desc, setDesc]     = React.useState('')
   const [task, setTask]     = React.useState('')
@@ -22,7 +23,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
       setDesc(initial?.desc || '')
       setTask(initial?.task || '')
       setXp(initial?.xp || 100)
-      setQs(initial?.questions || [{ id: 1, question: '', options: ['', '', '', ''], correct: 0 }])
+      setQs(initial?.questions || [{ id: 1, question: '', options: ['', '', '', ''], ...(isPoll ? {} : { correct: 0 }) }])
       setErr('')
       const ps = initial?.passage
       setPOn(!!ps)
@@ -60,7 +61,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
   const [advOpen, setAdvOpen] = React.useState({}) // id -> bool (opciones avanzadas abiertas)
   const toggleAdv = (id) => setAdvOpen(o => ({ ...o, [id]: !o[id] }))
 
-  const addQ = () => setQs(q => [...q, { id: Date.now(), question: '', options: ['', '', '', ''], correct: 0 }])
+  const addQ = () => setQs(q => [...q, { id: Date.now(), question: '', options: ['', '', '', ''], ...(isPoll ? {} : { correct: 0 }) }])
   const removeQ = (id) => setQs(q => q.filter(x => x.id !== id))
   const updateQ = (id, key, val) => setQs(q => q.map(x => x.id === id ? { ...x, [key]: val } : x))
   const dupQ = (id) => setQs(q => {
@@ -84,17 +85,18 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
     if (!questions.length) { setErr('Agrega al menos una pregunta'); return }
     const incomplete = questions.find(q => !q.question.trim() || q.options.some(o => !o.trim()))
     if (incomplete) { setErr('Completa todas las preguntas y opciones'); return }
-    onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100, questions: cleanQuestions(), passage: buildPassage(), type: 'challenge', ctype: 'quiz' })
+    onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100, questions: cleanQuestions(), passage: buildPassage(), type: 'challenge', ctype: isPoll ? 'poll' : 'quiz' })
   }
 
   // Limpia campos opcionales vacíos y normaliza números antes de guardar
   const cleanQuestions = () => questions.map(q => {
-    const out = { id: q.id, question: q.question.trim(), options: q.options, correct: q.correct }
+    const out = { id: q.id, question: q.question.trim(), options: q.options }
+    if (!isPoll) out.correct = q.correct
     if (q.image) { out.image = q.image; if (q.imageHeight) out.imageHeight = Number(q.imageHeight) }
-    if (q.explanation?.trim()) out.explanation = q.explanation.trim()
-    if (q.explanationImage) out.explanationImage = q.explanationImage
+    if (!isPoll && q.explanation?.trim()) out.explanation = q.explanation.trim()
+    if (!isPoll && q.explanationImage) out.explanationImage = q.explanationImage
     if (q.timeLimit) out.timeLimit = Number(q.timeLimit)
-    if (q.points) out.points = Number(q.points)
+    if (!isPoll && q.points) out.points = Number(q.points)
     if (q.difficulty) out.difficulty = q.difficulty
     return out
   })
@@ -103,7 +105,9 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
   const advLbl = { fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 4 }
 
   return (
-    <Modal open={open} onClose={onClose} title={initial ? 'Editar reto Quiz' : 'Crear reto Quiz'} width={600}>
+    <Modal open={open} onClose={onClose}
+      title={isPoll ? (initial ? 'Editar encuesta en vivo' : 'Crear encuesta en vivo') : (initial ? 'Editar reto Quiz' : 'Crear reto Quiz')}
+      width={600}>
       <div style={{ maxHeight: '72vh', overflow: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10 }}>
           <div>
@@ -205,21 +209,28 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   {q.options.map((opt, oi) => (
                     <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button onClick={() => updateQ(q.id, 'correct', oi)} title="Marcar como correcta"
-                        style={{ width: 24, height: 24, borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0,
-                          background: q.correct === oi ? 'var(--success)' : 'var(--bg-alt)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {q.correct === oi
-                          ? <CheckIc s={13} c="#fff" />
-                          : <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{String.fromCharCode(65 + oi)}</span>}
-                      </button>
+                      {isPoll ? (
+                        <span style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, background: 'var(--bg-alt)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>
+                          {String.fromCharCode(65 + oi)}
+                        </span>
+                      ) : (
+                        <button onClick={() => updateQ(q.id, 'correct', oi)} title="Marcar como correcta"
+                          style={{ width: 24, height: 24, borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0,
+                            background: q.correct === oi ? 'var(--success)' : 'var(--bg-alt)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {q.correct === oi
+                            ? <CheckIc s={13} c="#fff" />
+                            : <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{String.fromCharCode(65 + oi)}</span>}
+                        </button>
+                      )}
                       <input value={opt} onChange={e => updateOpt(q.id, oi, e.target.value)}
-                        placeholder={`Opción ${String.fromCharCode(65 + oi)}${q.correct === oi ? ' (correcta)' : ''}`}
-                        style={{ ...inp, border: q.correct === oi ? '1.5px solid var(--success)' : '1.5px solid var(--border)' }} />
+                        placeholder={`Opción ${String.fromCharCode(65 + oi)}${!isPoll && q.correct === oi ? ' (correcta)' : ''}`}
+                        style={{ ...inp, border: !isPoll && q.correct === oi ? '1.5px solid var(--success)' : '1.5px solid var(--border)' }} />
                     </div>
                   ))}
                 </div>
-                <p style={{ fontSize: 11, color: 'var(--subtle)', marginTop: 8 }}>Haz clic en el círculo para marcar la opción correcta</p>
+                {!isPoll && <p style={{ fontSize: 11, color: 'var(--subtle)', marginTop: 8 }}>Haz clic en el círculo para marcar la opción correcta</p>}
 
                 {/* ── Opciones avanzadas por pregunta ── */}
                 <button onClick={() => toggleAdv(q.id)}
@@ -228,7 +239,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
                   <span style={{ display: 'inline-block', transform: advOpen[q.id] ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>
                     <ChevRIc s={13} c="var(--purple)" />
                   </span>
-                  ⚙️ Opciones avanzadas {(q.explanation || q.image) ? '•' : ''}
+                  ⚙️ Opciones avanzadas {(q.image || (!isPoll && q.explanation)) ? '•' : ''}
                 </button>
 
                 {advOpen[q.id] && (
@@ -250,35 +261,39 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
                       <ImageUploader label={q.image ? 'Reemplazar imagen' : 'Subir imagen'} compact onUploaded={url => updateQ(q.id, 'image', url)} />
                     </div>
 
-                    {/* Explicación */}
-                    <div>
-                      <label style={advLbl}>Explicación (se muestra al estudiante después de responder)</label>
-                      <textarea value={q.explanation || ''} onChange={e => updateQ(q.id, 'explanation', e.target.value)} rows={3}
-                        placeholder="Explica por qué la respuesta correcta es la correcta…" style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} />
-                      <div style={{ marginTop: 6 }}>
-                        {q.explanationImage && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                            <img src={q.explanationImage} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
-                            <button onClick={() => updateQ(q.id, 'explanationImage', '')} title="Quitar"
-                              style={{ width: 24, height: 24, borderRadius: 6, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <XIc s={12} c="var(--error)" />
-                            </button>
-                          </div>
-                        )}
-                        <ImageUploader label={q.explanationImage ? 'Reemplazar imagen' : 'Imagen de la explicación (opcional)'} compact onUploaded={url => updateQ(q.id, 'explanationImage', url)} />
+                    {/* Explicación (no aplica a encuestas: no hay respuesta correcta que explicar) */}
+                    {!isPoll && (
+                      <div>
+                        <label style={advLbl}>Explicación (se muestra al estudiante después de responder)</label>
+                        <textarea value={q.explanation || ''} onChange={e => updateQ(q.id, 'explanation', e.target.value)} rows={3}
+                          placeholder="Explica por qué la respuesta correcta es la correcta…" style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} />
+                        <div style={{ marginTop: 6 }}>
+                          {q.explanationImage && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                              <img src={q.explanationImage} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+                              <button onClick={() => updateQ(q.id, 'explanationImage', '')} title="Quitar"
+                                style={{ width: 24, height: 24, borderRadius: 6, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <XIc s={12} c="var(--error)" />
+                              </button>
+                            </div>
+                          )}
+                          <ImageUploader label={q.explanationImage ? 'Reemplazar imagen' : 'Imagen de la explicación (opcional)'} compact onUploaded={url => updateQ(q.id, 'explanationImage', url)} />
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Metadatos para el modo en vivo */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isPoll ? '1fr 1fr' : '1fr 1fr 1fr', gap: 8 }}>
                       <div>
                         <label style={advLbl}>Tiempo (s)</label>
                         <input type="number" value={q.timeLimit || ''} onChange={e => updateQ(q.id, 'timeLimit', e.target.value)} placeholder="20" min={5} style={{ ...inp, fontSize: 12 }} />
                       </div>
-                      <div>
-                        <label style={advLbl}>Puntos</label>
-                        <input type="number" value={q.points || ''} onChange={e => updateQ(q.id, 'points', e.target.value)} placeholder="1000" min={0} style={{ ...inp, fontSize: 12 }} />
-                      </div>
+                      {!isPoll && (
+                        <div>
+                          <label style={advLbl}>Puntos</label>
+                          <input type="number" value={q.points || ''} onChange={e => updateQ(q.id, 'points', e.target.value)} placeholder="1000" min={0} style={{ ...inp, fontSize: 12 }} />
+                        </div>
+                      )}
                       <div>
                         <label style={advLbl}>Dificultad</label>
                         <select value={q.difficulty || ''} onChange={e => updateQ(q.id, 'difficulty', e.target.value)} style={{ ...inp, fontSize: 12 }}>
@@ -289,7 +304,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave }) => {
                         </select>
                       </div>
                     </div>
-                    <p style={{ fontSize: 10, color: 'var(--subtle)', margin: 0 }}>⏱️ Tiempo y puntos se usarán en el Modo Aula en Vivo (contra reloj).</p>
+                    <p style={{ fontSize: 10, color: 'var(--subtle)', margin: 0 }}>⏱️ Tiempo{!isPoll && ' y puntos'} se usará{!isPoll && 'n'} en el Modo Aula en Vivo (contra reloj).</p>
                   </div>
                 )}
               </div>

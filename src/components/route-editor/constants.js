@@ -12,9 +12,10 @@ export const CHALLENGE_TYPES = [
   { id:'quiz',       label:'Quiz',                 emoji:'📝', desc:'Preguntas de opción múltiple' },
   { id:'truefalse',  label:'Verdadero / Falso',   emoji:'⚖️', desc:'Marca cada afirmación como verdadera o falsa' },
   { id:'fillblank',  label:'Completar espacios',  emoji:'✏️', desc:'Completa los huecos del texto con el banco de palabras' },
+  { id:'poll',       label:'Encuesta en vivo',     emoji:'📊', desc:'Pregunta de opinión sin respuesta correcta — muestra la distribución en vivo' },
 ]
 
-export const CTYPE_EMOJI = { dragdrop:'🧩', empathy:'🗺️', simulation:'🎭', matching:'🔗', quiz:'📝', truefalse:'⚖️', fillblank:'✏️' }
+export const CTYPE_EMOJI = { dragdrop:'🧩', empathy:'🗺️', simulation:'🎭', matching:'🔗', quiz:'📝', truefalse:'⚖️', fillblank:'✏️', poll:'📊' }
 
 export const SECTION_TYPES = [
   { id: 'intro',   label: '📖 Introducción',  icon: '📖' },

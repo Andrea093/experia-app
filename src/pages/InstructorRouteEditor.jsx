@@ -160,7 +160,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
   const handleNewChallenge = ({ ctype, title, desc, task, xp }) => {
     setShowNewChallenge(false)
     const template = { isNew: true, type: 'challenge', ctype, title, desc, task, xp }
-    if (ctype === 'quiz') setEditingQuiz({ ...template, questions: [] })
+    if (ctype === 'quiz' || ctype === 'poll') setEditingQuiz({ ...template, questions: [] })
     else setEditingChallenge(template)
   }
 
@@ -298,7 +298,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
                 onDragEnd={() => { setDragIdx(null); setOverIdx(null) }}
                 onEdit={() => {
                   if (mod.type === 'lesson' || mod.type === 'final_delivery') setEditingModule(mod)
-                  else if (mod.ctype === 'quiz') setEditingQuiz(mod)
+                  else if (mod.ctype === 'quiz' || mod.ctype === 'poll') setEditingQuiz(mod)
                   else setEditingChallenge(mod)
                 }}
                 onDuplicate={() => duplicateModule(mod)}
@@ -349,7 +349,8 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
       {/* Modals */}
       <NewChallengeModal open={showNewChallenge} onClose={() => setShowNewChallenge(false)} onCreate={handleNewChallenge} />
       <ChallengeEditorModal open={!!editingChallenge} mod={editingChallenge} onClose={() => setEditingChallenge(null)} onSave={saveChallengeOverride} />
-      <QuizCreatorModal open={!!editingQuiz} initial={editingQuiz?.isNew ? null : editingQuiz} onClose={() => setEditingQuiz(null)} onSave={saveQuizCustom} />
+      <QuizCreatorModal open={!!editingQuiz} initial={editingQuiz?.isNew ? null : editingQuiz} onClose={() => setEditingQuiz(null)} onSave={saveQuizCustom}
+        variant={editingQuiz?.ctype === 'poll' ? 'poll' : 'quiz'} />
       <CustomModuleModal open={!!editingModule} initial={editingModule}
         onClose={() => setEditingModule(null)} onSave={saveBaseModuleOverride} />
       <CustomModuleModal open={showAddModule}

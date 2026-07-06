@@ -3,9 +3,11 @@ import { useStore, nav, doLogout } from './store/store.jsx'
 import { selectActiveCourseTheme } from './store/store.jsx'
 import { startIdleWatch } from './lib/idleTimeout.js'
 import { applySavedTheme, applyLightOnly } from './lib/theme.js'
+import { useGuidedSession } from './lib/liveClient.js'
 import { NotifManager } from './components/ui.jsx'
 import CourseAmbient from './components/CourseAmbient.jsx'
 import { OnboardingModal } from './components/Onboarding.jsx'
+import GuidedSessionBanner from './components/GuidedSessionBanner.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Header from './components/Header.jsx'
 
@@ -91,6 +93,7 @@ const ForumPage             = React.lazy(() => import('./pages/forum.jsx'))
 const CertPage              = React.lazy(() => import('./pages/CertPage.jsx'))
 const LivePlayPage          = React.lazy(() => import('./pages/LivePlay.jsx'))
 const LiveHostPage          = React.lazy(() => import('./pages/LiveHost.jsx'))
+const GuidedClassView       = React.lazy(() => import('./components/GuidedClassView.jsx'))
 
 const PageSpinner = () => (
   <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -119,7 +122,17 @@ const App = () => {
   const coursesLoaded  = useStore(s => s.coursesLoaded);
   const courseTheme    = useStore(selectActiveCourseTheme);
   const activeTheme    = isLoggedIn ? courseTheme : null;
+  const guided         = useGuidedSession(isLoggedIn && user?.role === 'student' ? enrolledCourse : null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
+
+  // Al terminar la Clase en Vivo Guiada, el estudiante ve el podio unos
+  // segundos y luego vuelve solo a su mapa/ruta normal.
+  React.useEffect(() => {
+    if (guided.isJoined && guided.session?.status === 'ended') {
+      const t = setTimeout(guided.leave, 5000);
+      return () => clearTimeout(t);
+    }
+  }, [guided.isJoined, guided.session?.status, guided.leave]);
 
   // Aplica el tema visual inmersivo del curso activo en el elemento raíz.
   // Solo cuando el estudiante está logueado y dentro de su curso — nunca en login/landing.
@@ -169,6 +182,12 @@ const App = () => {
   if (role === 'student' && hasCourses && !enrolledCourse) return <React.Suspense fallback={<PageSpinner />}><CourseSelection /></React.Suspense>;
   // Guard legado: sin cursos en BD y sin área → selección de área
   if (role === 'student' && !hasCourses && !selectedArea) return <React.Suspense fallback={<PageSpinner />}><AreaSelection /></React.Suspense>;
+
+  // Clase en Vivo Guiada: mientras el estudiante está unido, su pantalla queda
+  // completamente controlada por el profesor — sin sidebar ni navegación libre.
+  if (role === 'student' && guided.isJoined) {
+    return <React.Suspense fallback={<PageSpinner />}><GuidedClassView guided={guided} /></React.Suspense>;
+  }
 
   const fullPages = ['lesson', 'challenge'];
   const isFullPage = fullPages.includes(page);
@@ -226,6 +245,7 @@ const App = () => {
         <Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
       )}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        {role === 'student' && <GuidedSessionBanner session={guided.session} onJoin={guided.join} />}
         {!isFullPage && <Header onMenuClick={() => setMobileSidebarOpen(o => !o)} />}
         <main id="main-content" tabIndex="-1" className="page-enter" style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)', outline: 'none' }} key={page + (nodeId || '')}>
           <React.Suspense fallback={<PageSpinner />}>

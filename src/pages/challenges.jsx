@@ -746,6 +746,97 @@ const QuizChallenge = ({ mod, onComplete }) => {
   );
 };
 
+// ---- ENCUESTA (poll) ----
+// challenge_data: { questions: [{ question, options: [str] }], passage? } — sin 'correct'.
+// Fuera de una sesión en vivo, responder simplemente registra la elección
+// del estudiante (sin acierto/error, sin puntaje) y completa el módulo.
+const PollChallenge = ({ mod, onComplete }) => {
+  const questions = mod.questions || [];
+  const [current, setCurrent] = React.useState(0);
+  const [answers, setAnswers] = React.useState([]);
+  const [selected, setSelected] = React.useState(null);
+  const [done, setDone] = React.useState(false);
+
+  if (!questions.length) return (
+    <div style={{textAlign:'center',padding:40}}>
+      <p style={{color:'var(--muted)',marginBottom:16}}>Esta encuesta no tiene preguntas configuradas aún.</p>
+      <Btn variant="secondary" onClick={onComplete}>Continuar</Btn>
+    </div>
+  );
+
+  const q = questions[current];
+
+  const handleNext = () => {
+    if (selected === null) return;
+    const allAnswers = [...answers, selected];
+    if (current < questions.length - 1) {
+      setAnswers(allAnswers); setCurrent(c => c + 1); setSelected(null);
+    } else {
+      const qs = questions.map((q, i) => ({ q: q.question, correct: true }));
+      recordAttempt(mod.id, qs, questions.length, questions.length);
+      setAnswers(allAnswers); setDone(true);
+    }
+  };
+
+  if (done) {
+    return (
+      <div style={{maxWidth:520,margin:'0 auto',textAlign:'center',paddingBottom:48}}>
+        <span style={{fontSize:56}}>📊</span>
+        <h3 style={{fontSize:22,fontWeight:800,color:'var(--dark)',marginTop:10,marginBottom:6}}>¡Gracias por participar!</h3>
+        <p style={{fontSize:14,color:'var(--muted)',marginBottom:20}}>Tus respuestas fueron registradas.</p>
+        <div style={{textAlign:'left',display:'flex',flexDirection:'column',gap:8}}>
+          {questions.map((q,i) => (
+            <div key={i} style={{padding:'12px 16px',borderRadius:12,background:'var(--bg)',border:'1px solid var(--border)'}}>
+              <p style={{fontSize:13,fontWeight:600,color:'var(--dark)',marginBottom:4}}>{q.question}</p>
+              <p style={{fontSize:12,color:'var(--muted)',margin:0}}>Tu respuesta: {q.options[answers[i]]}</p>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:20}}><Btn variant="gradient" size="lg" onClick={onComplete}>Continuar <ArrowRIc s={18} c="#fff"/></Btn></div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{maxWidth:560,margin:'0 auto',paddingBottom:48}}>
+      {mod.passage && <QuizPassage passage={mod.passage} />}
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:24}}>
+        <ProgressBar pct={(current/questions.length)*100} h={6} color="var(--purple)"/>
+        <span style={{fontSize:12,color:'var(--muted)',whiteSpace:'nowrap',fontWeight:600}}>{current+1}/{questions.length}</span>
+      </div>
+      <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
+        {q.image && (
+          <img src={q.image} alt="" style={{width:'100%',maxHeight:q.imageHeight||320,objectFit:'contain',borderRadius:12,
+            display:'block',marginBottom:16,border:'1px solid var(--border)'}} />
+        )}
+        <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.question}</h4>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {(q.options||[]).map((opt,i) => {
+            const isSel=selected===i;
+            return (
+              <button key={i} onClick={()=>setSelected(i)}
+                style={{display:'flex',alignItems:'center',gap:12,padding:'13px 16px',borderRadius:12,
+                  border:isSel?'2px solid var(--purple)':'1.5px solid var(--border)',
+                  background:isSel?'var(--purple-bg)':'var(--bg)',
+                  cursor:'pointer',fontFamily:'var(--font)',transition:'all .2s',textAlign:'left'}}>
+                <span style={{width:28,height:28,borderRadius:8,flexShrink:0,fontWeight:700,fontSize:12,
+                  background:isSel?'var(--purple)':'var(--bg-alt)',
+                  color:isSel?'#fff':'var(--muted)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  {String.fromCharCode(65+i)}
+                </span>
+                <span style={{fontSize:14,color:'var(--dark)',fontWeight:500,lineHeight:1.5,flex:1}}>{opt}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <Btn variant="gradient" size="lg" disabled={selected===null} onClick={handleNext} full>
+        {current<questions.length-1?<>Siguiente <ArrowRIc s={18} c="#fff"/></>:<>Finalizar <TrophyIc s={18} c="#fff"/></>}
+      </Btn>
+    </div>
+  );
+};
+
 // ---- TRUE / FALSE ----
 // challenge_data: { statements: [{ id, text, answer: true|false }] }
 const TrueFalseChallenge = ({ mod, onComplete }) => {
@@ -931,7 +1022,7 @@ const FillBlankChallenge = ({ mod, onComplete }) => {
 export const CHALLENGE_COMPONENTS = {
   dragdrop: DragDropChallenge, empathy: EmpathyMapChallenge, simulation: SimulationChallenge,
   matching: ConceptMatchingChallenge, designlab: DesignLabChallenge, quiz: QuizChallenge,
-  truefalse: TrueFalseChallenge, fillblank: FillBlankChallenge,
+  truefalse: TrueFalseChallenge, fillblank: FillBlankChallenge, poll: PollChallenge,
 };
 
 const ChallengeView = () => {
