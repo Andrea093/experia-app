@@ -337,32 +337,26 @@ const LearningMap = () => {
   const courseModules   = useStore(s => s.courseModules);
   const enrolledCourseId = useStore(s => s.enrolledCourseId);
   const courses         = useStore(s => s.courses);
-  const allEnrollments  = useStore(s => s.allEnrollments);
   const userCourses     = useStore(s => s.userCourses);
   const user            = useStore(s => s.user);
   const isMobile = useMobile();
   const [showCourseSelector, setShowCourseSelector] = React.useState(false);
   const [switching, setSwitching] = React.useState(false);
 
-  // Cursos entre los que el estudiante puede cambiar: unión de matrículas
-  // (course_enrollments) y accesos activos (user_courses), limitada a cursos
-  // activos y existentes. Robusto ante desfase entre ambas tablas.
+  // Cursos entre los que el estudiante puede cambiar: SOLO los que tiene con
+  // acceso activo en user_courses (el gate estricto por usuario, que se llena por
+  // colegio vía autoEnroll o por usuario desde AdminUsers). Coincide exactamente
+  // con la pantalla "Elige tu curso" (CourseSelection). Antes se unían las
+  // matrículas de course_enrollments, lo que colaba cursos viejos/forks/migraciones
+  // que el colegio ya no tiene habilitados (mostraba cursos no inscritos).
   const switchableCourseIds = React.useMemo(() => {
-    const mine = (userCourses || []).filter(uc => uc.user_id === user?.id);
-    const activeAccess = new Set(mine.filter(uc =>  uc.is_active).map(uc => uc.course_id));
-    const revoked      = new Set(mine.filter(uc => !uc.is_active).map(uc => uc.course_id));
-    // Partimos de las matrículas + accesos activos, y luego quitamos los accesos
-    // REVOCADOS explícitamente (fila en user_courses con is_active=false). Sin esto
-    // una matrícula vieja seguía mostrando el curso aunque el admin ya le quitó el
-    // acceso (revocar acceso no borra la matrícula, por diseño). Los accesos activos
-    // "auto-sanan" una matrícula faltante; una fila missing (no revocada) no se toca.
-    const ids = new Set(allEnrollments || []);
-    activeAccess.forEach(id => ids.add(id));
-    revoked.forEach(id => ids.delete(id));
+    const activeAccess = new Set(
+      (userCourses || []).filter(uc => uc.user_id === user?.id && uc.is_active).map(uc => uc.course_id)
+    );
     // isBaseCourse excluye los forks (copias por colegio): son reemplazos
     // transparentes del curso padre, nunca cursos seleccionables aparte.
-    return (courses || []).filter(c => isBaseCourse(c) && ids.has(c.id)).map(c => c.id);
-  }, [allEnrollments, userCourses, user, courses]);
+    return (courses || []).filter(c => isBaseCourse(c) && activeAccess.has(c.id)).map(c => c.id);
+  }, [userCourses, user, courses]);
 
   const handleCourseSelect = React.useCallback(async (id) => {
     setSwitching(true);
@@ -497,7 +491,7 @@ const LearningMap = () => {
     <div style={{ height: '100%', overflow: 'auto', padding: '0 0 40px' }}>
       {showCourseSelector && switchableCourseIds.length > 1 && (
         <CourseSelector
-          enrollments={allEnrollments}
+          enrollments={switchableCourseIds}
           courses={courses}
           currentId={enrolledCourseId}
           onSelect={async (id) => { await switchCourse(id); setShowCourseSelector(false); }}

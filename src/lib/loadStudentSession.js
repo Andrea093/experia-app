@@ -10,6 +10,15 @@ import { dbRowsToCourseModules } from '../store/store.jsx'
  * Returns { enrolledCourseId, courseModules, allEnrollments, xp, completed, badges }
  */
 export async function loadStudentSession(userId, area, institutionId) {
+  // Auto-conceder los cursos habilitados para el colegio del estudiante que aún
+  // no tenga (modelo estricto user_courses). Cierra el hueco de los estudiantes
+  // que se registran DESPUÉS de habilitar el curso por colegio: autoEnroll solo
+  // corre sobre los existentes al momento del toggle. La RPC (SECURITY DEFINER,
+  // migración 0028) se acota al propio colegio y respeta revocaciones por usuario.
+  // Se espera ANTES de leer las tablas para que el acceso recién dado ya cuente.
+  // Si la migración 0028 aún no está aplicada, no bloquear el login.
+  try { await supabase.rpc('sync_my_institution_courses') } catch (_) { /* noop */ }
+
   const [{ data: enrollmentsData }, { data: legacyProgress }, { data: accessData }] = await Promise.all([
     supabase.from('course_enrollments').select('course_id').eq('student_id', userId),
     supabase.from('progress').select('xp,completed,badges').eq('user_id', userId).maybeSingle(),
