@@ -1429,7 +1429,25 @@ const forkCourseForInstitution = async (courseId, institutionId) => {
 // Carga los módulos de un curso para edición en el editor de rutas del instructor.
 // Devuelve los módulos convertidos al formato del editor (mismo shape que los módulos
 // DCE de getScopeModules) para que las acciones de edición existentes sigan funcionando.
+//
+// Borrador/Publicar: si el curso tiene un borrador pendiente (`courses.draft_modules`,
+// migración 0031), se carga ESE (lo que el tutor dejó a medias) en vez de lo publicado
+// — así el trabajo en curso no se pierde entre sesiones. `hasDraft` le indica a la UI
+// si lo que se ve es un borrador sin publicar o lo que ya ven los estudiantes.
 const loadCourseForEditing = async (courseId) => {
+  const { data: courseRow } = await supabase.from('courses')
+    .select('name, draft_modules, draft_name, draft_updated_at').eq('id', courseId).maybeSingle();
+
+  if (courseRow?.draft_modules) {
+    return {
+      modules: courseRow.draft_modules,
+      customModules: [],
+      hasDraft: true,
+      draftName: courseRow.draft_name ?? courseRow.name,
+      draftUpdatedAt: courseRow.draft_updated_at,
+    };
+  }
+
   const { data, error } = await supabase.from('course_modules')
     .select('*').eq('course_id', courseId).order('"order"');
   if (error) return { error: error.message, modules: [], customModules: [] };
@@ -1451,7 +1469,39 @@ const loadCourseForEditing = async (courseId) => {
     // en la lista principal, sin distinción base/custom.
     standard.push(mod);
   });
-  return { modules: standard, customModules: custom };
+  return { modules: standard, customModules: custom, hasDraft: false };
+};
+
+// Guarda el estado actual del editor como BORRADOR (courses.draft_modules) sin
+// tocar course_modules — los estudiantes NO ven este cambio hasta que se publique.
+const saveCourseDraft = async (courseId, moduleList, courseName) => {
+  if (!courseId) return { error: 'Sin curso seleccionado' };
+  const { error } = await supabase.from('courses').update({
+    draft_modules: moduleList,
+    draft_name: courseName ?? null,
+    draft_updated_at: new Date().toISOString(),
+  }).eq('id', courseId);
+  if (error) { console.error('saveCourseDraft:', error); return { error: error.message }; }
+  return { ok: true };
+};
+
+// Descarta el borrador pendiente (vuelve a lo último publicado).
+const discardCourseDraft = async (courseId) => {
+  if (!courseId) return { error: 'Sin curso seleccionado' };
+  const { error } = await supabase.from('courses').update({
+    draft_modules: null, draft_name: null, draft_updated_at: null,
+  }).eq('id', courseId);
+  if (error) { console.error('discardCourseDraft:', error); return { error: error.message }; }
+  return { ok: true };
+};
+
+// Publica el borrador: aplica moduleList/courseName a la BD real (course_modules,
+// lo que leen los estudiantes) vía saveCourseModules, y limpia el borrador.
+const publishCourseModules = async (courseId, moduleList, courseName) => {
+  const result = await saveCourseModules(courseId, moduleList, courseName);
+  if (result.error) return result;
+  await discardCourseDraft(courseId);
+  return result;
 };
 
 // Guarda los cambios del editor sobre un curso real (la copia del tutor).
@@ -1691,6 +1741,7 @@ export {
   loadUserCourses, setUserCourseAccess, setUserCourseAccessBulk, allowedCourseIds,
   loadCourseModules, enrollInCourse, dbModToAppMod, publishRouteToCourse, switchCourse,
   forkCourseForInstitution, loadCourseForEditing, saveCourseModules, resolveCourseForStudent,
+  saveCourseDraft, discardCourseDraft, publishCourseModules,
   applyInitialHash, markOnboarded, claimOnboardingBonus, awardForumParticipation,
   hashFor, issueCertificate, getActiveCourseTheme, reactCharacter,
   setPreviewMode,

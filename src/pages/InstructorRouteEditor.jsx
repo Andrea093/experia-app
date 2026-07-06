@@ -1,7 +1,8 @@
 import React from 'react'
 import {
   useStore,
-  forkCourseForInstitution, loadCourseForEditing, saveCourseModules,
+  forkCourseForInstitution, loadCourseForEditing,
+  saveCourseDraft, discardCourseDraft, publishCourseModules,
 } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, GripIc, Btn } from '../components/ui.jsx'
 import {
@@ -69,7 +70,7 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
 }
 
 // ─── Modo Curso: edita los módulos reales de la copia del tutor ───────────────
-const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
+const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) => {
   const isMobile = useMobile()
   const courses  = useStore(s => s.courses || [])
   // El tema del curso (los forks copian el theme del padre) alimenta el preview temático.
@@ -79,6 +80,8 @@ const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
   const [loadErr, setLoadErr]           = React.useState('')
   const [courseName, setCourseName]     = React.useState(initialName || '')
   const [saving, setSaving]             = React.useState(false)
+  const [publishing, setPublishing]     = React.useState(false)
+  const [hasDraft, setHasDraft]         = React.useState(false)
   const [savedMsg, setSavedMsg]         = React.useState('')
   const [dragIdx, setDragIdx]           = React.useState(null)
   const [overIdx, setOverIdx]           = React.useState(null)
@@ -91,9 +94,11 @@ const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
 
   React.useEffect(() => {
     setLoading(true); setLoadErr('')
-    loadCourseForEditing(courseId).then(({ modules, error }) => {
+    loadCourseForEditing(courseId).then(({ modules, error, hasDraft, draftName }) => {
       if (error) { setLoadErr(error); setLoading(false); return }
       setModuleList(modules)
+      setHasDraft(!!hasDraft)
+      if (hasDraft && draftName) setCourseName(draftName)
       setLoading(false)
     })
   }, [courseId])
@@ -172,16 +177,40 @@ const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
     setModuleList(l => [...l, { id: 'new_' + Date.now(), enabled: true, _dbRow: null, ...mod }])
   }
 
-  // ─── guardar ───
-  const handleSave = async () => {
+  // ─── guardar borrador / publicar / descartar ───
+  // "Guardar borrador" NO afecta a los estudiantes (courses.draft_modules).
+  // "Publicar" recién aplica el cambio a course_modules, que es lo que leen.
+  const handleSaveDraft = async () => {
     setSaving(true); setSavedMsg('')
-    const result = await saveCourseModules(courseId, moduleList, courseName)
+    const result = await saveCourseDraft(courseId, moduleList, courseName)
     setSaving(false)
+    if (result.error) { setSavedMsg('⚠️ ' + result.error); return }
+    setHasDraft(true)
+    setSavedMsg('💾 Borrador guardado — los estudiantes aún NO ven este cambio')
+    setTimeout(() => setSavedMsg(''), 3500)
+  }
+
+  const handlePublish = async () => {
+    setPublishing(true); setSavedMsg('')
+    const result = await publishCourseModules(courseId, moduleList, courseName)
+    setPublishing(false)
     if (result.error) { setSavedMsg('⚠️ ' + result.error); return }
     // Recarga para obtener los UUIDs reales de los módulos nuevos
     const { modules } = await loadCourseForEditing(courseId)
     setModuleList(modules)
-    setSavedMsg('✅ Guardado correctamente')
+    setHasDraft(false)
+    setSavedMsg('🚀 Publicado — ya es lo que ven los estudiantes')
+    setTimeout(() => setSavedMsg(''), 3500)
+  }
+
+  const handleDiscardDraft = async () => {
+    setSaving(true); setSavedMsg('')
+    await discardCourseDraft(courseId)
+    const { modules } = await loadCourseForEditing(courseId)
+    setModuleList(modules)
+    setHasDraft(false)
+    setSaving(false)
+    setSavedMsg('Borrador descartado — vuelto a lo publicado')
     setTimeout(() => setSavedMsg(''), 3000)
   }
 
@@ -209,14 +238,34 @@ const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
           </button>
           <div>
             <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 2 }}>Editar módulos del curso</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Versión de este colegio — los cambios los verán todos sus estudiantes (y cualquier otro tutor asignado a este colegio la comparte contigo)</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Versión de este colegio (la comparte contigo cualquier otro tutor asignado a él). Los estudiantes solo ven lo que publiques — puedes editar y previsualizar sin afectarlos hasta que estés conforme.</p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {savedMsg && <span style={{ fontSize: 13, fontWeight: 600, color: savedMsg.startsWith('⚠️') ? 'var(--error)' : 'var(--success)' }}>{savedMsg}</span>}
           <Btn variant="secondary" onClick={() => setShowPreview(true)}>👁 Vista previa</Btn>
-          <Btn variant="gradient" disabled={saving} onClick={handleSave}>{saving ? '⏳ Guardando…' : '💾 Guardar cambios'}</Btn>
+          {hasDraft && <Btn variant="secondary" disabled={saving || publishing} onClick={handleDiscardDraft}>🗑 Descartar borrador</Btn>}
+          <Btn variant="secondary" disabled={saving || publishing} onClick={handleSaveDraft}>{saving ? '⏳ Guardando…' : '💾 Guardar borrador'}</Btn>
+          <Btn variant="gradient" disabled={saving || publishing} onClick={handlePublish}>{publishing ? '⏳ Publicando…' : '🚀 Publicar'}</Btn>
         </div>
+      </div>
+
+      {/* Estado de publicación + vigencia (informativa) */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+        {hasDraft ? (
+          <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 20, background: '#FEF3C7', color: '#B45309' }}>
+            🟠 Tienes cambios sin publicar — los estudiantes siguen viendo la versión anterior
+          </span>
+        ) : (
+          <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 20, background: '#CCFBF1', color: 'var(--success)' }}>
+            ✅ Publicado — es lo que ven los estudiantes
+          </span>
+        )}
+        <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 20, background: 'var(--bg-alt)', color: 'var(--muted)' }}>
+          {expiresAt
+            ? `📅 Vigente para este colegio hasta ${new Date(expiresAt).toLocaleDateString('es-CO')}`
+            : '📅 Vigencia indefinida para este colegio'}
+        </span>
       </div>
 
       {/* Nombre del curso */}
@@ -227,7 +276,7 @@ const CourseEditor = ({ courseId, courseName: initialName, onBack }) => {
         <input value={courseName} onChange={e => setCourseName(e.target.value)}
           placeholder="Ej: Laboratorio — IED San Francisco"
           style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-        <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Este nombre solo lo ves tú y tus estudiantes de este colegio</p>
+        <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Solo para tu referencia interna — los estudiantes SIEMPRE ven el nombre del curso original, nunca este.</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 280px', gap: 20, alignItems: 'start' }}>
@@ -406,7 +455,12 @@ const InstructorRouteEditor = () => {
 
   // ── Si hay un fork activo, renderiza el editor de curso ──
   if (activeFork) {
-    return <CourseEditor courseId={activeFork.id} courseName={activeFork.name} onBack={() => setActiveFork(null)} />
+    // Vigencia informativa: la del curso ORIGINAL para este colegio (institution_courses),
+    // no del fork — el acceso del estudiante siempre se rige por esa fecha (ver 0030).
+    const activeForkExpiry = institutionCourses.find(
+      r => r.institution_id === routeInstitution && r.course_id === selectedCourseId
+    )?.expires_at || null
+    return <CourseEditor courseId={activeFork.id} courseName={activeFork.name} expiresAt={activeForkExpiry} onBack={() => setActiveFork(null)} />
   }
 
   // ── Vista principal: selector de los cursos asignados al instructor ──
