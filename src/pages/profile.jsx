@@ -3,6 +3,7 @@ import {
   useStore, nav, changeArea, updateAvatar, AREAS, BADGES, LEVELS,
   calcLevel, xpForNext, xpProgress, progressPct, isRouteComplete,
   getStudentModules, findModule, nodeStatus, gradeTotal, gradeMax,
+  selectActiveCourseTheme,
 } from '../store/store.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useTheme, useContrast, ACCENTS } from '../lib/theme.js'
@@ -80,6 +81,7 @@ const AccessibilityCard = () => {
 // --- Sección Apariencia: modo claro/oscuro + color de acento ---
 const AppearanceCard = () => {
   const { theme, accent, setMode, pickAccent } = useTheme();
+  const courseTheme = useStore(selectActiveCourseTheme);
   const modes = [
     { id: 'light', label: 'Claro',  icon: <SunIc s={15} /> },
     { id: 'dark',  label: 'Oscuro', icon: <MoonIc s={15} /> },
@@ -93,9 +95,14 @@ const AppearanceCard = () => {
         display: 'flex', alignItems: 'center', gap: 8 }}>
         <PaletteIc s={18} c="var(--orange)" /> Apariencia
       </h3>
-      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: courseTheme ? 6 : 18 }}>
         Personaliza el tema de la plataforma. Se guarda en este dispositivo.
       </p>
+      {courseTheme && (
+        <p style={{ fontSize: 12, color: 'var(--orange)', marginBottom: 18 }}>
+          El curso activo tiene un tema visual propio, así que el modo oscuro no está disponible mientras lo cursas.
+        </p>
+      )}
 
       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', textTransform: 'uppercase',
         letterSpacing: .6, marginBottom: 10 }}>Tema</div>
@@ -103,11 +110,13 @@ const AppearanceCard = () => {
         background: 'var(--bg-alt)', marginBottom: 24 }}>
         {modes.map(m => {
           const active = theme === m.id;
+          const disabled = courseTheme && m.id === 'dark';
           return (
-            <button key={m.id} onClick={() => setMode(m.id)} aria-pressed={active}
+            <button key={m.id} onClick={() => !disabled && setMode(m.id)} aria-pressed={active}
+              disabled={disabled} title={disabled ? 'No disponible: este curso tiene un tema visual propio' : undefined}
               style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 18px',
-                borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: 'var(--font)',
-                fontSize: 13, fontWeight: 600, minHeight: 36,
+                borderRadius: 9, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'var(--font)',
+                fontSize: 13, fontWeight: 600, minHeight: 36, opacity: disabled ? .4 : 1,
                 background: active ? 'var(--white)' : 'transparent',
                 color: active ? 'var(--dark)' : 'var(--muted)',
                 boxShadow: active ? 'var(--sh-sm)' : 'none',

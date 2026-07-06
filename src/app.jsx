@@ -1,6 +1,6 @@
 import React from 'react'
 import { useStore, nav, doLogout } from './store/store.jsx'
-import { getActiveCourseTheme } from './store/store.jsx'
+import { selectActiveCourseTheme } from './store/store.jsx'
 import { startIdleWatch } from './lib/idleTimeout.js'
 import { applySavedTheme, applyLightOnly } from './lib/theme.js'
 import { NotifManager } from './components/ui.jsx'
@@ -117,20 +117,20 @@ const App = () => {
   const hasCourses     = useStore(s => (s.courses || []).some(c => c.is_active));
   const enrolledCourse = useStore(s => s.enrolledCourseId);
   const coursesLoaded  = useStore(s => s.coursesLoaded);
-  const courses        = useStore(s => s.courses);
+  const courseTheme    = useStore(selectActiveCourseTheme);
+  const activeTheme    = isLoggedIn ? courseTheme : null;
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
 
   // Aplica el tema visual inmersivo del curso activo en el elemento raíz.
   // Solo cuando el estudiante está logueado y dentro de su curso — nunca en login/landing.
   React.useEffect(() => {
     const root = document.documentElement;
-    const theme = isLoggedIn ? getActiveCourseTheme() : null;
-    if (theme) {
-      root.setAttribute('data-course-theme', theme);
+    if (activeTheme) {
+      root.setAttribute('data-course-theme', activeTheme);
     } else {
       root.removeAttribute('data-course-theme');
     }
-  }, [isLoggedIn, enrolledCourse, courses]);
+  }, [activeTheme]);
 
   // Cierre de sesión automático por inactividad (solo con sesión activa).
   React.useEffect(() => {
@@ -139,14 +139,15 @@ const App = () => {
     return stop;
   }, [isLoggedIn]);
 
-  // El modo oscuro NUNCA debe aplicarse en la entrada pública (landing/login):
-  // esas páginas siempre se ven en modo claro. Dentro de la app se respeta
-  // la preferencia guardada por el usuario.
+  // El modo oscuro NUNCA debe aplicarse en la entrada pública (landing/login) ni
+  // mientras un curso con tema inmersivo está activo (sus paletas fijas no están
+  // pensadas para combinarse con modo oscuro). En ambos casos se respeta la
+  // preferencia guardada del usuario y se restaura al volver a un contexto normal.
   React.useEffect(() => {
     const isPublicEntry = !isLoggedIn && (page === 'landing' || page === 'login');
-    if (isPublicEntry) applyLightOnly();
+    if (isPublicEntry || activeTheme) applyLightOnly();
     else applySavedTheme();
-  }, [page, isLoggedIn]);
+  }, [page, isLoggedIn, activeTheme]);
   const [studentView, setStudentView] = React.useState(null);
 
   React.useEffect(() => { setMobileSidebarOpen(false); }, [page]);

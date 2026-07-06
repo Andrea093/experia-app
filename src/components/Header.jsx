@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, nav, calcLevel, doLogout, dismissStudentMessage } from '../store/store.jsx'
+import { useStore, nav, calcLevel, doLogout, dismissStudentMessage, selectActiveCourseTheme } from '../store/store.jsx'
 import { useTheme, useContrast } from '../lib/theme.js'
 import { useMobile, LogoImg, MenuIc, BellIc, SunIc, MoonIc, CheckIc, ClockIc, LogOutIc } from './ui.jsx'
 
@@ -12,6 +12,7 @@ const Header = React.memo(({ onMenuClick }) => {
   const [showNotifs, setShowNotifs] = React.useState(false);
   const { theme, toggle } = useTheme();
   const { contrast, toggle: toggleContrast } = useContrast();
+  const courseTheme = useStore(selectActiveCourseTheme);
   React.useEffect(() => {
     if (!showNotifs) return;
     const onKey = (e) => { if (e.key === 'Escape') setShowNotifs(false); };
@@ -75,15 +76,16 @@ const Header = React.memo(({ onMenuClick }) => {
           A
         </button>
 
-        {/* Toggle modo claro/oscuro */}
-        <button onClick={toggle}
+        {/* Toggle modo claro/oscuro — deshabilitado con temas inmersivos (paleta fija) */}
+        <button onClick={toggle} disabled={!!courseTheme}
           aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-          title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
-          style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer',
+          title={courseTheme ? 'No disponible: este curso tiene un tema visual propio' : (theme === 'dark' ? 'Modo claro' : 'Modo oscuro')}
+          style={{ background: 'var(--bg-alt)', border: 'none',
+            cursor: courseTheme ? 'not-allowed' : 'pointer', opacity: courseTheme ? .4 : 1,
             width: 36, height: 36, minHeight: 36, borderRadius: 10, flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'background .2s, transform .2s var(--ease-spring)' }}
-          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08) rotate(-12deg)'}
+          onMouseEnter={e => { if (!courseTheme) e.currentTarget.style.transform = 'scale(1.08) rotate(-12deg)'; }}
           onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
           {theme === 'dark' ? <SunIc s={17} c="var(--warn)" /> : <MoonIc s={17} c="var(--muted)" />}
         </button>
