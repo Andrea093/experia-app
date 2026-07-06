@@ -45,7 +45,7 @@ const JoinForm = ({ onJoined }) => {
     setErr(''); setBusy(true); primeAudio() // desbloquea audio dentro del gesto
     try {
       const p = await joinLiveSession({ code: code.trim(), nombre, apellido, correo, salon })
-      try { sessionStorage.setItem(SS_KEY, JSON.stringify({ participant: p.id, session: p.session_id, nombre: p.nombre })) } catch (_) {}
+      try { sessionStorage.setItem(SS_KEY, JSON.stringify({ participant: p.id, session: p.session_id, nombre: p.nombre, token: p.claim_token })) } catch (_) {}
       onJoined(p)
     } catch (e) {
       setErr(e.message || 'No se pudo unir a la sesión')
@@ -162,7 +162,7 @@ const PlayView = ({ participant }) => {
     if (myAns !== undefined || sending) return
     setSending(true); setMy(m => ({ ...m, [idx]: i }))
     try {
-      const r = await submitLiveAnswer({ session: session.id, participant: participant.id, index: idx, answer: i })
+      const r = await submitLiveAnswer({ session: session.id, participant: participant.id, index: idx, answer: i, token: participant.claim_token })
       setFeedback(r)
     } catch (e) {
       setMy(m => { const n = { ...m }; delete n[idx]; return n }) // permite reintentar si falló
@@ -317,7 +317,7 @@ const LivePlay = () => {
       const raw = sessionStorage.getItem(SS_KEY)
       if (raw) {
         const saved = JSON.parse(raw)
-        if (saved?.participant && saved?.session) setParticipant({ id: saved.participant, session_id: saved.session, nombre: saved.nombre })
+        if (saved?.participant && saved?.session) setParticipant({ id: saved.participant, session_id: saved.session, nombre: saved.nombre, claim_token: saved.token })
       }
     } catch (_) {}
   }, [])

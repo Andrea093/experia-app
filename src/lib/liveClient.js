@@ -25,9 +25,10 @@ export const joinLiveSession = async ({ code, nombre, apellido, correo, salon })
   if (error) throw error
   return data
 }
-export const submitLiveAnswer = async ({ session, participant, index, answer }) => {
+export const submitLiveAnswer = async ({ session, participant, index, answer, token }) => {
   const { data, error } = await supabase.rpc('submit_live_answer', {
     p_session: session, p_participant: participant, p_index: index, p_answer: answer,
+    p_token: token || null,
   })
   if (error) throw error
   return data
@@ -43,8 +44,12 @@ export const fetchSessionByCode = async (code) => {
     .eq('code', code).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
   return data
 }
+// Solo columnas públicas del leaderboard. correo/user_id/claim_token NO son
+// legibles por la tabla (column-privileges, migración 0029); pedirlos daría
+// permission denied. El host puede recuperar el roster completo vía live_roster.
 export const fetchParticipants = async (sessionId) => {
-  const { data } = await supabase.from('live_participants').select('*')
+  const { data } = await supabase.from('live_participants')
+    .select('id,session_id,nombre,apellido,salon,score,streak,joined_at,last_seen')
     .eq('session_id', sessionId).order('score', { ascending: false }).order('joined_at', { ascending: true })
   return data || []
 }

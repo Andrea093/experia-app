@@ -11,11 +11,12 @@ const DAYS_INACTIVE = 3;   // días sin actividad antes de enviar recordatorio
 const RESEND_URL = "https://api.resend.com/emails";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return ok();
+  const H = corsHeaders(req);
+  if (req.method === "OPTIONS") return ok(H);
 
   // Verificar que el llamador es admin
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return json({ error: "Missing Authorization" }, 401);
+  if (!authHeader) return json({ error: "Missing Authorization" }, 401, H);
 
   const userClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -23,14 +24,14 @@ Deno.serve(async (req) => {
     { global: { headers: { Authorization: authHeader } } }
   );
   const { data: { user } } = await userClient.auth.getUser();
-  if (!user) return json({ error: "Not authenticated" }, 401);
+  if (!user) return json({ error: "Not authenticated" }, 401, H);
 
   const { data: profile } = await userClient
     .from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return json({ error: "Forbidden: admin only" }, 403);
+  if (profile?.role !== "admin") return json({ error: "Forbidden: admin only" }, 403, H);
 
   const resendKey = Deno.env.get("RESEND_API_KEY");
-  if (!resendKey) return json({ error: "RESEND_API_KEY not configured" }, 500);
+  if (!resendKey) return json({ error: "RESEND_API_KEY not configured" }, 500, H);
 
   // Buscar estudiantes inactivos
   const admin = createClient(
@@ -49,7 +50,7 @@ Deno.serve(async (req) => {
     .limit(50);
 
   if (!inactive || inactive.length === 0) {
-    return json({ sent: 0, message: "No inactive students found" });
+    return json({ sent: 0, message: "No inactive students found" }, 200, H);
   }
 
   // Verificar cuáles tienen entregas aprobadas (no enviar a los que ya terminaron)
@@ -119,19 +120,29 @@ Deno.serve(async (req) => {
   }
 
   const sent = results.filter(r => r.ok).length;
-  return json({ sent, total: toNotify.length, results });
+  return json({ sent, total: toNotify.length, results }, 200, H);
 });
 
-function ok() { return new Response("ok", { headers: corsHeaders() }); }
-function json(body: unknown, status = 200) {
+function ok(H: Record<string, string> = {}) { return new Response("ok", { headers: H }); }
+function json(body: unknown, status = 200, H: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", ...corsHeaders() },
+    headers: { "Content-Type": "application/json", ...H },
   });
 }
-function corsHeaders() {
+// Allowlist de orígenes: producción + previews de Cloudflare Pages + dev local.
+function allowOrigin(req: Request): string {
+  const origin = req.headers.get("Origin") || "";
+  const ok =
+    origin === "https://experia-app.pages.dev" ||
+    /^https:\/\/[a-z0-9-]+\.experia-app\.pages\.dev$/.test(origin) ||
+    /^http:\/\/localhost:(5173|4173)$/.test(origin);
+  return ok ? origin : "https://experia-app.pages.dev";
+}
+function corsHeaders(req: Request) {
   return {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": allowOrigin(req),
+    "Vary": "Origin",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
