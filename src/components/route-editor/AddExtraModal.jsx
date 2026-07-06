@@ -13,7 +13,7 @@ const AddExtraModal = ({ open, onClose, onAdd }) => {
 
   const handleAdd = () => {
     if (!title.trim()) { setErr('El título es obligatorio'); return }
-    if (type === 'video' && !url.trim()) { setErr('La URL del video es obligatoria'); return }
+    if ((type === 'video' || type === 'embed') && !url.trim()) { setErr('La URL es obligatoria'); return }
     if (type === 'text' && !text.trim()) { setErr('El contenido es obligatorio'); return }
     onAdd({ type, title: title.trim(), url: url.trim(), text: text.trim() })
     reset()
@@ -31,7 +31,7 @@ const AddExtraModal = ({ open, onClose, onAdd }) => {
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 8 }}>Tipo de recurso</label>
           <div style={{ display: 'flex', gap: 8 }}>
-            {[{ id: 'video', label: '🎬 Video YouTube' }, { id: 'text', label: '📝 Texto / Nota' }].map(opt => (
+            {[{ id: 'video', label: '🎬 Video YouTube' }, { id: 'embed', label: '🧩 Embed' }, { id: 'text', label: '📝 Texto / Nota' }].map(opt => (
               <button key={opt.id} onClick={() => { setType(opt.id); setErr('') }}
                 style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer',
                   fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, transition: 'all .15s',
@@ -54,6 +54,14 @@ const AddExtraModal = ({ open, onClose, onAdd }) => {
             <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>URL de YouTube</label>
             <input value={url} onChange={e => { setUrl(e.target.value); setErr('') }}
               placeholder="https://www.youtube.com/watch?v=..." style={inp(err && !url)} />
+          </div>
+        )}
+
+        {type === 'embed' && (
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>URL del embed (Genially, Canva, H5P…)</label>
+            <input value={url} onChange={e => { setUrl(e.target.value); setErr('') }}
+              placeholder="https://view.genially.com/..." style={inp(err && !url)} />
           </div>
         )}
 

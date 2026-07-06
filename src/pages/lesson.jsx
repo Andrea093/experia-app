@@ -139,6 +139,28 @@ const LessonSection = React.memo(({ section, index }) => {
     );
   }
 
+  if (section.type === 'embed') {
+    return (
+      <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
+        {section.title && (
+          <h3 style={{ fontSize: 19, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>{section.title}</h3>
+        )}
+        {section.desc && (
+          <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.6 }}>{section.desc}</p>
+        )}
+        <div style={{ position: 'relative', paddingBottom: section.ratio || '56.25%', height: 0, borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--sh-lg)' }}>
+          <iframe
+            src={section.url}
+            title={section.title || 'Recurso interactivo'}
+            allow="fullscreen"
+            allowFullScreen
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (section.type === 'image') {
     return (
       <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
@@ -287,6 +309,17 @@ export const LessonBody = ({ mod }) => (
                   <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--sh-md)' }}>
                     <iframe key={videoId} src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
                       title={extra.title || 'Video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
+                  </div>
+                </div>
+              );
+            }
+            if (extra.type === 'embed') {
+              return (
+                <div key={i}>
+                  {extra.title && <h4 style={{ fontSize: 14, fontWeight: 600, color: 'var(--dark)', marginBottom: 8 }}>{extra.title}</h4>}
+                  <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--sh-md)' }}>
+                    <iframe src={extra.url} title={extra.title || 'Recurso interactivo'} allow="fullscreen"
                       allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
                   </div>
                 </div>

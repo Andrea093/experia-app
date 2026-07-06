@@ -27,6 +27,7 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
       text:    { type: 'text',    title: '', text: '' },
       callout: { type: 'callout', title: '', text: '', icon: '💡' },
       video:   { type: 'video',   title: '', url: '', desc: '' },
+      embed:   { type: 'embed',   title: '', url: '', desc: '' },
     }
     setSections(s => [...s, { ...defaults[type], _id: Date.now() }])
   }
@@ -98,7 +99,7 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                   </div>
                 </div>
 
-                {sec.type !== 'video' && (
+                {sec.type !== 'video' && sec.type !== 'embed' && (
                   <input value={sec.title} onChange={e => updateSection(idx, 'title', e.target.value)}
                     placeholder="Título de esta sección" style={{ ...inp, marginBottom: 8 }} />
                 )}
@@ -124,6 +125,16 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                       placeholder="https://www.youtube.com/watch?v=..." style={{ ...inp, marginBottom: 8 }} />
                     <input value={sec.desc} onChange={e => updateSection(idx, 'desc', e.target.value)}
                       placeholder="Descripción opcional del video" style={inp} />
+                  </>
+                )}
+                {sec.type === 'embed' && (
+                  <>
+                    <input value={sec.title} onChange={e => updateSection(idx, 'title', e.target.value)}
+                      placeholder="Título del recurso" style={{ ...inp, marginBottom: 8 }} />
+                    <input value={sec.url} onChange={e => updateSection(idx, 'url', e.target.value)}
+                      placeholder="https://view.genially.com/..." style={{ ...inp, marginBottom: 8 }} />
+                    <input value={sec.desc} onChange={e => updateSection(idx, 'desc', e.target.value)}
+                      placeholder="Descripción opcional del recurso" style={inp} />
                   </>
                 )}
               </div>

@@ -300,6 +300,7 @@ const BLOCK_TYPES = [
   { type: 'callout',  label: 'Destacado',     icon: '💡' },
   { type: 'concepts', label: 'Conceptos',     icon: '🗂️' },
   { type: 'video',    label: 'Video',         icon: '🎬' },
+  { type: 'embed',    label: 'Embed (Genially, etc.)', icon: '🧩' },
   { type: 'compare',  label: 'Comparación',   icon: '⚖️' },
 ]
 
@@ -310,6 +311,7 @@ const emptyBlock = (type) => {
     case 'callout':  return { type, icon: '💡', title: '', text: '' }
     case 'concepts': return { type, title: '', items: [{ t: '', d: '' }] }
     case 'video':    return { type, title: '', desc: '', url: '' }
+    case 'embed':    return { type, title: '', desc: '', url: '' }
     case 'compare':  return { type, title: '', label: '', trad: '', dce: '' }
     default:         return { type, title: '', text: '' }
   }
@@ -380,6 +382,13 @@ const BlockEditor = ({ block, onChange, onDelete, onMoveUp, onMoveDown, isFirst,
           <>
             <div><label style={lbl}>Título</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Ej: Video introductorio" /></div>
             <div><label style={lbl}>URL del video (YouTube, Vimeo…)</label><input value={block.url || ''} onChange={e => set('url', e.target.value)} style={inp} placeholder="https://www.youtube.com/watch?v=..." /></div>
+            <div><label style={lbl}>Descripción (opcional)</label><input value={block.desc || ''} onChange={e => set('desc', e.target.value)} style={inp} placeholder="Instrucción para el estudiante" /></div>
+          </>
+        )}
+        {block.type === 'embed' && (
+          <>
+            <div><label style={lbl}>Título</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Ej: Recurso interactivo" /></div>
+            <div><label style={lbl}>URL del embed (Genially, Canva, H5P…)</label><input value={block.url || ''} onChange={e => set('url', e.target.value)} style={inp} placeholder="https://view.genially.com/..." /></div>
             <div><label style={lbl}>Descripción (opcional)</label><input value={block.desc || ''} onChange={e => set('desc', e.target.value)} style={inp} placeholder="Instrucción para el estudiante" /></div>
           </>
         )}

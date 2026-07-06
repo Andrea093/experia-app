@@ -21,4 +21,5 @@ export const SECTION_TYPES = [
   { id: 'text',    label: '📄 Texto',          icon: '📄' },
   { id: 'callout', label: '💡 Destacado',      icon: '💡' },
   { id: 'video',   label: '🎬 Video YouTube',  icon: '🎬' },
+  { id: 'embed',   label: '🧩 Embed (Genially, etc.)', icon: '🧩' },
 ]
