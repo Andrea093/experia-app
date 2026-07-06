@@ -429,7 +429,7 @@ const DEF = {
   instructorInstitutions: [],
   // Multi-curso
   courses: [],              // [{ id, name, description, cover_image, color, is_active }]
-  institutionCourses: [],   // [{ id, institution_id, course_id, is_active }]
+  institutionCourses: [],   // [{ id, institution_id, course_id, is_active, expires_at }] expires_at null = indefinido
   userCourses: [],          // [{ id, user_id, course_id, is_active }] acceso por usuario
   courseModules: [],        // módulos del curso activo (ya convertidos con dbModToAppMod)
   enrolledCourseId: null,   // id del curso activo del estudiante
@@ -1254,26 +1254,45 @@ const autoEnrollInstitutionStudents = async (courseId, institutionId) => {
   return { ok: true, count: ids.length };
 };
 
-const toggleCourseForInstitution = async (courseId, institutionId, active) => {
+// expiresAt: ISO string (vence esa fecha) o null (indefinido). Solo se aplica
+// al ASIGNAR (active=true); al desasignar se conserva la fecha ya guardada.
+const toggleCourseForInstitution = async (courseId, institutionId, active, expiresAt = null) => {
   const { institutionCourses } = XS.get();
   const existing = institutionCourses.find(
     ic => ic.course_id === courseId && ic.institution_id === institutionId
   );
+  const payload = active ? { is_active: true, expires_at: expiresAt || null } : { is_active: false };
   if (existing) {
     await supabase.from('institution_courses')
-      .update({ is_active: active }).eq('id', existing.id);
+      .update(payload).eq('id', existing.id);
   } else {
     await supabase.from('institution_courses')
-      .insert({ course_id: courseId, institution_id: institutionId, is_active: active });
+      .insert({ course_id: courseId, institution_id: institutionId, ...payload });
   }
   await loadCourses();
   // Al ASIGNAR (active=true), inscribe automáticamente a todos los estudiantes
-  // del colegio. Al desasignar NO se les quita la matrícula ni el progreso.
+  // del colegio. Al desasignar NO se les quita la matrícula ni el progreso
+  // (la revocación por vencimiento la hace sync_my_institution_courses, 0030).
   if (active) {
     const res = await autoEnrollInstitutionStudents(courseId, institutionId);
     await loadUserCourses();
     return res;
   }
+};
+
+// Cambia solo la fecha de vencimiento de un curso ya habilitado para un colegio
+// (sin tocar is_active ni re-disparar auto-inscripción/toast).
+const setInstitutionCourseExpiry = async (courseId, institutionId, expiresAt) => {
+  const { institutionCourses } = XS.get();
+  const existing = institutionCourses.find(
+    ic => ic.course_id === courseId && ic.institution_id === institutionId
+  );
+  if (!existing) return { error: 'El curso no está habilitado para este colegio.' };
+  const { error } = await supabase.from('institution_courses')
+    .update({ expires_at: expiresAt || null }).eq('id', existing.id);
+  if (error) { console.error('setInstitutionCourseExpiry:', error); return { error: error.message }; }
+  await loadCourses();
+  return { ok: true };
 };
 
 // Publica la ruta del instructor a course_modules del curso vinculado.
@@ -1668,7 +1687,7 @@ export {
   createAccount, deleteAccount, changeAccountArea, changeAccountInstitution, setAccountActive,
   bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution, setInstitutionActive,
   getAccessBlockReason,
-  loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution,
+  loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, setInstitutionCourseExpiry,
   loadUserCourses, setUserCourseAccess, setUserCourseAccessBulk, allowedCourseIds,
   loadCourseModules, enrollInCourse, dbModToAppMod, publishRouteToCourse, switchCourse,
   forkCourseForInstitution, loadCourseForEditing, saveCourseModules, resolveCourseForStudent,

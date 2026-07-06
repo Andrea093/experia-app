@@ -184,6 +184,8 @@ A student seeing/entering a course depends on three separate tables. Mismatches 
 ⚠️ **Access and enrollment must go together.** The store keeps them synced per action: `enrollInCourse`, `setUserCourseAccess`/`Bulk`, and `autoEnrollInstitutionStudents` all upsert *both* `user_courses` **and** `course_enrollments` (+ empty `course_progress`, never resetting existing). `switchCourse` creates a missing enrollment on the fly. The map switcher shows the **union** of enrollments + active access (`switchableCourseIds`) so a lagging table self-heals. Granting access never resets progress; revoking access removes nothing.
 - ⚠️ Creating a course (seed or AdminCourses) grants **no** access — assign it per institution (Admin → Cursos, runs `autoEnroll`) or per user (AdminUsers) afterwards, or it appears to nobody.
 
+**Course expiry per institution** (migration 0030): `institution_courses.expires_at` (nullable, `null` = indefinido). Set from AdminCourses when enabling a course for an institution (or edited later by clicking the institution pill). On expiry the course is fully revoked for that institution — **not** the soft "leave existing access alone" behavior of a manual disable: `sync_my_institution_courses()` (called on every student login via `loadStudentSession`) deactivates the expired `institution_courses` row **and** flips `user_courses.is_active=false` for that student/course. Same caveat as the `is_active` gate above: a currently-logged-in student isn't kicked live, only blocked on their next session.
+
 **Realtime:**
 - Subscribed to `route_configs` changes
 

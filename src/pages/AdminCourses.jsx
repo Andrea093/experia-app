@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, loadCourseModules } from '../store/store.jsx'
+import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, setInstitutionCourseExpiry, loadCourseModules } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal, ChecklistDropdown } from '../components/ui.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
@@ -646,6 +646,36 @@ const CourseMapPreview = ({ course }) => {
   )
 }
 
+// ── Formulario de vigencia (fecha de vencimiento por colegio) ──
+const ExpiryForm = ({ instName, initialExpiresAt, saving, onSave, onCancel }) => {
+  const [mode, setMode] = React.useState(initialExpiresAt ? 'date' : 'indef')
+  const [date, setDate] = React.useState(initialExpiresAt ? initialExpiresAt.slice(0, 10) : '')
+  const canSave = mode === 'indef' || !!date
+  const today = new Date().toISOString().slice(0, 10)
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: 'var(--text-sec)', marginBottom: 14 }}>
+        ¿Hasta cuándo estará habilitado este curso para <strong>{instName}</strong>? Al vencer la fecha, el curso se inhabilita automáticamente para el colegio.
+      </p>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <Btn variant={mode === 'indef' ? 'gradient' : 'secondary'} size="sm" full onClick={() => setMode('indef')}>♾️ Indefinido</Btn>
+        <Btn variant={mode === 'date' ? 'gradient' : 'secondary'} size="sm" full onClick={() => setMode('date')}>📅 Hasta una fecha</Btn>
+      </div>
+      {mode === 'date' && (
+        <input type="date" value={date} min={today} onChange={e => setDate(e.target.value)}
+          style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', fontSize: 14, marginBottom: 14, boxSizing: 'border-box' }} />
+      )}
+      <div style={{ display: 'flex', gap: 10, marginTop: mode === 'indef' ? 14 : 0 }}>
+        <Btn variant="secondary" full onClick={onCancel}>Cancelar</Btn>
+        <Btn variant="gradient" full disabled={!canSave || saving}
+          onClick={() => onSave(mode === 'indef' ? null : new Date(date + 'T23:59:59').toISOString())}>
+          {saving ? 'Guardando…' : 'Guardar'}
+        </Btn>
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal del gestor de cursos ────────────────────
 const AdminCourses = () => {
   const courses          = useStore(s => s.courses || [])
@@ -664,6 +694,9 @@ const AdminCourses = () => {
   const [togglingId, setTogglingId]   = React.useState(null)
   const [addingFD, setAddingFD]       = React.useState(null)
   const [enrollMsg, setEnrollMsg]     = React.useState(null)
+  // { courseId, instId, instName, currentExpiresAt, mode: 'enable'|'edit' }
+  const [expiryPrompt, setExpiryPrompt] = React.useState(null)
+  const [savingExpiry, setSavingExpiry] = React.useState(false)
 
   const handleAddFinalDelivery = async (course) => {
     setAddingFD(course.id)
@@ -710,10 +743,10 @@ const AdminCourses = () => {
     setTogglingId(null)
   }
 
-  const handleToggleInstitution = async (courseId, instId, currentActive) => {
+  const handleToggleInstitution = async (courseId, instId, currentActive, expiresAt = null) => {
     const enabling = !currentActive
     setEnrollMsg(enabling ? { loading: true } : null)
-    const res = await toggleCourseForInstitution(courseId, instId, enabling)
+    const res = await toggleCourseForInstitution(courseId, instId, enabling, expiresAt)
     if (enabling) {
       const n = res?.count ?? 0
       setEnrollMsg({ text: n > 0
@@ -726,6 +759,18 @@ const AdminCourses = () => {
   const isCourseActiveForInst = (courseId, instId) => {
     const ic = institutionCourses.find(r => r.course_id === courseId && r.institution_id === instId)
     return ic ? ic.is_active : false
+  }
+
+  const handleSaveExpiry = async (expiresAt) => {
+    if (!expiryPrompt) return
+    setSavingExpiry(true)
+    if (expiryPrompt.mode === 'enable') {
+      await handleToggleInstitution(expiryPrompt.courseId, expiryPrompt.instId, false, expiresAt)
+    } else {
+      await setInstitutionCourseExpiry(expiryPrompt.courseId, expiryPrompt.instId, expiresAt)
+    }
+    setSavingExpiry(false)
+    setExpiryPrompt(null)
   }
 
   return (
@@ -766,6 +811,19 @@ const AdminCourses = () => {
         {/* Modal vista previa */}
         <Modal open={!!previewCourse} onClose={() => setPreviewCourse(null)} title="Vista previa del mapa" width={780}>
           {previewCourse && <CourseMapPreview course={previewCourse} />}
+        </Modal>
+
+        {/* Modal vigencia (fecha de vencimiento por colegio) */}
+        <Modal open={!!expiryPrompt} onClose={() => setExpiryPrompt(null)} title="Vigencia del curso" width={380}>
+          {expiryPrompt && (
+            <ExpiryForm
+              instName={expiryPrompt.instName}
+              initialExpiresAt={expiryPrompt.currentExpiresAt}
+              saving={savingExpiry}
+              onSave={handleSaveExpiry}
+              onCancel={() => setExpiryPrompt(null)}
+            />
+          )}
         </Modal>
 
         {/* Modal confirmar eliminar */}
@@ -853,19 +911,36 @@ const AdminCourses = () => {
                           : `${enabledCount} de ${institutions.length} institucion${institutions.length !== 1 ? 'es' : ''}`}
                         items={institutions.map(i => ({ id: i.id, label: i.name }))}
                         stateOf={it => isCourseActiveForInst(course.id, it.id) ? 'all' : 'none'}
-                        onToggle={(it, next) => handleToggleInstitution(course.id, it.id, !next)}
+                        onToggle={(it, next) => {
+                          if (next) {
+                            setExpiryPrompt({ courseId: course.id, instId: it.id, instName: it.label, currentExpiresAt: null, mode: 'enable' })
+                          } else {
+                            handleToggleInstitution(course.id, it.id, true)
+                          }
+                        }}
                         emptyText="No hay instituciones registradas."
                         width={280}
                       />
                     )
                   })()}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {institutions.filter(i => isCourseActiveForInst(course.id, i.id)).map(i => (
-                      <span key={i.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600,
-                        padding: '3px 9px', borderRadius: 20, background: '#CCFBF1', color: 'var(--success)' }}>
-                        <CheckIc s={11} c="var(--success)" /> {i.name}
-                      </span>
-                    ))}
+                    {institutions.filter(i => isCourseActiveForInst(course.id, i.id)).map(i => {
+                      const ic = institutionCourses.find(r => r.course_id === course.id && r.institution_id === i.id)
+                      const isExpired = !!ic?.expires_at && new Date(ic.expires_at) < new Date()
+                      return (
+                        <button key={i.id}
+                          onClick={() => setExpiryPrompt({ courseId: course.id, instId: i.id, instName: i.name, currentExpiresAt: ic?.expires_at || null, mode: 'edit' })}
+                          title="Click para cambiar la fecha de vigencia"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600,
+                            padding: '3px 9px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                            background: isExpired ? '#FEE2E2' : '#CCFBF1', color: isExpired ? 'var(--error)' : 'var(--success)' }}>
+                          <CheckIc s={11} c={isExpired ? 'var(--error)' : 'var(--success)'} /> {i.name}
+                          {ic?.expires_at
+                            ? ` · ${isExpired ? 'venció' : 'vence'} ${new Date(ic.expires_at).toLocaleDateString('es-CO')}`
+                            : ' · indefinido'}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
