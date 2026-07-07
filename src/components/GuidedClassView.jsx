@@ -5,8 +5,12 @@ import { LessonBody } from '../pages/lesson.jsx'
 
 // Envoltorio de layout de la vista guiada (ocupa toda la pantalla, sin
 // sidebar/header — el profesor controla el avance, el estudiante no navega).
+// GuidedClassView se renderiza fuera del shell normal (directo bajo #root,
+// que en styles.css tiene height:100% + overflow:hidden), así que la altura
+// debe ser fija (100vh, NO minHeight) para que overflowY:auto scrollee aquí
+// en vez de que el contenido se recorte contra #root sin poder bajar.
 const Shell = ({ children }) => (
-  <div style={{ minHeight: '100vh', overflow: 'auto', background: 'var(--bg)' }}>
+  <div style={{ height: '100vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: 'var(--bg)' }}>
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 20px 60px' }}>{children}</div>
   </div>
 )

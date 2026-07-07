@@ -1,7 +1,8 @@
 import React from 'react'
-import { useStore } from '../store/store.jsx'
+import { useStore, dbModToAppMod } from '../store/store.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { Btn, Confetti } from '../components/ui.jsx'
+import { LessonBody } from './lesson.jsx'
 import {
   createLiveSession, liveGotoModule, liveCompleteModuleForParticipants,
   liveSetPhase, liveGoto, liveEnd,
@@ -277,21 +278,22 @@ const Control = ({ session: initial, moduleList, onExit }) => {
           </div>
         )}
 
-        {/* Módulo no sincrónico (lección, entrega final, u otro reto) */}
+        {/* Módulo no sincrónico: lección (contenido real, igual al del estudiante) u otro reto */}
         {!showPodium && !isInteractive && (
-          <div style={{ padding: '20px 24px', borderRadius: 18, background: 'var(--white)', border: '1px solid var(--border)', marginBottom: 20, textAlign: 'center' }}>
-            {currentModule?.type === 'lesson' ? (
-              <>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>📖</div>
-                <p style={{ fontSize: 14, color: 'var(--muted)' }}>Tus estudiantes están leyendo este módulo contigo. Avanza cuando termines de comentarlo en clase.</p>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>⏭️</div>
-                <p style={{ fontSize: 14, color: 'var(--muted)' }}>Este reto no es sincrónico — tus estudiantes lo resuelven por su cuenta cuando quieran. Avanza al siguiente módulo cuando quieras.</p>
-              </>
-            )}
-          </div>
+          currentModule?.type === 'lesson' ? (
+            <div style={{ padding: '20px 24px', borderRadius: 18, background: 'var(--white)', border: '1px solid var(--border)', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, padding: '8px 12px', borderRadius: 10,
+                background: 'var(--orange-bg)', color: 'var(--orange)', fontSize: 12, fontWeight: 700 }}>
+                📖 Vista previa — esto es lo que están leyendo tus estudiantes ahora mismo
+              </div>
+              <LessonBody mod={dbModToAppMod(currentModule)} />
+            </div>
+          ) : (
+            <div style={{ padding: '20px 24px', borderRadius: 18, background: 'var(--white)', border: '1px solid var(--border)', marginBottom: 20, textAlign: 'center' }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>⏭️</div>
+              <p style={{ fontSize: 14, color: 'var(--muted)' }}>Este reto no es sincrónico — tus estudiantes lo resuelven por su cuenta cuando quieran. Avanza al siguiente módulo cuando quieras.</p>
+            </div>
+          )
         )}
 
         {/* Pregunta actual (vista del profe) */}

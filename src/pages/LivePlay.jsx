@@ -17,10 +17,19 @@ const codeFromHash = () => {
   return m && m[1] ? m[1] : ''
 }
 
+// height fija (NO minHeight) + overflowY:auto en el contenedor EXTERIOR: esta
+// página es hija directa de #root, que en styles.css tiene height:100%+
+// overflow:hidden — sin una altura fija propia, un contenido más alto que la
+// pantalla (pregunta larga, podio con muchos participantes) quedaría
+// recortado sin poder scrollear. El centrado vertical va en un div interior
+// aparte (no en el mismo que scrollea) para evitar el bug de flexbox donde
+// align-items:center + overflow:auto en el MISMO elemento recorta el inicio
+// del contenido que se desborda.
 const Center = ({ children }) => (
-  <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: 20, background: 'var(--bg, #F9FAFB)', fontFamily: 'var(--font)' }}>
-    <div style={{ width: '100%', maxWidth: 460 }}>{children}</div>
+  <div style={{ height: '100vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: 'var(--bg, #F9FAFB)' }}>
+    <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: 'var(--font)', boxSizing: 'border-box' }}>
+      <div style={{ width: '100%', maxWidth: 460 }}>{children}</div>
+    </div>
   </div>
 )
 
