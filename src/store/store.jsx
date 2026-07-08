@@ -550,14 +550,20 @@ const completeNode = (id) => {
   if (m.badge && !nb.includes(m.badge)) nb.push(m.badge);
   const notifs = [...s.notifications, { type:'xp', amount:m.xp || 100, id:Date.now() }];
   if (m.badge && !s.badges.includes(m.badge)) notifs.push({ type:'badge', bid:m.badge, id:Date.now()+1 });
-  XS.set({ xp:nxp, completed:nc, badges:nb, notifications:notifs });
+  XS.set({ xp:nxp, completed:nc, badges:nb, notifications:notifs }); // optimista: la UI reacciona de inmediato
   if (s.user?.id) {
     if (s.enrolledCourseId) {
-      // Nuevo: escribe en course_progress
-      supabase.from('course_progress')
-        .update({ xp:nxp, completed:nc, badges:nb, updated_at:new Date().toISOString() })
-        .eq('user_id', s.user.id).eq('course_id', s.enrolledCourseId)
-        .then(({ error }) => { if (error) console.error('completeNode course_progress:', error); });
+      // Atómico en el servidor (0035): agrega ESTE módulo sin sobrescribir
+      // completed[]/xp con el arreglo calculado en el cliente — así una
+      // pestaña vieja con estado desactualizado no puede pisar avances
+      // hechos en otra sesión (causa raíz de progreso corrupto ya visto).
+      supabase.rpc('complete_course_module', {
+        p_course_id: s.enrolledCourseId, p_module_id: id, p_xp: m.xp || 100, p_badge: m.badge || null,
+      }).then(({ data, error }) => {
+        if (error) { console.error('completeNode course_progress:', error); return; }
+        // Reconcilia con la verdad del servidor (por si otra pestaña ya había avanzado más).
+        if (data) XS.set({ xp: data.xp, completed: data.completed, badges: data.badges });
+      });
     } else {
       // Legacy: escribe en progress
       supabase.from('progress')
