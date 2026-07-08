@@ -339,6 +339,10 @@ const dbModToAppMod = (row) => ({
   ...(row.challenge_data?.passage      ? { passage:      row.challenge_data.passage }       : {}),
   ...(row.challenge_data?.correctMessage   ? { correctMessage:   row.challenge_data.correctMessage }   : {}),
   ...(row.challenge_data?.incorrectMessage ? { incorrectMessage: row.challenge_data.incorrectMessage } : {}),
+  // Mensaje final del quiz según resultado (aprobó/no aprobó) — configurable por el tutor
+  ...(row.challenge_data?.passingScore != null ? { passingScore: row.challenge_data.passingScore } : {}),
+  ...(row.challenge_data?.passMessage      ? { passMessage:      row.challenge_data.passMessage }      : {}),
+  ...(row.challenge_data?.failMessage      ? { failMessage:      row.challenge_data.failMessage }      : {}),
 });
 
 // Convierte filas de course_modules (ya ordenadas por "order") en los módulos
@@ -1344,6 +1348,9 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.passage      || m.override?.passage)       challengeData.passage      = m.passage      || m.override.passage;
     if (m.correctMessage   || m.override?.correctMessage)   challengeData.correctMessage   = m.correctMessage   || m.override.correctMessage;
     if (m.incorrectMessage || m.override?.incorrectMessage) challengeData.incorrectMessage = m.incorrectMessage || m.override.incorrectMessage;
+    if (m.passingScore != null || m.override?.passingScore != null) challengeData.passingScore = m.passingScore ?? m.override.passingScore;
+    if (m.passMessage      || m.override?.passMessage)      challengeData.passMessage      = m.passMessage      || m.override.passMessage;
+    if (m.failMessage      || m.override?.failMessage)      challengeData.failMessage      = m.failMessage      || m.override.failMessage;
     rows.push({
       course_id: courseId, type: m.type, area_id: areaIdVal,
       title: m.title, subtitle: m.subtitle || '',
@@ -1367,6 +1374,9 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.passage)      challengeData.passage      = m.passage;
     if (m.correctMessage)   challengeData.correctMessage   = m.correctMessage;
     if (m.incorrectMessage) challengeData.incorrectMessage = m.incorrectMessage;
+    if (m.passingScore != null) challengeData.passingScore = m.passingScore;
+    if (m.passMessage)      challengeData.passMessage      = m.passMessage;
+    if (m.failMessage)      challengeData.failMessage      = m.failMessage;
     rows.push({
       course_id: courseId, type: m.type || 'lesson', area_id: areaIdVal,
       title: m.title, subtitle: m.subtitle || (m.type === 'challenge' ? 'Reto' : 'Módulo'),
@@ -1604,6 +1614,9 @@ const saveCourseModules = async (courseId, moduleList, courseName, certConfig) =
         if (m.passage)      cd.passage      = m.passage;
         if (m.correctMessage)   cd.correctMessage   = m.correctMessage;
         if (m.incorrectMessage) cd.incorrectMessage = m.incorrectMessage;
+        if (m.passingScore != null) cd.passingScore = m.passingScore;
+        if (m.passMessage)      cd.passMessage      = m.passMessage;
+        if (m.failMessage)      cd.failMessage      = m.failMessage;
         return cd;
       })(),
       updated_at: new Date().toISOString(),

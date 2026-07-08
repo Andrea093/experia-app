@@ -10,6 +10,9 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
   const [questions, setQs]  = React.useState([])
   const [correctMsg, setCorrectMsg]     = React.useState('')
   const [incorrectMsg, setIncorrectMsg] = React.useState('')
+  const [passingScore, setPassingScore] = React.useState(60)
+  const [passMsg, setPassMsg]           = React.useState('')
+  const [failMsg, setFailMsg]           = React.useState('')
   const [err, setErr]       = React.useState('')
   // --- Passage (texto/imágenes de apoyo, opcional) ---
   const [pOn, setPOn]       = React.useState(false)
@@ -28,6 +31,9 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
       setQs(initial?.questions || [{ id: 1, question: '', options: ['', '', '', ''], ...(isPoll ? {} : { correct: 0 }) }])
       setCorrectMsg(initial?.correctMessage || '')
       setIncorrectMsg(initial?.incorrectMessage || '')
+      setPassingScore(initial?.passingScore ?? 60)
+      setPassMsg(initial?.passMessage || '')
+      setFailMsg(initial?.failMessage || '')
       setErr('')
       const ps = initial?.passage
       setPOn(!!ps)
@@ -90,7 +96,11 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
     const incomplete = questions.find(q => !q.question.trim() || q.options.some(o => !o.trim()))
     if (incomplete) { setErr('Completa todas las preguntas y opciones'); return }
     onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100, questions: cleanQuestions(), passage: buildPassage(), type: 'challenge', ctype: isPoll ? 'poll' : 'quiz',
-      ...(isPoll ? {} : { correctMessage: correctMsg.trim(), incorrectMessage: incorrectMsg.trim() }) })
+      ...(isPoll ? {} : {
+        correctMessage: correctMsg.trim(), incorrectMessage: incorrectMsg.trim(),
+        passingScore: Math.min(100, Math.max(0, Number(passingScore) || 0)),
+        passMessage: passMsg.trim(), failMessage: failMsg.trim(),
+      }) })
   }
 
   // Limpia campos opcionales vacíos y normaliza números antes de guardar
@@ -142,6 +152,30 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
               <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Mensaje de error (opcional)</label>
               <input value={incorrectMsg} onChange={e => setIncorrectMsg(e.target.value)} placeholder="✗ Respuesta correcta:" style={inp} />
             </div>
+          </div>
+        )}
+
+        {/* ── Resultado final: qué ve el estudiante al terminar el quiz ── */}
+        {!isPoll && (
+          <div style={{ padding: '14px', borderRadius: 12, background: 'var(--orange-bg)', border: '1px solid var(--orange-pale)' }}>
+            <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--orange)', display: 'block', marginBottom: 10 }}>
+              🏁 Resultado final (al terminar todas las preguntas)
+            </label>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Puntaje mínimo para aprobar (%)</label>
+              <input type="number" value={passingScore} onChange={e => setPassingScore(e.target.value)} min={0} max={100} style={{ ...inp, width: 100 }} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Mensaje si aprueba (opcional)</label>
+                <textarea value={passMsg} onChange={e => setPassMsg(e.target.value)} rows={2} placeholder="¡Excelente trabajo! Aprobaste la evaluación." style={{ ...inp, resize: 'vertical' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Mensaje si no aprueba (opcional)</label>
+                <textarea value={failMsg} onChange={e => setFailMsg(e.target.value)} rows={2} placeholder="Aún no alcanzas el puntaje mínimo. ¡Sigue practicando!" style={{ ...inp, resize: 'vertical' }} />
+              </div>
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--muted)', margin: '8px 0 0' }}>Los campos vacíos usan el mensaje por defecto (mostrado como ejemplo).</p>
           </div>
         )}
 

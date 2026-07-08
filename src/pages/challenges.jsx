@@ -657,18 +657,27 @@ const QuizChallenge = ({ mod, onComplete }) => {
   };
 
   if (done) {
-    const rating = pct >= 80 ? { emoji:'🌟', text:'¡Excelente dominio del tema!' }
-      : pct >= 60 ? { emoji:'👍', text:'¡Buen trabajo!' }
-      : { emoji:'💪', text:'¡Sigue practicando!' };
+    // Aprobó/no aprobó según el umbral configurado por el tutor (por defecto 60%).
+    // El mensaje final es personalizable por el tutor (QuizCreatorModal); si no
+    // definió uno, se usa un texto por defecto según el desempeño.
+    const passingScore = mod.passingScore ?? 60;
+    const passed = pct >= passingScore;
+    const defaultText = passed
+      ? (pct >= 80 ? '¡Excelente dominio del tema!' : '¡Buen trabajo, aprobaste!')
+      : 'Aún no alcanzas el puntaje mínimo. ¡Sigue practicando!';
+    const rating = {
+      emoji: passed ? (pct >= 80 ? '🌟' : '👍') : '💪',
+      text: (passed ? mod.passMessage : mod.failMessage) || defaultText,
+    };
     return (
       <div style={{maxWidth:520,margin:'0 auto',textAlign:'center',paddingBottom:48}}>
         <span style={{fontSize:56}}>{rating.emoji}</span>
         <h3 style={{fontSize:22,fontWeight:800,color:'var(--dark)',marginTop:10,marginBottom:6}}>{rating.text}</h3>
         <div style={{display:'flex',justifyContent:'center',alignItems:'baseline',gap:6,marginBottom:16}}>
-          <span style={{fontSize:36,fontWeight:800,color:pct>=80?'var(--success)':'var(--orange)'}}>{pct}%</span>
+          <span style={{fontSize:36,fontWeight:800,color:passed?'var(--success)':'var(--orange)'}}>{pct}%</span>
           <span style={{fontSize:14,color:'var(--muted)'}}>{correctCount}/{questions.length} correctas</span>
         </div>
-        <ProgressBar pct={pct} h={10} color={pct>=80?'var(--success)':pct>=60?'var(--warn)':'var(--error)'}/>
+        <ProgressBar pct={pct} h={10} color={passed?'var(--success)':pct>=passingScore/2?'var(--warn)':'var(--error)'}/>
         <div style={{marginTop:24,textAlign:'left',display:'flex',flexDirection:'column',gap:8}}>
           {questions.map((q,i) => {
             const ok = answers[i] === q.correct;
