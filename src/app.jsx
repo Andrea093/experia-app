@@ -76,6 +76,7 @@ const LessonView            = React.lazy(() => import('./pages/lesson.jsx'))
 const ChallengeView         = React.lazy(() => import('./pages/challenges.jsx'))
 const ProfilePage           = React.lazy(() => import('./pages/profile.jsx'))
 const StudentProductUpload  = React.lazy(() => import('./pages/Grid.jsx'))
+const CourseCertificatePage = React.lazy(() => import('./pages/CourseCertificatePage.jsx'))
 const InstructorDashboard   = React.lazy(() => import('./pages/InstructorDashboard.jsx'))
 const InstructorRouteEditor = React.lazy(() => import('./pages/InstructorRouteEditor.jsx'))
 const AdminAnalytics        = React.lazy(() => import('./pages/AdminAnalytics.jsx'))
@@ -228,6 +229,7 @@ const App = () => {
       case 'challenge':return <ChallengeView />;
       case 'games':    return <GamesPage />;
       case 'grid':     return <StudentProductUpload />;
+      case 'course-cert': return <CourseCertificatePage />;
       case 'forum':    return <ForumPage />;
       case 'profile':  return <ProfilePage />;
       default:         return <LearningMap />;

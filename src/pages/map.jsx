@@ -3,7 +3,7 @@ import {
   useStore, nav, completeNode, AREAS, BADGES, LEVELS,
   getStudentModules, getRouteModules, findModule,
   calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete,
-  gradeTotal, gradeMax, switchCourse, hashFor, isBaseCourse,
+  gradeTotal, gradeMax, switchCourse, hashFor, isBaseCourse, getCourseCertConfig,
 } from '../store/store.jsx'
 
 const hrefForMod = (mod) => {
@@ -377,6 +377,15 @@ const LearningMap = () => {
     () => courses.find(c => c.id === enrolledCourseId),
     [courses, enrolledCourseId]
   );
+
+  // Certificado del curso: se resuelve sobre el curso EFECTIVO (el fork del
+  // colegio si existe), que es donde el tutor lo configura desde el Editor de Ruta.
+  const effectiveCourseId = useStore(s => s.effectiveCourseId);
+  const effectiveCourse = React.useMemo(
+    () => courses.find(c => c.id === (effectiveCourseId || enrolledCourseId)),
+    [courses, effectiveCourseId, enrolledCourseId]
+  );
+  const courseCertConfig = React.useMemo(() => getCourseCertConfig(courses, effectiveCourse), [courses, effectiveCourse]);
   const isDetective   = enrolledCourse?.theme === 'detective';
   const isEscapeRoom  = enrolledCourse?.theme === 'escape-room';
   const isLab         = enrolledCourse?.theme === 'lab';
@@ -460,6 +469,17 @@ const LearningMap = () => {
           <ProgressBar pct={pct} h={6} color="var(--orange)" />
         </div>
 
+        {courseCertConfig.enabled && pct === 100 && (
+          <div style={{ margin: '0 16px 16px', padding: '14px 16px', borderRadius: 12, background: '#F0FDFA',
+            border: '1.5px solid #5EEAD4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0F766E' }}>🎓 ¡Ruta completada!</div>
+              <div style={{ fontSize: 11, color: '#115E59' }}>Ya puedes ver tu certificado</div>
+            </div>
+            <Btn variant="gradient" size="sm" onClick={() => nav('course-cert')}>Ver certificado</Btn>
+          </div>
+        )}
+
         {/* Checklist primeros pasos (hasta reclamar el bonus) */}
         <div style={{ margin: '0 16px 16px' }}>
           <FirstStepsCard modules={studentModules} />
@@ -496,6 +516,16 @@ const LearningMap = () => {
           currentId={enrolledCourseId}
           onSelect={async (id) => { await switchCourse(id); setShowCourseSelector(false); }}
         />
+      )}
+      {courseCertConfig.enabled && pct === 100 && (
+        <div style={{ margin: '20px 24px 0', padding: '16px 20px', borderRadius: 14, background: '#F0FDFA',
+          border: '1.5px solid #5EEAD4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#0F766E' }}>🎓 ¡Ruta completada!</div>
+            <div style={{ fontSize: 12, color: '#115E59' }}>Ya puedes ver y descargar tu certificado</div>
+          </div>
+          <Btn variant="gradient" size="sm" onClick={() => nav('course-cert')}>Ver certificado</Btn>
+        </div>
       )}
       {/* Hero banner */}
       {isTimeTravel ? (

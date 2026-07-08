@@ -437,7 +437,8 @@ const DEF = {
   institutionCourses: [],   // [{ id, institution_id, course_id, is_active, expires_at }] expires_at null = indefinido
   userCourses: [],          // [{ id, user_id, course_id, is_active }] acceso por usuario
   courseModules: [],        // módulos del curso activo (ya convertidos con dbModToAppMod)
-  enrolledCourseId: null,   // id del curso activo del estudiante
+  enrolledCourseId: null,   // id del curso activo del estudiante (matrícula/course_progress)
+  effectiveCourseId: null,  // id del curso que realmente se ve (el fork del colegio si existe; si no, igual a enrolledCourseId)
   allEnrollments: [],       // todos los cursos en los que está inscrito el estudiante
   coursesLoaded: false,     // true cuando courses + userCourses ya se cargaron (evita parpadeo en el guard de selección de curso)
   workshopAccess: [],       // [{ id, student_id, course_id, enabled }] habilitación del taller/producto final por estudiante (tutor)
@@ -562,7 +563,10 @@ const completeNode = (id) => {
       }).then(({ data, error }) => {
         if (error) { console.error('completeNode course_progress:', error); return; }
         // Reconcilia con la verdad del servidor (por si otra pestaña ya había avanzado más).
-        if (data) XS.set({ xp: data.xp, completed: data.completed, badges: data.badges });
+        if (data) {
+          XS.set({ xp: data.xp, completed: data.completed, badges: data.badges });
+          maybeIssueCourseCertificate(XS.get(), data.completed);
+        }
       });
     } else {
       // Legacy: escribe en progress
@@ -1026,6 +1030,7 @@ const loadCourseModules = async (courseId, areaId = null) => {
   XS.set({
     courseModules: dbRowsToCourseModules(data, areaId),
     enrolledCourseId: courseId,
+    effectiveCourseId: courseId,
   });
 };
 
@@ -1460,7 +1465,13 @@ const forkCourseForInstitution = async (courseId, institutionId) => {
 // si lo que se ve es un borrador sin publicar o lo que ya ven los estudiantes.
 const loadCourseForEditing = async (courseId) => {
   const { data: courseRow } = await supabase.from('courses')
-    .select('name, draft_modules, draft_name, draft_updated_at').eq('id', courseId).maybeSingle();
+    .select(`name, draft_modules, draft_name, draft_updated_at, draft_certificate,
+      certificate_enabled, certificate_title, certificate_achievement_text,
+      certificate_signatory_name, certificate_signatory_role, parent_course_id`)
+    .eq('id', courseId).maybeSingle();
+
+  const { courses } = XS.get();
+  const publishedCertConfig = getCourseCertConfig(courses, courseRow);
 
   if (courseRow?.draft_modules) {
     return {
@@ -1469,6 +1480,7 @@ const loadCourseForEditing = async (courseId) => {
       hasDraft: true,
       draftName: courseRow.draft_name ?? courseRow.name,
       draftUpdatedAt: courseRow.draft_updated_at,
+      certConfig: courseRow.draft_certificate || publishedCertConfig,
     };
   }
 
@@ -1493,16 +1505,18 @@ const loadCourseForEditing = async (courseId) => {
     // en la lista principal, sin distinción base/custom.
     standard.push(mod);
   });
-  return { modules: standard, customModules: custom, hasDraft: false };
+  return { modules: standard, customModules: custom, hasDraft: false, certConfig: publishedCertConfig };
 };
 
-// Guarda el estado actual del editor como BORRADOR (courses.draft_modules) sin
-// tocar course_modules — los estudiantes NO ven este cambio hasta que se publique.
-const saveCourseDraft = async (courseId, moduleList, courseName) => {
+// Guarda el estado actual del editor como BORRADOR (courses.draft_modules /
+// draft_certificate) sin tocar course_modules ni las columnas certificate_* —
+// los estudiantes NO ven este cambio hasta que se publique.
+const saveCourseDraft = async (courseId, moduleList, courseName, certConfig) => {
   if (!courseId) return { error: 'Sin curso seleccionado' };
   const { error } = await supabase.from('courses').update({
     draft_modules: moduleList,
     draft_name: courseName ?? null,
+    draft_certificate: certConfig ?? null,
     draft_updated_at: new Date().toISOString(),
   }).eq('id', courseId);
   if (error) { console.error('saveCourseDraft:', error); return { error: error.message }; }
@@ -1513,16 +1527,17 @@ const saveCourseDraft = async (courseId, moduleList, courseName) => {
 const discardCourseDraft = async (courseId) => {
   if (!courseId) return { error: 'Sin curso seleccionado' };
   const { error } = await supabase.from('courses').update({
-    draft_modules: null, draft_name: null, draft_updated_at: null,
+    draft_modules: null, draft_name: null, draft_certificate: null, draft_updated_at: null,
   }).eq('id', courseId);
   if (error) { console.error('discardCourseDraft:', error); return { error: error.message }; }
   return { ok: true };
 };
 
-// Publica el borrador: aplica moduleList/courseName a la BD real (course_modules,
-// lo que leen los estudiantes) vía saveCourseModules, y limpia el borrador.
-const publishCourseModules = async (courseId, moduleList, courseName) => {
-  const result = await saveCourseModules(courseId, moduleList, courseName);
+// Publica el borrador: aplica moduleList/courseName/certConfig a la BD real
+// (course_modules + columnas certificate_*, lo que leen los estudiantes) vía
+// saveCourseModules, y limpia el borrador.
+const publishCourseModules = async (courseId, moduleList, courseName, certConfig) => {
+  const result = await saveCourseModules(courseId, moduleList, courseName, certConfig);
   if (result.error) return result;
   await discardCourseDraft(courseId);
   return result;
@@ -1532,14 +1547,27 @@ const publishCourseModules = async (courseId, moduleList, courseName) => {
 // Estrategia UPDATE en sitio para los módulos existentes (preserva UUIDs →
 // no rompe course_progress.completed[]), INSERT para los nuevos, DELETE para
 // los quitados. Devuelve { ok, count } o { error }.
-const saveCourseModules = async (courseId, moduleList, courseName) => {
+const saveCourseModules = async (courseId, moduleList, courseName, certConfig) => {
   if (!courseId) return { error: 'Sin curso seleccionado' };
 
   // Renombrar el curso si cambió el nombre
   if (courseName !== undefined) {
     await supabase.from('courses').update({ name: courseName, updated_at: new Date().toISOString() }).eq('id', courseId);
-    await loadCourses();
   }
+
+  // Publicar la config del certificado (lo que emitirá issueCourseCertificate)
+  if (certConfig !== undefined) {
+    await supabase.from('courses').update({
+      certificate_enabled: !!certConfig.enabled,
+      certificate_title: certConfig.title || null,
+      certificate_achievement_text: certConfig.achievementText || null,
+      certificate_signatory_name: certConfig.signatoryName || null,
+      certificate_signatory_role: certConfig.signatoryRole || null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', courseId);
+  }
+
+  if (courseName !== undefined || certConfig !== undefined) await loadCourses();
 
   // IDs existentes en la BD
   const { data: existingRows } = await supabase.from('course_modules')
@@ -1648,6 +1676,7 @@ const switchCourse = async (courseId) => {
     .select('*').eq('user_id', user.id).eq('course_id', courseId).maybeSingle();
   XS.set({
     enrolledCourseId: courseId,
+    effectiveCourseId,
     courseModules,
     xp: cp?.xp || 0,
     completed: cp?.completed || [],
@@ -1736,6 +1765,79 @@ const issueCertificate = async (submissionId, studentName, areaId, score, maxSco
   return data;
 };
 
+// ── Certificado de curso (personalizado por el tutor desde el Editor de Ruta) ──
+// A diferencia del certificado DCE (Grid.jsx, ligado a una Entrega Final
+// calificada), este se emite solo con completar el 100% de los módulos
+// habilitados de la ruta — necesario porque no todo curso personalizado tiene
+// Entrega Final (ej. MOOCs por video). Ver 0037_course_certificates.sql.
+const DEFAULT_CERT_ACHIEVEMENT_TEXT = 'ha completado satisfactoriamente la formación docente en';
+
+// Título mostrado por defecto si el tutor no puso uno propio: el nombre del
+// curso ORIGINAL (nunca el nombre interno del fork, que es solo referencia
+// del tutor — ver comentario en InstructorRouteEditor.jsx).
+const getCourseDisplayName = (courses, courseRow) => {
+  if (!courseRow) return '';
+  if (courseRow.parent_course_id) {
+    const parent = (courses || []).find(c => c.id === courseRow.parent_course_id);
+    return parent?.name || courseRow.name || '';
+  }
+  return courseRow.name || '';
+};
+
+// Normaliza las columnas certificate_* de una fila `courses` (o su borrador)
+// a la forma que consume el editor y el emisor de certificados.
+const getCourseCertConfig = (courses, courseRow) => ({
+  enabled: !!courseRow?.certificate_enabled,
+  title: courseRow?.certificate_title || '',
+  achievementText: courseRow?.certificate_achievement_text || '',
+  signatoryName: courseRow?.certificate_signatory_name || '',
+  signatoryRole: courseRow?.certificate_signatory_role || '',
+  _displayName: getCourseDisplayName(courses, courseRow), // fallback de title
+});
+
+// Emite o recupera el certificado de curso de un estudiante (idempotente por
+// user_id+course_id). El contenido queda "congelado" al emitir: si el tutor
+// edita el certificado después, los ya emitidos no cambian retroactivamente.
+const issueCourseCertificate = async (courseId, studentName, certConfig) => {
+  const { user } = XS.get();
+  if (!user?.id || !courseId) return null;
+
+  const { data: existing } = await supabase
+    .from('certificates')
+    .select('cert_uuid, issued_at')
+    .eq('user_id', user.id).eq('course_id', courseId)
+    .maybeSingle();
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from('certificates')
+    .insert({
+      user_id: user.id, course_id: courseId, student_name: studentName,
+      course_title: certConfig.title || certConfig._displayName || null,
+      achievement_text: certConfig.achievementText || DEFAULT_CERT_ACHIEVEMENT_TEXT,
+      signatory_name: certConfig.signatoryName || null,
+      signatory_role: certConfig.signatoryRole || null,
+    })
+    .select('cert_uuid, issued_at')
+    .single();
+  if (error) { console.error('issueCourseCertificate:', error); return null; }
+  return data;
+};
+
+// Si el estudiante acaba de completar el 100% de su ruta y el curso tiene el
+// certificado habilitado, lo emite (no-op si ya existe o si aún falta algo).
+// `courseModules`/`done` deben ser los del curso EFECTIVO (fork si aplica),
+// que es lo que ya trae el estado tras completar un módulo.
+const maybeIssueCourseCertificate = (s, done) => {
+  const courseId = s.effectiveCourseId || s.enrolledCourseId;
+  if (!courseId || !s.user) return;
+  const courseRow = (s.courses || []).find(c => c.id === courseId);
+  if (!courseRow?.certificate_enabled) return;
+  if (!isRouteComplete(done, s.selectedArea, s.courseModules)) return;
+  const certConfig = getCourseCertConfig(s.courses, courseRow);
+  issueCourseCertificate(courseId, s.user.name, certConfig);
+};
+
 // Devuelve el tema visual del curso en el que está inscrito el estudiante ('detective' | null).
 // Versión imperativa del selector selectActiveCourseTheme (misma lógica, fuera de React).
 const getActiveCourseTheme = () => selectActiveCourseTheme(XS.get());
@@ -1773,4 +1875,5 @@ export {
   setPreviewMode,
   loadWorkshopAccess, isWorkshopEnabled, setWorkshopAccess, setWorkshopAccessBulk,
   dbRowsToCourseModules, isBaseCourse, selectActiveCourseTheme, loadSessionCatalogs,
+  getCourseCertConfig, getCourseDisplayName, issueCourseCertificate,
 };

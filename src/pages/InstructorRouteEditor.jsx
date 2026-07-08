@@ -3,6 +3,7 @@ import {
   useStore,
   forkCourseForInstitution, loadCourseForEditing,
   saveCourseDraft, discardCourseDraft, publishCourseModules,
+  getCourseDisplayName,
 } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, GripIc, Btn } from '../components/ui.jsx'
 import {
@@ -70,15 +71,20 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
 }
 
 // ─── Modo Curso: edita los módulos reales de la copia del tutor ───────────────
+const DEFAULT_CERT_ACHIEVEMENT_TEXT = 'ha completado satisfactoriamente la formación docente en'
+const EMPTY_CERT_CONFIG = { enabled: false, title: '', achievementText: '', signatoryName: '', signatoryRole: '' }
+
 const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) => {
   const isMobile = useMobile()
   const courses  = useStore(s => s.courses || [])
+  const courseRow = React.useMemo(() => courses.find(c => c.id === courseId), [courses, courseId])
   // El tema del curso (los forks copian el theme del padre) alimenta el preview temático.
-  const courseTheme = React.useMemo(() => courses.find(c => c.id === courseId)?.theme || null, [courses, courseId])
+  const courseTheme = courseRow?.theme || null
   const [moduleList, setModuleList]     = React.useState([])
   const [loading, setLoading]           = React.useState(true)
   const [loadErr, setLoadErr]           = React.useState('')
   const [courseName, setCourseName]     = React.useState(initialName || '')
+  const [certConfig, setCertConfig]     = React.useState(EMPTY_CERT_CONFIG)
   const [saving, setSaving]             = React.useState(false)
   const [publishing, setPublishing]     = React.useState(false)
   const [hasDraft, setHasDraft]         = React.useState(false)
@@ -94,11 +100,12 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
 
   React.useEffect(() => {
     setLoading(true); setLoadErr('')
-    loadCourseForEditing(courseId).then(({ modules, error, hasDraft, draftName }) => {
+    loadCourseForEditing(courseId).then(({ modules, error, hasDraft, draftName, certConfig: cc }) => {
       if (error) { setLoadErr(error); setLoading(false); return }
       setModuleList(modules)
       setHasDraft(!!hasDraft)
       if (hasDraft && draftName) setCourseName(draftName)
+      setCertConfig(cc || EMPTY_CERT_CONFIG)
       setLoading(false)
     })
   }, [courseId])
@@ -182,7 +189,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
   // "Publicar" recién aplica el cambio a course_modules, que es lo que leen.
   const handleSaveDraft = async () => {
     setSaving(true); setSavedMsg('')
-    const result = await saveCourseDraft(courseId, moduleList, courseName)
+    const result = await saveCourseDraft(courseId, moduleList, courseName, certConfig)
     setSaving(false)
     if (result.error) { setSavedMsg('⚠️ ' + result.error); return }
     setHasDraft(true)
@@ -192,12 +199,13 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
 
   const handlePublish = async () => {
     setPublishing(true); setSavedMsg('')
-    const result = await publishCourseModules(courseId, moduleList, courseName)
+    const result = await publishCourseModules(courseId, moduleList, courseName, certConfig)
     setPublishing(false)
     if (result.error) { setSavedMsg('⚠️ ' + result.error); return }
     // Recarga para obtener los UUIDs reales de los módulos nuevos
-    const { modules } = await loadCourseForEditing(courseId)
+    const { modules, certConfig: cc } = await loadCourseForEditing(courseId)
     setModuleList(modules)
+    setCertConfig(cc || EMPTY_CERT_CONFIG)
     setHasDraft(false)
     setSavedMsg('🚀 Publicado — ya es lo que ven los estudiantes')
     setTimeout(() => setSavedMsg(''), 3500)
@@ -206,8 +214,9 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
   const handleDiscardDraft = async () => {
     setSaving(true); setSavedMsg('')
     await discardCourseDraft(courseId)
-    const { modules } = await loadCourseForEditing(courseId)
+    const { modules, certConfig: cc } = await loadCourseForEditing(courseId)
     setModuleList(modules)
+    setCertConfig(cc || EMPTY_CERT_CONFIG)
     setHasDraft(false)
     setSaving(false)
     setSavedMsg('Borrador descartado — vuelto a lo publicado')
@@ -277,6 +286,57 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
           placeholder="Ej: Laboratorio — IED San Francisco"
           style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
         <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Solo para tu referencia interna — los estudiantes SIEMPRE ven el nombre del curso original, nunca este.</p>
+      </div>
+
+      {/* Certificado del curso */}
+      <div style={{ padding: '14px 18px', borderRadius: 12, background: 'var(--bg-alt)', border: '1px solid var(--border)', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: certConfig.enabled ? 14 : 0 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>
+              🎓 Certificado al completar la ruta
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--muted)', margin: 0 }}>
+              Se emite automáticamente cuando el estudiante completa el 100% de los módulos habilitados.
+            </p>
+          </div>
+          <div onClick={() => setCertConfig(c => ({ ...c, enabled: !c.enabled }))}
+            style={{ width: 38, height: 20, borderRadius: 10, flexShrink: 0, cursor: 'pointer',
+              background: certConfig.enabled ? 'var(--success)' : 'var(--border)', position: 'relative', transition: 'background .2s' }}>
+            <div style={{ position: 'absolute', top: 2, width: 16, height: 16, borderRadius: '50%', background: '#fff',
+              left: certConfig.enabled ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
+          </div>
+        </div>
+        {certConfig.enabled && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Título del certificado</label>
+              <input value={certConfig.title} onChange={e => setCertConfig(c => ({ ...c, title: e.target.value }))}
+                placeholder={getCourseDisplayName(courses, courseRow) || 'Nombre del curso'}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Texto de logro</label>
+              <textarea value={certConfig.achievementText} onChange={e => setCertConfig(c => ({ ...c, achievementText: e.target.value }))}
+                placeholder={DEFAULT_CERT_ACHIEVEMENT_TEXT} rows={2}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box', resize: 'vertical' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Nombre de quien firma</label>
+                <input value={certConfig.signatoryName} onChange={e => setCertConfig(c => ({ ...c, signatoryName: e.target.value }))}
+                  placeholder="Ej: Prof. Juan Pérez"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Rol / institución</label>
+                <input value={certConfig.signatoryRole} onChange={e => setCertConfig(c => ({ ...c, signatoryRole: e.target.value }))}
+                  placeholder="Ej: Instructor · CEINFES · Experia"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--muted)', margin: 0 }}>Los campos vacíos usan los valores por defecto mostrados como ejemplo (placeholder).</p>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 280px', gap: 20, alignItems: 'start' }}>

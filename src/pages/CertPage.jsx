@@ -28,7 +28,7 @@ const CertPage = () => {
     if (!nodeId) { setNotFound(true); setLoading(false); return }
     supabase
       .from('certificates')
-      .select('cert_uuid, student_name, area_id, score, max_score, issued_at')
+      .select('cert_uuid, student_name, area_id, score, max_score, issued_at, course_id, course_title, achievement_text, signatory_name, signatory_role')
       .eq('cert_uuid', nodeId)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -66,10 +66,15 @@ const CertPage = () => {
     )
   }
 
+  const isCourseCert = !!cert.course_id
   const area = AREA_META[cert.area_id]
   const pct = cert.max_score > 0 ? Math.round((cert.score / cert.max_score) * 100) : null
   const dateStr = new Date(cert.issued_at).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
   const certUrl = `${PROD_BASE}/#/cert/${cert.cert_uuid}`
+  const courseTitle = cert.course_title || 'Curso'
+  const achievementText = cert.achievement_text || 'ha completado satisfactoriamente la formación docente en'
+  const signatoryName = cert.signatory_name || 'Instructor'
+  const signatoryRole = cert.signatory_role || 'CEINFES · Experia'
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg, #F9FAFB)', padding: isMobile ? '24px 16px 48px' : '40px 24px 60px' }}>
@@ -130,7 +135,7 @@ const CertPage = () => {
             Certificado de Formación Docente
           </div>
           <h1 style={{ fontSize: isMobile ? 22 : 30, fontWeight: 800, color: '#111827', lineHeight: 1.2, marginBottom: 8 }}>
-            Diseño Centrado en Experiencias
+            {isCourseCert ? courseTitle : 'Diseño Centrado en Experiencias'}
           </h1>
           <div style={{ width: 80, height: 4, background: 'linear-gradient(90deg,#E8732C,#F09848)', borderRadius: 2, margin: '0 auto 24px' }} />
 
@@ -139,11 +144,11 @@ const CertPage = () => {
             {cert.student_name}
           </div>
           <p style={{ fontSize: 15, color: '#374151', marginBottom: 24, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 24px' }}>
-            ha completado satisfactoriamente la formación docente en<br />
-            <strong>Diseño Centrado en Experiencias (DCE)</strong>
+            {isCourseCert ? achievementText : 'ha completado satisfactoriamente la formación docente en'}<br />
+            <strong>{isCourseCert ? courseTitle : 'Diseño Centrado en Experiencias (DCE)'}</strong>
           </p>
 
-          {area && (
+          {!isCourseCert && area && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 24px',
               borderRadius: 100, background: area.color + '18', border: `2px solid ${area.color}40`, marginBottom: 24 }}>
               <span style={{ fontSize: 24 }}>{area.icon}</span>
@@ -151,7 +156,7 @@ const CertPage = () => {
             </div>
           )}
 
-          {pct !== null && (
+          {!isCourseCert && pct !== null && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: 0,
               marginBottom: 28, border: '1px solid #E5E7EB', borderRadius: 16, overflow: 'hidden',
               maxWidth: 360, margin: '0 auto 28px' }}>
@@ -171,8 +176,10 @@ const CertPage = () => {
 
           <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end', marginBottom: 24 }}>
             {[
-              { label: dateStr,          sub: 'Fecha de expedición' },
-              { label: 'Instructor DCE', sub: 'CEINFES · Experia' },
+              { label: dateStr, sub: 'Fecha de expedición' },
+              isCourseCert
+                ? { label: signatoryName, sub: signatoryRole }
+                : { label: 'Instructor DCE', sub: 'CEINFES · Experia' },
             ].map((sig, i) => (
               <div key={i} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 13, color: '#111827', fontWeight: 600, marginBottom: 10 }}>{sig.label}</div>

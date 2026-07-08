@@ -7,7 +7,9 @@ import { dbRowsToCourseModules } from '../store/store.jsx'
  * - If not enrolled: falls back to legacy `progress` table.
  * - Resolves a tutor's fork of the course for the student's institution
  *   (if one exists) so the student sees the customised version.
- * Returns { enrolledCourseId, courseModules, allEnrollments, xp, completed, badges }
+ * Returns { enrolledCourseId, effectiveCourseId, courseModules, allEnrollments, xp, completed, badges }
+ * `effectiveCourseId` is the course row whose modules/certificate the student
+ * actually sees (the fork if one exists, otherwise same as enrolledCourseId).
  */
 export async function loadStudentSession(userId, area, institutionId) {
   // Auto-conceder los cursos habilitados para el colegio del estudiante que aún
@@ -40,6 +42,7 @@ export async function loadStudentSession(userId, area, institutionId) {
   if (!enrolledCourseId) {
     return {
       enrolledCourseId: null,
+      effectiveCourseId: null,
       courseModules: [],
       allEnrollments: [],
       xp:        legacyProgress?.xp        || 0,
@@ -74,5 +77,5 @@ export async function loadStudentSession(userId, area, institutionId) {
   const completed = cp?.completed ?? legacyProgress?.completed ?? []
   const badges    = cp?.badges    ?? legacyProgress?.badges    ?? []
 
-  return { enrolledCourseId, courseModules, allEnrollments, xp, completed, badges }
+  return { enrolledCourseId, effectiveCourseId, courseModules, allEnrollments, xp, completed, badges }
 }
