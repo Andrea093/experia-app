@@ -725,7 +725,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
         </div>
         {confirmed&&(
           <p style={{fontSize:13,fontWeight:600,marginTop:14,color:answers[answers.length-1]===q.correct?'var(--success)':'var(--error)'}}>
-            {answers[answers.length-1]===q.correct?'✓ ¡Correcto!':'✗ Respuesta correcta: '+q.options[q.correct]}
+            {answers[answers.length-1]===q.correct?(mod.correctMessage||'✓ ¡Correcto!'):(mod.incorrectMessage||'✗ Respuesta correcta:')+' '+q.options[q.correct]}
           </p>
         )}
         {confirmed&&(q.explanation||q.explanationImage)&&(
@@ -894,7 +894,7 @@ const TrueFalseChallenge = ({ mod, onComplete }) => {
               {done && (
                 <p style={{ fontSize:12, marginTop:8, fontWeight:600,
                   color: picked === s.answer ? 'var(--success)' : 'var(--error)' }}>
-                  {picked === s.answer ? '¡Correcto!' : `Respuesta correcta: ${s.answer ? 'Verdadero' : 'Falso'}`}
+                  {picked === s.answer ? (mod.correctMessage || '¡Correcto!') : `${mod.incorrectMessage || 'Respuesta correcta:'} ${s.answer ? 'Verdadero' : 'Falso'}`}
                 </p>
               )}
             </div>

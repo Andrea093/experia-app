@@ -316,7 +316,7 @@ const emptyBlock = (type) => {
     case 'video':    return { type, title: '', desc: '', url: '' }
     case 'embed':    return { type, title: '', desc: '', url: '' }
     case 'image':    return { type, title: '', url: '', caption: '', height: '' }
-    case 'checklist': return { type, title: '', items: [{ t: '' }] }
+    case 'checklist': return { type, title: '', desc: '', items: [{ t: '' }] }
     case 'download': return { type, title: '', desc: '', url: '', filename: '', filesize: '' }
     case 'compare':  return { type, title: '', label: '', trad: '', dce: '' }
     default:         return { type, title: '', text: '' }
@@ -413,6 +413,7 @@ const BlockEditor = ({ block, onChange, onDelete, onMoveUp, onMoveDown, isFirst,
         {block.type === 'checklist' && (
           <>
             <div><label style={lbl}>Título de la sección (opcional)</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Ej: Antes de continuar" /></div>
+            <div><label style={lbl}>Descripción (opcional)</label><input value={block.desc || ''} onChange={e => set('desc', e.target.value)} style={inp} placeholder="Instrucción o contexto para el estudiante" /></div>
             <label style={lbl}>Pasos</label>
             {(block.items || []).map((item, i) => (
               <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

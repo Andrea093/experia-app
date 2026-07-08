@@ -8,6 +8,8 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
   const [task, setTask]     = React.useState('')
   const [xp, setXp]         = React.useState(100)
   const [questions, setQs]  = React.useState([])
+  const [correctMsg, setCorrectMsg]     = React.useState('')
+  const [incorrectMsg, setIncorrectMsg] = React.useState('')
   const [err, setErr]       = React.useState('')
   // --- Passage (texto/imágenes de apoyo, opcional) ---
   const [pOn, setPOn]       = React.useState(false)
@@ -24,6 +26,8 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
       setTask(initial?.task || '')
       setXp(initial?.xp || 100)
       setQs(initial?.questions || [{ id: 1, question: '', options: ['', '', '', ''], ...(isPoll ? {} : { correct: 0 }) }])
+      setCorrectMsg(initial?.correctMessage || '')
+      setIncorrectMsg(initial?.incorrectMessage || '')
       setErr('')
       const ps = initial?.passage
       setPOn(!!ps)
@@ -85,7 +89,8 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
     if (!questions.length) { setErr('Agrega al menos una pregunta'); return }
     const incomplete = questions.find(q => !q.question.trim() || q.options.some(o => !o.trim()))
     if (incomplete) { setErr('Completa todas las preguntas y opciones'); return }
-    onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100, questions: cleanQuestions(), passage: buildPassage(), type: 'challenge', ctype: isPoll ? 'poll' : 'quiz' })
+    onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100, questions: cleanQuestions(), passage: buildPassage(), type: 'challenge', ctype: isPoll ? 'poll' : 'quiz',
+      ...(isPoll ? {} : { correctMessage: correctMsg.trim(), incorrectMessage: incorrectMsg.trim() }) })
   }
 
   // Limpia campos opcionales vacíos y normaliza números antes de guardar
@@ -127,6 +132,18 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
           <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Instrucción al estudiante</label>
           <input value={task} onChange={e => setTask(e.target.value)} placeholder="Ej: Responde todas las preguntas y confirma cada respuesta" style={inp} />
         </div>
+        {!isPoll && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Mensaje de acierto (opcional)</label>
+              <input value={correctMsg} onChange={e => setCorrectMsg(e.target.value)} placeholder="✓ ¡Correcto!" style={inp} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Mensaje de error (opcional)</label>
+              <input value={incorrectMsg} onChange={e => setIncorrectMsg(e.target.value)} placeholder="✗ Respuesta correcta:" style={inp} />
+            </div>
+          </div>
+        )}
 
         {/* ── Texto / imágenes de apoyo (passage) ── */}
         <div style={{ padding: '14px', borderRadius: 12, background: 'var(--purple-bg)', border: '1px solid var(--purple)' }}>

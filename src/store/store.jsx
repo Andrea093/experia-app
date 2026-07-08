@@ -337,6 +337,8 @@ const dbModToAppMod = (row) => ({
   ...(row.challenge_data?.statements   ? { statements:   row.challenge_data.statements }    : {}),
   ...(row.challenge_data?.blanks       ? { blanks:       row.challenge_data.blanks }        : {}),
   ...(row.challenge_data?.passage      ? { passage:      row.challenge_data.passage }       : {}),
+  ...(row.challenge_data?.correctMessage   ? { correctMessage:   row.challenge_data.correctMessage }   : {}),
+  ...(row.challenge_data?.incorrectMessage ? { incorrectMessage: row.challenge_data.incorrectMessage } : {}),
 });
 
 // Convierte filas de course_modules (ya ordenadas por "order") en los módulos
@@ -1329,6 +1331,8 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.statements   || m.override?.statements)    challengeData.statements   = m.statements   || m.override.statements;
     if (m.blanks       || m.override?.blanks)        challengeData.blanks       = m.blanks       || m.override.blanks;
     if (m.passage      || m.override?.passage)       challengeData.passage      = m.passage      || m.override.passage;
+    if (m.correctMessage   || m.override?.correctMessage)   challengeData.correctMessage   = m.correctMessage   || m.override.correctMessage;
+    if (m.incorrectMessage || m.override?.incorrectMessage) challengeData.incorrectMessage = m.incorrectMessage || m.override.incorrectMessage;
     rows.push({
       course_id: courseId, type: m.type, area_id: areaIdVal,
       title: m.title, subtitle: m.subtitle || '',
@@ -1350,6 +1354,8 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.statements)   challengeData.statements   = m.statements;
     if (m.blanks)       challengeData.blanks       = m.blanks;
     if (m.passage)      challengeData.passage      = m.passage;
+    if (m.correctMessage)   challengeData.correctMessage   = m.correctMessage;
+    if (m.incorrectMessage) challengeData.incorrectMessage = m.incorrectMessage;
     rows.push({
       course_id: courseId, type: m.type || 'lesson', area_id: areaIdVal,
       title: m.title, subtitle: m.subtitle || (m.type === 'challenge' ? 'Reto' : 'Módulo'),
@@ -1553,6 +1559,8 @@ const saveCourseModules = async (courseId, moduleList, courseName) => {
         if (m.statements)   cd.statements   = m.statements;
         if (m.blanks)       cd.blanks       = m.blanks;
         if (m.passage)      cd.passage      = m.passage;
+        if (m.correctMessage)   cd.correctMessage   = m.correctMessage;
+        if (m.incorrectMessage) cd.incorrectMessage = m.incorrectMessage;
         return cd;
       })(),
       updated_at: new Date().toISOString(),

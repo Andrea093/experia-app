@@ -59,12 +59,18 @@ export const TrueFalseEditorContent = ({ mod, onChange }) => {
     { id: 3, text: 'Una buena experiencia de aprendizaje conecta el contenido con la vida real.', answer: true },
   ]
   const [items, setItems] = React.useState([])
+  const [correctMsg, setCorrectMsg]     = React.useState('')
+  const [incorrectMsg, setIncorrectMsg] = React.useState('')
   React.useEffect(() => {
     const init = mod?.statements || mod?.override?.statements || DEFAULT
-    setItems(init); onChange({ statements: init })
+    const cm = mod?.correctMessage ?? mod?.override?.correctMessage ?? ''
+    const im = mod?.incorrectMessage ?? mod?.override?.incorrectMessage ?? ''
+    setItems(init); setCorrectMsg(cm); setIncorrectMsg(im)
+    onChange({ statements: init, correctMessage: cm, incorrectMessage: im })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mod?.id])
-  const update = (next) => { setItems(next); onChange({ statements: next }) }
+  const update = (next) => { setItems(next); onChange({ statements: next, correctMessage: correctMsg, incorrectMessage: incorrectMsg }) }
+  const updateMsgs = (cm, im) => { setCorrectMsg(cm); setIncorrectMsg(im); onChange({ statements: items, correctMessage: cm, incorrectMessage: im }) }
   const setText   = (i, v) => { const n = [...items]; n[i] = { ...n[i], text: v }; update(n) }
   const setAnswer = (i, v) => { const n = [...items]; n[i] = { ...n[i], answer: v }; update(n) }
   const add = () => update([...items, { id: Date.now(), text: 'Nueva afirmación', answer: true }])
@@ -100,6 +106,13 @@ export const TrueFalseEditorContent = ({ mod, onChange }) => {
           cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600 }}>
         <PlusIc s={12} c="var(--orange)" /> Agregar afirmación
       </button>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 14 }}>
+        <input value={correctMsg} onChange={e => updateMsgs(e.target.value, incorrectMsg)}
+          placeholder="Mensaje de acierto (opcional)" style={inp} />
+        <input value={incorrectMsg} onChange={e => updateMsgs(correctMsg, e.target.value)}
+          placeholder="Mensaje de error (opcional)" style={inp} />
+      </div>
     </div>
   )
 }

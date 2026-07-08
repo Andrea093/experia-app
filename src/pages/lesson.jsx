@@ -57,7 +57,10 @@ const ChecklistSection = ({ section, delay }) => {
   return (
     <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
       {section.title && (
-        <h3 style={{ fontSize: 19, fontWeight: 700, color: 'var(--dark)', marginBottom: 16 }}>{section.title}</h3>
+        <h3 style={{ fontSize: 19, fontWeight: 700, color: 'var(--dark)', marginBottom: section.desc ? 8 : 16 }}>{section.title}</h3>
+      )}
+      {section.desc && (
+        <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.6 }}>{section.desc}</p>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {(section.items || []).map((item, i) => {
@@ -433,10 +436,16 @@ const LessonView = () => {
     const el = scrollRef.current;
     if (!el) return;
     const handler = () => {
-      const pct = el.scrollTop / (el.scrollHeight - el.clientHeight) * 100;
+      const scrollable = el.scrollHeight - el.clientHeight;
+      // Contenido corto que ya cabe entero en pantalla (sin necesidad de
+      // scroll) — no dividir por cero: se considera leído de inmediato,
+      // si no, el botón "Completar lección" nunca se habilitaría.
+      if (scrollable <= 0) { setProgress(100); setDone(true); return; }
+      const pct = el.scrollTop / scrollable * 100;
       setProgress(Math.min(100, Math.round(pct)));
       if (pct > 85) setDone(true);
     };
+    handler(); // corre una vez al montar, por si el contenido ya cabe sin scroll
     el.addEventListener('scroll', handler);
     return () => el.removeEventListener('scroll', handler);
   }, [nodeId]);
