@@ -1,6 +1,6 @@
 import React from 'react'
 import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, setInstitutionCourseExpiry, loadCourseModules } from '../store/store.jsx'
-import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal, ChecklistDropdown, ImageUploader } from '../components/ui.jsx'
+import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal, ChecklistDropdown, ImageUploader, FileUploader } from '../components/ui.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
 // Pista descriptiva por tema inmersivo (se muestra al seleccionarlo en el form).
@@ -303,6 +303,7 @@ const BLOCK_TYPES = [
   { type: 'embed',    label: 'Embed (Genially, etc.)', icon: '🧩' },
   { type: 'image',    label: 'Imagen',        icon: '🖼️' },
   { type: 'checklist', label: 'Checklist',    icon: '✅' },
+  { type: 'download', label: 'Material descargable', icon: '📄' },
   { type: 'compare',  label: 'Comparación',   icon: '⚖️' },
 ]
 
@@ -316,6 +317,7 @@ const emptyBlock = (type) => {
     case 'embed':    return { type, title: '', desc: '', url: '' }
     case 'image':    return { type, title: '', url: '', caption: '', height: '' }
     case 'checklist': return { type, title: '', items: [{ t: '' }] }
+    case 'download': return { type, title: '', desc: '', url: '', filename: '', filesize: '' }
     case 'compare':  return { type, title: '', label: '', trad: '', dce: '' }
     default:         return { type, title: '', text: '' }
   }
@@ -421,6 +423,18 @@ const BlockEditor = ({ block, onChange, onDelete, onMoveUp, onMoveDown, isFirst,
               </div>
             ))}
             <button onClick={addItem} style={{ alignSelf: 'flex-start', padding: '4px 12px', borderRadius: 7, border: '1.5px dashed var(--border)', background: 'var(--bg)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font)', color: 'var(--muted)' }}>+ Agregar paso</button>
+          </>
+        )}
+        {block.type === 'download' && (
+          <>
+            <div><label style={lbl}>Título (opcional)</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Título del material" /></div>
+            <div><label style={lbl}>Descripción (opcional)</label><input value={block.desc || ''} onChange={e => set('desc', e.target.value)} style={inp} placeholder="Instrucción para el estudiante" /></div>
+            <div>
+              <label style={lbl}>Archivo</label>
+              {block.url && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>📎 {block.filename}</div>}
+              <FileUploader label={block.url ? 'Reemplazar archivo' : 'Subir archivo'} compact
+                onUploaded={({ url, name, size }) => { set('url', url); set('filename', name); set('filesize', size) }} />
+            </div>
           </>
         )}
         {block.type === 'compare' && (

@@ -25,4 +25,5 @@ export const SECTION_TYPES = [
   { id: 'embed',   label: '🧩 Embed (Genially, etc.)', icon: '🧩' },
   { id: 'image',   label: '🖼️ Imagen',         icon: '🖼️' },
   { id: 'checklist', label: '✅ Checklist',     icon: '✅' },
+  { id: 'download', label: '📄 Material descargable', icon: '📄' },
 ]

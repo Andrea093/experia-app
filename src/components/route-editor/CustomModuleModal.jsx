@@ -1,5 +1,5 @@
 import React from 'react'
-import { PlusIc, XIc, Btn, Modal, ImageUploader } from '../ui.jsx'
+import { PlusIc, XIc, Btn, Modal, ImageUploader, FileUploader } from '../ui.jsx'
 import { SECTION_TYPES } from './constants.js'
 
 const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => {
@@ -30,6 +30,7 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
       embed:   { type: 'embed',   title: '', url: '', desc: '' },
       image:   { type: 'image',   title: '', url: '', caption: '', height: '' },
       checklist: { type: 'checklist', title: '', items: [{ t: '' }] },
+      download: { type: 'download', title: '', desc: '', url: '', filename: '', filesize: '' },
     }
     setSections(s => [...s, { ...defaults[type], _id: Date.now() }])
   }
@@ -101,7 +102,7 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                   </div>
                 </div>
 
-                {sec.type !== 'video' && sec.type !== 'embed' && sec.type !== 'image' && sec.type !== 'checklist' && (
+                {sec.type !== 'video' && sec.type !== 'embed' && sec.type !== 'image' && sec.type !== 'checklist' && sec.type !== 'download' && (
                   <input value={sec.title} onChange={e => updateSection(idx, 'title', e.target.value)}
                     placeholder="Título de esta sección" style={{ ...inp, marginBottom: 8 }} />
                 )}
@@ -151,6 +152,21 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                       onUploaded={url => updateSection(idx, 'url', url)} />
                     <input value={sec.caption} onChange={e => updateSection(idx, 'caption', e.target.value)}
                       placeholder="Pie de foto (opcional)" style={{ ...inp, marginTop: 8 }} />
+                  </>
+                )}
+                {sec.type === 'download' && (
+                  <>
+                    <input value={sec.title} onChange={e => updateSection(idx, 'title', e.target.value)}
+                      placeholder="Título del material (opcional)" style={{ ...inp, marginBottom: 8 }} />
+                    <input value={sec.desc} onChange={e => updateSection(idx, 'desc', e.target.value)}
+                      placeholder="Descripción para el estudiante (opcional)" style={{ ...inp, marginBottom: 8 }} />
+                    {sec.url && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>📎 {sec.filename}</div>}
+                    <FileUploader label={sec.url ? 'Reemplazar archivo' : 'Subir archivo'} compact
+                      onUploaded={({ url, name, size }) => {
+                        updateSection(idx, 'url', url)
+                        updateSection(idx, 'filename', name)
+                        updateSection(idx, 'filesize', size)
+                      }} />
                   </>
                 )}
                 {sec.type === 'checklist' && (

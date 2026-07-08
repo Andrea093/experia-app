@@ -220,6 +220,37 @@ const LessonSection = React.memo(({ section, index }) => {
     );
   }
 
+  if (section.type === 'download') {
+    const sizeLabel = section.filesize
+      ? section.filesize < 1024 * 1024
+        ? Math.round(section.filesize / 1024) + ' KB'
+        : (section.filesize / (1024 * 1024)).toFixed(1) + ' MB'
+      : null;
+    return (
+      <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
+        {section.title && (
+          <h3 style={{ fontSize: 19, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>{section.title}</h3>
+        )}
+        {section.desc && (
+          <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.6 }}>{section.desc}</p>
+        )}
+        <a href={section.url} download={section.filename || true} target="_blank" rel="noreferrer"
+          style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', borderRadius: 14,
+            background: 'var(--white)', border: '1.5px solid var(--border)', textDecoration: 'none', boxShadow: 'var(--sh-sm)' }}>
+          <span style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--orange-bg)', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📄</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {section.filename || 'Descargar material'}
+            </div>
+            {sizeLabel && <div style={{ fontSize: 12, color: 'var(--muted)' }}>{sizeLabel}</div>}
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--orange)', flexShrink: 0 }}>Descargar ⬇</span>
+        </a>
+      </div>
+    );
+  }
+
   if (section.type === 'quote') {
     return (
       <div className="ls-quote" style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>

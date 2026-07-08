@@ -414,8 +414,62 @@ const ImageUploader = ({ value, onUploaded, label = 'Subir imagen', bucket = 'at
   );
 };
 
+// --- File uploader (sube cualquier archivo a Supabase Storage y devuelve la
+// URL pública + metadatos) — para material descargable dentro de una lección. ---
+const FileUploader = ({ value, valueName, onUploaded, label = 'Subir archivo', bucket = 'attachments', folder = 'lesson-files', accept, maxSizeMB = 20, compact = false }) => {
+  const [uploading, setUploading] = React.useState(false);
+  const [err, setErr] = React.useState('');
+  const fileRef = React.useRef(null);
+
+  const pick = () => fileRef.current?.click();
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite re-subir el mismo archivo
+    if (!file) return;
+    if (file.size > maxSizeMB * 1024 * 1024) { setErr(`Máximo ${maxSizeMB} MB por archivo`); return; }
+    setErr(''); setUploading(true);
+    try {
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `${folder}/${Date.now()}_${safe}`;
+      const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
+      onUploaded?.({ url: publicUrl, name: file.name, size: file.size, type: file.type });
+    } catch (e2) {
+      console.error('FileUploader:', e2);
+      setErr('No se pudo subir el archivo. Revisa el bucket de Storage.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <input ref={fileRef} type="file" accept={accept} onChange={handleFile} style={{ display: 'none' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <button type="button" onClick={pick} disabled={uploading}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 10,
+            border: '1.5px dashed var(--purple)', background: 'var(--purple-bg)', color: 'var(--purple)',
+            cursor: uploading ? 'wait' : 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600,
+            opacity: uploading ? .6 : 1 }}>
+          <UploadIc s={15} c="var(--purple)" /> {uploading ? 'Subiendo…' : label}
+        </button>
+        {value && !compact && (
+          <a href={value} target="_blank" rel="noreferrer" title={valueName || value}
+            style={{ fontSize: 12, color: 'var(--muted)', textDecoration: 'underline', maxWidth: 220,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            📎 {valueName || value}
+          </a>
+        )}
+      </div>
+      {err && <span style={{ fontSize: 12, color: 'var(--error)' }}>{err}</span>}
+    </div>
+  );
+};
+
 export {
-  useMobile, LogoImg, ChecklistDropdown, ImageUploader,
+  useMobile, LogoImg, ChecklistDropdown, ImageUploader, FileUploader,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc, ArrowRIc, ArrowLIc,
   ChevRIc, StarIc, TrophyIc, ZapIc, AwardIc, BellIc, LogOutIc, ClockIc, XIc, PlusIc,
   TrashIc, EditIc, MenuIc, TargetIc, SettingsIc, BarIc, UsersIc, GripIc, MapIc,
