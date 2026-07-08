@@ -11,14 +11,14 @@ const STEPS = [
   {
     icon: '🧭',
     title: '¡Bienvenido a Experia!',
-    text: 'Tu plataforma de formación en Diseño Centrado en Experiencias (DCE). Aquí no tomas un curso tradicional: recorres un mapa de aprendizaje con lecciones, retos interactivos y un proyecto final.',
+    text: 'Tu plataforma de formación docente. Aquí no tomas un curso tradicional: recorres un mapa de aprendizaje con lecciones, retos interactivos y actividades prácticas, en cursos cortos y rutas de formación pensadas para tu práctica en el aula.',
     bullets: ['Avanza a tu ritmo, módulo a módulo', 'Cada módulo desbloquea el siguiente', 'Tu progreso se guarda automáticamente'],
   },
   {
     icon: '⚡',
     title: 'Gana XP, sube de nivel',
     text: 'Cada lección y reto completado suma puntos de experiencia (XP). Acumula XP para subir de nivel y desbloquea insignias por tus logros.',
-    bullets: ['XP por cada lección y reto', 'Insignias coleccionables por hitos', 'Certificado al aprobar tu proyecto final'],
+    bullets: ['XP por cada lección y reto', 'Insignias coleccionables por hitos', 'Certificado al completar tu ruta'],
   },
   {
     icon: '✅',
