@@ -38,7 +38,7 @@ const LoginPage = () => {
       if (profile.role === 'admin')      page = 'admin-dashboard';
 
       let xp = 0, completed = [], badges = [];
-      let enrolledCourseId = null, courseModules = [], allEnrollments = [];
+      let enrolledCourseId = null, effectiveCourseId = null, courseModules = [], allEnrollments = [];
       let accounts = [], submissions = [], challengeAttempts = [];
       let institutions = [], cohorts = [];
 
@@ -48,6 +48,7 @@ const LoginPage = () => {
         completed      = sd.completed;
         badges         = sd.badges;
         enrolledCourseId = sd.enrolledCourseId;
+        effectiveCourseId = sd.effectiveCourseId;
         courseModules  = sd.courseModules;
         allEnrollments = sd.allEnrollments;
         submissions       = sd.submissions;
@@ -82,7 +83,7 @@ const LoginPage = () => {
                 onboardingBonus: profile.onboarding_bonus ?? true },
         page,
         xp, completed, badges,
-        enrolledCourseId, courseModules,
+        enrolledCourseId, effectiveCourseId, courseModules,
         allEnrollments: profile.role === 'student' ? allEnrollments : [],
         notifications: [], selectedArea: profile.area || null, nodeId: null,
         accounts, submissions, challengeAttempts,

@@ -121,7 +121,7 @@ async function restoreSession() {
     badges         = sd.badges
     allEnrollments = sd.allEnrollments || []
     if (sd.enrolledCourseId) {
-      XS.set({ courseModules: sd.courseModules, enrolledCourseId: sd.enrolledCourseId })
+      XS.set({ courseModules: sd.courseModules, enrolledCourseId: sd.enrolledCourseId, effectiveCourseId: sd.effectiveCourseId })
     }
   }
 
