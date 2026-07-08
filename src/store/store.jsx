@@ -1426,14 +1426,23 @@ const forkCourseForInstitution = async (courseId, institutionId) => {
   }).select().single();
   if (ce || !copy) return { error: ce?.message || 'No se pudo crear la copia' };
 
-  // 4) Clona los módulos
+  // 4) Clona los módulos — genera ids nuevos en el cliente y REMAPEA
+  // requirements a esos ids nuevos. Sin este remapeo, los prerrequisitos
+  // quedan apuntando a los módulos del curso PADRE (que el estudiante nunca
+  // ve en el fork), y ningún módulo después del primero puede desbloquearse
+  // jamás — el progreso del estudiante nunca podrá contener esos ids viejos.
   const { data: modules } = await supabase.from('course_modules')
     .select('*').eq('course_id', courseId).order('"order"');
   if (modules?.length) {
-    const cloned = modules.map(({ id: _id, course_id: _cid, created_at: _ca, updated_at: _ua, ...rest }) => ({
-      ...rest,
-      course_id: copy.id,
-    }));
+    const idMap = new Map(); // id en el curso padre -> id nuevo en el fork
+    const cloned = modules.map(({ id: oldId, course_id: _cid, created_at: _ca, updated_at: _ua, ...rest }) => {
+      const newId = crypto.randomUUID();
+      idMap.set(oldId, newId);
+      return { ...rest, id: newId, course_id: copy.id };
+    });
+    cloned.forEach(m => {
+      if (m.requirements?.length) m.requirements = m.requirements.map(r => idMap.get(r)).filter(Boolean);
+    });
     await supabase.from('course_modules').insert(cloned);
   }
 
