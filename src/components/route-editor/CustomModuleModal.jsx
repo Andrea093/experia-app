@@ -1,5 +1,5 @@
 import React from 'react'
-import { PlusIc, XIc, Btn, Modal } from '../ui.jsx'
+import { PlusIc, XIc, Btn, Modal, ImageUploader } from '../ui.jsx'
 import { SECTION_TYPES } from './constants.js'
 
 const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => {
@@ -28,6 +28,8 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
       callout: { type: 'callout', title: '', text: '', icon: '💡' },
       video:   { type: 'video',   title: '', url: '', desc: '' },
       embed:   { type: 'embed',   title: '', url: '', desc: '' },
+      image:   { type: 'image',   title: '', url: '', caption: '', height: '' },
+      checklist: { type: 'checklist', title: '', items: [{ t: '' }] },
     }
     setSections(s => [...s, { ...defaults[type], _id: Date.now() }])
   }
@@ -99,7 +101,7 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                   </div>
                 </div>
 
-                {sec.type !== 'video' && sec.type !== 'embed' && (
+                {sec.type !== 'video' && sec.type !== 'embed' && sec.type !== 'image' && sec.type !== 'checklist' && (
                   <input value={sec.title} onChange={e => updateSection(idx, 'title', e.target.value)}
                     placeholder="Título de esta sección" style={{ ...inp, marginBottom: 8 }} />
                 )}
@@ -135,6 +137,44 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                       placeholder="https://view.genially.com/..." style={{ ...inp, marginBottom: 8 }} />
                     <input value={sec.desc} onChange={e => updateSection(idx, 'desc', e.target.value)}
                       placeholder="Descripción opcional del recurso" style={inp} />
+                  </>
+                )}
+                {sec.type === 'image' && (
+                  <>
+                    <input value={sec.title} onChange={e => updateSection(idx, 'title', e.target.value)}
+                      placeholder="Título de la imagen (opcional)" style={{ ...inp, marginBottom: 8 }} />
+                    {sec.url && (
+                      <img src={sec.url} alt="" style={{ width: '100%', maxHeight: 160, objectFit: 'cover',
+                        borderRadius: 8, marginBottom: 8, border: '1px solid var(--border)' }} />
+                    )}
+                    <ImageUploader label={sec.url ? 'Reemplazar imagen' : 'Subir imagen'} compact
+                      onUploaded={url => updateSection(idx, 'url', url)} />
+                    <input value={sec.caption} onChange={e => updateSection(idx, 'caption', e.target.value)}
+                      placeholder="Pie de foto (opcional)" style={{ ...inp, marginTop: 8 }} />
+                  </>
+                )}
+                {sec.type === 'checklist' && (
+                  <>
+                    <input value={sec.title} onChange={e => updateSection(idx, 'title', e.target.value)}
+                      placeholder="Título de la sección (opcional)" style={{ ...inp, marginBottom: 8 }} />
+                    {(sec.items || []).map((item, ii) => (
+                      <div key={ii} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                        <input value={item.t} onChange={e => {
+                            const items = [...sec.items]; items[ii] = { ...items[ii], t: e.target.value }
+                            updateSection(idx, 'items', items)
+                          }}
+                          placeholder={`Paso ${ii + 1}`} style={{ ...inp, flex: 1 }} />
+                        <button onClick={() => updateSection(idx, 'items', sec.items.filter((_, j) => j !== ii))}
+                          style={{ width: 26, height: 34, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <XIc s={11} c="var(--error)" />
+                        </button>
+                      </div>
+                    ))}
+                    <button onClick={() => updateSection(idx, 'items', [...(sec.items || []), { t: '' }])}
+                      style={{ padding: '4px 12px', borderRadius: 7, border: '1.5px dashed var(--border)', background: 'var(--white)',
+                        cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, color: 'var(--muted)' }}>
+                      + Agregar paso
+                    </button>
                   </>
                 )}
               </div>

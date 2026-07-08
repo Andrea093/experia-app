@@ -1,6 +1,6 @@
 import React from 'react'
 import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, setInstitutionCourseExpiry, loadCourseModules } from '../store/store.jsx'
-import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal, ChecklistDropdown } from '../components/ui.jsx'
+import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal, ChecklistDropdown, ImageUploader } from '../components/ui.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
 // Pista descriptiva por tema inmersivo (se muestra al seleccionarlo en el form).
@@ -301,6 +301,8 @@ const BLOCK_TYPES = [
   { type: 'concepts', label: 'Conceptos',     icon: '🗂️' },
   { type: 'video',    label: 'Video',         icon: '🎬' },
   { type: 'embed',    label: 'Embed (Genially, etc.)', icon: '🧩' },
+  { type: 'image',    label: 'Imagen',        icon: '🖼️' },
+  { type: 'checklist', label: 'Checklist',    icon: '✅' },
   { type: 'compare',  label: 'Comparación',   icon: '⚖️' },
 ]
 
@@ -312,6 +314,8 @@ const emptyBlock = (type) => {
     case 'concepts': return { type, title: '', items: [{ t: '', d: '' }] }
     case 'video':    return { type, title: '', desc: '', url: '' }
     case 'embed':    return { type, title: '', desc: '', url: '' }
+    case 'image':    return { type, title: '', url: '', caption: '', height: '' }
+    case 'checklist': return { type, title: '', items: [{ t: '' }] }
     case 'compare':  return { type, title: '', label: '', trad: '', dce: '' }
     default:         return { type, title: '', text: '' }
   }
@@ -390,6 +394,33 @@ const BlockEditor = ({ block, onChange, onDelete, onMoveUp, onMoveDown, isFirst,
             <div><label style={lbl}>Título</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Ej: Recurso interactivo" /></div>
             <div><label style={lbl}>URL del embed (Genially, Canva, H5P…)</label><input value={block.url || ''} onChange={e => set('url', e.target.value)} style={inp} placeholder="https://view.genially.com/..." /></div>
             <div><label style={lbl}>Descripción (opcional)</label><input value={block.desc || ''} onChange={e => set('desc', e.target.value)} style={inp} placeholder="Instrucción para el estudiante" /></div>
+          </>
+        )}
+        {block.type === 'image' && (
+          <>
+            <div><label style={lbl}>Título (opcional)</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Título de la imagen" /></div>
+            <div>
+              <label style={lbl}>Imagen</label>
+              {block.url && <img src={block.url} alt="" style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 8, marginBottom: 8, border: '1px solid var(--border)' }} />}
+              <ImageUploader label={block.url ? 'Reemplazar imagen' : 'Subir imagen'} compact onUploaded={url => set('url', url)} />
+            </div>
+            <div><label style={lbl}>Pie de foto (opcional)</label><input value={block.caption || ''} onChange={e => set('caption', e.target.value)} style={inp} placeholder="Descripción breve de la imagen" /></div>
+            <div style={{ width: 140 }}><label style={lbl}>Alto máx (px, opcional)</label><input type="number" value={block.height || ''} onChange={e => set('height', e.target.value)} style={inp} placeholder="420" /></div>
+          </>
+        )}
+        {block.type === 'checklist' && (
+          <>
+            <div><label style={lbl}>Título de la sección (opcional)</label><input value={block.title || ''} onChange={e => set('title', e.target.value)} style={inp} placeholder="Ej: Antes de continuar" /></div>
+            <label style={lbl}>Pasos</label>
+            {(block.items || []).map((item, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input value={item.t || ''} onChange={e => setItem(i, 't', e.target.value)} style={{ ...inp, flex: 1 }} placeholder={`Paso ${i + 1}`} />
+                <button onClick={() => delItem(i)} style={{ width: 26, height: 34, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <XIc s={10} c="var(--error)" />
+                </button>
+              </div>
+            ))}
+            <button onClick={addItem} style={{ alignSelf: 'flex-start', padding: '4px 12px', borderRadius: 7, border: '1.5px dashed var(--border)', background: 'var(--bg)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font)', color: 'var(--muted)' }}>+ Agregar paso</button>
           </>
         )}
         {block.type === 'compare' && (

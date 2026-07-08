@@ -49,6 +49,41 @@ const RevealSection = ({ section, delay }) => {
   );
 };
 
+// Checklist de pasos marcable — estado solo en memoria (no se guarda progreso;
+// se reinicia si el estudiante recarga o vuelve a la lección).
+const ChecklistSection = ({ section, delay }) => {
+  const [checked, setChecked] = React.useState({});
+  const toggle = (i) => setChecked(c => ({ ...c, [i]: !c[i] }));
+  return (
+    <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
+      {section.title && (
+        <h3 style={{ fontSize: 19, fontWeight: 700, color: 'var(--dark)', marginBottom: 16 }}>{section.title}</h3>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {(section.items || []).map((item, i) => {
+          const done = !!checked[i];
+          return (
+            <button key={i} onClick={() => toggle(i)} type="button"
+              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 12,
+                border: `1.5px solid ${done ? 'var(--success)' : 'var(--border)'}`,
+                background: done ? 'var(--success-bg)' : 'var(--white)',
+                cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)', transition: 'all .15s', width: '100%' }}>
+              <span style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                border: `2px solid ${done ? 'var(--success)' : 'var(--border)'}`,
+                background: done ? 'var(--success)' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {done && <CheckIc s={13} c="#fff" />}
+              </span>
+              <span style={{ fontSize: 14, color: done ? 'var(--muted)' : 'var(--dark)', fontWeight: 500,
+                textDecoration: done ? 'line-through' : 'none', lineHeight: 1.5 }}>{item.t}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const LessonSection = React.memo(({ section, index }) => {
   const delay = index * 60;
   const isMobile = useMobile();
@@ -225,6 +260,10 @@ const LessonSection = React.memo(({ section, index }) => {
 
   if (section.type === 'reveal') {
     return <RevealSection section={section} delay={delay} />;
+  }
+
+  if (section.type === 'checklist') {
+    return <ChecklistSection section={section} delay={delay} />;
   }
 
   if (section.type === 'compare') {
