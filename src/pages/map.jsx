@@ -8,6 +8,7 @@ import {
 
 const hrefForMod = (mod) => {
   if (!mod) return '#'
+  if (mod.type === 'certificate') return '#/course-cert'
   if (mod.type === 'final_delivery') return '#/grid'
   if (mod.type === 'lesson') return hashFor('lesson', mod.id)
   return hashFor('challenge', mod.id)
@@ -18,7 +19,7 @@ import {
   ArrowRIc, ArrowLIc, ChevRIc, StarIc, TrophyIc, ZapIc, AwardIc, BellIc,
   LogOutIc, ClockIc, XIc, PlusIc, TrashIc, EditIc, MenuIc, TargetIc,
   SettingsIc, BarIc, UsersIc, GripIc, MapIc, SchoolIc, UploadIc,
-  Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
+  ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
   Modal, BadgeCard, StatChip, Stagger,
 } from '../components/ui.jsx'
 import { FirstStepsCard } from '../components/Onboarding.jsx'
@@ -31,6 +32,7 @@ const NODE_ICONS = {
   challenge: (status) => status === 'completed' ? <CheckIc s={24} c="#fff"/> : <ZapIc s={22} c="#fff"/>,
   evaluation: (status) => status === 'completed' ? <CheckIc s={24} c="#fff"/> : <TrophyIc s={22} c="#fff"/>,
   final_delivery: (status) => status === 'completed' ? <CheckIc s={24} c="#fff"/> : <AwardIc s={22} c="#fff"/>,
+  certificate: (status) => status === 'completed' ? <AwardIc s={24} c="#fff"/> : <LockIc s={22} c="#fff"/>,
 };
 
 const NODE_COLORS = {
@@ -38,14 +40,21 @@ const NODE_COLORS = {
   available: { bg: 'var(--orange)', border: 'var(--orange)', shadow: '0 4px 16px rgba(232,115,44,.4)' },
   locked: { bg: 'var(--subtle)', border: 'var(--border)', shadow: 'none' },
 };
+// El nodo del certificado usa su propia paleta dorada cuando ya está
+// disponible (en vez del naranja/verde genérico), para distinguirlo como
+// un hito especial y no un módulo más.
+const CERT_NODE_COLORS = {
+  completed: { bg: '#C9A227', border: '#9A7B1E', shadow: '0 4px 16px rgba(201,162,39,.45)' },
+  locked: NODE_COLORS.locked,
+};
 
-const TYPE_LABELS = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUACIÓN', final_delivery: 'ENTREGA FINAL' };
-const TYPE_COLORS = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: 'var(--success)' };
+const TYPE_LABELS = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUACIÓN', final_delivery: 'ENTREGA FINAL', certificate: 'CERTIFICADO' };
+const TYPE_COLORS = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: 'var(--success)', certificate: '#C9A227' };
 
 // --- Desktop: Node circle ---
 const MapNode = React.memo(({ mod, status, index, onClick, courseTheme }) => {
   const [hov, setHov] = React.useState(false);
-  const colors = NODE_COLORS[status];
+  const colors = mod.type === 'certificate' ? (CERT_NODE_COLORS[status] || CERT_NODE_COLORS.completed) : NODE_COLORS[status];
   const isActive = status === 'available';
   const nodeSize = 72;
   const isDoor    = courseTheme === 'escape-room';
@@ -188,7 +197,8 @@ const MapCard = React.memo(({ mod, status, onClick }) => {
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
         background: 'var(--white)', borderRadius: 16, padding: '18px 22px',
-        border: status === 'available' ? '2px solid var(--orange-pale)' :
+        border: mod.type === 'certificate' && status === 'completed' ? '2px solid #EBD9A0' :
+                status === 'available' ? '2px solid var(--orange-pale)' :
                 status === 'completed' ? '2px solid #CCFBF1' : '1px solid var(--border)',
         cursor: status === 'locked' ? 'default' : 'pointer',
         width: 280, transition: 'all .25s ease',
@@ -200,25 +210,35 @@ const MapCard = React.memo(({ mod, status, onClick }) => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{
           fontSize: 10, fontWeight: 800, color: TYPE_COLORS[mod.type],
-          background: mod.type === 'lesson' ? 'var(--orange-bg)' : 'var(--purple-bg)',
+          background: mod.type === 'certificate' ? '#FDF6E3' : mod.type === 'lesson' ? 'var(--orange-bg)' : 'var(--purple-bg)',
           padding: '3px 8px', borderRadius: 4, letterSpacing: .8,
         }}>{TYPE_LABELS[mod.type] || 'MÓDULO'}</span>
-        {status === 'completed' && <CheckIc s={14} c="var(--success)" />}
+        {status === 'completed' && mod.type !== 'certificate' && <CheckIc s={14} c="var(--success)" />}
       </div>
       <h4 style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', marginBottom: 4, lineHeight: 1.3,
         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{mod.title}</h4>
       <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5,
         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{mod.desc}</p>
-      {status === 'available' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, fontSize: 12, fontWeight: 600, color: 'var(--orange)' }}>
-          Comenzar <ChevRIc s={14} c="var(--orange)" />
-        </div>
-      )}
-      {status === 'completed' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>
-          Completado · +{mod.xp} XP
-          <span style={{ marginLeft: 4, fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>· Clic para revisar</span>
-        </div>
+      {mod.type === 'certificate' ? (
+        status === 'completed' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, fontSize: 12, fontWeight: 600, color: '#9A7B1E' }}>
+            🎓 Ver certificado <ChevRIc s={14} c="#9A7B1E" />
+          </div>
+        )
+      ) : (
+        <>
+          {status === 'available' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, fontSize: 12, fontWeight: 600, color: 'var(--orange)' }}>
+              Comenzar <ChevRIc s={14} c="var(--orange)" />
+            </div>
+          )}
+          {status === 'completed' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>
+              Completado · +{mod.xp} XP
+              <span style={{ marginLeft: 4, fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>· Clic para revisar</span>
+            </div>
+          )}
+        </>
       )}
     </El>
   );
@@ -226,7 +246,8 @@ const MapCard = React.memo(({ mod, status, onClick }) => {
 
 // --- Mobile: Linear list item ---
 const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
-  const colors = NODE_COLORS[status];
+  const isCert = mod.type === 'certificate';
+  const colors = isCert ? (CERT_NODE_COLORS[status] || CERT_NODE_COLORS.completed) : NODE_COLORS[status];
   const isActive = status === 'available';
   const El = status === 'locked' ? 'div' : 'a';
   const handleClick = (e) => {
@@ -241,7 +262,8 @@ const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
       style={{
         display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
         borderRadius: 16, background: 'var(--white)',
-        border: isActive ? '2px solid var(--orange-pale)' : status === 'completed' ? '2px solid #CCFBF1' : '1px solid var(--border)',
+        border: isCert && status === 'completed' ? '2px solid #EBD9A0' :
+                isActive ? '2px solid var(--orange-pale)' : status === 'completed' ? '2px solid #CCFBF1' : '1px solid var(--border)',
         cursor: status === 'locked' ? 'default' : 'pointer',
         opacity: status === 'locked' ? .55 : 1,
         transition: 'all .2s',
@@ -262,10 +284,12 @@ const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
         <div style={{ fontSize: 10, fontWeight: 800, color: TYPE_COLORS[mod.type],
           textTransform: 'uppercase', letterSpacing: .8, marginBottom: 2 }}>{TYPE_LABELS[mod.type]}</div>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', lineHeight: 1.3 }}>{mod.title}</div>
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>+{mod.xp} XP</div>
+        {!isCert && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>+{mod.xp} XP</div>}
+        {isCert && status === 'completed' && <div style={{ fontSize: 11, color: '#9A7B1E', marginTop: 2, fontWeight: 600 }}>Disponible</div>}
       </div>
       {status === 'available' && <ChevRIc s={18} c="var(--orange)" />}
-      {status === 'completed' && <CheckIc s={18} c="var(--success)" />}
+      {status === 'completed' && !isCert && <CheckIc s={18} c="var(--success)" />}
+      {status === 'completed' && isCert && <ChevRIc s={18} c="#9A7B1E" />}
       {status === 'locked' && <LockIc s={16} c="var(--subtle)" />}
     </El>
   );
@@ -398,17 +422,51 @@ const LearningMap = () => {
     [completed, selectedArea, studentModules, enrolledCourseId]
   );
 
+  // Nodo virtual del certificado: se agrega al FINAL de la ruta cuando el curso
+  // lo tiene habilitado (courseCertConfig.enabled). Es puramente visual — no
+  // vive en course_modules ni afecta completed[]/isRouteComplete/progressPct
+  // (esos siguen calculándose solo sobre studentModules, los módulos reales).
+  // Su estado ('locked'/'completed') se deriva directo de pct, no de nodeStatus.
+  const certNode = React.useMemo(() => {
+    if (!courseCertConfig.enabled) return null;
+    const i = studentModules.length;
+    return {
+      id: '__certificate__', type: 'certificate', ctype: null,
+      title: courseCertConfig.title || courseCertConfig._displayName || 'Certificado',
+      desc: 'Se genera automáticamente al completar toda la ruta.',
+      xp: 0, badge: null, req: [],
+      pos: { x: i % 2 === 0 ? 38 : 62, y: i },
+      side: i % 2 === 0 ? 'right' : 'left',
+    };
+  }, [courseCertConfig, studentModules.length]);
+
+  const displayModules = React.useMemo(
+    () => certNode ? [...studentModules, certNode] : studentModules,
+    [studentModules, certNode]
+  );
+
   const handleNodeClick = React.useCallback((mod) => {
+    if (mod.type === 'certificate') {
+      if (pct === 100) nav('course-cert');
+      return;
+    }
     const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
     if (status === 'locked') return;
     if (mod.type === 'final_delivery') nav('grid');
     else if (mod.type === 'lesson') nav('lesson', mod.id);
     else nav('challenge', mod.id);
-  }, [completed, selectedArea, studentModules, enrolledCourseId]);
+  }, [completed, selectedArea, studentModules, enrolledCourseId, pct]);
+
+  // Estado a mostrar por nodo: el certificado no participa de nodeStatus
+  // (no está en studentModules), así que se deriva directo de pct.
+  const displayStatus = React.useCallback((mod) => {
+    if (mod.type === 'certificate') return pct === 100 ? 'completed' : 'locked';
+    return nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
+  }, [completed, selectedArea, studentModules, enrolledCourseId, pct]);
 
   // Desktop layout constants
   const nodeSpacing = 210;
-  const mapHeight = studentModules.length * nodeSpacing + 120;
+  const mapHeight = displayModules.length * nodeSpacing + 120;
   const mapWidth = 800;
 
   const getNodePos = React.useCallback((mod, i) => ({
@@ -469,23 +527,12 @@ const LearningMap = () => {
           <ProgressBar pct={pct} h={6} color="var(--orange)" />
         </div>
 
-        {courseCertConfig.enabled && pct === 100 && (
-          <div style={{ margin: '0 16px 16px', padding: '14px 16px', borderRadius: 12, background: '#F0FDFA',
-            border: '1.5px solid #5EEAD4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#0F766E' }}>🎓 ¡Ruta completada!</div>
-              <div style={{ fontSize: 11, color: '#115E59' }}>Ya puedes ver tu certificado</div>
-            </div>
-            <Btn variant="gradient" size="sm" onClick={() => nav('course-cert')}>Ver certificado</Btn>
-          </div>
-        )}
-
         {/* Checklist primeros pasos (hasta reclamar el bonus) */}
         <div style={{ margin: '0 16px 16px' }}>
           <FirstStepsCard modules={studentModules} />
         </div>
 
-        {/* Linear module list */}
+        {/* Linear module list (incluye el nodo de certificado al final, si el curso lo tiene habilitado) */}
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {routeNotPublished && (
             <div style={{ padding: '20px 16px', borderRadius: 12, border: '2px dashed var(--border)',
@@ -495,12 +542,9 @@ const LearningMap = () => {
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>Tu instructor aún no ha publicado los módulos de tu ruta. Vuelve pronto.</div>
             </div>
           )}
-          {studentModules.map((mod, i) => {
-            const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
-            return (
-              <MobileModuleRow key={mod.id} mod={mod} status={status} onClick={handleNodeClick} />
-            );
-          })}
+          {displayModules.map((mod) => (
+            <MobileModuleRow key={mod.id} mod={mod} status={displayStatus(mod)} onClick={handleNodeClick} />
+          ))}
         </div>
       </div>
     );
@@ -516,16 +560,6 @@ const LearningMap = () => {
           currentId={enrolledCourseId}
           onSelect={async (id) => { await switchCourse(id); setShowCourseSelector(false); }}
         />
-      )}
-      {courseCertConfig.enabled && pct === 100 && (
-        <div style={{ margin: '20px 24px 0', padding: '16px 20px', borderRadius: 14, background: '#F0FDFA',
-          border: '1.5px solid #5EEAD4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0F766E' }}>🎓 ¡Ruta completada!</div>
-            <div style={{ fontSize: 12, color: '#115E59' }}>Ya puedes ver y descargar tu certificado</div>
-          </div>
-          <Btn variant="gradient" size="sm" onClick={() => nav('course-cert')}>Ver certificado</Btn>
-        </div>
       )}
       {/* Hero banner */}
       {isTimeTravel ? (
@@ -862,11 +896,10 @@ const LearningMap = () => {
       {/* Map */}
       <div style={{ position: 'relative', width: mapWidth, maxWidth: '100%', height: mapHeight, margin: '0 auto' }}>
         <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-          {studentModules.slice(0, -1).map((mod, i) => {
+          {displayModules.slice(0, -1).map((mod, i) => {
             const p1 = getNodePos(mod, i);
-            const p2 = getNodePos(studentModules[i + 1], i + 1);
-            const s1 = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
-            const active = s1 === 'completed';
+            const p2 = getNodePos(displayModules[i + 1], i + 1);
+            const active = displayStatus(mod) === 'completed';
             return (
               <path key={i} d={genPath(p1, p2)}
                 fill="none" stroke={active ? 'var(--success)' : 'var(--border)'}
@@ -877,22 +910,28 @@ const LearningMap = () => {
           })}
         </svg>
 
-        {studentModules.map((mod, i) => {
+        {displayModules.map((mod, i) => {
           const pos = getNodePos(mod, i);
-          const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
+          const status = displayStatus(mod);
           const cardOnLeft = mod.side === 'left' || (mod.pos?.x || 50) > 50;
-          // Nodo y tarjeta posicionados de forma independiente, ambos centrados
-          // verticalmente en pos.y. Así el nodo queda exactamente en pos (centro
-          // = pos.y) y las líneas SVG (pos.y ± 36) siempre coinciden con él,
-          // sin depender de la altura de la tarjeta. (gap 20 + radio 36 = 56)
+          // Nodo y tarjeta anclados al MISMO pos.y con la MISMA técnica de
+          // centrado (flex + height:0 + alignItems:center), para que sea
+          // imposible que se desalineen entre sí: antes el nodo usaba
+          // aritmética fija (pos.y - 36, mitad de sus 72px) y la tarjeta
+          // "transform: translateY(-50%)" sobre su altura real renderizada
+          // (variable según el largo del título/descripción) — dos métodos
+          // distintos que podían quedar desfasados por 1-2px según el
+          // contenido. Con height:0 + alignItems:center ambos se centran
+          // exactamente sobre la misma línea horizontal (pos.y), sin
+          // depender de la altura de ninguno de los dos.
           return (
             <React.Fragment key={mod.id}>
-              <div style={{ position: 'absolute', left: pos.x - 36, top: pos.y - 36,
-                width: 72, display: 'flex', justifyContent: 'center' }}>
+              <div style={{ position: 'absolute', left: pos.x - 36, top: pos.y, height: 0,
+                width: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <MapNode mod={mod} status={status} index={i} onClick={handleNodeClick} courseTheme={courseTheme} />
               </div>
               <div style={{
-                position: 'absolute', top: pos.y, transform: 'translateY(-50%)',
+                position: 'absolute', top: pos.y, height: 0, display: 'flex', alignItems: 'center',
                 ...(cardOnLeft ? { left: pos.x - 56 - 280 } : { left: pos.x + 56 }),
                 animation: `${cardOnLeft ? 'slideL' : 'slideR'} .4s ${i * 80 + 100}ms ease both`,
               }}>

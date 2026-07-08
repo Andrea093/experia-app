@@ -62,17 +62,17 @@ const DragDropChallenge = ({ mod, onComplete }) => {
           const isOver=overIdx===i, isRight=checked&&correct, isWrong=checked&&!correct&&item!==correctOrder[i];
           return <div key={item} draggable onDragStart={()=>setDragIdx(i)} onDragOver={e=>{e.preventDefault();setOverIdx(i)}}
             onDrop={()=>handleDrop(i)} onDragEnd={()=>{setDragIdx(null);setOverIdx(null)}}
-            style={{display:'flex',alignItems:'center',gap:14,padding:'14px 18px',borderRadius:12,
+            style={{display:'flex',alignItems:'flex-start',gap:14,padding:'14px 18px',borderRadius:12,
               background:isRight?'#F0FDFA':isWrong?'#FEF2F2':'var(--white)',
               border:isOver?'2px dashed var(--orange)':isRight?'2px solid var(--success)':isWrong?'2px solid var(--error)':'1.5px solid var(--border)',
               cursor:'grab',transition:'all .2s',transform:dragIdx===i?'scale(1.02)':'scale(1)',
               opacity:dragIdx===i?.6:1,boxShadow:dragIdx===i?'var(--sh-lg)':'var(--sh-sm)'}}>
-            <GripIc s={18} c="var(--subtle)"/>
+            <div style={{flexShrink:0,marginTop:7}}><GripIc s={18} c="var(--subtle)"/></div>
             <div style={{width:32,height:32,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',
-              fontWeight:800,fontSize:14,background:phaseColors[item]+'18',color:phaseColors[item]}}>{i+1}</div>
-            <span style={{fontWeight:600,fontSize:15,color:'var(--dark)'}}>{item}</span>
-            {checked&&correct&&<CheckIc s={18} c="var(--success)"/>}
-            {isWrong&&<XIc s={18} c="var(--error)"/>}
+              flexShrink:0,fontWeight:800,fontSize:14,background:phaseColors[item]+'18',color:phaseColors[item]}}>{i+1}</div>
+            <span style={{fontWeight:600,fontSize:15,color:'var(--dark)',flex:1,paddingTop:6}}>{item}</span>
+            {checked&&correct&&<div style={{flexShrink:0,marginTop:7}}><CheckIc s={18} c="var(--success)"/></div>}
+            {isWrong&&<div style={{flexShrink:0,marginTop:7}}><XIc s={18} c="var(--error)"/></div>}
           </div>;
         })}
       </div>
