@@ -1,5 +1,4 @@
 import React from 'react'
-import { createPortal } from 'react-dom'
 import {
   useStore, INITIAL_INSTITUTIONS, AREAS,
   createAccount, deleteAccount, changeAccountArea, changeAccountInstitution, resetStudentProgress, setAccountActive,
@@ -9,6 +8,10 @@ import {
 import {
   useMobile, LogoImg, CheckIc, XIc, PlusIc, TrashIc, EditIc, UploadIc, Btn, Modal, ChecklistDropdown
 } from '../components/ui.jsx'
+import {
+  PageHead, StatsRow, SearchInput, SegmentedTabs, Pill, UserAvatar,
+  usePaged, Pagination, RowMenu, Collapsible, EmptyState, inputStyle
+} from '../components/adminUI.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
 // =============================================
@@ -259,80 +262,6 @@ const BulkUploadModal = ({ open, onClose }) => {
 };
 
 // =============================================
-// ROW ACTIONS MENU — menú desplegable de acciones por usuario.
-// Usa portal + getBoundingClientRect para no recortarse con el overflow
-// de la tabla (mismo patrón que ChecklistDropdown).
-// =============================================
-const RowMenu = ({ items }) => {
-  const [open, setOpen] = React.useState(false);
-  const [pos, setPos]   = React.useState(null);
-  const btnRef   = React.useRef(null);
-  const panelRef = React.useRef(null);
-  const width = 210;
-
-  const place = React.useCallback(() => {
-    const el = btnRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const margin = 8;
-    // Alinea el panel a la derecha del botón, sin salirse de la ventana
-    const left = Math.max(margin, Math.min(r.right - width, window.innerWidth - width - margin));
-    const panelH = items.length * 40 + 12;
-    const below = window.innerHeight - r.bottom;
-    const openUp = below < panelH && r.top > below;
-    setPos({
-      left,
-      top:    openUp ? undefined : r.bottom + 6,
-      bottom: openUp ? (window.innerHeight - r.top + 6) : undefined,
-    });
-  }, [items.length]);
-
-  const toggle = () => { if (!open) place(); setOpen(o => !o); };
-
-  React.useEffect(() => {
-    if (!open) return;
-    const onScroll = (e) => { if (panelRef.current && panelRef.current.contains(e.target)) return; setOpen(false); };
-    const onResize = () => setOpen(false);
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onResize);
-    return () => { window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', onResize); };
-  }, [open]);
-
-  return (
-    <div style={{ position:'relative', display:'inline-block' }}>
-      <button ref={btnRef} type="button" onClick={toggle} title="Acciones"
-        style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
-          width:32, height:32, borderRadius:8, border:'1.5px solid var(--border)',
-          background: open ? 'var(--bg)' : 'var(--white)', color:'var(--text-sec)',
-          cursor:'pointer', fontSize:18, fontWeight:700, lineHeight:1, padding:0 }}>
-        ⋯
-      </button>
-      {open && pos && createPortal(
-        <>
-          <div onClick={() => setOpen(false)} style={{ position:'fixed', inset:0, zIndex:1000 }} />
-          <div ref={panelRef} style={{ position:'fixed', left:pos.left, top:pos.top, bottom:pos.bottom,
-            zIndex:1001, width, background:'var(--white)', border:'1px solid var(--border)',
-            borderRadius:12, boxShadow:'var(--sh-lg)', padding:6 }}>
-            {items.map((it, i) => (
-              <button key={i} type="button" onClick={() => { setOpen(false); it.onClick(); }}
-                style={{ display:'flex', alignItems:'center', gap:9, width:'100%', textAlign:'left',
-                  padding:'9px 12px', borderRadius:8, border:'none', background:'none',
-                  color: it.danger ? 'var(--error)' : 'var(--text-sec)', cursor:'pointer',
-                  fontFamily:'var(--font)', fontSize:13, fontWeight:600, whiteSpace:'nowrap' }}
-                onMouseEnter={e => e.currentTarget.style.background = it.danger ? 'var(--error-bg)' : 'var(--bg)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-                <span style={{ width:18, textAlign:'center' }}>{it.icon}</span>{it.label}
-              </button>
-            ))}
-          </div>
-        </>,
-        document.body
-      )}
-    </div>
-  );
-};
-
-// =============================================
 // INSTRUCTOR ASSIGNMENT PANEL
 // =============================================
 const InstructorAssignmentPanel = () => {
@@ -365,10 +294,7 @@ const InstructorAssignmentPanel = () => {
   const inputSt = { width:'100%', padding:'9px 12px', borderRadius:9, border:'1.5px solid var(--border)', fontFamily:'var(--font)', fontSize:14, outline:'none', background:'var(--white)', boxSizing:'border-box' };
 
   return (
-    <div style={{ padding:'20px 24px', borderRadius:16, background:'var(--white)', border:'1px solid var(--border)', marginBottom:24 }}>
-      <h3 style={{ fontSize:16, fontWeight:800, color:'var(--dark)', marginBottom:4 }}>🏫 Asignación de Instructores a Colegios</h3>
-      <p style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>Define qué colegios puede gestionar cada instructor.</p>
-
+    <div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, alignItems:'start' }}>
         {/* Selector instructor */}
         <div>
@@ -621,10 +547,11 @@ const AdminPage = () => {
   const [search, setSearch] = React.useState('');
   const [filterRole, setFilterRole] = React.useState('all');
   const [filterInstitution, setFilterInstitution] = React.useState('all');
+  const [filterStatus, setFilterStatus] = React.useState('all'); // all | active | inactive
 
   const roleColor = { student:'var(--orange)', instructor:'var(--success)', admin:'var(--purple)' };
   const roleLabel = { student:'Estudiante', instructor:'Instructor', admin:'Admin' };
-  const roleBg    = { student:'var(--orange-bg)', instructor:'#CCFBF1', admin:'var(--purple-bg)' };
+  const roleBg    = { student:'var(--orange-bg)', instructor:'var(--success-bg, #CCFBF1)', admin:'var(--purple-bg)' };
 
   // Filtered + searched accounts
   const visibleAccounts = React.useMemo(() => {
@@ -632,6 +559,8 @@ const AdminPage = () => {
     return accounts.filter(a => {
       if (filterRole !== 'all' && a.role !== filterRole) return false;
       if (filterInstitution !== 'all' && (a.institution || '') !== filterInstitution) return false;
+      if (filterStatus === 'active' && a.is_active === false) return false;
+      if (filterStatus === 'inactive' && a.is_active !== false) return false;
       if (!q) return true;
       return (
         a.name.toLowerCase().includes(q) ||
@@ -639,32 +568,75 @@ const AdminPage = () => {
         (a.institution || '').toLowerCase().includes(q)
       );
     });
-  }, [accounts, filterRole, filterInstitution, search]);
+  }, [accounts, filterRole, filterInstitution, filterStatus, search]);
 
-  // --- Habilitación de cursos EN MASA (para el grupo filtrado) ---
+  // --- Paginación ---
+  const { paged: pagedAccounts, page, pages, setPage, total } = usePaged(visibleAccounts, 25);
+
+  // --- Selección múltiple + acciones en masa ---
+  const [selected, setSelected] = React.useState(() => new Set()); // emails (estable aunque falte id)
   const [bulkBusy, setBulkBusy] = React.useState(false);
-  // Usuarios objetivo del bulk: visibles, no-admin, con id real
-  const bulkTargetIds = React.useMemo(
-    () => visibleAccounts.filter(a => a.role !== 'admin' && a.id).map(a => a.id),
+  const [bulkInstOpen, setBulkInstOpen] = React.useState(false);
+  const [bulkInstValue, setBulkInstValue] = React.useState('');
+
+  // Solo cuentas gestionables: no-admin (el id puede faltar en recién creadas)
+  const selectableEmails = React.useMemo(
+    () => visibleAccounts.filter(a => a.role !== 'admin').map(a => a.email),
     [visibleAccounts]
   );
+  const selectedAccounts = React.useMemo(
+    () => accounts.filter(a => selected.has(a.email)),
+    [accounts, selected]
+  );
+  const selectedIds = React.useMemo(
+    () => selectedAccounts.map(a => a.id).filter(Boolean),
+    [selectedAccounts]
+  );
+  const allFilteredSelected = selectableEmails.length > 0 && selectableEmails.every(e => selected.has(e));
+
+  const toggleSelect = (email) => setSelected(prev => {
+    const next = new Set(prev);
+    if (next.has(email)) next.delete(email); else next.add(email);
+    return next;
+  });
+  const toggleSelectAll = () => setSelected(allFilteredSelected ? new Set() : new Set(selectableEmails));
+  const clearSelection = () => setSelected(new Set());
+
   // Solo cursos base (isBaseCourse): los forks no se asignan a mano — se aplican solos al colegio.
   const activeCourses = React.useMemo(() => courses.filter(isBaseCourse), [courses]);
-  // Estado tri-estado de un curso sobre el grupo: 'all' | 'some' | 'none'
+  // Estado tri-estado de un curso sobre la selección: 'all' | 'some' | 'none'
   const courseGroupState = React.useCallback((courseId) => {
-    if (!bulkTargetIds.length) return 'none';
+    if (!selectedIds.length) return 'none';
     const granted = new Set(
       userCourses.filter(uc => uc.course_id === courseId && uc.is_active).map(uc => uc.user_id)
     );
-    const n = bulkTargetIds.filter(id => granted.has(id)).length;
-    return n === 0 ? 'none' : n === bulkTargetIds.length ? 'all' : 'some';
-  }, [bulkTargetIds, userCourses]);
+    const n = selectedIds.filter(id => granted.has(id)).length;
+    return n === 0 ? 'none' : n === selectedIds.length ? 'all' : 'some';
+  }, [selectedIds, userCourses]);
+
   const handleBulkCourse = async (course, nextActive) => {
-    if (!bulkTargetIds.length) return;
+    if (!selectedIds.length) return;
     setBulkBusy(true);
-    await setUserCourseAccessBulk(bulkTargetIds, course.id, nextActive);
+    await setUserCourseAccessBulk(selectedIds, course.id, nextActive);
     setBulkBusy(false);
   };
+  const handleBulkActive = async (active) => {
+    setBulkBusy(true);
+    for (const id of selectedIds) await setAccountActive(id, active);
+    setBulkBusy(false);
+  };
+  const handleBulkInstitution = () => {
+    selectedAccounts.forEach(a => changeAccountInstitution(a.email, bulkInstValue));
+    setBulkInstOpen(false);
+    setBulkInstValue('');
+  };
+
+  // Nº de cursos activos por usuario (columna Cursos)
+  const courseCountByUser = React.useMemo(() => {
+    const map = {};
+    userCourses.forEach(uc => { if (uc.is_active) map[uc.user_id] = (map[uc.user_id] || 0) + 1; });
+    return map;
+  }, [userCourses]);
 
   const students    = React.useMemo(() => accounts.filter(a => a.role === 'student'), [accounts]);
   const instructors = React.useMemo(() => accounts.filter(a => a.role === 'instructor'), [accounts]);
@@ -723,84 +695,57 @@ const AdminPage = () => {
 
   return (
     <div style={{ height:'100%', overflow:'auto', WebkitOverflowScrolling:'touch', padding: isMobile ? '0 16px 40px' : '0 24px 40px' }}>
-      <div style={{ marginBottom:20, display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
-        <div>
-          <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight:800, color:'var(--dark)', marginBottom:4 }}>Gestión de Usuarios</h2>
-          <p style={{ fontSize:14, color:'var(--muted)' }}>Crea, busca y administra cuentas de la plataforma</p>
-        </div>
+      <PageHead title="Gestión de Usuarios" subtitle="Crea, busca y administra cuentas de la plataforma">
         <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
-          <button onClick={handleSendReminders} disabled={sendingReminders}
-            style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 16px', borderRadius:10,
-              border:'1.5px solid var(--purple)', background: sendingReminders ? 'var(--purple-bg)' : 'var(--white)',
-              color:'var(--purple)', fontFamily:'var(--font)', fontSize:13, fontWeight:600,
-              cursor: sendingReminders ? 'not-allowed' : 'pointer', transition:'all .2s', opacity: sendingReminders ? .7 : 1 }}>
-            {sendingReminders ? '⏳ Enviando...' : '📧 Enviar recordatorios'}
-          </button>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            <button onClick={handleSendReminders} disabled={sendingReminders}
+              style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 16px', borderRadius:10,
+                border:'1.5px solid var(--purple)', background: sendingReminders ? 'var(--purple-bg)' : 'var(--white)',
+                color:'var(--purple)', fontFamily:'var(--font)', fontSize:13, fontWeight:600,
+                cursor: sendingReminders ? 'not-allowed' : 'pointer', transition:'all .2s', opacity: sendingReminders ? .7 : 1 }}>
+              {sendingReminders ? '⏳ Enviando...' : '📧 Enviar recordatorios'}
+            </button>
+            <Btn variant="secondary" onClick={() => setShowBulk(true)}>
+              <UploadIc s={16} c="var(--text-sec)" /> Carga masiva
+            </Btn>
+            <Btn variant="gradient" onClick={() => setShowCreate(true)}>
+              <PlusIc s={16} c="#fff" /> Nueva cuenta
+            </Btn>
+          </div>
           {reminderResult && (
             <div style={{ fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, maxWidth:280, textAlign:'right',
-              background: reminderResult.ok ? '#CCFBF1' : '#FEE2E2',
+              background: reminderResult.ok ? 'var(--success-bg, #CCFBF1)' : 'var(--error-bg, #FEE2E2)',
               color: reminderResult.ok ? 'var(--success)' : 'var(--error)',
-              border: `1px solid ${reminderResult.ok ? '#5EEAD4' : '#FCA5A5'}` }}>
+              border: `1px solid ${reminderResult.ok ? 'var(--success-border, #5EEAD4)' : 'var(--error)'}` }}>
               {reminderResult.msg}
             </div>
           )}
         </div>
-      </div>
+      </PageHead>
 
       {created && (
-        <div style={{ padding:'12px 18px', borderRadius:12, background:'#CCFBF1', border:'1px solid #5EEAD4',
+        <div style={{ padding:'12px 18px', borderRadius:12, background:'var(--success-bg, #CCFBF1)', border:'1px solid var(--success-border, #5EEAD4)',
           marginBottom:16, display:'flex', alignItems:'center', gap:10, animation:'fadeUp .3s ease' }}>
           <CheckIc s={18} c="var(--success)" />
           <span style={{ fontSize:14, fontWeight:600, color:'var(--success)' }}>Cuenta creada exitosamente</span>
         </div>
       )}
 
-      {/* Stats */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:12, marginBottom:20 }}>
-        {[
-          { label:'Estudiantes',  value:students.length,    color:'var(--orange)' },
-          { label:'Instructores', value:instructors.length, color:'var(--success)' },
-          { label:'Total cuentas',value:accounts.length,    color:'var(--purple)' },
-        ].map((s,i) => (
-          <div key={i} style={{ padding:'14px 18px', borderRadius:14, background:'var(--white)', border:'1px solid var(--border)' }}>
-            <div style={{ fontSize:26, fontWeight:800, color:s.color }}>{s.value}</div>
-            <div style={{ fontSize:12, color:'var(--muted)', marginTop:2, fontWeight:500 }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
+      <StatsRow stats={[
+        { label:'Estudiantes',  value:students.length,    color:'var(--orange)' },
+        { label:'Instructores', value:instructors.length, color:'var(--success)' },
+        { label:'Cuentas inactivas', value:accounts.filter(a => a.is_active === false).length, color:'var(--error)' },
+        { label:'Total cuentas', value:accounts.length,   color:'var(--purple)' },
+      ]} />
 
       {/* Search + filter row */}
       <div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap', alignItems:'center' }}>
-        {/* Search */}
-        <div style={{ flex:'1 1 200px', position:'relative', minWidth:180 }}>
-          <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', fontSize:16, pointerEvents:'none' }}>🔍</span>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, email o institución..."
-            style={{ width:'100%', padding:'9px 14px 9px 36px', borderRadius:10, border:'1.5px solid var(--border)',
-              fontFamily:'var(--font)', fontSize:13, outline:'none', boxSizing:'border-box',
-              background:'var(--white)', transition:'border-color .2s' }}
-            onFocus={e => e.target.style.borderColor = 'var(--orange)'}
-            onBlur={e => e.target.style.borderColor = 'var(--border)'}
-          />
-        </div>
-        {/* Role filter */}
-        <div style={{ display:'flex', gap:6 }}>
-          {[
-            { key:'all',        label:`Todos (${accounts.length})` },
-            { key:'student',    label:`Estudiantes (${students.length})` },
-            { key:'instructor', label:`Instructores (${instructors.length})` },
-          ].map(f => (
-            <button key={f.key} onClick={() => setFilterRole(f.key)}
-              style={{ padding:'8px 14px', borderRadius:8, border:'none', cursor:'pointer',
-                fontFamily:'var(--font)', fontSize:12, fontWeight:600, whiteSpace:'nowrap',
-                background: filterRole === f.key ? 'var(--dark)' : 'var(--bg-alt)',
-                color: filterRole === f.key ? '#fff' : 'var(--muted)', transition:'all .2s' }}>
-              {f.label}
-            </button>
-          ))}
-        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nombre, email o institución..." />
+        <SegmentedTabs active={filterRole} onChange={setFilterRole} tabs={[
+          { key:'all',        label:`Todos (${accounts.length})` },
+          { key:'student',    label:`Estudiantes (${students.length})` },
+          { key:'instructor', label:`Instructores (${instructors.length})` },
+        ]} />
         {/* Institution filter */}
         <select value={filterInstitution} onChange={e => setFilterInstitution(e.target.value)}
           style={{ padding:'8px 12px', borderRadius:8, border:'1.5px solid var(--border)', background:'var(--white)',
@@ -809,37 +754,28 @@ const AdminPage = () => {
           <option value="all">🏫 Todos los colegios</option>
           {institutions.map(inst => <option key={inst.id} value={inst.name}>{inst.name}</option>)}
         </select>
-
-        {/* Habilitar cursos en masa — solo al filtrar un colegio */}
-        {filterInstitution !== 'all' && (
-          <ChecklistDropdown
-            label={bulkBusy ? '⏳ Aplicando…' : `📚 Habilitar cursos · ${bulkTargetIds.length} usuario${bulkTargetIds.length !== 1 ? 's' : ''}`}
-            items={activeCourses.map(c => ({ id: c.id, label: c.name }))}
-            stateOf={it => courseGroupState(it.id)}
-            onToggle={(it, next) => handleBulkCourse(activeCourses.find(c => c.id === it.id), next)}
-            disabled={bulkBusy || bulkTargetIds.length === 0}
-            emptyText="No hay cursos activos."
-            width={280}
-            buttonStyle={{ borderColor:'var(--success)', color:'var(--success)', background:'#F0FDFA' }}
-          />
-        )}
-
-        {/* Action buttons */}
-        <Btn variant="secondary" onClick={() => setShowBulk(true)}>
-          <UploadIc s={16} c="var(--text-sec)" /> Carga masiva
-        </Btn>
-        <Btn variant="gradient" onClick={() => setShowCreate(true)}>
-          <PlusIc s={16} c="#fff" /> Nueva cuenta
-        </Btn>
+        {/* Status filter */}
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          style={{ padding:'8px 12px', borderRadius:8, border:'1.5px solid var(--border)', background:'var(--white)',
+            fontFamily:'var(--font)', fontSize:12, fontWeight:600, color:'var(--text-sec)', outline:'none', cursor:'pointer' }}>
+          <option value="all">Estado: todos</option>
+          <option value="active">✅ Activos</option>
+          <option value="inactive">🚫 Inactivos</option>
+        </select>
       </div>
 
       {/* Accounts table */}
       <div style={{ borderRadius:14, border:'1px solid var(--border)', background:'var(--white)',
         overflow:'hidden', overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
-        <table style={{ width:'100%', borderCollapse:'collapse', minWidth:600 }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', minWidth:680 }}>
           <thead>
             <tr style={{ background:'var(--bg-alt)' }}>
-              {['Usuario','Institución','Rol','Área','Acciones'].map(h => (
+              <th style={{ padding:'10px 8px 10px 14px', borderBottom:'1.5px solid var(--border)', width:34 }}>
+                <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll}
+                  title="Seleccionar todos los filtrados"
+                  style={{ accentColor:'var(--orange)', width:15, height:15, cursor:'pointer' }} />
+              </th>
+              {['Usuario','Institución','Rol','Área','Cursos','Acciones'].map(h => (
                 <th key={h} style={{ padding:'10px 14px', fontSize:11, fontWeight:700, color:'var(--muted)',
                   textTransform:'uppercase', letterSpacing:.8, textAlign:'left',
                   borderBottom:'1.5px solid var(--border)', whiteSpace:'nowrap' }}>{h}</th>
@@ -848,35 +784,35 @@ const AdminPage = () => {
           </thead>
           <tbody>
             {visibleAccounts.length === 0 && (
-              <tr><td colSpan={5} style={{ padding:'32px', textAlign:'center', color:'var(--muted)', fontSize:14 }}>
+              <tr><td colSpan={7} style={{ padding:'32px', textAlign:'center', color:'var(--muted)', fontSize:14 }}>
                 No se encontraron cuentas con ese criterio.
               </td></tr>
             )}
-            {visibleAccounts.map(acc => {
+            {pagedAccounts.map(acc => {
               const area = AREAS.find(a => a.id === acc.area);
               const isAdmin = acc.role === 'admin';
               const isStudent = acc.role === 'student';
               const isActive = acc.is_active !== false;
+              const isSel = selected.has(acc.email);
+              const nCourses = acc.id ? (courseCountByUser[acc.id] || 0) : 0;
               return (
-                <tr key={acc.email} style={{ borderBottom:'1px solid var(--border)', transition:'background .15s', opacity: isActive ? 1 : .55 }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <tr key={acc.email} style={{ borderBottom:'1px solid var(--border)', transition:'background .15s',
+                  opacity: isActive ? 1 : .55, background: isSel ? 'var(--orange-bg)' : 'transparent' }}
+                  onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'var(--bg)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = isSel ? 'var(--orange-bg)' : 'transparent'; }}>
+                  <td style={{ padding:'11px 8px 11px 14px' }}>
+                    {!isAdmin && (
+                      <input type="checkbox" checked={isSel} onChange={() => toggleSelect(acc.email)}
+                        style={{ accentColor:'var(--orange)', width:15, height:15, cursor:'pointer' }} />
+                    )}
+                  </td>
                   <td style={{ padding:'11px 14px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                      <div style={{ width:34, height:34, borderRadius:'50%', flexShrink:0, overflow:'hidden',
-                        background: roleBg[acc.role], display:'flex', alignItems:'center', justifyContent:'center',
-                        fontSize:12, fontWeight:700, color: roleColor[acc.role] }}>
-                        {acc.avatar?.startsWith('http')
-                          ? <img src={acc.avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                          : acc.avatar}
-                      </div>
+                      <UserAvatar acc={acc} bg={roleBg[acc.role]} color={roleColor[acc.role]} />
                       <div style={{ minWidth:0 }}>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                           <span style={{ fontSize:13, fontWeight:600, color:'var(--dark)' }}>{acc.name}</span>
-                          {!isActive && (
-                            <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:6,
-                              background:'var(--error-bg)', color:'var(--error)', whiteSpace:'nowrap' }}>Inactivo</span>
-                          )}
+                          {!isActive && <Pill tone="error" style={{ borderRadius:6 }}>Inactivo</Pill>}
                         </div>
                         <div style={{ fontSize:11.5, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{acc.email}</div>
                       </div>
@@ -902,6 +838,16 @@ const AdminPage = () => {
                   </td>
                   <td style={{ padding:'11px 14px' }}>
                     {isAdmin ? (
+                      <span style={{ fontSize:12, color:'var(--subtle)' }}>—</span>
+                    ) : (
+                      <Pill tone={nCourses > 0 ? 'success' : 'muted'} onClick={() => setCoursesAcc(acc)}
+                        title="Gestionar acceso a cursos">
+                        📚 {nCourses}
+                      </Pill>
+                    )}
+                  </td>
+                  <td style={{ padding:'11px 14px' }}>
+                    {isAdmin ? (
                       <span style={{ fontSize:11, color:'var(--subtle)' }}>—</span>
                     ) : (
                       <RowMenu items={[
@@ -920,6 +866,52 @@ const AdminPage = () => {
           </tbody>
         </table>
       </div>
+      <Pagination page={page} pages={pages} setPage={setPage} total={total} label="cuentas" />
+
+      {/* Barra de acciones en masa (aparece al seleccionar) */}
+      {selected.size > 0 && (
+        <div style={{ position:'fixed', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:900,
+          display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', justifyContent:'center',
+          padding:'10px 16px', borderRadius:14, background:'var(--white)', border:'1px solid var(--border)',
+          boxShadow:'var(--sh-lg)', maxWidth:'calc(100vw - 32px)' }}>
+          <span style={{ fontSize:13, fontWeight:700, color:'var(--dark)', whiteSpace:'nowrap' }}>
+            {selected.size} seleccionado{selected.size !== 1 ? 's' : ''}
+          </span>
+          <ChecklistDropdown
+            label={bulkBusy ? '⏳ Aplicando…' : '📚 Cursos'}
+            items={activeCourses.map(c => ({ id: c.id, label: c.name }))}
+            stateOf={it => courseGroupState(it.id)}
+            onToggle={(it, next) => handleBulkCourse(activeCourses.find(c => c.id === it.id), next)}
+            disabled={bulkBusy || selectedIds.length === 0}
+            emptyText="No hay cursos activos."
+            width={280}
+          />
+          <Btn variant="secondary" size="sm" disabled={bulkBusy} onClick={() => setBulkInstOpen(true)}>🏫 Cambiar colegio</Btn>
+          <Btn variant="secondary" size="sm" disabled={bulkBusy || !selectedIds.length} onClick={() => handleBulkActive(true)}>✅ Activar</Btn>
+          <Btn variant="secondary" size="sm" disabled={bulkBusy || !selectedIds.length} onClick={() => handleBulkActive(false)}>🚫 Desactivar</Btn>
+          <button onClick={clearSelection}
+            style={{ padding:'6px 10px', borderRadius:8, border:'none', background:'none', color:'var(--muted)',
+              fontFamily:'var(--font)', fontSize:12, fontWeight:600, cursor:'pointer' }}>✕ Limpiar</button>
+        </div>
+      )}
+
+      {/* Modal cambiar colegio en masa */}
+      <Modal open={bulkInstOpen} onClose={() => setBulkInstOpen(false)} title="Cambiar colegio en masa" width={420}>
+        <div>
+          <p style={{ fontSize:13, color:'var(--text-sec)', marginBottom:14, lineHeight:1.5 }}>
+            Se reasignará el colegio de <strong>{selected.size}</strong> cuenta{selected.size !== 1 ? 's' : ''} seleccionada{selected.size !== 1 ? 's' : ''}.
+          </p>
+          <select value={bulkInstValue} onChange={e => setBulkInstValue(e.target.value)}
+            style={{ ...inputStyle(false), marginBottom:20 }}>
+            <option value="">— Sin colegio —</option>
+            {institutions.map(inst => <option key={inst.id} value={inst.name}>{inst.name}</option>)}
+          </select>
+          <div style={{ display:'flex', gap:10 }}>
+            <Btn variant="secondary" full onClick={() => setBulkInstOpen(false)}>Cancelar</Btn>
+            <Btn variant="gradient" full onClick={handleBulkInstitution}>Aplicar cambio</Btn>
+          </div>
+        </div>
+      </Modal>
 
       {/* Create modal */}
       <Modal open={showCreate} onClose={() => { setShowCreate(false); setErrors({}); }} title="Crear nueva cuenta" width={480}>
@@ -1144,7 +1136,12 @@ const AdminPage = () => {
 
       <UserCoursesModal acc={coursesAcc} onClose={() => setCoursesAcc(null)} />
 
-      <InstructorAssignmentPanel />
+      <div style={{ marginTop:24 }}>
+        <Collapsible title="🏫 Asignación de Instructores a Colegios"
+          subtitle="Define qué colegios puede gestionar cada instructor (también disponible en Gestión de Colegios)">
+          <InstructorAssignmentPanel />
+        </Collapsible>
+      </div>
     </div>
   );
 };

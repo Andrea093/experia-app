@@ -1,6 +1,7 @@
 import React from 'react'
 import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, setInstitutionCourseExpiry, loadCourseModules } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal, ChecklistDropdown, ImageUploader, FileUploader } from '../components/ui.jsx'
+import { StatsRow, SearchInput, Pill, EmptyState, RowMenu } from '../components/adminUI.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
 // Pista descriptiva por tema inmersivo (se muestra al seleccionarlo en el form).
@@ -742,6 +743,7 @@ const AdminCourses = () => {
   const isMobile         = useMobile()
 
   const [showCreate, setShowCreate]   = React.useState(false)
+  const [search, setSearch]           = React.useState('')
   const [editCourse, setEditCourse]   = React.useState(null)
   const [modsCourse, setModsCourse]   = React.useState(null)
   const [previewCourse, setPreviewCourse] = React.useState(null)
@@ -840,13 +842,25 @@ const AdminCourses = () => {
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>📚 Gestor de Cursos</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Crea y administra rutas de formación. Habilítalas por institución.</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Crea y administra rutas de formación. Habilítalas por institución o por colegio desde Gestión de Colegios.</p>
           </div>
           <Btn variant="gradient" onClick={() => setShowCreate(true)}><PlusIc s={15} c="#fff" /> Nuevo curso</Btn>
         </div>
+
+        <StatsRow stats={[
+          { label: 'Cursos', value: defaultCourses.length, color: 'var(--orange)', icon: '📚' },
+          { label: 'Activos', value: defaultCourses.filter(c => c.is_active).length, color: 'var(--success)' },
+          { label: 'Colegios con cursos', value: new Set(institutionCourses.filter(r => r.is_active).map(r => r.institution_id)).size, color: 'var(--purple)' },
+        ]} />
+
+        {defaultCourses.length > 0 && (
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+            <SearchInput value={search} onChange={setSearch} placeholder="Buscar curso..." />
+          </div>
+        )}
 
         {/* Modal crear */}
         <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Nuevo curso" width={540}>
@@ -900,15 +914,13 @@ const AdminCourses = () => {
             parent_course_id != null). Asignar un fork a un colegio matriculaba a
             todos sus estudiantes en la copia, generando cursos duplicados en su selector. */}
         {defaultCourses.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 24px', borderRadius: 16, border: '2px dashed var(--border)', background: 'var(--white)' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 6 }}>Sin cursos aún</p>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>Crea el primer curso para empezar a estructurar rutas de formación.</p>
+          <EmptyState icon="📚" title="Sin cursos aún"
+            desc="Crea el primer curso para empezar a estructurar rutas de formación.">
             <Btn variant="gradient" onClick={() => setShowCreate(true)}>Crear primer curso</Btn>
-          </div>
+          </EmptyState>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {defaultCourses.map(course => (
+            {defaultCourses.filter(c => !search.trim() || c.name.toLowerCase().includes(search.trim().toLowerCase())).map(course => (
               <div key={course.id} style={{ borderRadius: 16, background: 'var(--white)', border: '1px solid var(--border)', overflow: 'hidden' }}>
                 {/* Header del curso */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px',
@@ -924,30 +936,25 @@ const AdminCourses = () => {
                     <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--dark)', marginBottom: 2 }}>{course.name}</div>
                     {course.description && <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>{course.description}</div>}
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
+                    {course.requires_workshop && <Pill tone="purple" title="La entrega final se habilita por estudiante tras el taller presencial.">🎓 taller</Pill>}
+                    {course.theme && <Pill tone="warn">🎨 {course.theme}</Pill>}
                     {/* Toggle global */}
                     <button onClick={() => handleToggleGlobal(course)} disabled={togglingId === course.id}
                       style={{ padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                        background: course.is_active ? '#CCFBF1' : '#FEE2E2',
+                        background: course.is_active ? 'var(--success-bg, #CCFBF1)' : 'var(--error-bg, #FEE2E2)',
                         color: course.is_active ? 'var(--success)' : 'var(--error)' }}>
                       {course.is_active ? '✅ Activo' : '❌ Inactivo'}
                     </button>
-                    {/* Requiere taller presencial: gatea la entrega final tras el taller */}
-                    <button onClick={() => updateCourse(course.id, { requires_workshop: !course.requires_workshop })}
-                      title="Si se activa, la entrega final se habilita por estudiante tras el taller presencial (el tutor la activa)."
-                      style={{ padding: '5px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                        background: course.requires_workshop ? '#EDE9FE' : 'var(--bg-alt)',
-                        color: course.requires_workshop ? 'var(--purple)' : 'var(--muted)' }}>
-                      {course.requires_workshop ? '🎓 Requiere taller' : '🎓 Sin taller'}
-                    </button>
                     <Btn variant="secondary" size="sm" onClick={() => setModsCourse(course)}>📋 Módulos</Btn>
-                    <Btn variant="secondary" size="sm" onClick={() => setPreviewCourse(course)}>👁 Vista previa</Btn>
-                    <Btn variant="secondary" size="sm" disabled={addingFD === course.id}
-                      onClick={() => handleAddFinalDelivery(course)}>
-                      {addingFD === course.id ? '...' : '🎯 Entrega Final'}
-                    </Btn>
-                    <Btn variant="secondary" size="sm" onClick={() => setEditCourse(course)}><EditIc s={13} c="var(--muted)" /></Btn>
-                    <Btn variant="secondary" size="sm" onClick={() => setDeleteConfirm(course)}><TrashIc s={13} c="var(--error)" /></Btn>
+                    <RowMenu items={[
+                      { icon: '👁', label: 'Vista previa del mapa', onClick: () => setPreviewCourse(course) },
+                      { icon: '✏️', label: 'Editar curso', onClick: () => setEditCourse(course) },
+                      { icon: '🎯', label: addingFD === course.id ? 'Agregando…' : 'Agregar Entrega Final', onClick: () => handleAddFinalDelivery(course) },
+                      { icon: '🎓', label: course.requires_workshop ? 'Quitar requisito de taller' : 'Requerir taller presencial',
+                        onClick: () => updateCourse(course.id, { requires_workshop: !course.requires_workshop }) },
+                      { icon: '🗑️', label: 'Eliminar curso', danger: true, onClick: () => setDeleteConfirm(course) },
+                    ]} />
                   </div>
                 </div>
 
