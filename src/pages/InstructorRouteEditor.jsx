@@ -3,9 +3,9 @@ import {
   useStore,
   forkCourseForInstitution, loadCourseForEditing,
   saveCourseDraft, discardCourseDraft, publishCourseModules,
-  getCourseDisplayName,
+  getCourseDisplayName, generatePresenceCode,
 } from '../store/store.jsx'
-import { useMobile, PlusIc, TrashIc, EditIc, GripIc, Btn } from '../components/ui.jsx'
+import { useMobile, PlusIc, TrashIc, EditIc, GripIc, LockIc, Btn, Modal } from '../components/ui.jsx'
 import {
   TYPE_LABELS, TYPE_COLORS, TYPE_BG,
   ChallengeEditorModal, QuizCreatorModal, CustomModuleModal,
@@ -15,7 +15,8 @@ import {
 // ─── Módulo individual en la lista ───────────────────────────────────────────
 const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
   onDragStart, onDragOver, onDrop, onDragEnd,
-  onEdit, onDuplicate, onToggle, onDelete, showDelete }) => {
+  onEdit, onDuplicate, onToggle, onDelete, showDelete,
+  onTogglePresence, onGenerateCode }) => {
   const isOver = overIdx === idx
   return (
     <div draggable
@@ -59,6 +60,19 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
             <TrashIc s={13} c="var(--error)" />
           </button>
         )}
+        <button onClick={onTogglePresence} title="Requiere código presencial"
+          style={{ background: mod.requiresPresenceCode ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
+            width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <LockIc s={13} c={mod.requiresPresenceCode ? 'var(--orange)' : 'var(--muted)'} />
+        </button>
+        {mod.requiresPresenceCode && mod.isDbModule && (
+          <button onClick={onGenerateCode} title="Generar código para clase"
+            style={{ background: 'var(--orange-bg)', border: 'none', cursor: 'pointer', color: 'var(--orange)',
+              height: 26, padding: '0 8px', borderRadius: 7, display: 'flex', alignItems: 'center', gap: 4,
+              flexShrink: 0, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            🔑 Código
+          </button>
+        )}
         <div onClick={onToggle}
           style={{ width: 38, height: 20, borderRadius: 10, flexShrink: 0, cursor: 'pointer',
             background: mod.enabled ? 'var(--success)' : 'var(--border)', position: 'relative', transition: 'background .2s' }}>
@@ -97,6 +111,10 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
   const [showNewChallenge, setShowNewChallenge] = React.useState(false)
   const [showAddModule, setShowAddModule]       = React.useState(false)
   const [showPreview, setShowPreview]           = React.useState(false)
+  const [codeModalMod, setCodeModalMod]         = React.useState(null)
+  const [generatedCode, setGeneratedCode]       = React.useState(null)
+  const [codeGenError, setCodeGenError]         = React.useState('')
+  const [codeGenLoading, setCodeGenLoading]     = React.useState(false)
 
   React.useEffect(() => {
     setLoading(true); setLoadErr('')
@@ -118,6 +136,21 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
   }
 
   const toggleEnabled = (id) => setModuleList(l => l.map(m => m.id === id ? { ...m, enabled: !m.enabled } : m))
+  const toggleRequiresPresence = (id) => setModuleList(l => l.map(m => m.id === id ? { ...m, requiresPresenceCode: !m.requiresPresenceCode } : m))
+
+  const openCodeModal = (mod) => { setCodeModalMod(mod); setGeneratedCode(null); setCodeGenError('') }
+  const handleGenerateCode = async () => {
+    if (!codeModalMod) return
+    setCodeGenLoading(true); setCodeGenError('')
+    try {
+      const row = await generatePresenceCode(codeModalMod.id)
+      setGeneratedCode(row)
+    } catch (err) {
+      setCodeGenError('No se pudo generar el código. Intenta de nuevo.')
+    } finally {
+      setCodeGenLoading(false)
+    }
+  }
   const deleteModule  = (id) => setModuleList(l => l.filter(m => m.id !== id))
 
   const duplicateModule = (mod) => {
@@ -365,6 +398,8 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
                 onToggle={() => toggleEnabled(mod.id)}
                 onDelete={() => deleteModule(mod.id)}
                 showDelete={true}
+                onTogglePresence={() => toggleRequiresPresence(mod.id)}
+                onGenerateCode={() => openCodeModal(mod)}
               />
             ))}
           </div>
@@ -418,6 +453,30 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
         onSave={mod => { addCustomModule(mod); setShowAddModule(false) }} />
       <RoutePreviewModal open={showPreview} onClose={() => setShowPreview(false)}
         area={null} moduleList={moduleList} customModules={[]} theme={courseTheme} />
+      <Modal open={!!codeModalMod} onClose={() => setCodeModalMod(null)}
+        title={`Código presencial — ${codeModalMod?.title || ''}`} width={380}>
+        <div style={{ textAlign: 'center', padding: '4px 0' }}>
+          {generatedCode ? (
+            <>
+              <div style={{ fontSize: 44, fontWeight: 800, letterSpacing: 8, color: 'var(--orange)', margin: '12px 0' }}>
+                {generatedCode.code}
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>
+                Válido hasta las {new Date(generatedCode.expires_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}.
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--muted)' }}>Dilo en voz alta en clase — solo funciona para este módulo.</p>
+            </>
+          ) : (
+            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+              Genera un código nuevo para esta clase. Al generarlo, cualquier código anterior de este módulo deja de funcionar.
+            </p>
+          )}
+          {codeGenError && <p style={{ color: 'var(--error)', fontSize: 12 }}>{codeGenError}</p>}
+          <Btn variant="primary" onClick={handleGenerateCode} disabled={codeGenLoading} style={{ marginTop: 8 }}>
+            {codeGenLoading ? 'Generando...' : generatedCode ? 'Regenerar código' : 'Generar código'}
+          </Btn>
+        </div>
+      </Modal>
     </div>
   )
 }

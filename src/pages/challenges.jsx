@@ -11,7 +11,7 @@ import {
   LogOutIc, ClockIc, XIc, PlusIc, TrashIc, EditIc, MenuIc, TargetIc,
   SettingsIc, BarIc, UsersIc, GripIc, MapIc, SchoolIc, UploadIc,
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
-  Modal, BadgeCard, StatChip, Stagger,
+  Modal, BadgeCard, StatChip, Stagger, PresenceGate,
 } from '../components/ui.jsx'
 // =============================================
 // EXPERIA — Interactive Challenges (v2 — area-aware + attempt tracking)
@@ -1038,6 +1038,7 @@ const ChallengeView = () => {
   const nodeId=useStore(s=>s.nodeId);
   const completed=useStore(s=>s.completed);
   const selectedArea=useStore(s=>s.selectedArea);
+  const unlockedPresence=useStore(s=>s.unlockedPresenceModules);
   const isMobile=useMobile();
   const mod=findModule(nodeId)||findModuleInConfig(nodeId);
   const [showConfetti,setShowConfetti]=React.useState(false);
@@ -1056,6 +1057,10 @@ const ChallengeView = () => {
   };
 
   if(!mod)return <div style={{padding:40,textAlign:'center'}}><Btn variant="secondary" onClick={()=>nav('map')}><ArrowLIc s={16}/>Volver</Btn></div>;
+
+  if (mod.requiresPresenceCode && !isCompleted && !unlockedPresence.includes(nodeId)) {
+    return <PresenceGate mod={mod} nodeId={nodeId} />;
+  }
 
   const ChallengeComp = CHALLENGE_COMPONENTS[mod.ctype] || DesignLabChallenge;
 

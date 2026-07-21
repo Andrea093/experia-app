@@ -7,7 +7,7 @@ import { dbRowsToCourseModules } from '../store/store.jsx'
  * - If not enrolled: falls back to legacy `progress` table.
  * - Resolves a tutor's fork of the course for the student's institution
  *   (if one exists) so the student sees the customised version.
- * Returns { enrolledCourseId, effectiveCourseId, courseModules, allEnrollments, xp, completed, badges }
+ * Returns { enrolledCourseId, effectiveCourseId, courseModules, allEnrollments, unlockedPresenceModules, xp, completed, badges }
  * `effectiveCourseId` is the course row whose modules/certificate the student
  * actually sees (the fork if one exists, otherwise same as enrolledCourseId).
  */
@@ -21,11 +21,13 @@ export async function loadStudentSession(userId, area, institutionId) {
   // Si la migración 0028 aún no está aplicada, no bloquear el login.
   try { await supabase.rpc('sync_my_institution_courses') } catch (_) { /* noop */ }
 
-  const [{ data: enrollmentsData }, { data: legacyProgress }, { data: accessData }] = await Promise.all([
+  const [{ data: enrollmentsData }, { data: legacyProgress }, { data: accessData }, { data: unlocksData }] = await Promise.all([
     supabase.from('course_enrollments').select('course_id').eq('student_id', userId),
     supabase.from('progress').select('xp,completed,badges').eq('user_id', userId).maybeSingle(),
     supabase.from('user_courses').select('course_id').eq('user_id', userId).eq('is_active', true),
+    supabase.from('presence_unlocks').select('module_id').eq('user_id', userId),
   ])
+  const unlockedPresenceModules = (unlocksData || []).map(u => u.module_id)
 
   const allEnrollments = (enrollmentsData || []).map(e => e.course_id)
   const allowedIds     = new Set((accessData || []).map(a => a.course_id))
@@ -45,6 +47,7 @@ export async function loadStudentSession(userId, area, institutionId) {
       effectiveCourseId: null,
       courseModules: [],
       allEnrollments: [],
+      unlockedPresenceModules,
       xp:        legacyProgress?.xp        || 0,
       completed: legacyProgress?.completed || [],
       badges:    legacyProgress?.badges    || [],
@@ -63,9 +66,11 @@ export async function loadStudentSession(userId, area, institutionId) {
     if (fork?.id) effectiveCourseId = fork.id
   }
 
+  // RPC en vez de select('*') plano: los módulos con requires_presence_code
+  // que este estudiante aún no desbloqueó llegan con content/challenge_data
+  // vacíos — el servidor nunca los envía hasta canjear el código (0040).
   const [{ data: modulesData }, { data: cp }] = await Promise.all([
-    supabase.from('course_modules').select('*')
-      .eq('course_id', effectiveCourseId).eq('is_enabled', true).order('"order"'),
+    supabase.rpc('get_course_modules_for_student', { p_course_id: effectiveCourseId }),
     supabase.from('course_progress').select('xp,completed,badges')
       .eq('user_id', userId).eq('course_id', enrolledCourseId).maybeSingle(),
   ])
@@ -77,5 +82,5 @@ export async function loadStudentSession(userId, area, institutionId) {
   const completed = cp?.completed ?? legacyProgress?.completed ?? []
   const badges    = cp?.badges    ?? legacyProgress?.badges    ?? []
 
-  return { enrolledCourseId, effectiveCourseId, courseModules, allEnrollments, xp, completed, badges }
+  return { enrolledCourseId, effectiveCourseId, courseModules, allEnrollments, unlockedPresenceModules, xp, completed, badges }
 }

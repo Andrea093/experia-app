@@ -328,6 +328,7 @@ const dbModToAppMod = (row) => ({
   extras:        [],
   characterLine: row.character_line || null,
   isDbModule:    true,
+  requiresPresenceCode: row.requires_presence_code || false,
   // datos de reto
   ...(row.challenge_data?.dragItems    ? { dragItems:    row.challenge_data.dragItems }    : {}),
   ...(row.challenge_data?.empathyCards ? { empathyCards: row.challenge_data.empathyCards } : {}),
@@ -444,6 +445,7 @@ const DEF = {
   enrolledCourseId: null,   // id del curso activo del estudiante (matrícula/course_progress)
   effectiveCourseId: null,  // id del curso que realmente se ve (el fork del colegio si existe; si no, igual a enrolledCourseId)
   allEnrollments: [],       // todos los cursos en los que está inscrito el estudiante
+  unlockedPresenceModules: [], // ids de módulos con requires_presence_code que este estudiante ya desbloqueó
   coursesLoaded: false,     // true cuando courses + userCourses ya se cargaron (evita parpadeo en el guard de selección de curso)
   workshopAccess: [],       // [{ id, student_id, course_id, enabled }] habilitación del taller/producto final por estudiante (tutor)
 };
@@ -522,6 +524,7 @@ const doLogout = () => {
     isLoggedIn: false, user: null, page: 'landing', nodeId: null,
     xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
     enrolledCourseId: null, allEnrollments: [], courseModules: [], coursesLoaded: false,
+    unlockedPresenceModules: [],
   });
   // Limpia el hash sin crear entrada de historial (evita deep links huérfanos)
   history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -580,6 +583,40 @@ const completeNode = (id) => {
         .then(({ error }) => { if (error) console.error('completeNode progress:', error); });
     }
   }
+};
+// Código presencial: el estudiante canjea el código que el profe generó/dijo en
+// clase. La validación real (¿el código coincide y sigue vigente?) ocurre en el
+// servidor (redeem_presence_code, security definer) — acá solo reconciliamos el
+// estado local si el servidor confirma el desbloqueo.
+const redeemPresenceCode = async (moduleId, code) => {
+  const { data, error } = await supabase.rpc('redeem_presence_code', { p_module_id: moduleId, p_code: code });
+  if (error) throw error;
+  if (data === true) {
+    const s = XS.get();
+    const patch = {};
+    if (!s.unlockedPresenceModules.includes(moduleId)) {
+      patch.unlockedPresenceModules = [...s.unlockedPresenceModules, moduleId];
+    }
+    // El servidor nos había mandado este módulo con content/challenge_data
+    // vacíos mientras estaba bloqueado (0040) — hay que refrescarlo para
+    // traer el contenido real ahora que el desbloqueo ya quedó registrado.
+    const courseId = s.effectiveCourseId || s.enrolledCourseId;
+    if (courseId) {
+      const { data: modulesData, error: modErr } = await supabase.rpc('get_course_modules_for_student', { p_course_id: courseId });
+      if (modErr) console.error('redeemPresenceCode refresh:', modErr);
+      else patch.courseModules = dbRowsToCourseModules(modulesData, s.selectedArea);
+    }
+    if (Object.keys(patch).length) XS.set(patch);
+  }
+  return !!data;
+};
+// Instructor: genera un código nuevo para un módulo (invalida el anterior).
+// Solo instructor/admin puede llamarlo (lo valida generate_presence_code en el servidor).
+const generatePresenceCode = async (moduleId) => {
+  const { data, error } = await supabase.rpc('generate_presence_code', { p_module_id: moduleId });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row; // { code, expires_at }
 };
 // Modo vista previa (instructor): cuando está activo, los retos se renderizan
 // tal cual los ve el estudiante pero NADA se persiste ni afecta al progreso real.
@@ -1024,12 +1061,9 @@ const deleteInstitution = (id) => {
 // ---- Módulos de curso para estudiante ----
 const loadCourseModules = async (courseId, areaId = null) => {
   if (!courseId) return;
-  const { data, error } = await supabase
-    .from('course_modules')
-    .select('*')
-    .eq('course_id', courseId)
-    .eq('is_enabled', true)
-    .order('"order"');
+  // RPC en vez de select('*'): oculta content/challenge_data de módulos con
+  // código presencial que este estudiante aún no desbloqueó (ver 0040).
+  const { data, error } = await supabase.rpc('get_course_modules_for_student', { p_course_id: courseId });
   if (error) { console.error('loadCourseModules:', error); return; }
   XS.set({
     courseModules: dbRowsToCourseModules(data, areaId),
@@ -1601,6 +1635,7 @@ const saveCourseModules = async (courseId, moduleList, courseName, certConfig) =
       xp: m.xp || 100,
       order: i + 1,
       is_enabled: m.enabled !== false,
+      requires_presence_code: m.requiresPresenceCode || false,
       content: m.content || [],
       challenge_data: (() => {
         const cd = {};
@@ -1682,8 +1717,9 @@ const switchCourse = async (courseId) => {
     ]);
     XS.set({ allEnrollments: [...(allEnrollments || []), courseId] });
   }
-  const { data: modulesData } = await supabase.from('course_modules')
-    .select('*').eq('course_id', effectiveCourseId).eq('is_enabled', true).order('"order"');
+  // RPC en vez de select('*'): oculta content/challenge_data de módulos con
+  // código presencial que este estudiante aún no desbloqueó (ver 0040).
+  const { data: modulesData } = await supabase.rpc('get_course_modules_for_student', { p_course_id: effectiveCourseId });
   const courseModules = dbRowsToCourseModules(modulesData, selectedArea);
   const { data: cp } = await supabase.from('course_progress')
     .select('*').eq('user_id', user.id).eq('course_id', courseId).maybeSingle();
@@ -1870,6 +1906,7 @@ export {
   getStudentModules, getTransversalModules, getAreaOnlyModules, getScopeModules, TRANSVERSAL_AREA, findModule,
   calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete, gradeTotal, gradeMax,
   nav, doLogout, selectArea, changeArea, completeNode, recordAttempt,
+  redeemPresenceCode, generatePresenceCode,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
   loadRouteConfigs, saveRouteConfig, getRouteModules, findModuleInConfig, routeKey,

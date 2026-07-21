@@ -11,7 +11,7 @@ import {
   LogOutIc, ClockIc, XIc, PlusIc, TrashIc, EditIc, MenuIc, TargetIc,
   SettingsIc, BarIc, UsersIc, GripIc, MapIc, SchoolIc, UploadIc,
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
-  Modal, BadgeCard, StatChip, Stagger,
+  Modal, BadgeCard, StatChip, Stagger, PresenceGate,
 } from '../components/ui.jsx'
 // =============================================
 // EXPERIA — Lesson Viewer
@@ -415,6 +415,7 @@ const LessonView = () => {
   const nodeId = useStore(s => s.nodeId);
   const completed = useStore(s => s.completed);
   const selectedArea = useStore(s => s.selectedArea);
+  const unlockedPresence = useStore(s => s.unlockedPresenceModules);
   const isMobile = useMobile();
   const mod = findModule(nodeId) || findModuleInConfig(nodeId);
   const [progress, setProgress] = React.useState(0);
@@ -471,6 +472,10 @@ const LessonView = () => {
         <ArrowLIc s={16} /> Volver al mapa
       </Btn>
     </div>;
+  }
+
+  if (mod.requiresPresenceCode && !isCompleted && !unlockedPresence.includes(nodeId)) {
+    return <PresenceGate mod={mod} nodeId={nodeId} />;
   }
 
   return (

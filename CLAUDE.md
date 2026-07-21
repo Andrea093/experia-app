@@ -162,6 +162,8 @@ const useStore = (sel) => { /* React hook */ };
 | `live_session_keys` | Respuestas correctas + explicación de la sesión (SOLO el host las lee) |
 | `live_participants` | Quien se unió por PIN (nombre, apellido, correo, salón) + puntaje/racha |
 | `live_answers` | Respuestas enviadas (1 por participante/pregunta) |
+| `presence_gates` | Código presencial vigente por módulo (`course_modules.requires_presence_code`) — SOLO el host lo lee |
+| `presence_unlocks` | Qué estudiante desbloqueó qué módulo con el código presencial (permanente) — migration 0039 |
 
 **Security:**
 - RLS (Row Level Security) per role
@@ -306,6 +308,15 @@ Capa **sincrónica** sobre los cursos existentes: el profesor lanza un quiz en v
 - **Pulido:** `lib/sound.js` (beeps; el acierto/error suena en `reveal`, no al enviar, para no adelantar el resultado), QR del PIN (api.qrserver.com), `Podium` animado + `Confetti`, botón de silencio (`experia:live-muted`).
 - **Origen del contenido:** reúsa los retos `quiz` del curso (incluye `timeLimit`/`points`/`difficulty`/`explanation` por pregunta, §5). El host snapshotea las `questions` del módulo elegido.
 
+### 9. Código presencial (bloquear un paso hasta activarlo en clase)
+
+Candado **opcional por nodo** (aplica a cualquier `course_modules.type`, no es un `challenge_type` nuevo): marca `requires_presence_code = true` y el estudiante no puede ver el contenido de ese módulo/reto hasta ingresar un código corto que el instructor genera y dice en voz alta en clase. Pensado para asegurar que esa parte puntual de la ruta se resuelva estando físicamente presente. Backend en `0039_presence_gate.sql` + `0040_gate_module_content_server_side.sql` (ejecutar ambas, en orden, manual en SQL Editor).
+
+- **Marcar el nodo:** en el editor de ruta (`InstructorRouteEditor.jsx`), cada fila de módulo tiene un botón-candado que alterna `requiresPresenceCode`; con el candado activo y el módulo ya publicado aparece un botón "🔑 Código" que abre un modal para generarlo.
+- **Generar el código (profe, en clase):** `generatePresenceCode(moduleId)` → RPC `generate_presence_code`, solo instructor/admin. Desactiva el código anterior de ese módulo e inserta uno nuevo de 6 dígitos en `presence_gates` con vencimiento a 3h — mismo patrón anti-trampa que Modo Aula en Vivo (§8): el código en texto plano solo se devuelve al host, `presence_gates` no tiene policy de select pública.
+- **Canjearlo (estudiante):** el gate (`PresenceGate` en `ui.jsx`, insertado al inicio de `LessonView`/`ChallengeView`) llama `redeemPresenceCode(moduleId, code)` → RPC `redeem_presence_code` (SECURITY DEFINER), que valida el código en el servidor y, si coincide, hace upsert idempotente en `presence_unlocks`. Una vez desbloqueado queda desbloqueado (se carga en `unlockedPresenceModules` vía `loadStudentSession`, igual que `completed`/`badges`).
+- **El contenido en sí también se oculta en el servidor (0040), no solo en la UI:** los tres puntos donde el estudiante carga `course_modules` (`loadStudentSession.js`, `switchCourse`, `loadCourseModules`) usan la RPC `get_course_modules_for_student` en vez de `select('*')` plano — esa RPC vacía `content`/`challenge_data` de cualquier módulo gateado que el usuario no tenga en `presence_unlocks`, así que el candado no se puede saltar leyendo la respuesta de red en DevTools. `redeemPresenceCode` vuelve a llamar la RPC tras un canje exitoso para traer el contenido real. El editor de instructor sigue leyendo `course_modules` directo (necesita el contenido completo siempre).
+
 ---
 
 ## File Structure
@@ -353,7 +364,9 @@ supabase/
 │   ├── 0019_admin_manage_course_progress.sql
 │   ├── 0020_seed_ecosistema_ia_course.sql  # 8-module video MOOC, sequential unlock
 │   ├── 0021_seed_lectura_critica_llanto.sql # seed quiz con passage (texto+imágenes) — reemplazar URLs PLACEHOLDER
-│   └── 0022_live_classroom.sql             # Modo Aula en Vivo: tablas live_* + RLS + RPCs (scoring server-side)
+│   ├── 0022_live_classroom.sql             # Modo Aula en Vivo: tablas live_* + RLS + RPCs (scoring server-side)
+│   ├── 0039_presence_gate.sql              # Código presencial: presence_gates/presence_unlocks + RPCs
+│   └── 0040_gate_module_content_server_side.sql # RPC get_course_modules_for_student: oculta content/challenge_data en el servidor
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/

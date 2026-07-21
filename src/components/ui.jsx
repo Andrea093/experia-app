@@ -1,6 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import { BADGES, useStore, dismissNotif } from '../store/store.jsx'
+import { BADGES, useStore, dismissNotif, nav, redeemPresenceCode } from '../store/store.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
 // --- Responsive hook ---
@@ -468,6 +468,61 @@ const FileUploader = ({ value, valueName, onUploaded, label = 'Subir archivo', b
   );
 };
 
+// --- Candado de código presencial: bloquea un nodo hasta que el estudiante
+// ingrese el código que el profe generó/dijo en clase (Modo Aula en Vivo lo
+// usa como referencia de UX) ---
+const PresenceGate = ({ mod, nodeId }) => {
+  const [code, setCode] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+
+  const submit = async () => {
+    if (!code.trim() || loading) return;
+    setLoading(true); setError('');
+    try {
+      const ok = await redeemPresenceCode(nodeId, code.trim());
+      if (!ok) setError('Código incorrecto o vencido. Verifica con tu profe.');
+    } catch (err) {
+      setError('No se pudo validar el código. Intenta de nuevo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: 40, textAlign: 'center', maxWidth: 380, margin: '0 auto' }}>
+      <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--orange-bg)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+        <LockIc s={26} c="var(--orange)" />
+      </div>
+      <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>
+        {mod?.title || 'Contenido bloqueado'}
+      </h3>
+      <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>
+        Este contenido requiere que estés en el salón de clase. Pídele el código a tu profe para continuar.
+      </p>
+      <input
+        value={code}
+        onChange={e => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }}
+        onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+        placeholder="Código de 6 dígitos"
+        inputMode="numeric"
+        autoFocus
+        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border)',
+          fontSize: 20, letterSpacing: 4, textAlign: 'center', fontWeight: 700, color: 'var(--dark)',
+          marginBottom: 10, boxSizing: 'border-box' }}
+      />
+      {error && <p style={{ color: 'var(--error)', fontSize: 13, margin: '0 0 10px' }}>{error}</p>}
+      <Btn variant="primary" full onClick={submit} disabled={loading || code.trim().length < 4}>
+        {loading ? 'Validando...' : 'Desbloquear'}
+      </Btn>
+      <div style={{ marginTop: 10 }}>
+        <Btn variant="ghost" size="sm" onClick={() => nav('map')}>Volver al mapa</Btn>
+      </div>
+    </div>
+  );
+};
+
 export {
   useMobile, LogoImg, ChecklistDropdown, ImageUploader, FileUploader,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc, ArrowRIc, ArrowLIc,
@@ -475,5 +530,5 @@ export {
   TrashIc, EditIc, MenuIc, TargetIc, SettingsIc, BarIc, UsersIc, GripIc, MapIc,
   SchoolIc, UploadIc, SunIc, MoonIc, PaletteIc, MsgIc,
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager, Modal, BadgeCard, StatChip, Stagger,
-  XPToast, BadgeToast, Skeleton, SkeletonCard,
+  XPToast, BadgeToast, Skeleton, SkeletonCard, PresenceGate,
 };
