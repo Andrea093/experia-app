@@ -1510,6 +1510,37 @@ const forkCourseForInstitution = async (courseId, institutionId, sourceCourseId)
   return { id: copy.id, name: copy.name, isNew: true };
 };
 
+// Importa los módulos PUBLICADOS de OTRO curso (típicamente el fork de otro
+// colegio) al editor, listos para reemplazar la lista actual. A diferencia de
+// loadCourseForEditing, NO conserva referencias `_dbRow` ni los ids originales:
+// genera ids de cliente nuevos ('new_…') y REMAPEA requirements a esos ids, para
+// que al guardar/publicar se inserten como módulos propios del fork destino (sin
+// pisar ni depender de los módulos del colegio de origen). Ignora el borrador del
+// origen — copia lo que esa profesora ya PUBLICÓ (lo que ven sus estudiantes).
+const loadModulesForImport = async (sourceCourseId) => {
+  if (!sourceCourseId) return { error: 'Sin curso de origen', modules: [] };
+  const { data, error } = await supabase.from('course_modules')
+    .select('*').eq('course_id', sourceCourseId).order('"order"');
+  if (error) return { error: error.message, modules: [] };
+
+  const idMap = new Map(); // id en el origen -> id de cliente nuevo
+  (data || []).forEach(row => idMap.set(row.id, 'new_' + crypto.randomUUID()));
+
+  const modules = (data || []).map(row => ({
+    ...dbModToAppMod(row),
+    id: idMap.get(row.id),
+    req: (row.requirements || []).map(r => idMap.get(r)).filter(Boolean),
+    subtitle: row.subtitle || '',
+    desc: row.description || '',
+    task: '',
+    enabled: row.is_enabled !== false,
+    override: null,
+    _dbRow: null,   // se insertará como módulo nuevo, no como UPDATE en sitio
+    isDbModule: false,
+  }));
+  return { modules };
+};
+
 // Carga los módulos de un curso para edición en el editor de rutas del instructor.
 // Devuelve los módulos convertidos al formato del editor (mismo shape que los módulos
 // DCE de getScopeModules) para que las acciones de edición existentes sigan funcionando.
@@ -1929,7 +1960,7 @@ export {
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, setInstitutionCourseExpiry,
   loadUserCourses, setUserCourseAccess, setUserCourseAccessBulk, allowedCourseIds,
   loadCourseModules, enrollInCourse, dbModToAppMod, publishRouteToCourse, switchCourse,
-  forkCourseForInstitution, loadCourseForEditing, saveCourseModules, resolveCourseForStudent,
+  forkCourseForInstitution, loadCourseForEditing, loadModulesForImport, saveCourseModules, resolveCourseForStudent,
   saveCourseDraft, discardCourseDraft, publishCourseModules,
   applyInitialHash, markOnboarded, claimOnboardingBonus, awardForumParticipation,
   hashFor, issueCertificate, getActiveCourseTheme, reactCharacter,

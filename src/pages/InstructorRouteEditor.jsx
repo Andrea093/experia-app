@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   useStore,
-  forkCourseForInstitution, loadCourseForEditing,
+  forkCourseForInstitution, loadCourseForEditing, loadModulesForImport,
   saveCourseDraft, discardCourseDraft, publishCourseModules,
   getCourseDisplayName, generatePresenceCode,
 } from '../store/store.jsx'
@@ -91,6 +91,7 @@ const EMPTY_CERT_CONFIG = { enabled: false, title: '', achievementText: '', sign
 const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) => {
   const isMobile = useMobile()
   const courses  = useStore(s => s.courses || [])
+  const institutions = useStore(s => s.institutions || [])
   const courseRow = React.useMemo(() => courses.find(c => c.id === courseId), [courses, courseId])
   // El tema del curso (los forks copian el theme del padre) alimenta el preview temático.
   const courseTheme = courseRow?.theme || null
@@ -115,6 +116,22 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
   const [generatedCode, setGeneratedCode]       = React.useState(null)
   const [codeGenError, setCodeGenError]         = React.useState('')
   const [codeGenLoading, setCodeGenLoading]     = React.useState(false)
+  const [showImport, setShowImport]             = React.useState(false)
+  const [importSourceId, setImportSourceId]     = React.useState('')
+  const [importing, setImporting]               = React.useState(false)
+
+  // Versiones de ESTE MISMO curso hechas en OTROS colegios — se pueden traer
+  // como plantilla para reemplazar la ruta actual (pedido: usar la versión que
+  // otra profesora dejó lista en su colegio). Se apoya en la misma "familia":
+  // mismo parent_course_id que este fork. Solo aparecen las que el tutor puede
+  // leer (cualquier fork activo, tras la migración 0041).
+  const importableForks = React.useMemo(() => {
+    const parentId = courseRow?.parent_course_id
+    if (!parentId) return []
+    return courses
+      .filter(c => c.id !== courseId && c.parent_course_id === parentId && c.is_active)
+      .map(c => ({ ...c, institutionName: institutions.find(i => i.id === c.institution_id)?.name || 'Otro colegio' }))
+  }, [courses, institutions, courseId, courseRow])
 
   React.useEffect(() => {
     setLoading(true); setLoadErr('')
@@ -217,6 +234,23 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
     setModuleList(l => [...l, { id: 'new_' + Date.now(), enabled: true, _dbRow: null, ...mod }])
   }
 
+  // Importa la ruta de otro colegio: REEMPLAZA la lista actual con sus módulos
+  // (traídos como módulos nuevos, sin pisar el colegio de origen). Queda como
+  // cambio sin guardar: el tutor revisa y luego Guarda borrador / Publica.
+  const handleImportFork = async () => {
+    if (!importSourceId) return
+    setImporting(true)
+    const { modules, error } = await loadModulesForImport(importSourceId)
+    setImporting(false)
+    if (error) { setSavedMsg('⚠️ ' + error); return }
+    setModuleList(modules)
+    setShowImport(false)
+    const src = importableForks.find(f => f.id === importSourceId)
+    setImportSourceId('')
+    setSavedMsg(`📥 Ruta importada de ${src?.institutionName || 'otro colegio'} — revísala y luego Guarda borrador o Publica`)
+    setTimeout(() => setSavedMsg(''), 5000)
+  }
+
   // ─── guardar borrador / publicar / descartar ───
   // "Guardar borrador" NO afecta a los estudiantes (courses.draft_modules).
   // "Publicar" recién aplica el cambio a course_modules, que es lo que leen.
@@ -285,6 +319,9 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {savedMsg && <span style={{ fontSize: 13, fontWeight: 600, color: savedMsg.startsWith('⚠️') ? 'var(--error)' : 'var(--success)' }}>{savedMsg}</span>}
+          {importableForks.length > 0 && (
+            <Btn variant="secondary" disabled={saving || publishing} onClick={() => { setImportSourceId(importableForks[0].id); setShowImport(true) }}>📥 Importar de otro colegio</Btn>
+          )}
           <Btn variant="secondary" onClick={() => setShowPreview(true)}>👁 Vista previa</Btn>
           {hasDraft && <Btn variant="secondary" disabled={saving || publishing} onClick={handleDiscardDraft}>🗑 Descartar borrador</Btn>}
           <Btn variant="secondary" disabled={saving || publishing} onClick={handleSaveDraft}>{saving ? '⏳ Guardando…' : '💾 Guardar borrador'}</Btn>
@@ -442,6 +479,22 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
       </div>
 
       {/* Modals */}
+      <Modal open={showImport} onClose={() => setShowImport(false)} title="Importar ruta de otro colegio" width={460}>
+        <p style={{ fontSize: 13, color: 'var(--text-sec)', marginBottom: 14, lineHeight: 1.5 }}>
+          Trae la ruta que otro colegio ya dejó lista para este mismo curso. <strong>Reemplaza</strong> los módulos que tienes ahora en el editor — el colegio de origen no se toca, y no afecta a tus estudiantes hasta que Guardes borrador o Publiques.
+        </p>
+        <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 5 }}>Versión a importar</label>
+        <select value={importSourceId} onChange={e => setImportSourceId(e.target.value)}
+          style={{ width: '100%', padding: '9px 12px', borderRadius: 9, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', background: 'var(--white)', boxSizing: 'border-box', marginBottom: 16 }}>
+          {importableForks.map(f => <option key={f.id} value={f.id}>Versión de {f.institutionName}</option>)}
+        </select>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Btn variant="secondary" full onClick={() => setShowImport(false)}>Cancelar</Btn>
+          <Btn variant="gradient" full disabled={importing || !importSourceId} onClick={handleImportFork}>
+            {importing ? '⏳ Importando…' : '📥 Importar y reemplazar'}
+          </Btn>
+        </div>
+      </Modal>
       <NewChallengeModal open={showNewChallenge} onClose={() => setShowNewChallenge(false)} onCreate={handleNewChallenge} />
       <ChallengeEditorModal open={!!editingChallenge} mod={editingChallenge} onClose={() => setEditingChallenge(null)} onSave={saveChallengeOverride} />
       <QuizCreatorModal open={!!editingQuiz} initial={editingQuiz?.isNew ? null : editingQuiz} onClose={() => setEditingQuiz(null)} onSave={saveQuizCustom}
