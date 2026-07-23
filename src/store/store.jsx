@@ -1439,7 +1439,15 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
 // Dado un courseId (default) y un institutionId, busca si ya existe una copia
 // del tutor actual para ese colegio. Si no, la crea clonando el curso y sus
 // módulos. Devuelve { id, isNew } con el id de la copia.
-const forkCourseForInstitution = async (courseId, institutionId) => {
+//
+// sourceCourseId (opcional): de dónde clonar los MÓDULOS. Por defecto es el
+// curso base (courseId) — comportamiento de siempre. Si se pasa el id de un
+// fork YA EXISTENTE de otro colegio (misma familia: mismo parent_course_id),
+// los módulos se copian de ESE fork en vez de partir del curso base, para
+// poder reutilizar entre colegios una versión ya editada. name/theme/color
+// del curso nuevo siguen viniendo del curso base, nunca del fork origen —
+// ver nota "Nombre/tema SIEMPRE del padre" en la memoria del proyecto.
+const forkCourseForInstitution = async (courseId, institutionId, sourceCourseId) => {
   const { user } = XS.get();
   if (!user?.id || !courseId || !institutionId) return { error: 'Faltan parámetros' };
 
@@ -1480,8 +1488,11 @@ const forkCourseForInstitution = async (courseId, institutionId) => {
   // quedan apuntando a los módulos del curso PADRE (que el estudiante nunca
   // ve en el fork), y ningún módulo después del primero puede desbloquearse
   // jamás — el progreso del estudiante nunca podrá contener esos ids viejos.
+  // Se clona desde sourceCourseId si se indicó (otro fork ya editado), o del
+  // curso base por defecto.
+  const cloneFromId = sourceCourseId || courseId;
   const { data: modules } = await supabase.from('course_modules')
-    .select('*').eq('course_id', courseId).order('"order"');
+    .select('*').eq('course_id', cloneFromId).order('"order"');
   if (modules?.length) {
     const idMap = new Map(); // id en el curso padre -> id nuevo en el fork
     const cloned = modules.map(({ id: oldId, course_id: _cid, created_at: _ca, updated_at: _ua, ...rest }) => {

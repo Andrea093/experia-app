@@ -366,7 +366,8 @@ supabase/
 │   ├── 0021_seed_lectura_critica_llanto.sql # seed quiz con passage (texto+imágenes) — reemplazar URLs PLACEHOLDER
 │   ├── 0022_live_classroom.sql             # Modo Aula en Vivo: tablas live_* + RLS + RPCs (scoring server-side)
 │   ├── 0039_presence_gate.sql              # Código presencial: presence_gates/presence_unlocks + RPCs
-│   └── 0040_gate_module_content_server_side.sql # RPC get_course_modules_for_student: oculta content/challenge_data en el servidor
+│   ├── 0040_gate_module_content_server_side.sql # RPC get_course_modules_for_student: oculta content/challenge_data en el servidor
+│   └── 0041_cross_institution_fork_clone.sql # RLS: instructor multi-colegio puede leer forks de sus otros colegios para clonarlos
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/

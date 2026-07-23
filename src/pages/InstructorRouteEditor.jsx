@@ -560,6 +560,21 @@ const InstructorRouteEditor = () => {
     ) || null
   }, [courses, selectedCourseId, routeInstitution])
 
+  // Versiones YA editadas de este mismo curso en OTROS colegios — permite
+  // partir de una de ellas en vez de empezar desde el curso original (ej.
+  // "usar la versión que ya ajusté para el Colegio CEINFES" en un colegio
+  // nuevo). Solo visibles si el instructor tiene acceso de lectura a esos
+  // forks (asignado como instructor a esos colegios, o admin).
+  const siblingForks = React.useMemo(() => {
+    if (!selectedCourseId || !routeInstitution) return []
+    return courses
+      .filter(c => c.parent_course_id === selectedCourseId && c.institution_id !== routeInstitution && c.is_active)
+      .map(c => ({ ...c, institutionName: institutions.find(i => i.id === c.institution_id)?.name || 'Otro colegio' }))
+  }, [courses, institutions, selectedCourseId, routeInstitution])
+
+  const [cloneSourceId, setCloneSourceId] = React.useState('')
+  React.useEffect(() => { setCloneSourceId('') }, [selectedCourseId, routeInstitution])
+
   const handleOpenFork = async (useExisting) => {
     if (useExisting && existingFork) {
       setActiveFork({ id: existingFork.id, name: existingFork.name })
@@ -567,7 +582,7 @@ const InstructorRouteEditor = () => {
     }
     if (!selectedCourseId || !routeInstitution) return
     setForking(true); setForkErr('')
-    const result = await forkCourseForInstitution(selectedCourseId, routeInstitution)
+    const result = await forkCourseForInstitution(selectedCourseId, routeInstitution, cloneSourceId || undefined)
     setForking(false)
     if (result.error) { setForkErr(result.error); return }
     setActiveFork({ id: result.id, name: result.name })
@@ -640,16 +655,35 @@ const InstructorRouteEditor = () => {
                   <Btn variant="gradient" onClick={() => handleOpenFork(true)}>✏️ Seguir editando</Btn>
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E' }}>📋 Crear la versión de "{selectedCourse.name}" para este colegio</div>
-                    <div style={{ fontSize: 12, color: '#78350F', marginTop: 2 }}>
-                      Se generará una copia completa del curso para este colegio. El original queda intacto. Cualquier tutor asignado a este colegio podrá seguir editándola después.
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E' }}>📋 Crear la versión de "{selectedCourse.name}" para este colegio</div>
+                      <div style={{ fontSize: 12, color: '#78350F', marginTop: 2 }}>
+                        {cloneSourceId
+                          ? 'Se copiará el contenido de la versión elegida abajo. El original y esa otra versión quedan intactos.'
+                          : 'Se generará una copia completa del curso base para este colegio. El original queda intacto.'}
+                        {' '}Cualquier tutor asignado a este colegio podrá seguir editándola después.
+                      </div>
                     </div>
+                    <Btn variant="gradient" disabled={forking} onClick={() => handleOpenFork(false)}>
+                      {forking ? '⏳ Creando copia…' : '✨ Crear versión del colegio'}
+                    </Btn>
                   </div>
-                  <Btn variant="gradient" disabled={forking} onClick={() => handleOpenFork(false)}>
-                    {forking ? '⏳ Creando copia…' : '✨ Crear versión del colegio'}
-                  </Btn>
+                  {siblingForks.length > 0 && (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #FCD34D' }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 5 }}>
+                        Empezar desde
+                      </label>
+                      <select value={cloneSourceId} onChange={e => setCloneSourceId(e.target.value)}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', background: 'var(--white)', boxSizing: 'border-box' }}>
+                        <option value="">🆕 Curso original (en blanco)</option>
+                        {siblingForks.map(f => (
+                          <option key={f.id} value={f.id}>📋 Copiar la versión de {f.institutionName}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
               {forkErr && <p style={{ fontSize: 12, color: 'var(--error)', fontWeight: 600, marginTop: 8 }}>⚠️ {forkErr}</p>}
