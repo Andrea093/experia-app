@@ -695,7 +695,14 @@ const QuizChallenge = ({ mod, onComplete }) => {
 
   const q = questions[current];
   const correctCount = answers.filter((a,i) => a === questions[i]?.correct).length;
-  const pct = Math.round((correctCount / questions.length) * 100);
+  // Puntaje PONDERADO: cada pregunta pesa `weight` (default 1) sobre el total.
+  const weightOf = (qq) => { const w = Number(qq?.weight); return (qq?.weight != null && qq?.weight !== '' && !isNaN(w) && w >= 0) ? w : 1; };
+  const totalWeight = questions.reduce((s, qq) => s + weightOf(qq), 0) || 1;
+  const weightedPct = (ans) => {
+    const earned = questions.reduce((s, qq, i) => s + (ans[i] === qq.correct ? weightOf(qq) : 0), 0);
+    return Math.round((earned / totalWeight) * 100);
+  };
+  const pct = weightedPct(answers);
 
   const handleConfirm = () => {
     if (selected === null) return;
@@ -709,7 +716,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
     } else {
       const allAnswers = [...answers];
       const finalCorrect = allAnswers.filter((a,i) => a === questions[i]?.correct).length;
-      const finalPct = Math.round((finalCorrect / questions.length) * 100);
+      const finalPct = weightedPct(allAnswers);
       const qs = questions.map((q, i) => ({ q: q.question, correct: allAnswers[i] === q.correct }));
       recordAttempt(mod.id, qs, finalCorrect, questions.length);
       setDone(true);

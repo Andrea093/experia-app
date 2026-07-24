@@ -262,7 +262,7 @@ Next module unlocks (dependencies checked)
 | `empathy` | Sort cards into 4 quadrants | `{ empathyCards: [{id,text,correct}] }`, `correct ∈ piensa\|siente\|dice\|hace` |
 | `simulation` | Multi-step decision tree | ⚠️ ignored — always renders the built-in generic `SIM_TREE` (store doesn't forward sim data) |
 | `matching` | Connect concepts ↔ definitions | `{ matchPairs: [{id,concept,def}] }` |
-| `quiz` | Multiple-choice questions | `{ questions: [{question,questionAfter?,options,correct, image?,imageHeight?,imagePosition?,optionImages?,explanation?,explanationImage?,timeLimit?,points?,difficulty?}], passage?, passingScore?, maxAttempts?, passMessage?, failMessage? }` |
+| `quiz` | Multiple-choice questions | `{ questions: [{question,questionAfter?,options,correct, weight?, image?,imageHeight?,imagePosition?,optionImages?,explanation?,explanationImage?,timeLimit?,points?,difficulty?}], passage?, passingScore?, maxAttempts?, passMessage?, failMessage? }` |
 | `truefalse` | Mark statements true/false | `{ statements: [{id,text,answer:bool}] }` |
 | `fillblank` | Fill blanks from a word bank | `{ blanks: [{id,before,answer,after}] }` |
 | `designlab` | Open-ended final (rubric) | n/a (rubric in `content`) |

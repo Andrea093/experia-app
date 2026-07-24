@@ -131,6 +131,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
     if (!isPoll && q.explanationImage) out.explanationImage = q.explanationImage
     if (q.timeLimit) out.timeLimit = Number(q.timeLimit)
     if (!isPoll && q.points) out.points = Number(q.points)
+    if (!isPoll && q.weight !== '' && q.weight != null && Number(q.weight) >= 0) out.weight = Number(q.weight)
     if (q.difficulty) out.difficulty = q.difficulty
     return out
   })
@@ -390,6 +391,15 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
                           )}
                           <ImageUploader label={q.explanationImage ? 'Reemplazar imagen' : 'Imagen de la explicación (opcional)'} compact onUploaded={url => updateQ(q.id, 'explanationImage', url)} />
                         </div>
+                      </div>
+                    )}
+
+                    {/* Peso de la pregunta en la calificación (ponderado) */}
+                    {!isPoll && (
+                      <div>
+                        <label style={advLbl}>Peso en la calificación</label>
+                        <input type="number" value={q.weight ?? ''} onChange={e => updateQ(q.id, 'weight', e.target.value)} placeholder="1 (igual para todas)" min={0} step="0.1" style={{ ...inp, fontSize: 12, width: 160 }} />
+                        <p style={{ fontSize: 10, color: 'var(--subtle)', margin: '4px 0 0' }}>El puntaje del reto se calcula ponderado por estos pesos. Si dejas todas en blanco, valen igual. No tienen que sumar 100 — se normalizan solas.</p>
                       </div>
                     )}
 
