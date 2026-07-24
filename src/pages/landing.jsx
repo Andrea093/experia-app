@@ -85,7 +85,7 @@ const LandingPage = () => {
           <h1 style={{
             fontSize: isMobile ? 28 : 48, fontWeight: 800, color: '#fff', lineHeight: 1.15, marginBottom: isMobile ? 14 : 20,
           }}>
-            Diseño Centrado en Experiencias para la Transformación Educativa
+            Taller teórico-práctico de diseño y construcción de pruebas estandarizadas según el Diseño Centrado en Evidencias
           </h1>
           <p style={{
             fontSize: isMobile ? 14 : 18, color: 'rgba(255,255,255,.85)', lineHeight: 1.6,
