@@ -14,7 +14,7 @@ import { useMobile, LogoImg, CheckIc, Btn } from '../components/ui.jsx'
 const PROD_BASE = 'https://experia-app.pages.dev'
 
 const DEFAULT_ACHIEVEMENT_TEXT = 'ha completado satisfactoriamente la formación docente en'
-const DEFAULT_SIGNATORY_ROLE = 'CEINFES · Experia'
+const DEFAULT_SIGNATORY_ROLE = 'CEINFES'
 
 const CourseCertificatePage = () => {
   const isMobile = useMobile()
@@ -114,11 +114,11 @@ const CourseCertificatePage = () => {
           borderRadius: isMobile ? 16 : 24, padding: isMobile ? '28px 18px' : '40px 56px', textAlign: 'center',
           position: 'relative', boxShadow: 'var(--sh-xl)' }}>
           <div style={{ position: 'absolute', inset: 10, border: '2px solid #FADCBE', borderRadius: 16, pointerEvents: 'none' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 24 }}>
-            <LogoImg h={44} />
-            <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2 }}>Experia · Formación Docente</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <img src="/sello-grupo-investigacion.png" alt="CEINFES — Grupo de Investigación reconocido por Minciencias" style={{ height: isMobile ? 84 : 104, width: 'auto' }} />
+            <LogoImg h={38} />
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 4, color: 'var(--orange)', marginBottom: 12 }}>Certificado de Formación Docente</div>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 4, color: 'var(--orange)', marginBottom: 12 }}>Certificado</div>
           <h1 style={{ fontSize: isMobile ? 22 : 30, fontWeight: 800, color: 'var(--dark)', lineHeight: 1.2, marginBottom: 8 }}>{title}</h1>
           <div style={{ width: 80, height: 4, background: 'var(--gradient)', borderRadius: 2, margin: '0 auto 24px' }} />
           <p style={{ fontSize: 16, color: 'var(--muted)', marginBottom: 20, lineHeight: 1.6 }}>Este certificado acredita que</p>

@@ -160,18 +160,18 @@ const CertificatePage = ({ submission, area }) => {
         </div>
         <div id="certificate" style={{ background: 'white', border: isMobile ? '5px solid var(--orange)' : '8px solid var(--orange)', borderRadius: isMobile ? 16 : 24, padding: isMobile ? '28px 18px' : '40px 56px', textAlign: 'center', position: 'relative', boxShadow: 'var(--sh-xl)' }}>
           <div style={{ position: 'absolute', inset: 10, border: '2px solid #FADCBE', borderRadius: 16, pointerEvents: 'none' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 24 }}>
-            <LogoImg h={44} />
-            <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2 }}>Experia · Formación Docente</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <img src="/sello-grupo-investigacion.png" alt="CEINFES — Grupo de Investigación reconocido por Minciencias" style={{ height: isMobile ? 84 : 104, width: 'auto' }} />
+            <LogoImg h={38} />
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 4, color: 'var(--orange)', marginBottom: 12 }}>Certificado de Formación Docente</div>
-          <h1 style={{ fontSize: 30, fontWeight: 800, color: 'var(--dark)', lineHeight: 1.2, marginBottom: 8 }}>Diseño Centrado en Evidencias</h1>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 4, color: 'var(--orange)', marginBottom: 12 }}>Certificado</div>
+          <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, color: 'var(--dark)', lineHeight: 1.25, marginBottom: 8 }}>Taller de diseño y construcción de pruebas estandarizadas según el DCE</h1>
           <div style={{ width: 80, height: 4, background: 'var(--gradient)', borderRadius: 2, margin: '0 auto 24px' }} />
           <p style={{ fontSize: 16, color: 'var(--muted)', marginBottom: 20, lineHeight: 1.6 }}>Este certificado acredita que</p>
           <div style={{ fontSize: isMobile ? 26 : 40, fontWeight: 800, color: 'var(--dark)', marginBottom: 12, lineHeight: 1.2, padding: '0 8px' }}>{submission.studentName}</div>
           <p style={{ fontSize: 15, color: 'var(--text-sec)', marginBottom: 24, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 24px' }}>
-            ha completado satisfactoriamente la formación docente en<br />
-            <strong>Diseño Centrado en Evidencias (DCE)</strong>
+            ha completado satisfactoriamente el<br />
+            <strong>Taller de diseño y construcción de pruebas estandarizadas según el DCE</strong>
           </p>
           {area && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 24px', borderRadius: 100, background: area.bg, border: `2px solid ${area.color}40`, marginBottom: 24 }}>
@@ -179,18 +179,6 @@ const CertificatePage = ({ submission, area }) => {
               <span style={{ fontSize: 17, fontWeight: 700, color: area.color }}>Área: {area.name}</span>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: 0, marginBottom: 28, border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', maxWidth: 420, margin: '0 auto 28px' }}>
-            {[
-              { label: 'Puntuación', value: `${total}/${max}`, color: 'var(--success)' },
-              { label: 'Logro', value: `${pct}%`, color: 'var(--orange)' },
-              { label: 'Programa', value: 'DCE', color: 'var(--purple)' },
-            ].map((item, i, arr) => (
-              <div key={item.label} style={{ flex: 1, textAlign: 'center', padding: '18px 12px', borderRight: i < arr.length - 1 ? '1px solid var(--border)' : 'none', background: 'var(--bg)' }}>
-                <div style={{ fontSize: 30, fontWeight: 800, color: item.color, lineHeight: 1 }}>{item.value}</div>
-                <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginTop: 6 }}>{item.label}</div>
-              </div>
-            ))}
-          </div>
           {submission.feedback && (
             <div style={{ padding: '12px 20px', borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border)', marginBottom: 24, textAlign: 'left', maxWidth: 480, margin: '0 auto 24px' }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Comentario del instructor</div>
@@ -200,7 +188,7 @@ const CertificatePage = ({ submission, area }) => {
           <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end', marginTop: 8 }}>
             {[
               { label: dateStr, sub: 'Fecha de expedición' },
-              { label: 'Instructor DCE', sub: 'CEINFES · Experia' },
+              { label: 'Instructor', sub: 'CEINFES' },
             ].map((sig, i) => (
               <div key={i} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 13, color: 'var(--dark)', fontWeight: 600, marginBottom: 10 }}>{sig.label}</div>
@@ -352,6 +340,13 @@ const StudentProductUpload = () => {
   const routeComplete = modsBeforeFinal.length === 0 || modsBeforeFinal.every(m => completed.includes(m.id));
   const routePct = progressPct(completed, selectedArea, enrolledCourseId ? studentModules : null);
 
+  // El diploma solo al FINAL: se muestra cuando TODOS los módulos de la ruta
+  // (no solo los anteriores a la entrega) están completos. Si la entrega se
+  // aprueba pero aún faltan módulos después, se muestra un mensaje de "aprobado".
+  const allModulesComplete = studentModules
+    .filter(m => m.type !== 'final_delivery')
+    .every(m => completed.includes(m.id));
+
   // Gate del taller: solo si el curso lo requiere (requires_workshop). PERO si la
   // entrega usa CÓDIGO PRESENCIAL, el código reemplaza esa lógica: la habilitación
   // pasa por ingresar el código en clase (no por el taller).
@@ -402,7 +397,23 @@ const StudentProductUpload = () => {
   );
 
   if (existingSub && existingSub.status === 'approved') {
-    return <CertificatePage submission={existingSub} area={area} />;
+    // Diploma solo al FINAL: si aún faltan módulos de la ruta, se muestra un
+    // mensaje de "entrega aprobada" en vez del diploma completo.
+    if (allModulesComplete) {
+      return <CertificatePage submission={existingSub} area={area} />;
+    }
+    return (
+      <div style={{ height: '100%', overflow: 'auto', padding: isMobile ? '24px 16px 48px' : '40px 24px 60px', background: 'var(--bg)' }}>
+        <div style={{ maxWidth: 520, margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ fontSize: 56, marginBottom: 8 }}>✅</div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 8 }}>¡Entrega aprobada!</h2>
+          <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
+            Tu entrega fue aprobada. Completa los módulos que faltan de tu ruta para recibir tu diploma al final.
+          </p>
+          <Btn variant="gradient" onClick={() => nav('map')}>Continuar mi ruta</Btn>
+        </div>
+      </div>
+    );
   }
 
   // Candado de código presencial en la entrega (igual que lecciones/retos):
