@@ -414,6 +414,94 @@ const ImageUploader = ({ value, onUploaded, label = 'Subir imagen', bucket = 'at
   );
 };
 
+// ── Texto enriquecido ligero (sin librerías) ──────────────────────────────
+// Markup mínimo, almacenado como texto plano en challenge_data:
+//   **negrilla**            → <strong>
+//   {{#e8732c|texto}}       → color (hex 3–8 díg.)
+// El renderizador respeta espacios y saltos de línea (whiteSpace: pre-wrap).
+const RICH_COLORS = ['#E8732C', '#DC2626', '#2563EB', '#059669', '#7C3AED', '#111827'];
+
+// Convierte el markup en nodos React (anidamiento vía recursión).
+const parseRich = (text) => {
+  if (text == null || text === '') return null;
+  const re = /\*\*([\s\S]+?)\*\*|\{\{(#[0-9a-fA-F]{3,8})\|([\s\S]+?)\}\}/;
+  const out = [];
+  let rest = String(text), key = 0, m;
+  while ((m = re.exec(rest))) {
+    if (m.index > 0) out.push(rest.slice(0, m.index));
+    if (m[1] !== undefined) out.push(<strong key={key++}>{parseRich(m[1])}</strong>);
+    else out.push(<span key={key++} style={{ color: m[2] }}>{parseRich(m[3])}</span>);
+    rest = rest.slice(m.index + m[0].length);
+  }
+  if (rest) out.push(rest);
+  return out;
+};
+
+// Renderiza texto con el markup y respetando espacios/saltos de línea.
+const RichText = ({ children, as = 'span', style, ...rest }) => {
+  const Tag = as;
+  return <Tag style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...style }} {...rest}>{parseRich(children)}</Tag>;
+};
+
+// Campo de edición con mini-barra de formato (Negrilla + colores). Envuelve la
+// selección con el markup correspondiente. `multiline` usa <textarea>. La barra
+// aparece al enfocar. Los botones usan onMouseDown+preventDefault para no perder
+// la selección del campo.
+const RichInput = ({ value, onChange, multiline = false, rows = 2, placeholder, style, autoFocus }) => {
+  const ref = React.useRef(null);
+  const [focused, setFocused] = React.useState(false);
+
+  const wrap = (before, after) => {
+    const el = ref.current; if (!el) return;
+    const s = el.selectionStart ?? (value || '').length;
+    const e = el.selectionEnd ?? s;
+    const v = value || '';
+    const hadSel = e > s;
+    const sel = hadSel ? v.slice(s, e) : 'texto';
+    const next = v.slice(0, s) + before + sel + after + v.slice(e);
+    onChange(next);
+    requestAnimationFrame(() => {
+      const el2 = ref.current; if (!el2) return;
+      el2.focus();
+      el2.selectionStart = s + before.length;
+      el2.selectionEnd = s + before.length + sel.length;
+    });
+  };
+
+  const Tag = multiline ? 'textarea' : 'input';
+  const fieldStyle = {
+    padding: '8px 10px', border: 'none', outline: 'none', width: '100%', boxSizing: 'border-box',
+    fontFamily: 'var(--font)', fontSize: 13, background: 'transparent', resize: multiline ? 'vertical' : 'none',
+    lineHeight: 1.5, ...(multiline ? { minHeight: 40 } : {}),
+  };
+  const swatchBtn = (bg) => ({
+    width: 18, height: 18, borderRadius: 5, border: '1px solid rgba(0,0,0,.15)', cursor: 'pointer',
+    background: bg, padding: 0, flexShrink: 0,
+  });
+
+  return (
+    <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--white)', overflow: 'hidden', ...style }}>
+      {focused && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderBottom: '1px solid var(--border)', background: 'var(--bg-alt)', flexWrap: 'wrap' }}>
+          <button type="button" onMouseDown={e => { e.preventDefault(); wrap('**', '**'); }} title="Negrilla"
+            style={{ width: 24, height: 22, borderRadius: 5, border: '1px solid var(--border)', background: 'var(--white)', cursor: 'pointer', fontWeight: 800, fontSize: 13, color: 'var(--dark)' }}>B</button>
+          <span style={{ width: 1, height: 16, background: 'var(--border)' }} />
+          {RICH_COLORS.map(c => (
+            <button key={c} type="button" onMouseDown={e => { e.preventDefault(); wrap(`{{${c}|`, '}}'); }} title={`Color ${c}`} style={swatchBtn(c)} />
+          ))}
+          <span style={{ fontSize: 10, color: 'var(--subtle)', marginLeft: 2 }}>selecciona texto y aplica</span>
+        </div>
+      )}
+      <Tag ref={ref} value={value || ''} placeholder={placeholder} autoFocus={autoFocus}
+        {...(multiline ? { rows } : {})}
+        onChange={e => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={fieldStyle} />
+    </div>
+  );
+};
+
 // --- File uploader (sube cualquier archivo a Supabase Storage y devuelve la
 // URL pública + metadatos) — para material descargable dentro de una lección. ---
 const FileUploader = ({ value, valueName, onUploaded, label = 'Subir archivo', bucket = 'attachments', folder = 'lesson-files', accept, maxSizeMB = 20, compact = false }) => {
@@ -524,7 +612,7 @@ const PresenceGate = ({ mod, nodeId }) => {
 };
 
 export {
-  useMobile, LogoImg, ChecklistDropdown, ImageUploader, FileUploader,
+  useMobile, LogoImg, ChecklistDropdown, ImageUploader, FileUploader, RichText, RichInput,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc, ArrowRIc, ArrowLIc,
   ChevRIc, StarIc, TrophyIc, ZapIc, AwardIc, BellIc, LogOutIc, ClockIc, XIc, PlusIc,
   TrashIc, EditIc, MenuIc, TargetIc, SettingsIc, BarIc, UsersIc, GripIc, MapIc,

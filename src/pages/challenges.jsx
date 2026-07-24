@@ -11,7 +11,7 @@ import {
   LogOutIc, ClockIc, XIc, PlusIc, TrashIc, EditIc, MenuIc, TargetIc,
   SettingsIc, BarIc, UsersIc, GripIc, MapIc, SchoolIc, UploadIc,
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
-  Modal, BadgeCard, StatChip, Stagger, PresenceGate,
+  Modal, BadgeCard, StatChip, Stagger, PresenceGate, RichText,
 } from '../components/ui.jsx'
 // =============================================
 // EXPERIA — Interactive Challenges (v2 — area-aware + attempt tracking)
@@ -633,10 +633,11 @@ const QuestionImage = ({ q, slot }) => {
 };
 
 // Contenido de una opción: imagen (si la hay) + texto (si lo hay).
+// El texto respeta espacios/saltos y el markup de negrilla/color (RichText).
 const OptionContent = ({ opt, img }) => (
   <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: img && opt ? 8 : 0, minWidth: 0 }}>
     {img && <img src={img} alt="" style={{ maxWidth: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 8, display: 'block' }} />}
-    {opt && <span style={{ fontSize: 14, color: 'var(--dark)', fontWeight: 500, lineHeight: 1.5 }}>{opt}</span>}
+    {opt && <RichText style={{ fontSize: 14, color: 'var(--dark)', fontWeight: 500, lineHeight: 1.5 }}>{opt}</RichText>}
   </span>
 );
 
@@ -705,12 +706,12 @@ const QuizChallenge = ({ mod, onComplete }) => {
             const ok = answers[i] === q.correct;
             return (
               <div key={i} style={{padding:'12px 16px',borderRadius:12,background:ok?'#F0FDFA':'#FEF2F2',border:`1px solid ${ok?'#99F6E4':'#FECACA'}`}}>
-                <p style={{fontSize:13,fontWeight:600,color:'var(--dark)',marginBottom:4}}>{q.question}</p>
+                <RichText as="p" style={{fontSize:13,fontWeight:600,color:'var(--dark)',marginBottom:4}}>{q.question}</RichText>
                 <p style={{fontSize:12,color:ok?'var(--success)':'var(--error)',fontWeight:500,margin:0}}>
-                  {ok?'✓ ':'✗ '}{q.options[answers[i]]}
-                  {!ok&&<span style={{color:'var(--success)',marginLeft:8}}>→ Correcta: {q.options[q.correct]}</span>}
+                  {ok?'✓ ':'✗ '}<RichText>{q.options[answers[i]]}</RichText>
+                  {!ok&&<span style={{color:'var(--success)',marginLeft:8}}>→ Correcta: <RichText>{q.options[q.correct]}</RichText></span>}
                 </p>
-                {q.explanation&&<p style={{fontSize:12,color:'var(--muted)',lineHeight:1.6,margin:'8px 0 0',fontStyle:'italic'}}>💡 {q.explanation}</p>}
+                {q.explanation&&<RichText as="p" style={{fontSize:12,color:'var(--muted)',lineHeight:1.6,margin:'8px 0 0',fontStyle:'italic'}}>{'💡 '+q.explanation}</RichText>}
               </div>
             );
           })}
@@ -729,9 +730,9 @@ const QuizChallenge = ({ mod, onComplete }) => {
       </div>
       <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
         <QuestionImage q={q} slot="before" />
-        <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:(q.imagePosition==='between'||q.questionAfter)?12:20}}>{q.question}</h4>
+        <RichText as="h4" style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:(q.imagePosition==='between'||q.questionAfter)?12:20}}>{q.question}</RichText>
         <QuestionImage q={q} slot="between" />
-        {q.questionAfter && <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.questionAfter}</h4>}
+        {q.questionAfter && <RichText as="h4" style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.questionAfter}</RichText>}
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
           {(q.options||[]).map((opt,i) => {
             const isSel=selected===i, isOk=confirmed&&i===q.correct, isWrong=confirmed&&isSel&&i!==q.correct;
@@ -756,13 +757,15 @@ const QuizChallenge = ({ mod, onComplete }) => {
         <QuestionImage q={q} slot="after" />
         {confirmed&&(
           <p style={{fontSize:13,fontWeight:600,marginTop:14,color:answers[answers.length-1]===q.correct?'var(--success)':'var(--error)'}}>
-            {answers[answers.length-1]===q.correct?(mod.correctMessage||'✓ ¡Correcto!'):(mod.incorrectMessage||'✗ Respuesta correcta:')+' '+q.options[q.correct]}
+            {answers[answers.length-1]===q.correct
+              ? <RichText>{mod.correctMessage||'✓ ¡Correcto!'}</RichText>
+              : <>{mod.incorrectMessage||'✗ Respuesta correcta:'} <RichText>{q.options[q.correct]}</RichText></>}
           </p>
         )}
         {confirmed&&(q.explanation||q.explanationImage)&&(
           <div style={{marginTop:14,padding:'14px 16px',borderRadius:12,background:'var(--purple-bg)',borderLeft:'3px solid var(--purple)'}}>
             <div style={{fontSize:11,fontWeight:800,color:'var(--purple)',textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>💡 Explicación</div>
-            {q.explanation&&<p style={{fontSize:14,color:'var(--text-sec)',lineHeight:1.7,margin:0}}>{q.explanation}</p>}
+            {q.explanation&&<RichText as="p" style={{fontSize:14,color:'var(--text-sec)',lineHeight:1.7,margin:0}}>{q.explanation}</RichText>}
             {q.explanationImage&&<img src={q.explanationImage} alt="" style={{width:'100%',maxHeight:280,objectFit:'contain',borderRadius:10,display:'block',marginTop:10,border:'1px solid var(--border)'}} />}
           </div>
         )}
@@ -818,8 +821,8 @@ const PollChallenge = ({ mod, onComplete }) => {
         <div style={{textAlign:'left',display:'flex',flexDirection:'column',gap:8}}>
           {questions.map((q,i) => (
             <div key={i} style={{padding:'12px 16px',borderRadius:12,background:'var(--bg)',border:'1px solid var(--border)'}}>
-              <p style={{fontSize:13,fontWeight:600,color:'var(--dark)',marginBottom:4}}>{q.question}</p>
-              <p style={{fontSize:12,color:'var(--muted)',margin:0}}>Tu respuesta: {q.options[answers[i]]}</p>
+              <RichText as="p" style={{fontSize:13,fontWeight:600,color:'var(--dark)',marginBottom:4}}>{q.question}</RichText>
+              <p style={{fontSize:12,color:'var(--muted)',margin:0}}>Tu respuesta: <RichText>{q.options[answers[i]]}</RichText></p>
             </div>
           ))}
         </div>
@@ -837,9 +840,9 @@ const PollChallenge = ({ mod, onComplete }) => {
       </div>
       <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
         <QuestionImage q={q} slot="before" />
-        <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:(q.imagePosition==='between'||q.questionAfter)?12:20}}>{q.question}</h4>
+        <RichText as="h4" style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:(q.imagePosition==='between'||q.questionAfter)?12:20}}>{q.question}</RichText>
         <QuestionImage q={q} slot="between" />
-        {q.questionAfter && <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.questionAfter}</h4>}
+        {q.questionAfter && <RichText as="h4" style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.questionAfter}</RichText>}
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
           {(q.options||[]).map((opt,i) => {
             const isSel=selected===i;

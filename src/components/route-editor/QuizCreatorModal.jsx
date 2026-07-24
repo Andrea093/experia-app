@@ -1,5 +1,5 @@
 import React from 'react'
-import { PlusIc, XIc, CheckIc, ChevRIc, ArrowLIc, ArrowRIc, Btn, Modal, ImageUploader } from '../ui.jsx'
+import { PlusIc, XIc, CheckIc, ChevRIc, ArrowLIc, ArrowRIc, Btn, Modal, ImageUploader, RichInput } from '../ui.jsx'
 
 const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) => {
   const isPoll = variant === 'poll'
@@ -271,9 +271,10 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
                     </button>
                   </div>
                 </div>
-                <textarea value={q.question} onChange={e => updateQ(q.id, 'question', e.target.value)}
-                  rows={2} placeholder="Escribe la pregunta aquí… (puedes pegar párrafos largos, el cuadro se amplía)"
-                  style={{ ...inp, marginBottom: 10, resize: 'vertical', lineHeight: 1.5, minHeight: 42 }} />
+                <div style={{ marginBottom: 10 }}>
+                  <RichInput multiline rows={2} value={q.question} onChange={v => updateQ(q.id, 'question', v)}
+                    placeholder="Escribe la pregunta aquí… (párrafos largos; usa la barra para negrilla y color)" />
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                   {q.options.map((opt, oi) => {
                     const optImg = q.optionImages?.[oi] || ''
@@ -295,9 +296,9 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
                         </button>
                       )}
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <input value={opt} onChange={e => updateOpt(q.id, oi, e.target.value)}
+                        <RichInput value={opt} onChange={v => updateOpt(q.id, oi, v)}
                           placeholder={`Opción ${String.fromCharCode(65 + oi)}${!isPoll && q.correct === oi ? ' (correcta)' : ''}${optImg ? ' — texto opcional' : ''}`}
-                          style={{ ...inp, border: !isPoll && q.correct === oi ? '1.5px solid var(--success)' : '1.5px solid var(--border)' }} />
+                          style={{ border: !isPoll && q.correct === oi ? '1.5px solid var(--success)' : '1.5px solid var(--border)' }} />
                         {optImg ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <img src={optImg} alt="" style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
@@ -351,9 +352,8 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
                           {q.imagePosition === 'between' && (
                             <div style={{ marginTop: 4 }}>
                               <label style={advLbl}>Segunda parte de la pregunta (va DESPUÉS de la imagen)</label>
-                              <textarea value={q.questionAfter || ''} onChange={e => updateQ(q.id, 'questionAfter', e.target.value)} rows={2}
-                                placeholder="Continúa aquí el texto de la pregunta que va debajo de la imagen…"
-                                style={{ ...inp, fontSize: 12, resize: 'vertical', lineHeight: 1.5 }} />
+                              <RichInput multiline rows={2} value={q.questionAfter || ''} onChange={v => updateQ(q.id, 'questionAfter', v)}
+                                placeholder="Continúa aquí el texto de la pregunta que va debajo de la imagen…" />
                               <p style={{ fontSize: 10, color: 'var(--subtle)', margin: '4px 0 0' }}>El cuadro principal de arriba es la primera parte; esto va después de la imagen.</p>
                             </div>
                           )}
