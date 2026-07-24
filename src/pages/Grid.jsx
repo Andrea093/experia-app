@@ -336,14 +336,21 @@ const StudentProductUpload = () => {
   // área). Sin esto la comprobación comparaba contra ids que no existían en su
   // avance y siempre marcaba 0% / "ruta no completada".
   const studentModules = enrolledCourseId ? courseModules : getStudentModules(selectedArea);
-  const requiredMods = studentModules.filter(m => m.type !== 'final_delivery');
-  const routeComplete = requiredMods.length === 0 || requiredMods.every(m => completed.includes(m.id));
-  const routePct = progressPct(completed, selectedArea, enrolledCourseId ? studentModules : null);
 
   // Módulo de entrega (final_delivery) — su candado de código presencial se
   // trata igual que en lecciones/retos.
   const finalMod = studentModules.find(m => m.type === 'final_delivery');
   const finalUsesCode = !!finalMod?.requiresPresenceCode;
+
+  // "Ruta completa" para habilitar la entrega: solo exige los módulos que van
+  // ANTES de la entrega en el orden (no todos). Así, si la entrega está en medio
+  // de la ruta, no se bloquea esperando módulos posteriores. Si está al final,
+  // equivale a exigir todos los anteriores (comportamiento de siempre).
+  const finalIdx = finalMod ? studentModules.findIndex(m => m.id === finalMod.id) : -1;
+  const modsBeforeFinal = (finalIdx >= 0 ? studentModules.slice(0, finalIdx) : studentModules)
+    .filter(m => m.type !== 'final_delivery');
+  const routeComplete = modsBeforeFinal.length === 0 || modsBeforeFinal.every(m => completed.includes(m.id));
+  const routePct = progressPct(completed, selectedArea, enrolledCourseId ? studentModules : null);
 
   // Gate del taller: solo si el curso lo requiere (requires_workshop). PERO si la
   // entrega usa CÓDIGO PRESENCIAL, el código reemplaza esa lógica: la habilitación

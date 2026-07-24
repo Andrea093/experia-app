@@ -415,7 +415,15 @@ const nodeStatus = (id, done, areaId, modulesOverride, unlockedPresence = []) =>
 
   const others = mods.filter(x => x.type !== 'final_delivery');
   if (m.type === 'final_delivery') {
-    return others.every(x => done.includes(x.id)) ? 'available' : 'locked';
+    // "Igual que el resto": la entrega se rige por sus requisitos explícitos o,
+    // por defecto, por el módulo ANTERIOR en el orden — NO por "todos los módulos
+    // completos". Antes exigía todos, lo que bloqueaba la entrega cuando está en
+    // medio de la ruta (con módulos después). Su candado de código presencial se
+    // maneja aparte (isBlockedByPresence arriba + PresenceGate en Grid.jsx).
+    const fidx = mods.findIndex(x => x.id === id);
+    const fprev = fidx > 0 ? mods[fidx - 1] : null;
+    const freq = (m.req && m.req.length) ? m.req : (fprev ? [fprev.id] : []);
+    return freq.every(r => done.includes(r)) ? 'available' : 'locked';
   }
   // Si el módulo no trae requisitos explícitos (p.ej. módulos creados o editados
   // desde el editor de cursos, que no tiene UI para definir prerrequisitos), cae
