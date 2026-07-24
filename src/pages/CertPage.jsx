@@ -135,7 +135,7 @@ const CertPage = () => {
             Certificado de Formación Docente
           </div>
           <h1 style={{ fontSize: isMobile ? 22 : 30, fontWeight: 800, color: '#111827', lineHeight: 1.2, marginBottom: 8 }}>
-            {isCourseCert ? courseTitle : 'Diseño Centrado en Experiencias'}
+            {isCourseCert ? courseTitle : 'Diseño Centrado en Evidencias'}
           </h1>
           <div style={{ width: 80, height: 4, background: 'linear-gradient(90deg,#E8732C,#F09848)', borderRadius: 2, margin: '0 auto 24px' }} />
 
@@ -145,7 +145,7 @@ const CertPage = () => {
           </div>
           <p style={{ fontSize: 15, color: '#374151', marginBottom: 24, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 24px' }}>
             {isCourseCert ? achievementText : 'ha completado satisfactoriamente la formación docente en'}<br />
-            <strong>{isCourseCert ? courseTitle : 'Diseño Centrado en Experiencias (DCE)'}</strong>
+            <strong>{isCourseCert ? courseTitle : 'Diseño Centrado en Evidencias (DCE)'}</strong>
           </p>
 
           {!isCourseCert && area && (

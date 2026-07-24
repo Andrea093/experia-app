@@ -61,11 +61,11 @@ const RUBRIC_CRITERIA = [
 // --- Shared Modules (everyone) ---
 const SHARED_MODULES = [
   { id:'mod1', type:'lesson', area:null, title:'Introducción al DCE', subtitle:'Módulo 1',
-    desc:'Fundamentos del Diseño Centrado en Experiencias y su relevancia educativa.',
+    desc:'Fundamentos del Diseño Centrado en Evidencias y su relevancia educativa.',
     task:'Lee todo el contenido del módulo. Cuando hayas avanzado más del 85% de la lectura, aparecerá el botón "Completar lección" para ganar 100 XP y desbloquear el primer reto.',
     xp:100, badge:'explorer', req:[], pos:{x:42,y:0}, side:'right',
     content:[
-      {type:'intro',title:'¿Qué es el Diseño Centrado en Experiencias?',text:'El DCE sitúa la experiencia del estudiante como eje central del proceso educativo, creando momentos de aprendizaje significativos y transformadores.'},
+      {type:'intro',title:'¿Qué es el Diseño Centrado en Evidencias?',text:'El DCE sitúa la experiencia del estudiante como eje central del proceso educativo, creando momentos de aprendizaje significativos y transformadores.'},
       {type:'callout',icon:'💡',title:'Principio Fundamental',text:'Los estudiantes no solo aprenden contenidos — viven experiencias. La calidad de esas experiencias determina la profundidad del aprendizaje.'},
       {type:'concepts',title:'Pilares del DCE',items:[
         {t:'Empatía',d:'Comprender las necesidades, emociones y contextos de los estudiantes.'},

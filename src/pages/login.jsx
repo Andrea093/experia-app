@@ -139,7 +139,7 @@ const LoginPage = () => {
             Bienvenido a<br/>Experia
           </h1>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,.78)', lineHeight: 1.6, maxWidth: 360, marginBottom: 36 }}>
-            Tu plataforma de formación en Diseño Centrado en Experiencias. Inicia sesión para continuar tu recorrido formativo.
+            Tu plataforma de formación en Diseño Centrado en Evidencias. Inicia sesión para continuar tu recorrido formativo.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {['Rutas formativas gamificadas', 'Retos interactivos y certificación', 'Seguimiento de progreso en tiempo real'].map((t, i) => (

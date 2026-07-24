@@ -72,7 +72,7 @@ const buildLinkedInUrl = (certUuid, issuedAt, areaName) => {
   const d = new Date(issuedAt)
   const params = new URLSearchParams({
     startTask: 'CERTIFICATION_NAME',
-    name: `Diseño Centrado en Experiencias (DCE)${areaName ? ' — ' + areaName : ''}`,
+    name: `Diseño Centrado en Evidencias (DCE)${areaName ? ' — ' + areaName : ''}`,
     organizationName: 'CEINFES Experia',
     issueYear: d.getFullYear(),
     issueMonth: d.getMonth() + 1,
@@ -165,13 +165,13 @@ const CertificatePage = ({ submission, area }) => {
             <div style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2 }}>Experia · Formación Docente</div>
           </div>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 4, color: 'var(--orange)', marginBottom: 12 }}>Certificado de Formación Docente</div>
-          <h1 style={{ fontSize: 30, fontWeight: 800, color: 'var(--dark)', lineHeight: 1.2, marginBottom: 8 }}>Diseño Centrado en Experiencias</h1>
+          <h1 style={{ fontSize: 30, fontWeight: 800, color: 'var(--dark)', lineHeight: 1.2, marginBottom: 8 }}>Diseño Centrado en Evidencias</h1>
           <div style={{ width: 80, height: 4, background: 'var(--gradient)', borderRadius: 2, margin: '0 auto 24px' }} />
           <p style={{ fontSize: 16, color: 'var(--muted)', marginBottom: 20, lineHeight: 1.6 }}>Este certificado acredita que</p>
           <div style={{ fontSize: isMobile ? 26 : 40, fontWeight: 800, color: 'var(--dark)', marginBottom: 12, lineHeight: 1.2, padding: '0 8px' }}>{submission.studentName}</div>
           <p style={{ fontSize: 15, color: 'var(--text-sec)', marginBottom: 24, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 24px' }}>
             ha completado satisfactoriamente la formación docente en<br />
-            <strong>Diseño Centrado en Experiencias (DCE)</strong>
+            <strong>Diseño Centrado en Evidencias (DCE)</strong>
           </p>
           {area && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 24px', borderRadius: 100, background: area.bg, border: `2px solid ${area.color}40`, marginBottom: 24 }}>
