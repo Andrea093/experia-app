@@ -22,27 +22,32 @@ const CertificateCard = ({
   const ach = achievementText || 'Por haber concluido de manera satisfactoria el'
   return (
     <div id={idAttr} style={{ background: 'white', border: isMobile ? '5px solid var(--orange)' : '8px solid var(--orange)',
-      borderRadius: isMobile ? 16 : 20, padding: isMobile ? '24px 18px' : '40px 64px', position: 'relative',
-      boxShadow: 'var(--sh-xl)', textAlign: 'center' }}>
+      borderRadius: isMobile ? 16 : 20, padding: isMobile ? '24px 18px' : '3% 6%', position: 'relative',
+      boxShadow: 'var(--sh-xl)', textAlign: 'center',
+      // Orientación HORIZONTAL (apaisada, proporción A4 landscape) en desktop.
+      // El contenido se centra vertical dentro de la página. En móvil se deja
+      // fluir para que no quede aplastado.
+      ...(isMobile ? {} : { aspectRatio: '297 / 210', display: 'flex', flexDirection: 'column', justifyContent: 'center' }) }}>
       <div style={{ position: 'absolute', inset: 10, border: '2px solid #FADCBE', borderRadius: 14, pointerEvents: 'none' }} />
 
-      {/* Logos: CEINFES (izquierda) · Grupo de Investigación (derecha) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: isMobile ? 18 : 26 }}>
-        <LogoImg h={isMobile ? 36 : 54} />
+      {/* Logos: CEINFES (izquierda) · Grupo de Investigación (derecha).
+          Nota: LogoImg usa `h` como factor (ancho = h×5), NO como altura. */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: isMobile ? 14 : 22 }}>
+        <LogoImg h={isMobile ? 26 : 34} />
         <img src="/sello-grupo-investigacion.png" alt="CEINFES — Grupo de Investigación reconocido por Minciencias"
-          style={{ height: isMobile ? 66 : 92, width: 'auto' }} />
+          style={{ height: isMobile ? 60 : 84, width: 'auto' }} />
       </div>
 
-      <div style={{ fontSize: isMobile ? 11 : 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 6, color: 'var(--orange)', marginBottom: isMobile ? 12 : 18 }}>
+      <div style={{ fontSize: isMobile ? 11 : 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 6, color: 'var(--orange)', marginBottom: isMobile ? 10 : 14 }}>
         Certificado
       </div>
 
-      <div style={{ fontSize: isMobile ? 26 : 44, fontWeight: 800, color: 'var(--dark)', lineHeight: 1.15, marginBottom: isMobile ? 8 : 12, padding: '0 8px' }}>
+      <div style={{ fontSize: isMobile ? 24 : 40, fontWeight: 800, color: 'var(--dark)', lineHeight: 1.15, marginBottom: isMobile ? 8 : 10, padding: '0 8px' }}>
         {studentName}
       </div>
-      <div style={{ width: 90, height: 4, background: 'var(--gradient)', borderRadius: 2, margin: isMobile ? '0 auto 18px' : '0 auto 26px' }} />
+      <div style={{ width: 90, height: 4, background: 'var(--gradient)', borderRadius: 2, margin: isMobile ? '0 auto 16px' : '0 auto 22px' }} />
 
-      <p style={{ fontSize: isMobile ? 14 : 18, color: 'var(--text-sec)', lineHeight: 1.7, maxWidth: 780, margin: '0 auto', marginBottom: isMobile ? 26 : 40 }}>
+      <p style={{ fontSize: isMobile ? 14 : 17, color: 'var(--text-sec)', lineHeight: 1.65, maxWidth: 820, margin: '0 auto', marginBottom: isMobile ? 24 : 34 }}>
         {ach} <strong>{title}</strong>{hoursNum > 0 ? <> con una intensidad de <strong>{hoursNum} horas</strong></> : null}.
       </p>
 
@@ -54,9 +59,7 @@ const CertificateCard = ({
           <div style={{ fontSize: 11, color: 'var(--muted)' }}>Fecha de expedición</div>
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ height: 44, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', marginBottom: 6 }}>
-            <LogoImg h={38} />
-          </div>
+          <div style={{ marginBottom: 8 }}><LogoImg h={16} /></div>
           <div style={{ width: 190, height: 1, background: 'var(--border)', margin: '0 auto 8px' }} />
           <div style={{ fontSize: 11, color: 'var(--muted)' }}>CEINFES</div>
         </div>
