@@ -17,7 +17,7 @@ import {
 const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
   onDragStart, onDragOver, onDrop, onDragEnd,
   onEdit, onDuplicate, onToggle, onDelete, showDelete,
-  onTogglePresence, onGenerateCode }) => {
+  onTogglePresence, onGenerateCode, onSetAvailability }) => {
   const isOver = overIdx === idx
   return (
     <div draggable
@@ -74,12 +74,69 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
             🔑 Código
           </button>
         )}
+        {mod.type === 'final_delivery' && (
+          <button onClick={onSetAvailability} title="Definir fechas de disponibilidad de la entrega"
+            style={{ background: (mod.availableFrom || mod.availableUntil) ? 'var(--orange-bg)' : 'var(--bg-alt)',
+              border: 'none', cursor: 'pointer', color: (mod.availableFrom || mod.availableUntil) ? 'var(--orange)' : 'var(--muted)',
+              height: 26, padding: '0 8px', borderRadius: 7, display: 'flex', alignItems: 'center', gap: 4,
+              flexShrink: 0, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            📅 Disponibilidad
+          </button>
+        )}
         <div onClick={onToggle}
           style={{ width: 38, height: 20, borderRadius: 10, flexShrink: 0, cursor: 'pointer',
             background: mod.enabled ? 'var(--success)' : 'var(--border)', position: 'relative', transition: 'background .2s' }}>
           <div style={{ position: 'absolute', top: 2, width: 16, height: 16, borderRadius: '50%', background: '#fff',
             left: mod.enabled ? 20 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)' }} />
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Formulario de disponibilidad de la entrega (rango de fechas) ────────────
+// Convierte entre ISO (guardado) y el valor de <input type="datetime-local">.
+const toLocalInput = (iso) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+const AvailabilityForm = ({ mod, onSave, onCancel }) => {
+  const [from, setFrom]   = React.useState(toLocalInput(mod.availableFrom))
+  const [until, setUntil] = React.useState(toLocalInput(mod.availableUntil))
+  const [err, setErr]     = React.useState('')
+  const inp = { width: '100%', padding: '9px 12px', borderRadius: 9, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }
+  const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 5 }
+  const save = () => {
+    const fromIso  = from  ? new Date(from).toISOString()  : null
+    const untilIso = until ? new Date(until).toISOString() : null
+    if (fromIso && untilIso && new Date(fromIso) >= new Date(untilIso)) { setErr('La fecha de cierre debe ser posterior a la de apertura.'); return }
+    onSave(fromIso, untilIso)
+  }
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: 'var(--text-sec)', marginBottom: 14, lineHeight: 1.5 }}>
+        Define entre qué fechas el estudiante podrá subir su entrega. Fuera de ese rango, el módulo aparece cerrado. Deja un campo vacío para no poner límite por ese lado.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <label style={lbl}>🟢 Disponible desde (apertura)</label>
+          <input type="datetime-local" value={from} onChange={e => { setFrom(e.target.value); setErr('') }} style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>🔴 Disponible hasta (cierre)</label>
+          <input type="datetime-local" value={until} onChange={e => { setUntil(e.target.value); setErr('') }} style={inp} />
+        </div>
+      </div>
+      {err && <p style={{ fontSize: 12, color: 'var(--error)', fontWeight: 600, margin: '10px 0 0' }}>⚠️ {err}</p>}
+      <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+        <Btn variant="secondary" full onClick={() => onSave(null, null)}>Quitar límite</Btn>
+        <Btn variant="gradient" full onClick={save}>Guardar fechas</Btn>
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--subtle)', margin: '10px 0 0' }}>Recuerda Publicar para que el cambio llegue a los estudiantes.</p>
+      <div style={{ textAlign: 'center', marginTop: 6 }}>
+        <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font)' }}>Cancelar</button>
       </div>
     </div>
   )
@@ -114,6 +171,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
   const [showAddModule, setShowAddModule]       = React.useState(false)
   const [showPreview, setShowPreview]           = React.useState(false)
   const [showCertPreview, setShowCertPreview]   = React.useState(false)
+  const [availModalMod, setAvailModalMod]       = React.useState(null)
   const [codeModalMod, setCodeModalMod]         = React.useState(null)
   const [generatedCode, setGeneratedCode]       = React.useState(null)
   const [codeGenError, setCodeGenError]         = React.useState('')
@@ -156,6 +214,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
 
   const toggleEnabled = (id) => setModuleList(l => l.map(m => m.id === id ? { ...m, enabled: !m.enabled } : m))
   const toggleRequiresPresence = (id) => setModuleList(l => l.map(m => m.id === id ? { ...m, requiresPresenceCode: !m.requiresPresenceCode } : m))
+  const setModuleAvailability = (id, from, until) => setModuleList(l => l.map(m => m.id === id ? { ...m, availableFrom: from, availableUntil: until } : m))
 
   const openCodeModal = (mod) => { setCodeModalMod(mod); setGeneratedCode(null); setCodeGenError('') }
   const handleGenerateCode = async () => {
@@ -448,6 +507,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
                 showDelete={true}
                 onTogglePresence={() => toggleRequiresPresence(mod.id)}
                 onGenerateCode={() => openCodeModal(mod)}
+                onSetAvailability={() => setAvailModalMod(mod)}
               />
             ))}
           </div>
@@ -517,6 +577,15 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
         onSave={mod => { addCustomModule(mod); setShowAddModule(false) }} />
       <RoutePreviewModal open={showPreview} onClose={() => setShowPreview(false)}
         area={null} moduleList={moduleList} customModules={[]} theme={courseTheme} />
+      <Modal open={!!availModalMod} onClose={() => setAvailModalMod(null)} title="Disponibilidad de la entrega" width={420}>
+        {availModalMod && (
+          <AvailabilityForm
+            mod={availModalMod}
+            onSave={(from, until) => { setModuleAvailability(availModalMod.id, from, until); setAvailModalMod(null) }}
+            onCancel={() => setAvailModalMod(null)}
+          />
+        )}
+      </Modal>
       <Modal open={showCertPreview} onClose={() => setShowCertPreview(false)} title="Vista previa del certificado" width={860}>
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {

@@ -21,13 +21,15 @@ export async function loadStudentSession(userId, area, institutionId) {
   // Si la migración 0028 aún no está aplicada, no bloquear el login.
   try { await supabase.rpc('sync_my_institution_courses') } catch (_) { /* noop */ }
 
-  const [{ data: enrollmentsData }, { data: legacyProgress }, { data: accessData }, { data: unlocksData }] = await Promise.all([
+  const [{ data: enrollmentsData }, { data: legacyProgress }, { data: accessData }, { data: unlocksData }, { data: quizAttemptsData }] = await Promise.all([
     supabase.from('course_enrollments').select('course_id').eq('student_id', userId),
     supabase.from('progress').select('xp,completed,badges').eq('user_id', userId).maybeSingle(),
     supabase.from('user_courses').select('course_id').eq('user_id', userId).eq('is_active', true),
     supabase.from('presence_unlocks').select('module_id').eq('user_id', userId),
+    supabase.from('quiz_attempts').select('module_id, attempts, passed').eq('user_id', userId),
   ])
   const unlockedPresenceModules = (unlocksData || []).map(u => u.module_id)
+  const quizAttempts = quizAttemptsData || []
 
   const allEnrollments = (enrollmentsData || []).map(e => e.course_id)
   const allowedIds     = new Set((accessData || []).map(a => a.course_id))
@@ -48,6 +50,7 @@ export async function loadStudentSession(userId, area, institutionId) {
       courseModules: [],
       allEnrollments: [],
       unlockedPresenceModules,
+      quizAttempts,
       xp:        legacyProgress?.xp        || 0,
       completed: legacyProgress?.completed || [],
       badges:    legacyProgress?.badges    || [],
@@ -82,5 +85,5 @@ export async function loadStudentSession(userId, area, institutionId) {
   const completed = cp?.completed ?? legacyProgress?.completed ?? []
   const badges    = cp?.badges    ?? legacyProgress?.badges    ?? []
 
-  return { enrolledCourseId, effectiveCourseId, courseModules, allEnrollments, unlockedPresenceModules, xp, completed, badges }
+  return { enrolledCourseId, effectiveCourseId, courseModules, allEnrollments, unlockedPresenceModules, quizAttempts, xp, completed, badges }
 }

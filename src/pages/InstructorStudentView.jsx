@@ -2,7 +2,7 @@ import React from 'react'
 import {
   useStore, AREAS, BADGES, ALL_MODULES, RUBRIC_CRITERIA, getStudentModules,
   gradeTotal, gradeMax, calcLevel, xpForNext, nav,
-  setWorkshopAccess, setWorkshopAccessBulk, isBaseCourse,
+  setWorkshopAccess, setWorkshopAccessBulk, isBaseCourse, resetQuizAttempts,
 } from '../store/store.jsx'
 import {
   useMobile, CheckIc, ClockIc, ZapIc, AwardIc, XIc,
@@ -128,7 +128,16 @@ export function StudentProgressModal({ student, onClose }) {
   const submissions     = useStore(s => s.submissions)
   const attempts        = useStore(s => s.challengeAttempts)
   const [progress, setProgress] = React.useState(null)
+  const [studentId, setStudentId] = React.useState(null)
+  const [quizAtt, setQuizAtt] = React.useState([]) // intentos de quiz del estudiante
   const isMobile = useMobile()
+
+  const loadQuizAtt = React.useCallback(async (uid) => {
+    const { data } = await supabase.from('quiz_attempts')
+      .select('module_id, attempts, passed, course_modules(title, challenge_data)')
+      .eq('user_id', uid)
+    setQuizAtt(data || [])
+  }, [])
 
   React.useEffect(() => {
     if (!student) return
@@ -136,12 +145,20 @@ export function StudentProgressModal({ student, onClose }) {
       .eq('email', student.email).single()
       .then(async ({ data: prof }) => {
         if (!prof) return
+        setStudentId(prof.id)
         const [{ data: prog }] = await Promise.all([
           supabase.from('progress').select('*').eq('user_id', prof.id).single(),
+          loadQuizAtt(prof.id),
         ])
         setProgress(prog)
       })
   }, [student?.email])
+
+  const handleResetAttempts = async (moduleId) => {
+    if (!studentId) return
+    await resetQuizAttempts(studentId, moduleId)
+    await loadQuizAtt(studentId)
+  }
 
   if (!student) return null
 
@@ -230,6 +247,33 @@ export function StudentProgressModal({ student, onClose }) {
                     </span>
                   )}
                   {!done && !att && <ClockIc s={14} c="var(--border)" />}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Intentos en retos tipo Quiz (con límite / puntaje mínimo) */}
+      {quizAtt.length > 0 && (
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'var(--dark)', marginBottom:10 }}>Retos con intentos</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {quizAtt.map(qa => {
+              const max = qa.course_modules?.challenge_data?.maxAttempts ?? null
+              const exhausted = max != null && qa.attempts >= max && !qa.passed
+              return (
+                <div key={qa.module_id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
+                  borderRadius:10, background:'var(--bg)', border:`1px solid ${exhausted ? '#FECACA' : 'var(--border)'}` }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--dark)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {qa.course_modules?.title || 'Reto'}
+                    </div>
+                    <div style={{ fontSize:11, color: exhausted ? 'var(--error)' : 'var(--muted)', marginTop:2 }}>
+                      Intentos: {qa.attempts}{max != null ? ` / ${max}` : ' (ilimitados)'} · {qa.passed ? 'Aprobado ✅' : exhausted ? 'Agotados ⛔' : 'Sin aprobar'}
+                    </div>
+                  </div>
+                  <Btn variant="secondary" size="sm" onClick={() => handleResetAttempts(qa.module_id)}>🔄 Reiniciar</Btn>
                 </div>
               )
             })}

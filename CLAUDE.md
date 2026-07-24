@@ -262,7 +262,7 @@ Next module unlocks (dependencies checked)
 | `empathy` | Sort cards into 4 quadrants | `{ empathyCards: [{id,text,correct}] }`, `correct ∈ piensa\|siente\|dice\|hace` |
 | `simulation` | Multi-step decision tree | ⚠️ ignored — always renders the built-in generic `SIM_TREE` (store doesn't forward sim data) |
 | `matching` | Connect concepts ↔ definitions | `{ matchPairs: [{id,concept,def}] }` |
-| `quiz` | Multiple-choice questions | `{ questions: [{question,questionAfter?,options,correct, image?,imageHeight?,imagePosition?,optionImages?,explanation?,explanationImage?,timeLimit?,points?,difficulty?}], passage? }` |
+| `quiz` | Multiple-choice questions | `{ questions: [{question,questionAfter?,options,correct, image?,imageHeight?,imagePosition?,optionImages?,explanation?,explanationImage?,timeLimit?,points?,difficulty?}], passage?, passingScore?, maxAttempts?, passMessage?, failMessage? }` |
 | `truefalse` | Mark statements true/false | `{ statements: [{id,text,answer:bool}] }` |
 | `fillblank` | Fill blanks from a word bank | `{ blanks: [{id,before,answer,after}] }` |
 | `designlab` | Open-ended final (rubric) | n/a (rubric in `content`) |
@@ -374,7 +374,9 @@ supabase/
 │   ├── 0040_gate_module_content_server_side.sql # RPC get_course_modules_for_student: oculta content/challenge_data en el servidor
 │   ├── 0041_cross_institution_fork_clone.sql # RLS: instructor multi-colegio puede leer forks de sus otros colegios para clonarlos
 │   ├── 0042_presence_code_no_expiry.sql # Código presencial sin vencimiento (expires_at NULL)
-│   └── 0043_certificate_hours.sql # Intensidad horaria del certificado (courses.certificate_hours + certificates.hours)
+│   ├── 0043_certificate_hours.sql # Intensidad horaria del certificado (courses.certificate_hours + certificates.hours)
+│   ├── 0044_module_availability_window.sql # Ventana de disponibilidad de la entrega (course_modules.available_from/until + RPC)
+│   └── 0045_quiz_attempts.sql # Intentos + puntaje mínimo en quiz (quiz_attempts + RPCs record/reset)
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/

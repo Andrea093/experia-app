@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  useStore, nav, completeNode, recordAttempt, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
+  useStore, nav, completeNode, recordAttempt, recordQuizAttempt, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
   getStudentModules, nodeStatus, isBlockedByPresence, calcLevel, getActiveCourseTheme, isRouteComplete,
 } from '../store/store.jsx'
 import ThemeCelebration from '../components/ThemeCelebration.jsx'
@@ -642,14 +642,44 @@ const OptionContent = ({ opt, img }) => (
 );
 
 // ---- QUIZ ----
+// Pantalla de "límite de intentos alcanzado" — pide acudir al tutor para reiniciar.
+const QuizLimitReached = ({ maxAttempts, onBack }) => (
+  <div style={{ maxWidth: 420, margin: '0 auto', textAlign: 'center', padding: 40 }}>
+    <div style={{ width: 56, height: 56, borderRadius: 16, background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+      <LockIc s={26} c="var(--error)" />
+    </div>
+    <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>Agotaste tus intentos</h3>
+    <p style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+      Usaste los {maxAttempts} intento{maxAttempts !== 1 ? 's' : ''} permitidos en este reto y aún no alcanzaste el puntaje mínimo.
+      <strong style={{ color: 'var(--dark)' }}> Acércate a tu tutor</strong> para que reinicie el proceso y puedas volver a intentarlo.
+    </p>
+    <Btn variant="primary" full onClick={onBack}>Volver al mapa</Btn>
+  </div>
+);
+
 const QuizChallenge = ({ mod, onComplete }) => {
   const isMobile = useMobile();
   const questions = mod.questions || [];
+  const quizAttempts = useStore(s => s.quizAttempts || []);
+  const completedIds = useStore(s => s.completed || []);
   const [current, setCurrent] = React.useState(0);
   const [answers, setAnswers] = React.useState([]);
   const [selected, setSelected] = React.useState(null);
   const [confirmed, setConfirmed] = React.useState(false);
   const [done, setDone] = React.useState(false);
+  const [attemptInfo, setAttemptInfo] = React.useState(null); // { attempts } tras registrar
+
+  // Config del tutor: puntaje mínimo para aprobar/continuar e intentos permitidos.
+  const passingScore = mod.passingScore ?? 60;
+  const maxAttempts  = Number(mod.maxAttempts) || 0; // 0 = ilimitados
+  const alreadyPassed = completedIds.includes(mod.id);
+  const attemptRow = quizAttempts.find(a => a.module_id === mod.id);
+  const attemptsUsedStart = attemptRow?.attempts || 0;
+  const attemptsUsedNow = attemptInfo?.attempts ?? attemptsUsedStart;
+  const remaining = maxAttempts > 0 ? Math.max(0, maxAttempts - attemptsUsedNow) : null;
+  const limitReached = maxAttempts > 0 && attemptsUsedNow >= maxAttempts;
+
+  const retry = () => { setCurrent(0); setAnswers([]); setSelected(null); setConfirmed(false); setDone(false); setAttemptInfo(null); };
 
   if (!questions.length) return (
     <div style={{textAlign:'center',padding:40}}>
@@ -657,6 +687,11 @@ const QuizChallenge = ({ mod, onComplete }) => {
       <Btn variant="secondary" onClick={onComplete}>Continuar</Btn>
     </div>
   );
+
+  // Límite de intentos alcanzado sin aprobar: se bloquea y se pide acudir al tutor.
+  if (!alreadyPassed && !done && maxAttempts > 0 && attemptsUsedStart >= maxAttempts) {
+    return <QuizLimitReached maxAttempts={maxAttempts} onBack={() => nav('map')} />;
+  }
 
   const q = questions[current];
   const correctCount = answers.filter((a,i) => a === questions[i]?.correct).length;
@@ -668,14 +703,21 @@ const QuizChallenge = ({ mod, onComplete }) => {
     setConfirmed(true);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (current < questions.length - 1) {
       setCurrent(c => c + 1); setSelected(null); setConfirmed(false);
     } else {
       const allAnswers = [...answers];
+      const finalCorrect = allAnswers.filter((a,i) => a === questions[i]?.correct).length;
+      const finalPct = Math.round((finalCorrect / questions.length) * 100);
       const qs = questions.map((q, i) => ({ q: q.question, correct: allAnswers[i] === q.correct }));
-      recordAttempt(mod.id, qs, correctCount, questions.length);
+      recordAttempt(mod.id, qs, finalCorrect, questions.length);
       setDone(true);
+      // Registra el intento en el servidor (cuenta + aprobado) si aún no aprobó.
+      if (!alreadyPassed) {
+        const res = await recordQuizAttempt(mod.id, finalPct >= passingScore, finalCorrect, questions.length);
+        if (res) setAttemptInfo({ attempts: res.attempts });
+      }
     }
   };
 
@@ -683,8 +725,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
     // Aprobó/no aprobó según el umbral configurado por el tutor (por defecto 60%).
     // El mensaje final es personalizable por el tutor (QuizCreatorModal); si no
     // definió uno, se usa un texto por defecto según el desempeño.
-    const passingScore = mod.passingScore ?? 60;
-    const passed = pct >= passingScore;
+    const passed = pct >= passingScore || alreadyPassed;
     const defaultText = passed
       ? (pct >= 80 ? '¡Excelente dominio del tema!' : '¡Buen trabajo, aprobaste!')
       : 'Aún no alcanzas el puntaje mínimo. ¡Sigue practicando!';
@@ -716,7 +757,29 @@ const QuizChallenge = ({ mod, onComplete }) => {
             );
           })}
         </div>
-        <div style={{marginTop:20}}><Btn variant="gradient" size="lg" onClick={onComplete}>Continuar <ArrowRIc s={18} c="#fff"/></Btn></div>
+        {/* Puntaje mínimo para continuar: solo se avanza si aprobó. Si no,
+            se ofrece reintentar (o el aviso de acudir al tutor si se agotaron). */}
+        <div style={{marginTop:24}}>
+          {passed ? (
+            <Btn variant="gradient" size="lg" onClick={onComplete} full>Continuar <ArrowRIc s={18} c="#fff"/></Btn>
+          ) : limitReached ? (
+            <div style={{ padding:'16px 18px', borderRadius:14, background:'#FEF2F2', border:'1.5px solid #FECACA' }}>
+              <p style={{ fontSize:14, fontWeight:700, color:'var(--error)', marginBottom:4 }}>Agotaste tus intentos ({maxAttempts})</p>
+              <p style={{ fontSize:13, color:'var(--text-sec)', lineHeight:1.6, marginBottom:12 }}>
+                No alcanzaste el puntaje mínimo ({passingScore}%). <strong>Acércate a tu tutor</strong> para que reinicie el proceso.
+              </p>
+              <Btn variant="secondary" full onClick={() => nav('map')}>Volver al mapa</Btn>
+            </div>
+          ) : (
+            <>
+              <p style={{ fontSize:13, color:'var(--muted)', marginBottom:10 }}>
+                Necesitas al menos <strong style={{ color:'var(--dark)' }}>{passingScore}%</strong> para continuar.
+                {remaining != null && <> Te queda{remaining !== 1 ? 'n' : ''} <strong style={{ color:'var(--orange)' }}>{remaining}</strong> intento{remaining !== 1 ? 's' : ''}.</>}
+              </p>
+              <Btn variant="gradient" size="lg" onClick={retry} full>🔄 Reintentar</Btn>
+            </>
+          )}
+        </div>
       </div>
     );
   }
@@ -724,6 +787,16 @@ const QuizChallenge = ({ mod, onComplete }) => {
   return (
     <div style={{maxWidth:560,margin:'0 auto',paddingBottom:48}}>
       {mod.passage && <QuizPassage passage={mod.passage} />}
+      {/* Info de intentos (solo si el reto tiene límite definido) */}
+      {maxAttempts > 0 && !alreadyPassed && (
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, padding:'8px 14px', borderRadius:10,
+          background:'var(--orange-bg)', border:'1px solid var(--orange-pale)' }}>
+          <span style={{ fontSize:14 }}>🎯</span>
+          <span style={{ fontSize:12.5, color:'var(--dark)', fontWeight:600 }}>
+            Intento {attemptsUsedStart + 1} de {maxAttempts} · Te queda{remaining !== 1 ? 'n' : ''} {remaining} · Mínimo para aprobar: {passingScore}%
+          </span>
+        </div>
+      )}
       <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:24}}>
         <ProgressBar pct={(current/questions.length)*100} h={6} color="var(--orange)"/>
         <span style={{fontSize:12,color:'var(--muted)',whiteSpace:'nowrap',fontWeight:600}}>{current+1}/{questions.length}</span>

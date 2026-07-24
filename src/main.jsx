@@ -103,7 +103,7 @@ async function restoreSession() {
   if (profile.role === 'admin')      page = 'admin-dashboard'
 
   let accounts = [], submissions = [], challengeAttempts = []
-  let xp = 0, completed = [], badges = [], allEnrollments = [], unlockedPresenceModules = []
+  let xp = 0, completed = [], badges = [], allEnrollments = [], unlockedPresenceModules = [], quizAttempts = []
 
   if (profile.role === 'admin' || profile.role === 'instructor') {
     const staff = await loadStaffData(profile, institutionsRes.data || [])
@@ -121,6 +121,7 @@ async function restoreSession() {
     badges         = sd.badges
     allEnrollments = sd.allEnrollments || []
     unlockedPresenceModules = sd.unlockedPresenceModules || []
+    quizAttempts = sd.quizAttempts || []
     if (sd.enrolledCourseId) {
       XS.set({ courseModules: sd.courseModules, enrolledCourseId: sd.enrolledCourseId, effectiveCourseId: sd.effectiveCourseId })
     }
@@ -151,7 +152,7 @@ async function restoreSession() {
     institutions: institutionsRes.data || [],
     cohorts: cohortsRes.data || [],
     accounts, submissions, challengeAttempts,
-    allEnrollments, unlockedPresenceModules,
+    allEnrollments, unlockedPresenceModules, quizAttempts,
   })
 
   // Deep link: si la URL trae #/pagina, navegar allí tras restaurar sesión

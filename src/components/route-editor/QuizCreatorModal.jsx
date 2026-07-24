@@ -11,6 +11,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
   const [correctMsg, setCorrectMsg]     = React.useState('')
   const [incorrectMsg, setIncorrectMsg] = React.useState('')
   const [passingScore, setPassingScore] = React.useState(60)
+  const [maxAttempts, setMaxAttempts]   = React.useState('')
   const [passMsg, setPassMsg]           = React.useState('')
   const [failMsg, setFailMsg]           = React.useState('')
   const [err, setErr]       = React.useState('')
@@ -32,6 +33,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
       setCorrectMsg(initial?.correctMessage || '')
       setIncorrectMsg(initial?.incorrectMessage || '')
       setPassingScore(initial?.passingScore ?? 60)
+      setMaxAttempts(initial?.maxAttempts != null ? String(initial.maxAttempts) : '')
       setPassMsg(initial?.passMessage || '')
       setFailMsg(initial?.failMessage || '')
       setErr('')
@@ -106,6 +108,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
       ...(isPoll ? {} : {
         correctMessage: correctMsg.trim(), incorrectMessage: incorrectMsg.trim(),
         passingScore: Math.min(100, Math.max(0, Number(passingScore) || 0)),
+        maxAttempts: (maxAttempts === '' || Number(maxAttempts) <= 0) ? null : Math.floor(Number(maxAttempts)),
         passMessage: passMsg.trim(), failMessage: failMsg.trim(),
       }) })
   }
@@ -177,10 +180,17 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
             <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--orange)', display: 'block', marginBottom: 10 }}>
               🏁 Resultado final (al terminar todas las preguntas)
             </label>
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Puntaje mínimo para aprobar (%)</label>
-              <input type="number" value={passingScore} onChange={e => setPassingScore(e.target.value)} min={0} max={100} style={{ ...inp, width: 100 }} />
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Puntaje mínimo para aprobar (%)</label>
+                <input type="number" value={passingScore} onChange={e => setPassingScore(e.target.value)} min={0} max={100} style={{ ...inp, width: 110 }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Intentos permitidos</label>
+                <input type="number" value={maxAttempts} onChange={e => setMaxAttempts(e.target.value)} min={1} placeholder="∞ ilimitados" style={{ ...inp, width: 130 }} />
+              </div>
             </div>
+            <p style={{ fontSize: 11, color: 'var(--muted)', margin: '0 0 10px' }}>Si no se alcanza el mínimo, el estudiante no puede continuar. Deja "Intentos" vacío para ilimitados; al agotarlos, se le pide acudir al tutor para reiniciar.</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Mensaje si aprueba (opcional)</label>

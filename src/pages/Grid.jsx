@@ -347,6 +347,27 @@ const StudentProductUpload = () => {
     .filter(m => m.type !== 'final_delivery')
     .every(m => completed.includes(m.id));
 
+  // Ventana de disponibilidad de la entrega (gestionada por el tutor). Un tick
+  // por minuto refresca el tiempo restante mostrado.
+  const [, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const t = setInterval(() => setTick(x => x + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
+  const now = Date.now();
+  const availFrom  = finalMod?.availableFrom  ? new Date(finalMod.availableFrom).getTime()  : null;
+  const availUntil = finalMod?.availableUntil ? new Date(finalMod.availableUntil).getTime() : null;
+  const notYetOpen = availFrom != null && now < availFrom;
+  const closedNow  = availUntil != null && now > availUntil;
+  const fmtDateTime = (ts) => new Date(ts).toLocaleString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const remainingText = (ts) => {
+    let ms = ts - now; if (ms < 0) ms = 0;
+    const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000);
+    if (d > 0) return `${d} día${d !== 1 ? 's' : ''} y ${h} h`;
+    if (h > 0) return `${h} h y ${m} min`;
+    return `${m} min`;
+  };
+
   // Gate del taller: solo si el curso lo requiere (requires_workshop). PERO si la
   // entrega usa CÓDIGO PRESENCIAL, el código reemplaza esa lógica: la habilitación
   // pasa por ingresar el código en clase (no por el taller).
@@ -391,7 +412,7 @@ const StudentProductUpload = () => {
     }, 600);
   };
 
-  const canSubmit = rejillaFile && preguntaFile && canProceed && !rejillaError && !preguntaError;
+  const canSubmit = rejillaFile && preguntaFile && canProceed && !rejillaError && !preguntaError && !notYetOpen && !closedNow;
 
   const WordNotice = () => (
     <div style={{ padding: '12px 16px', borderRadius: 10, background: '#EFF6FF', border: '1px solid #BFDBFE', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -446,10 +467,59 @@ const StudentProductUpload = () => {
     );
   }
 
+  // Ventana de disponibilidad: si aún no abre, o ya cerró y el estudiante todavía
+  // no tiene una entrega en curso (o le fue devuelta), se muestra el estado y se
+  // bloquea el cargue. Si ya envió (pendiente/aprobada), puede ver su entrega.
+  const needsToSubmit = !existingSub || existingSub.status === 'returned';
+  if (finalMod && notYetOpen) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>
+        <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--orange-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <ClockIc s={26} c="var(--orange)" />
+        </div>
+        <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>La entrega aún no está disponible</h3>
+        <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 8 }}>
+          Se habilita el <strong style={{ color: 'var(--dark)' }}>{fmtDateTime(availFrom)}</strong>.
+        </p>
+        <p style={{ color: 'var(--orange)', fontSize: 14, fontWeight: 700, marginBottom: 20 }}>Abre en {remainingText(availFrom)}</p>
+        <Btn variant="primary" full onClick={() => nav('map')}>Volver al mapa</Btn>
+      </div>
+    );
+  }
+  if (finalMod && closedNow && needsToSubmit) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>
+        <div style={{ width: 56, height: 56, borderRadius: 16, background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <ClockIc s={26} c="var(--error)" />
+        </div>
+        <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>El plazo de entrega cerró</h3>
+        <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>
+          El módulo de entrega estuvo disponible hasta el <strong style={{ color: 'var(--dark)' }}>{fmtDateTime(availUntil)}</strong>. Contacta a tu tutor si necesitas una prórroga.
+        </p>
+        <Btn variant="primary" full onClick={() => nav('map')}>Volver al mapa</Btn>
+      </div>
+    );
+  }
+
+  // Banner de disponibilidad (cuando la ventana está abierta) — se muestra arriba
+  // del cargue con la fecha de cierre y el tiempo restante.
+  const AvailBanner = () => (availUntil == null && availFrom == null) ? null : (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: 12,
+      background: 'var(--orange-bg)', border: '1px solid var(--orange-pale)', marginBottom: 20 }}>
+      <ClockIc s={18} c="var(--orange)" />
+      <div style={{ fontSize: 13, color: 'var(--dark)', fontWeight: 500 }}>
+        {availUntil != null
+          ? <>Entrega disponible hasta el <strong>{fmtDateTime(availUntil)}</strong> · Cierra en <strong style={{ color: 'var(--orange)' }}>{remainingText(availUntil)}</strong></>
+          : <>Entrega disponible desde el <strong>{fmtDateTime(availFrom)}</strong></>}
+      </div>
+    </div>
+  );
+
   if (existingSub && existingSub.status === 'returned' && !submitted) {
     return (
       <div style={{ height: '100%', overflow: 'auto', padding: '0 24px 40px' }}>
         <div style={{ maxWidth: 600, margin: '0 auto' }}>
+          <AvailBanner />
           <div style={{ marginTop: 32, marginBottom: 24, padding: '20px 24px', borderRadius: 16, background: '#FFFBEB', border: '2px solid var(--warn)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
               <span style={{ fontSize: 26, flexShrink: 0 }}>↩️</span>
@@ -573,6 +643,7 @@ const StudentProductUpload = () => {
           <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 4 }}>Producto Final</h2>
           <p style={{ fontSize: 14, color: 'var(--muted)' }}>Adjunta tus dos archivos para completar la entrega.</p>
         </div>
+        <AvailBanner />
         {!routeComplete && (
           <div style={{ padding: '18px 22px', borderRadius: 14, background: '#FEF2F2', border: '1.5px solid #FECACA', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
             <LockIc s={22} c="var(--error)" />

@@ -38,7 +38,7 @@ const LoginPage = () => {
       if (profile.role === 'admin')      page = 'admin-dashboard';
 
       let xp = 0, completed = [], badges = [];
-      let enrolledCourseId = null, effectiveCourseId = null, courseModules = [], allEnrollments = [], unlockedPresenceModules = [];
+      let enrolledCourseId = null, effectiveCourseId = null, courseModules = [], allEnrollments = [], unlockedPresenceModules = [], quizAttempts = [];
       let accounts = [], submissions = [], challengeAttempts = [];
       let institutions = [], cohorts = [];
 
@@ -52,6 +52,7 @@ const LoginPage = () => {
         courseModules  = sd.courseModules;
         allEnrollments = sd.allEnrollments;
         unlockedPresenceModules = sd.unlockedPresenceModules || [];
+        quizAttempts      = sd.quizAttempts || [];
         submissions       = sd.submissions;
         challengeAttempts = sd.challengeAttempts;
       }
@@ -87,6 +88,7 @@ const LoginPage = () => {
         enrolledCourseId, effectiveCourseId, courseModules,
         allEnrollments: profile.role === 'student' ? allEnrollments : [],
         unlockedPresenceModules: profile.role === 'student' ? unlockedPresenceModules : [],
+        quizAttempts: profile.role === 'student' ? quizAttempts : [],
         notifications: [], selectedArea: profile.area || null, nodeId: null,
         accounts, submissions, challengeAttempts,
         institutions, cohorts,

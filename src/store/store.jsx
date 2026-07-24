@@ -329,6 +329,8 @@ const dbModToAppMod = (row) => ({
   characterLine: row.character_line || null,
   isDbModule:    true,
   requiresPresenceCode: row.requires_presence_code || false,
+  availableFrom:  row.available_from || null,
+  availableUntil: row.available_until || null,
   // datos de reto
   ...(row.challenge_data?.dragItems    ? { dragItems:    row.challenge_data.dragItems }    : {}),
   ...(row.challenge_data?.empathyCards ? { empathyCards: row.challenge_data.empathyCards } : {}),
@@ -342,6 +344,7 @@ const dbModToAppMod = (row) => ({
   ...(row.challenge_data?.incorrectMessage ? { incorrectMessage: row.challenge_data.incorrectMessage } : {}),
   // Mensaje final del quiz según resultado (aprobó/no aprobó) — configurable por el tutor
   ...(row.challenge_data?.passingScore != null ? { passingScore: row.challenge_data.passingScore } : {}),
+  ...(row.challenge_data?.maxAttempts  != null ? { maxAttempts:  row.challenge_data.maxAttempts }  : {}),
   ...(row.challenge_data?.passMessage      ? { passMessage:      row.challenge_data.passMessage }      : {}),
   ...(row.challenge_data?.failMessage      ? { failMessage:      row.challenge_data.failMessage }      : {}),
 });
@@ -464,6 +467,7 @@ const DEF = {
   effectiveCourseId: null,  // id del curso que realmente se ve (el fork del colegio si existe; si no, igual a enrolledCourseId)
   allEnrollments: [],       // todos los cursos en los que está inscrito el estudiante
   unlockedPresenceModules: [], // ids de módulos con requires_presence_code que este estudiante ya desbloqueó
+  quizAttempts: [],         // [{ module_id, attempts, passed }] intentos de retos quiz del estudiante actual
   coursesLoaded: false,     // true cuando courses + userCourses ya se cargaron (evita parpadeo en el guard de selección de curso)
   workshopAccess: [],       // [{ id, student_id, course_id, enabled }] habilitación del taller/producto final por estudiante (tutor)
 };
@@ -636,6 +640,38 @@ const generatePresenceCode = async (moduleId) => {
   const row = Array.isArray(data) ? data[0] : data;
   return row; // { code, expires_at }
 };
+// ── Intentos de retos quiz (puntaje mínimo + límite de intentos) ──────────
+// Registra un intento del estudiante en un quiz (servidor incrementa el conteo).
+// Devuelve { attempts, passed } con el estado nuevo, y refresca el store.
+const recordQuizAttempt = async (moduleId, passed, score, maxScore) => {
+  if (_previewMode) return null;
+  const { data, error } = await supabase.rpc('record_quiz_attempt', {
+    p_module_id: moduleId, p_passed: !!passed, p_score: score ?? null, p_max: maxScore ?? null,
+  });
+  if (error) { console.error('recordQuizAttempt:', error); return null; }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (row) {
+    XS.set(s => {
+      const others = (s.quizAttempts || []).filter(a => a.module_id !== moduleId);
+      return { quizAttempts: [...others, { module_id: moduleId, attempts: row.attempts, passed: row.passed }] };
+    });
+  }
+  return row;
+};
+// Instructor: reinicia los intentos de un estudiante en un reto quiz.
+const resetQuizAttempts = async (userId, moduleId) => {
+  const { error } = await supabase.rpc('reset_quiz_attempts', { p_user_id: userId, p_module_id: moduleId });
+  if (error) { console.error('resetQuizAttempts:', error); return { error: error.message }; }
+  return { ok: true };
+};
+// Instructor: carga los intentos de quiz de un estudiante puntual (su panel).
+const loadStudentQuizAttempts = async (userId) => {
+  const { data, error } = await supabase.from('quiz_attempts')
+    .select('module_id, attempts, passed').eq('user_id', userId);
+  if (error) { console.error('loadStudentQuizAttempts:', error); return []; }
+  return data || [];
+};
+
 // Modo vista previa (instructor): cuando está activo, los retos se renderizan
 // tal cual los ve el estudiante pero NADA se persiste ni afecta al progreso real.
 let _previewMode = false;
@@ -1697,6 +1733,8 @@ const saveCourseModules = async (courseId, moduleList, courseName, certConfig) =
       order: i + 1,
       is_enabled: m.enabled !== false,
       requires_presence_code: m.requiresPresenceCode || false,
+      available_from:  m.availableFrom  || null,
+      available_until: m.availableUntil || null,
       content: m.content || [],
       challenge_data: (() => {
         const cd = {};
@@ -1711,6 +1749,7 @@ const saveCourseModules = async (courseId, moduleList, courseName, certConfig) =
         if (m.correctMessage)   cd.correctMessage   = m.correctMessage;
         if (m.incorrectMessage) cd.incorrectMessage = m.incorrectMessage;
         if (m.passingScore != null) cd.passingScore = m.passingScore;
+        if (m.maxAttempts != null)  cd.maxAttempts  = m.maxAttempts;
         if (m.passMessage)      cd.passMessage      = m.passMessage;
         if (m.failMessage)      cd.failMessage      = m.failMessage;
         return cd;
@@ -1970,6 +2009,7 @@ export {
   calcLevel, xpForNext, xpProgress, nodeStatus, isBlockedByPresence, progressPct, isRouteComplete, gradeTotal, gradeMax,
   nav, doLogout, selectArea, changeArea, completeNode, recordAttempt,
   redeemPresenceCode, generatePresenceCode,
+  recordQuizAttempt, resetQuizAttempts, loadStudentQuizAttempts,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
   loadRouteConfigs, saveRouteConfig, getRouteModules, findModuleInConfig, routeKey,
