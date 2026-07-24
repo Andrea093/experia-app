@@ -387,12 +387,32 @@ function findModule(id) {
 const calcLevel = xp => { let l=1; for(let i=1;i<LEVELS.length;i++){if(xp>=LEVELS[i])l=i+1;else break;} return l; };
 const xpForNext = xp => LEVELS[calcLevel(xp)] || xp;
 const xpProgress = xp => { const l=calcLevel(xp),p=LEVELS[l-1]||0,n=LEVELS[l]||xp; return n===p?1:(xp-p)/(n-p); };
+// ¿Este nodo está bloqueado porque un módulo ANTERIOR en el orden exige código
+// presencial y el estudiante aún no lo desbloqueó (ni completó — completarlo
+// implica haberlo desbloqueado)? Cierra el hueco de cuando los módulos no forman
+// una cadena estricta de requisitos (p. ej. todos dependen solo del primero) y el
+// gateado se podía saltar. El módulo gateado NO se bloquea a sí mismo (debe poder
+// abrirse para ingresar el código).
+const isBlockedByPresence = (id, done, areaId, modulesOverride, unlockedPresence = []) => {
+  const mods = modulesOverride || getStudentModules(areaId);
+  const myIdx = mods.findIndex(x => x.id === id);
+  if (myIdx < 0) return false;
+  return mods.some((x, i) =>
+    i < myIdx && x.requiresPresenceCode && !unlockedPresence.includes(x.id) && !done.includes(x.id)
+  );
+};
+
 // modulesOverride: si se pasa, se usa en vez de getStudentModules (para módulos de BD)
-const nodeStatus = (id, done, areaId, modulesOverride) => {
+// unlockedPresence: ids de módulos que el estudiante ya desbloqueó con el código
+// presencial (para bloquear "de ahí en adelante" — ver isBlockedByPresence).
+const nodeStatus = (id, done, areaId, modulesOverride, unlockedPresence = []) => {
   const mods = modulesOverride || getStudentModules(areaId);
   const m = mods.find(x => x.id === id) || findModule(id);
   if (!m) return 'locked';
   if (done.includes(id)) return 'completed';
+
+  if (isBlockedByPresence(id, done, areaId, mods, unlockedPresence)) return 'locked';
+
   const others = mods.filter(x => x.type !== 'final_delivery');
   if (m.type === 'final_delivery') {
     return others.every(x => done.includes(x.id)) ? 'available' : 'locked';
@@ -1946,7 +1966,7 @@ export {
   useStore, AREAS, BADGES, LEVELS, RUBRIC_CRITERIA, ALL_MODULES, AREA_CONTENT,
   INITIAL_INSTITUTIONS,
   getStudentModules, getTransversalModules, getAreaOnlyModules, getScopeModules, TRANSVERSAL_AREA, findModule,
-  calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete, gradeTotal, gradeMax,
+  calcLevel, xpForNext, xpProgress, nodeStatus, isBlockedByPresence, progressPct, isRouteComplete, gradeTotal, gradeMax,
   nav, doLogout, selectArea, changeArea, completeNode, recordAttempt,
   redeemPresenceCode, generatePresenceCode,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,

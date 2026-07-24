@@ -7,6 +7,10 @@
 --     invalidando el código anterior del módulo (un solo activo por módulo).
 --   • redeem_presence_code acepta el código si está activo Y (no vence O aún
 --     no ha vencido) — retrocompatible con códigos viejos que sí tenían fecha.
+--   • FIX de un bug que venía de 0039: la función devuelve una columna `code`
+--     y a la vez consultaba `presence_gates.code` sin calificar → Postgres
+--     lanzaba «column reference "code" is ambiguous» y NUNCA generaba código.
+--     Ahora la subconsulta usa alias de tabla (g.code) para desambiguar.
 --
 -- ⚠️ Ejecutar MANUALMENTE en el SQL Editor de Supabase, DESPUÉS de 0039.
 -- Idempotente (CREATE OR REPLACE + ALTER IF).
@@ -35,9 +39,10 @@ begin
 
   loop
     v_code := lpad((floor(random() * 1000000))::int::text, 6, '0');
+    -- alias `g` para desambiguar g.code del OUT column `code` de la función
     exit when not exists (
-      select 1 from public.presence_gates
-      where module_id = p_module_id and code = v_code and active
+      select 1 from public.presence_gates g
+      where g.module_id = p_module_id and g.code = v_code and g.active
     );
   end loop;
 

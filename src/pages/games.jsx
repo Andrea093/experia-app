@@ -4,6 +4,7 @@ import { useMobile, CheckIc, ZapIc, StarIc } from '../components/ui.jsx'
 
 const GamesPage = () => {
   const completed        = useStore(s => s.completed);
+  const unlockedPresence = useStore(s => s.unlockedPresenceModules || []);
   const selectedArea     = useStore(s => s.selectedArea);
   const courseModules    = useStore(s => s.courseModules);
   const enrolledCourseId = useStore(s => s.enrolledCourseId);
@@ -69,7 +70,7 @@ const GamesPage = () => {
         gap: isMobile ? 12 : 16,
       }}>
         {challenges.map((ch) => {
-          const status = nodeStatus(ch.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
+          const status = nodeStatus(ch.id, completed, selectedArea, enrolledCourseId ? studentModules : null, unlockedPresence);
           const isLocked = status === 'locked';
           const isDone   = status === 'completed';
           const score    = bestScores[ch.id];

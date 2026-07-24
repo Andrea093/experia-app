@@ -355,6 +355,7 @@ const CourseSelector = ({ enrollments, courses, currentId, onSelect, switching =
 // --- Main Learning Map ---
 const LearningMap = () => {
   const completed       = useStore(s => s.completed);
+  const unlockedPresence = useStore(s => s.unlockedPresenceModules || []);
   const xp              = useStore(s => s.xp);
   const selectedArea    = useStore(s => s.selectedArea);
   const routeConfigs    = useStore(s => s.routeConfigs);
@@ -450,19 +451,19 @@ const LearningMap = () => {
       if (pct === 100) nav('course-cert');
       return;
     }
-    const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
+    const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null, unlockedPresence);
     if (status === 'locked') return;
     if (mod.type === 'final_delivery') nav('grid');
     else if (mod.type === 'lesson') nav('lesson', mod.id);
     else nav('challenge', mod.id);
-  }, [completed, selectedArea, studentModules, enrolledCourseId, pct]);
+  }, [completed, selectedArea, studentModules, enrolledCourseId, pct, unlockedPresence]);
 
   // Estado a mostrar por nodo: el certificado no participa de nodeStatus
   // (no está en studentModules), así que se deriva directo de pct.
   const displayStatus = React.useCallback((mod) => {
     if (mod.type === 'certificate') return pct === 100 ? 'completed' : 'locked';
-    return nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null);
-  }, [completed, selectedArea, studentModules, enrolledCourseId, pct]);
+    return nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null, unlockedPresence);
+  }, [completed, selectedArea, studentModules, enrolledCourseId, pct, unlockedPresence]);
 
   // Desktop layout constants
   const nodeSpacing = 210;

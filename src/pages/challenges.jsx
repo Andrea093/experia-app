@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   useStore, nav, completeNode, recordAttempt, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
-  getStudentModules, nodeStatus, calcLevel, getActiveCourseTheme, isRouteComplete,
+  getStudentModules, nodeStatus, isBlockedByPresence, calcLevel, getActiveCourseTheme, isRouteComplete,
 } from '../store/store.jsx'
 import ThemeCelebration from '../components/ThemeCelebration.jsx'
 import {
@@ -1064,6 +1064,8 @@ const ChallengeView = () => {
   const completed=useStore(s=>s.completed);
   const selectedArea=useStore(s=>s.selectedArea);
   const unlockedPresence=useStore(s=>s.unlockedPresenceModules);
+  const enrolledCourseId=useStore(s=>s.enrolledCourseId);
+  const courseModules=useStore(s=>s.courseModules);
   const isMobile=useMobile();
   const mod=findModule(nodeId)||findModuleInConfig(nodeId);
   const [showConfetti,setShowConfetti]=React.useState(false);
@@ -1085,6 +1087,23 @@ const ChallengeView = () => {
 
   if (mod.requiresPresenceCode && !isCompleted && !unlockedPresence.includes(nodeId)) {
     return <PresenceGate mod={mod} nodeId={nodeId} />;
+  }
+
+  // Bloqueo "de ahí en adelante": si un paso anterior con código presencial aún
+  // no se desbloqueó, este reto (aunque se abra por enlace directo) queda cerrado.
+  if (isBlockedByPresence(nodeId, completed, selectedArea, enrolledCourseId ? courseModules : null, unlockedPresence || [])) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', maxWidth: 380, margin: '0 auto' }}>
+        <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--orange-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <LockIc s={26} c="var(--orange)" />
+        </div>
+        <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>Paso bloqueado</h3>
+        <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>
+          Antes de este contenido hay un paso que tu profe debe habilitar en clase con un código. Vuelve al mapa y desbloquéalo primero.
+        </p>
+        <Btn variant="primary" full onClick={() => nav('map')}>Volver al mapa</Btn>
+      </div>
+    );
   }
 
   const ChallengeComp = CHALLENGE_COMPONENTS[mod.ctype] || DesignLabChallenge;
