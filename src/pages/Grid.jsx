@@ -421,10 +421,12 @@ const StudentProductUpload = () => {
     );
   }
 
-  // Candado de código presencial en la entrega (igual que lecciones/retos):
-  // si el módulo de entrega exige código y el estudiante no lo desbloqueó,
-  // pide el código antes de mostrar el cargue de documentos.
-  if (finalMod && finalMod.requiresPresenceCode && !completed.includes(finalMod.id) && !(unlockedPresence || []).includes(finalMod.id)) {
+  // Candado de código presencial en la entrega: si el módulo de entrega exige
+  // código y el estudiante no lo ha DESBLOQUEADO, pide el código antes de mostrar
+  // el cargue. El candado depende solo del desbloqueo (no de si está "completada"):
+  // el código controla el ACCESO, y además la entrega pudo quedar marcada completa
+  // por versiones anteriores, lo que hacía que el gate se saltara indebidamente.
+  if (finalMod && finalMod.requiresPresenceCode && !(unlockedPresence || []).includes(finalMod.id)) {
     return <PresenceGate mod={finalMod} nodeId={finalMod.id} />;
   }
   // Bloqueo "de ahí en adelante": si un paso ANTERIOR con código aún no se
