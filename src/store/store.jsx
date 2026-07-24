@@ -413,24 +413,14 @@ const nodeStatus = (id, done, areaId, modulesOverride, unlockedPresence = []) =>
 
   if (isBlockedByPresence(id, done, areaId, mods, unlockedPresence)) return 'locked';
 
-  const others = mods.filter(x => x.type !== 'final_delivery');
-  if (m.type === 'final_delivery') {
-    // "Igual que el resto": la entrega se rige por sus requisitos explícitos o,
-    // por defecto, por el módulo ANTERIOR en el orden — NO por "todos los módulos
-    // completos". Antes exigía todos, lo que bloqueaba la entrega cuando está en
-    // medio de la ruta (con módulos después). Su candado de código presencial se
-    // maneja aparte (isBlockedByPresence arriba + PresenceGate en Grid.jsx).
-    const fidx = mods.findIndex(x => x.id === id);
-    const fprev = fidx > 0 ? mods[fidx - 1] : null;
-    const freq = (m.req && m.req.length) ? m.req : (fprev ? [fprev.id] : []);
-    return freq.every(r => done.includes(r)) ? 'available' : 'locked';
-  }
-  // Si el módulo no trae requisitos explícitos (p.ej. módulos creados o editados
-  // desde el editor de cursos, que no tiene UI para definir prerrequisitos), cae
-  // por defecto a exigir el módulo anterior en el orden — así se conserva el
-  // desbloqueo secuencial esperado en vez de dejarlo abierto sin bloqueo.
-  const idx = others.findIndex(x => x.id === id);
-  const req = (m.req && m.req.length) ? m.req : (idx > 0 ? [others[idx - 1].id] : []);
+  // Requisitos: los explícitos del módulo o, por defecto, el módulo ANTERIOR en
+  // el orden. Se usa la lista COMPLETA (incluida la entrega final), así la entrega
+  // es un paso más de la cadena: un módulo que va DESPUÉS de ella la exige como
+  // prerrequisito (la entrega es bloqueante, igual que cualquier otro módulo).
+  // La entrega ya no exige "todos los módulos completos" ni se salta la cadena.
+  const idx = mods.findIndex(x => x.id === id);
+  const prev = idx > 0 ? mods[idx - 1] : null;
+  const req = (m.req && m.req.length) ? m.req : (prev ? [prev.id] : []);
   return req.every(r => done.includes(r)) ? 'available' : 'locked';
 };
 const progressPct = (done, areaId, modulesOverride) => {

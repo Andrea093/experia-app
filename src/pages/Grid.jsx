@@ -3,7 +3,7 @@ import {
   useStore, nav, submitProduct, resubmitProduct, returnSubmission, approveSubmission,
   dismissStudentMessage, AREAS, RUBRIC_CRITERIA, getStudentModules,
   isRouteComplete, progressPct, gradeTotal, gradeMax, gradeSubmission, issueCertificate,
-  isBlockedByPresence,
+  isBlockedByPresence, completeNode,
 } from '../store/store.jsx'
 import {
   useMobile, LogoImg,
@@ -383,6 +383,10 @@ const StudentProductUpload = () => {
       } else {
         submitProduct(rejillaFile.name, preguntaFile.name, rejillaData, preguntaData);
       }
+      // La entrega se marca COMPLETADA al enviarla (como cualquier módulo), para
+      // que desbloquee el siguiente. El certificado NO se emite aquí: lo genera
+      // el nodo de certificado al completar toda la ruta.
+      if (finalMod) completeNode(finalMod.id);
       setSubmitted(true); setShowSuccess(true); setSubmitting(false);
     }, 600);
   };
@@ -397,20 +401,21 @@ const StudentProductUpload = () => {
   );
 
   if (existingSub && existingSub.status === 'approved') {
-    // Diploma solo al FINAL: si aún faltan módulos de la ruta, se muestra un
-    // mensaje de "entrega aprobada" en vez del diploma completo.
-    if (allModulesComplete) {
-      return <CertificatePage submission={existingSub} area={area} />;
-    }
+    // El certificado NO se genera aquí: lo emite el nodo de "Certificado" al
+    // completar toda la ruta. Aquí solo se confirma que la entrega fue aprobada.
     return (
       <div style={{ height: '100%', overflow: 'auto', padding: isMobile ? '24px 16px 48px' : '40px 24px 60px', background: 'var(--bg)' }}>
         <div style={{ maxWidth: 520, margin: '0 auto', textAlign: 'center' }}>
           <div style={{ fontSize: 56, marginBottom: 8 }}>✅</div>
           <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--dark)', marginBottom: 8 }}>¡Entrega aprobada!</h2>
           <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
-            Tu entrega fue aprobada. Completa los módulos que faltan de tu ruta para recibir tu diploma al final.
+            {allModulesComplete
+              ? 'Completaste toda la ruta. Tu certificado está disponible en el nodo de Certificado al final del mapa.'
+              : 'Tu entrega fue aprobada. Completa los módulos que faltan para obtener tu certificado al final de la ruta.'}
           </p>
-          <Btn variant="gradient" onClick={() => nav('map')}>Continuar mi ruta</Btn>
+          <Btn variant="gradient" onClick={() => nav(allModulesComplete ? 'course-cert' : 'map')}>
+            {allModulesComplete ? 'Ver mi certificado' : 'Continuar mi ruta'}
+          </Btn>
         </div>
       </div>
     );
