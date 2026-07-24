@@ -517,19 +517,30 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
         onSave={mod => { addCustomModule(mod); setShowAddModule(false) }} />
       <RoutePreviewModal open={showPreview} onClose={() => setShowPreview(false)}
         area={null} moduleList={moduleList} customModules={[]} theme={courseTheme} />
-      <Modal open={showCertPreview} onClose={() => setShowCertPreview(false)} title="Vista previa del certificado" width={780}>
-        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
-          Así se verá el certificado con la configuración actual. El nombre y la fecha son de ejemplo.
-        </p>
+      <Modal open={showCertPreview} onClose={() => setShowCertPreview(false)} title="Vista previa del certificado" width={860}>
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            @page { size: A4 landscape; margin: 0; }
+            body * { visibility: hidden !important; }
+            #cert-preview, #cert-preview * { visibility: visible !important; }
+            #cert-preview { position: absolute !important; left: 0; top: 0; width: 100% !important;
+              box-shadow: none !important; margin: 0 !important; }
+          }
+        ` }} />
+        <div className="cert-prev-no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+          <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0, flex: 1, minWidth: 180 }}>
+            Así se verá el certificado con la configuración actual. El nombre y la fecha son de ejemplo.
+          </p>
+          <Btn variant="gradient" size="sm" onClick={() => window.print()}>🖨️ Descargar / Imprimir</Btn>
+        </div>
         <CertificateCard
+          idAttr="cert-preview"
           isMobile={isMobile}
           title={certConfig.title || getCourseDisplayName(courses, courseRow) || 'Nombre del curso'}
           achievementText={certConfig.achievementText || DEFAULT_CERT_ACHIEVEMENT_TEXT}
           hours={certConfig.hours}
           studentName="Nombre del Estudiante"
           dateStr={new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
-          signatoryName={certConfig.signatoryName || 'Instructor'}
-          signatoryRole={certConfig.signatoryRole || 'CEINFES'}
         />
       </Modal>
       <Modal open={!!codeModalMod} onClose={() => setCodeModalMod(null)}
