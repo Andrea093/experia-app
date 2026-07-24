@@ -76,7 +76,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
   const updateQ = (id, key, val) => setQs(q => q.map(x => x.id === id ? { ...x, [key]: val } : x))
   const dupQ = (id) => setQs(q => {
     const i = q.findIndex(x => x.id === id); if (i < 0) return q
-    const copy = { ...q[i], id: Date.now(), options: [...q[i].options] }
+    const copy = { ...q[i], id: Date.now(), options: [...q[i].options], optionImages: [...(q[i].optionImages || [])] }
     return [...q.slice(0, i + 1), copy, ...q.slice(i + 1)]
   })
   const moveQ = (id, dir) => setQs(q => {
@@ -89,12 +89,19 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
     const opts = [...x.options]; opts[optIdx] = val
     return { ...x, options: opts }
   }))
+  // Imagen por opción (opción visual). '' para quitarla.
+  const updateOptImg = (qId, optIdx, url) => setQs(q => q.map(x => {
+    if (x.id !== qId) return x
+    const imgs = [...(x.optionImages || [])]; imgs[optIdx] = url
+    return { ...x, optionImages: imgs }
+  }))
 
   const handleSave = () => {
     if (!title.trim()) { setErr('El título es obligatorio'); return }
     if (!questions.length) { setErr('Agrega al menos una pregunta'); return }
-    const incomplete = questions.find(q => !q.question.trim() || q.options.some(o => !o.trim()))
-    if (incomplete) { setErr('Completa todas las preguntas y opciones'); return }
+    // Una opción es válida si tiene texto O una imagen (opciones visuales).
+    const incomplete = questions.find(q => !q.question.trim() || q.options.some((o, i) => !o.trim() && !(q.optionImages?.[i])))
+    if (incomplete) { setErr('Completa todas las preguntas y opciones (texto o imagen en cada opción)'); return }
     onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100, questions: cleanQuestions(), passage: buildPassage(), type: 'challenge', ctype: isPoll ? 'poll' : 'quiz',
       ...(isPoll ? {} : {
         correctMessage: correctMsg.trim(), incorrectMessage: incorrectMsg.trim(),
@@ -107,7 +114,14 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
   const cleanQuestions = () => questions.map(q => {
     const out = { id: q.id, question: q.question.trim(), options: q.options }
     if (!isPoll) out.correct = q.correct
-    if (q.image) { out.image = q.image; if (q.imageHeight) out.imageHeight = Number(q.imageHeight) }
+    if (q.image) {
+      out.image = q.image
+      if (q.imageHeight) out.imageHeight = Number(q.imageHeight)
+      if (q.imagePosition) out.imagePosition = q.imagePosition   // before | between | after
+    }
+    // Imágenes por opción (opciones visuales): array alineado por índice, '' donde no hay
+    const optImgs = q.optionImages || []
+    if (optImgs.some(u => u)) out.optionImages = q.options.map((_, i) => optImgs[i] || '')
     if (!isPoll && q.explanation?.trim()) out.explanation = q.explanation.trim()
     if (!isPoll && q.explanationImage) out.explanationImage = q.explanationImage
     if (q.timeLimit) out.timeLimit = Number(q.timeLimit)
@@ -255,19 +269,22 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
                     </button>
                   </div>
                 </div>
-                <input value={q.question} onChange={e => updateQ(q.id, 'question', e.target.value)}
-                  placeholder="Escribe la pregunta aquí..." style={{ ...inp, marginBottom: 10 }} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {q.options.map((opt, oi) => (
-                    <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <textarea value={q.question} onChange={e => updateQ(q.id, 'question', e.target.value)}
+                  rows={2} placeholder="Escribe la pregunta aquí… (puedes pegar párrafos largos, el cuadro se amplía)"
+                  style={{ ...inp, marginBottom: 10, resize: 'vertical', lineHeight: 1.5, minHeight: 42 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                  {q.options.map((opt, oi) => {
+                    const optImg = q.optionImages?.[oi] || ''
+                    return (
+                    <div key={oi} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       {isPoll ? (
-                        <span style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, background: 'var(--bg-alt)',
+                        <span style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, background: 'var(--bg-alt)', marginTop: 8,
                           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>
                           {String.fromCharCode(65 + oi)}
                         </span>
                       ) : (
                         <button onClick={() => updateQ(q.id, 'correct', oi)} title="Marcar como correcta"
-                          style={{ width: 24, height: 24, borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0,
+                          style={{ width: 24, height: 24, borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0, marginTop: 8,
                             background: q.correct === oi ? 'var(--success)' : 'var(--bg-alt)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {q.correct === oi
@@ -275,13 +292,26 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
                             : <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{String.fromCharCode(65 + oi)}</span>}
                         </button>
                       )}
-                      <input value={opt} onChange={e => updateOpt(q.id, oi, e.target.value)}
-                        placeholder={`Opción ${String.fromCharCode(65 + oi)}${!isPoll && q.correct === oi ? ' (correcta)' : ''}`}
-                        style={{ ...inp, border: !isPoll && q.correct === oi ? '1.5px solid var(--success)' : '1.5px solid var(--border)' }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <input value={opt} onChange={e => updateOpt(q.id, oi, e.target.value)}
+                          placeholder={`Opción ${String.fromCharCode(65 + oi)}${!isPoll && q.correct === oi ? ' (correcta)' : ''}${optImg ? ' — texto opcional' : ''}`}
+                          style={{ ...inp, border: !isPoll && q.correct === oi ? '1.5px solid var(--success)' : '1.5px solid var(--border)' }} />
+                        {optImg ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <img src={optImg} alt="" style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+                            <button onClick={() => updateOptImg(q.id, oi, '')} title="Quitar imagen"
+                              style={{ width: 24, height: 24, borderRadius: 6, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <XIc s={12} c="var(--error)" />
+                            </button>
+                          </div>
+                        ) : (
+                          <ImageUploader label="🖼️ Imagen de la opción (opcional)" compact onUploaded={url => updateOptImg(q.id, oi, url)} />
+                        )}
+                      </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
-                {!isPoll && <p style={{ fontSize: 11, color: 'var(--subtle)', marginTop: 8 }}>Haz clic en el círculo para marcar la opción correcta</p>}
+                {!isPoll && <p style={{ fontSize: 11, color: 'var(--subtle)', marginTop: 8 }}>Haz clic en el círculo para marcar la opción correcta. Cada opción puede llevar texto, imagen, o ambos.</p>}
 
                 {/* ── Opciones avanzadas por pregunta ── */}
                 <button onClick={() => toggleAdv(q.id)}
@@ -299,15 +329,24 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
                     <div>
                       <label style={advLbl}>Imagen de la pregunta (opcional)</label>
                       {q.image && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                          <img src={q.image} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
-                          <label style={{ fontSize: 11, color: 'var(--muted)' }}>Alto máx px</label>
-                          <input type="number" value={q.imageHeight || ''} onChange={e => updateQ(q.id, 'imageHeight', e.target.value)} placeholder="auto" min={40} style={{ ...inp, width: 80, fontSize: 12 }} />
-                          <button onClick={() => { updateQ(q.id, 'image', ''); updateQ(q.id, 'imageHeight', '') }} title="Quitar"
-                            style={{ width: 24, height: 24, borderRadius: 6, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <XIc s={12} c="var(--error)" />
-                          </button>
-                        </div>
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                            <img src={q.image} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+                            <label style={{ fontSize: 11, color: 'var(--muted)' }}>Alto máx px</label>
+                            <input type="number" value={q.imageHeight || ''} onChange={e => updateQ(q.id, 'imageHeight', e.target.value)} placeholder="auto" min={40} style={{ ...inp, width: 80, fontSize: 12 }} />
+                            <button onClick={() => { updateQ(q.id, 'image', ''); updateQ(q.id, 'imageHeight', ''); updateQ(q.id, 'imagePosition', '') }} title="Quitar"
+                              style={{ width: 24, height: 24, borderRadius: 6, border: 'none', cursor: 'pointer', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <XIc s={12} c="var(--error)" />
+                            </button>
+                          </div>
+                          {/* Posición de la imagen respecto a la pregunta */}
+                          <label style={advLbl}>Posición de la imagen</label>
+                          <select value={q.imagePosition || 'before'} onChange={e => updateQ(q.id, 'imagePosition', e.target.value)} style={{ ...inp, fontSize: 12, marginBottom: 6 }}>
+                            <option value="before">Antes de la pregunta (arriba)</option>
+                            <option value="between">Entre la pregunta y las opciones</option>
+                            <option value="after">Después de las opciones (abajo)</option>
+                          </select>
+                        </>
                       )}
                       <ImageUploader label={q.image ? 'Reemplazar imagen' : 'Subir imagen'} compact onUploaded={url => updateQ(q.id, 'image', url)} />
                     </div>

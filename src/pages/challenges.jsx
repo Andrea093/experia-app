@@ -618,6 +618,28 @@ const QuizPassage = ({ passage }) => {
   );
 };
 
+// Imagen de una pregunta, ubicada según q.imagePosition: 'before' (arriba, por
+// defecto) | 'between' (entre pregunta y opciones) | 'after' (bajo las opciones).
+// Se renderiza solo en el slot que le corresponde.
+const QuestionImage = ({ q, slot }) => {
+  if (!q?.image) return null;
+  const pos = q.imagePosition || 'before';
+  if (pos !== slot) return null;
+  const margin = slot === 'after' ? { marginTop: 16 } : { marginBottom: 16 };
+  return (
+    <img src={q.image} alt="" style={{ width: '100%', maxHeight: q.imageHeight || 320, objectFit: 'contain',
+      borderRadius: 12, display: 'block', border: '1px solid var(--border)', ...margin }} />
+  );
+};
+
+// Contenido de una opción: imagen (si la hay) + texto (si lo hay).
+const OptionContent = ({ opt, img }) => (
+  <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: img && opt ? 8 : 0, minWidth: 0 }}>
+    {img && <img src={img} alt="" style={{ maxWidth: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 8, display: 'block' }} />}
+    {opt && <span style={{ fontSize: 14, color: 'var(--dark)', fontWeight: 500, lineHeight: 1.5 }}>{opt}</span>}
+  </span>
+);
+
 // ---- QUIZ ----
 const QuizChallenge = ({ mod, onComplete }) => {
   const isMobile = useMobile();
@@ -706,11 +728,9 @@ const QuizChallenge = ({ mod, onComplete }) => {
         <span style={{fontSize:12,color:'var(--muted)',whiteSpace:'nowrap',fontWeight:600}}>{current+1}/{questions.length}</span>
       </div>
       <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
-        {q.image && (
-          <img src={q.image} alt="" style={{width:'100%',maxHeight:q.imageHeight||320,objectFit:'contain',borderRadius:12,
-            display:'block',marginBottom:16,border:'1px solid var(--border)'}} />
-        )}
+        <QuestionImage q={q} slot="before" />
         <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.question}</h4>
+        <QuestionImage q={q} slot="between" />
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
           {(q.options||[]).map((opt,i) => {
             const isSel=selected===i, isOk=confirmed&&i===q.correct, isWrong=confirmed&&isSel&&i!==q.correct;
@@ -725,13 +745,14 @@ const QuizChallenge = ({ mod, onComplete }) => {
                   color:(isSel||isOk||isWrong)?'#fff':'var(--muted)',display:'flex',alignItems:'center',justifyContent:'center'}}>
                   {String.fromCharCode(65+i)}
                 </span>
-                <span style={{fontSize:14,color:'var(--dark)',fontWeight:500,lineHeight:1.5,flex:1}}>{opt}</span>
+                <OptionContent opt={opt} img={q.optionImages?.[i]} />
                 {isOk&&<CheckIc s={18} c="var(--success)"/>}
                 {isWrong&&<XIc s={18} c="var(--error)"/>}
               </button>
             );
           })}
         </div>
+        <QuestionImage q={q} slot="after" />
         {confirmed&&(
           <p style={{fontSize:13,fontWeight:600,marginTop:14,color:answers[answers.length-1]===q.correct?'var(--success)':'var(--error)'}}>
             {answers[answers.length-1]===q.correct?(mod.correctMessage||'✓ ¡Correcto!'):(mod.incorrectMessage||'✗ Respuesta correcta:')+' '+q.options[q.correct]}
@@ -814,11 +835,9 @@ const PollChallenge = ({ mod, onComplete }) => {
         <span style={{fontSize:12,color:'var(--muted)',whiteSpace:'nowrap',fontWeight:600}}>{current+1}/{questions.length}</span>
       </div>
       <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
-        {q.image && (
-          <img src={q.image} alt="" style={{width:'100%',maxHeight:q.imageHeight||320,objectFit:'contain',borderRadius:12,
-            display:'block',marginBottom:16,border:'1px solid var(--border)'}} />
-        )}
+        <QuestionImage q={q} slot="before" />
         <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.question}</h4>
+        <QuestionImage q={q} slot="between" />
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
           {(q.options||[]).map((opt,i) => {
             const isSel=selected===i;
@@ -833,11 +852,12 @@ const PollChallenge = ({ mod, onComplete }) => {
                   color:isSel?'#fff':'var(--muted)',display:'flex',alignItems:'center',justifyContent:'center'}}>
                   {String.fromCharCode(65+i)}
                 </span>
-                <span style={{fontSize:14,color:'var(--dark)',fontWeight:500,lineHeight:1.5,flex:1}}>{opt}</span>
+                <OptionContent opt={opt} img={q.optionImages?.[i]} />
               </button>
             );
           })}
         </div>
+        <QuestionImage q={q} slot="after" />
       </div>
       <Btn variant="gradient" size="lg" disabled={selected===null} onClick={handleNext} full>
         {current<questions.length-1?<>Siguiente <ArrowRIc s={18} c="#fff"/></>:<>Finalizar <TrophyIc s={18} c="#fff"/></>}
