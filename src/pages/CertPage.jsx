@@ -2,6 +2,7 @@ import React from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useStore } from '../store/store.jsx'
 import { useMobile, LogoImg, CheckIc, Skeleton } from '../components/ui.jsx'
+import CertificateCard from '../components/CertificateCard.jsx'
 // =============================================
 // EXPERIA — Página pública de verificación de certificado
 // Accesible sin autenticación: /#/cert/<cert_uuid>
@@ -79,7 +80,7 @@ const CertPage = () => {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg, #F9FAFB)', padding: isMobile ? '24px 16px 48px' : '40px 24px 60px' }}>
       <style dangerouslySetInnerHTML={{ __html: `
-        @page { size: A4 portrait; margin: 0; }
+        @page { size: A4 landscape; margin: 0; }
         @media print {
           html, body { height: auto !important; overflow: visible !important; }
           .cert-no-print { display: none !important; }
@@ -87,7 +88,7 @@ const CertPage = () => {
         }
       ` }} />
 
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
+      <div style={{ maxWidth: isCourseCert ? 920 : 720, margin: '0 auto' }}>
         {/* Banner "Verificado" */}
         <div className="cert-no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -96,7 +97,7 @@ const CertPage = () => {
             <span style={{ fontSize: 20 }}>✅</span>
             <div>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#134E4A' }}>Certificado verificado</div>
-              <div style={{ fontSize: 11, color: '#0F766E' }}>Emitido por Experia · CEINFES</div>
+              <div style={{ fontSize: 11, color: '#0F766E' }}>Emitido por CEINFES</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -115,7 +116,20 @@ const CertPage = () => {
           </div>
         </div>
 
-        {/* Certificado */}
+        {/* Certificado de curso: usa la MISMA tarjeta horizontal que la app */}
+        {isCourseCert ? (
+          <CertificateCard
+            isMobile={isMobile}
+            idAttr="cert-public"
+            title={courseTitle}
+            achievementText={achievementText}
+            hours={cert.hours}
+            studentName={cert.student_name}
+            dateStr={dateStr}
+            certUuid={cert.cert_uuid}
+          />
+        ) : (
+        /* Certificado legacy por área (score/logro/DCE) */
         <div id="cert-public" style={{ background: 'white',
           border: isMobile ? '5px solid #E8732C' : '8px solid #E8732C',
           borderRadius: isMobile ? 16 : 24,
@@ -133,7 +147,7 @@ const CertPage = () => {
             Certificado
           </div>
           <h1 style={{ fontSize: isMobile ? 22 : 30, fontWeight: 800, color: '#111827', lineHeight: 1.2, marginBottom: 8 }}>
-            {isCourseCert ? courseTitle : 'Diseño Centrado en Evidencias'}
+            Diseño Centrado en Evidencias
           </h1>
           <div style={{ width: 80, height: 4, background: 'linear-gradient(90deg,#E8732C,#F09848)', borderRadius: 2, margin: '0 auto 24px' }} />
 
@@ -142,18 +156,11 @@ const CertPage = () => {
             {cert.student_name}
           </div>
           <p style={{ fontSize: 15, color: '#374151', marginBottom: 20, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 20px' }}>
-            {isCourseCert ? achievementText : 'ha completado satisfactoriamente la formación docente en'}<br />
-            <strong>{isCourseCert ? courseTitle : 'Diseño Centrado en Evidencias (DCE)'}</strong>
+            ha completado satisfactoriamente la formación docente en<br />
+            <strong>Diseño Centrado en Evidencias (DCE)</strong>
           </p>
-          {Number(cert.hours) > 0 && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: 100,
-              background: '#FDECDD', border: '1.5px solid #FADCBE', marginBottom: 24 }}>
-              <span style={{ fontSize: 16 }}>🕒</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#E8732C' }}>Intensidad: {Number(cert.hours)} horas</span>
-            </div>
-          )}
 
-          {!isCourseCert && area && (
+          {area && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 24px',
               borderRadius: 100, background: area.color + '18', border: `2px solid ${area.color}40`, marginBottom: 24 }}>
               <span style={{ fontSize: 24 }}>{area.icon}</span>
@@ -161,7 +168,7 @@ const CertPage = () => {
             </div>
           )}
 
-          {!isCourseCert && pct !== null && (
+          {pct !== null && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: 0,
               marginBottom: 28, border: '1px solid #E5E7EB', borderRadius: 16, overflow: 'hidden',
               maxWidth: 360, margin: '0 auto 28px' }}>
@@ -182,9 +189,7 @@ const CertPage = () => {
           <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end', marginBottom: 24 }}>
             {[
               { label: dateStr, sub: 'Fecha de expedición' },
-              isCourseCert
-                ? { label: signatoryName, sub: signatoryRole }
-                : { label: 'Instructor DCE', sub: 'CEINFES · Experia' },
+              { label: 'Instructor', sub: 'CEINFES' },
             ].map((sig, i) => (
               <div key={i} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 13, color: '#111827', fontWeight: 600, marginBottom: 10 }}>{sig.label}</div>
@@ -203,6 +208,7 @@ const CertPage = () => {
             </span>
           </div>
         </div>
+        )}
 
         {/* Pie: volver */}
         <div className="cert-no-print" style={{ textAlign: 'center', marginTop: 24 }}>

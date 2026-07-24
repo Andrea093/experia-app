@@ -14,7 +14,7 @@ import CertificateCard from '../components/CertificateCard.jsx'
 
 const PROD_BASE = 'https://experia-app.pages.dev'
 
-const DEFAULT_ACHIEVEMENT_TEXT = 'ha completado satisfactoriamente la formación docente en'
+const DEFAULT_ACHIEVEMENT_TEXT = 'Por haber concluido de manera satisfactoria el'
 const DEFAULT_SIGNATORY_ROLE = 'CEINFES'
 
 const CourseCertificatePage = () => {
@@ -77,17 +77,17 @@ const CourseCertificatePage = () => {
   return (
     <div style={{ height: '100%', overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '16px 12px 48px' : '32px 24px 60px', background: 'var(--bg)' }}>
       <style dangerouslySetInnerHTML={{ __html: `
-        @page { size: A4 portrait; margin: 0; }
+        @page { size: A4 landscape; margin: 0; }
         @media print {
           html, body { height: auto !important; overflow: visible !important; margin: 0 !important; }
           .no-print { display: none !important; }
-          #cert-wrap { padding: 12mm !important; max-width: 100% !important; box-sizing: border-box; }
+          #cert-wrap { padding: 10mm !important; max-width: 100% !important; box-sizing: border-box; }
           #course-certificate { box-shadow: none !important; width: 100% !important; max-width: 100% !important;
-            border-width: 6px !important; border-radius: 16px !important; padding: 28px 36px !important;
+            border-width: 6px !important; border-radius: 16px !important; padding: 30px 48px !important;
             page-break-inside: avoid; break-inside: avoid; }
         }
       ` }} />
-      <div id="cert-wrap" style={{ maxWidth: 720, margin: '0 auto' }}>
+      <div id="cert-wrap" style={{ maxWidth: 920, margin: '0 auto' }}>
         <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: isMobile ? 16 : 28, flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 2 }}>🎓 ¡Ruta completada!</h2>
@@ -118,8 +118,6 @@ const CourseCertificatePage = () => {
           hours={certConfig.hours}
           studentName={user?.name}
           dateStr={dateStr}
-          signatoryName={signatoryName}
-          signatoryRole={signatoryRole}
           certUuid={cert?.cert_uuid}
         />
       </div>

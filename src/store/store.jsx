@@ -1571,7 +1571,7 @@ const loadCourseForEditing = async (courseId) => {
   const { data: courseRow } = await supabase.from('courses')
     .select(`name, draft_modules, draft_name, draft_updated_at, draft_certificate,
       certificate_enabled, certificate_title, certificate_achievement_text,
-      certificate_signatory_name, certificate_signatory_role, parent_course_id`)
+      certificate_signatory_name, certificate_signatory_role, certificate_hours, parent_course_id`)
     .eq('id', courseId).maybeSingle();
 
   const { courses } = XS.get();
@@ -1880,7 +1880,7 @@ const issueCertificate = async (submissionId, studentName, areaId, score, maxSco
 // calificada), este se emite solo con completar el 100% de los módulos
 // habilitados de la ruta — necesario porque no todo curso personalizado tiene
 // Entrega Final (ej. MOOCs por video). Ver 0037_course_certificates.sql.
-const DEFAULT_CERT_ACHIEVEMENT_TEXT = 'ha completado satisfactoriamente la formación docente en';
+const DEFAULT_CERT_ACHIEVEMENT_TEXT = 'Por haber concluido de manera satisfactoria el';
 
 // Título mostrado por defecto si el tutor no puso uno propio: el nombre del
 // curso ORIGINAL (nunca el nombre interno del fork, que es solo referencia

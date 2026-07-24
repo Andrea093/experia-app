@@ -86,7 +86,7 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
 }
 
 // ─── Modo Curso: edita los módulos reales de la copia del tutor ───────────────
-const DEFAULT_CERT_ACHIEVEMENT_TEXT = 'ha completado satisfactoriamente la formación docente en'
+const DEFAULT_CERT_ACHIEVEMENT_TEXT = 'Por haber concluido de manera satisfactoria el'
 const EMPTY_CERT_CONFIG = { enabled: false, title: '', achievementText: '', signatoryName: '', signatoryRole: '', hours: '' }
 
 const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) => {
