@@ -6,6 +6,7 @@ import {
   getCourseDisplayName, generatePresenceCode,
 } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, GripIc, LockIc, Btn, Modal } from '../components/ui.jsx'
+import CertificateCard from '../components/CertificateCard.jsx'
 import {
   TYPE_LABELS, TYPE_COLORS, TYPE_BG,
   ChallengeEditorModal, QuizCreatorModal, CustomModuleModal,
@@ -86,7 +87,7 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
 
 // ─── Modo Curso: edita los módulos reales de la copia del tutor ───────────────
 const DEFAULT_CERT_ACHIEVEMENT_TEXT = 'ha completado satisfactoriamente la formación docente en'
-const EMPTY_CERT_CONFIG = { enabled: false, title: '', achievementText: '', signatoryName: '', signatoryRole: '' }
+const EMPTY_CERT_CONFIG = { enabled: false, title: '', achievementText: '', signatoryName: '', signatoryRole: '', hours: '' }
 
 const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) => {
   const isMobile = useMobile()
@@ -112,6 +113,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
   const [showNewChallenge, setShowNewChallenge] = React.useState(false)
   const [showAddModule, setShowAddModule]       = React.useState(false)
   const [showPreview, setShowPreview]           = React.useState(false)
+  const [showCertPreview, setShowCertPreview]   = React.useState(false)
   const [codeModalMod, setCodeModalMod]         = React.useState(null)
   const [generatedCode, setGeneratedCode]       = React.useState(null)
   const [codeGenError, setCodeGenError]         = React.useState('')
@@ -402,11 +404,18 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
               <div style={{ flex: 1, minWidth: 160 }}>
                 <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Rol / institución</label>
                 <input value={certConfig.signatoryRole} onChange={e => setCertConfig(c => ({ ...c, signatoryRole: e.target.value }))}
-                  placeholder="Ej: Instructor · CEINFES · Experia"
+                  placeholder="Ej: Instructor · CEINFES"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ width: 140 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Intensidad (horas)</label>
+                <input type="number" min={0} value={certConfig.hours ?? ''} onChange={e => setCertConfig(c => ({ ...c, hours: e.target.value }))}
+                  placeholder="Ej: 8"
                   style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
               </div>
             </div>
-            <p style={{ fontSize: 11, color: 'var(--muted)', margin: 0 }}>Los campos vacíos usan los valores por defecto mostrados como ejemplo (placeholder).</p>
+            <p style={{ fontSize: 11, color: 'var(--muted)', margin: 0 }}>Los campos vacíos usan los valores por defecto (placeholder). Si dejas las horas vacías, no se muestran en el certificado.</p>
+            <Btn variant="secondary" size="sm" onClick={() => setShowCertPreview(true)} style={{ alignSelf: 'flex-start' }}>👁 Vista previa del certificado</Btn>
           </div>
         )}
       </div>
@@ -508,6 +517,21 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
         onSave={mod => { addCustomModule(mod); setShowAddModule(false) }} />
       <RoutePreviewModal open={showPreview} onClose={() => setShowPreview(false)}
         area={null} moduleList={moduleList} customModules={[]} theme={courseTheme} />
+      <Modal open={showCertPreview} onClose={() => setShowCertPreview(false)} title="Vista previa del certificado" width={780}>
+        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+          Así se verá el certificado con la configuración actual. El nombre y la fecha son de ejemplo.
+        </p>
+        <CertificateCard
+          isMobile={isMobile}
+          title={certConfig.title || getCourseDisplayName(courses, courseRow) || 'Nombre del curso'}
+          achievementText={certConfig.achievementText || DEFAULT_CERT_ACHIEVEMENT_TEXT}
+          hours={certConfig.hours}
+          studentName="Nombre del Estudiante"
+          dateStr={new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
+          signatoryName={certConfig.signatoryName || 'Instructor'}
+          signatoryRole={certConfig.signatoryRole || 'CEINFES'}
+        />
+      </Modal>
       <Modal open={!!codeModalMod} onClose={() => setCodeModalMod(null)}
         title={`Código presencial — ${codeModalMod?.title || ''}`} width={380}>
         <div style={{ textAlign: 'center', padding: '4px 0' }}>

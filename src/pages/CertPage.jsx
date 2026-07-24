@@ -28,7 +28,7 @@ const CertPage = () => {
     if (!nodeId) { setNotFound(true); setLoading(false); return }
     supabase
       .from('certificates')
-      .select('cert_uuid, student_name, area_id, score, max_score, issued_at, course_id, course_title, achievement_text, signatory_name, signatory_role')
+      .select('cert_uuid, student_name, area_id, score, max_score, issued_at, course_id, course_title, achievement_text, signatory_name, signatory_role, hours')
       .eq('cert_uuid', nodeId)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -124,15 +124,13 @@ const CertPage = () => {
           boxShadow: '0 20px 60px rgba(0,0,0,.12)' }}>
           <div style={{ position: 'absolute', inset: 10, border: '2px solid #FADCBE', borderRadius: 16, pointerEvents: 'none' }} />
 
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 24 }}>
-            <LogoImg h={44} />
-            <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2 }}>
-              Experia · Formación Docente
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isMobile ? 20 : 44, marginBottom: 20 }}>
+            <LogoImg h={isMobile ? 40 : 52} />
+            <img src="/sello-grupo-investigacion.png" alt="CEINFES — Grupo de Investigación reconocido por Minciencias" style={{ height: isMobile ? 72 : 96, width: 'auto' }} />
           </div>
 
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 4, color: '#E8732C', marginBottom: 12 }}>
-            Certificado de Formación Docente
+            Certificado
           </div>
           <h1 style={{ fontSize: isMobile ? 22 : 30, fontWeight: 800, color: '#111827', lineHeight: 1.2, marginBottom: 8 }}>
             {isCourseCert ? courseTitle : 'Diseño Centrado en Evidencias'}
@@ -143,10 +141,17 @@ const CertPage = () => {
           <div style={{ fontSize: isMobile ? 26 : 38, fontWeight: 800, color: '#111827', marginBottom: 12, lineHeight: 1.2, padding: '0 8px' }}>
             {cert.student_name}
           </div>
-          <p style={{ fontSize: 15, color: '#374151', marginBottom: 24, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 24px' }}>
+          <p style={{ fontSize: 15, color: '#374151', marginBottom: 20, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 20px' }}>
             {isCourseCert ? achievementText : 'ha completado satisfactoriamente la formación docente en'}<br />
             <strong>{isCourseCert ? courseTitle : 'Diseño Centrado en Evidencias (DCE)'}</strong>
           </p>
+          {Number(cert.hours) > 0 && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: 100,
+              background: '#FDECDD', border: '1.5px solid #FADCBE', marginBottom: 24 }}>
+              <span style={{ fontSize: 16 }}>🕒</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#E8732C' }}>Intensidad: {Number(cert.hours)} horas</span>
+            </div>
+          )}
 
           {!isCourseCert && area && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 24px',

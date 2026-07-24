@@ -1667,6 +1667,7 @@ const saveCourseModules = async (courseId, moduleList, courseName, certConfig) =
       certificate_achievement_text: certConfig.achievementText || null,
       certificate_signatory_name: certConfig.signatoryName || null,
       certificate_signatory_role: certConfig.signatoryRole || null,
+      certificate_hours: (certConfig.hours === '' || certConfig.hours == null) ? null : Number(certConfig.hours),
       updated_at: new Date().toISOString(),
     }).eq('id', courseId);
   }
@@ -1901,6 +1902,7 @@ const getCourseCertConfig = (courses, courseRow) => ({
   achievementText: courseRow?.certificate_achievement_text || '',
   signatoryName: courseRow?.certificate_signatory_name || '',
   signatoryRole: courseRow?.certificate_signatory_role || '',
+  hours: courseRow?.certificate_hours ?? null, // intensidad horaria (num) o null
   _displayName: getCourseDisplayName(courses, courseRow), // fallback de title
 });
 
@@ -1926,6 +1928,7 @@ const issueCourseCertificate = async (courseId, studentName, certConfig) => {
       achievement_text: certConfig.achievementText || DEFAULT_CERT_ACHIEVEMENT_TEXT,
       signatory_name: certConfig.signatoryName || null,
       signatory_role: certConfig.signatoryRole || null,
+      hours: certConfig.hours == null ? null : Number(certConfig.hours),
     })
     .select('cert_uuid, issued_at')
     .single();

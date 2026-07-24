@@ -373,7 +373,8 @@ supabase/
 │   ├── 0039_presence_gate.sql              # Código presencial: presence_gates/presence_unlocks + RPCs
 │   ├── 0040_gate_module_content_server_side.sql # RPC get_course_modules_for_student: oculta content/challenge_data en el servidor
 │   ├── 0041_cross_institution_fork_clone.sql # RLS: instructor multi-colegio puede leer forks de sus otros colegios para clonarlos
-│   └── 0042_presence_code_no_expiry.sql # Código presencial sin vencimiento (expires_at NULL)
+│   ├── 0042_presence_code_no_expiry.sql # Código presencial sin vencimiento (expires_at NULL)
+│   └── 0043_certificate_hours.sql # Intensidad horaria del certificado (courses.certificate_hours + certificates.hours)
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/
