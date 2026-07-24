@@ -118,6 +118,8 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
       out.image = q.image
       if (q.imageHeight) out.imageHeight = Number(q.imageHeight)
       if (q.imagePosition) out.imagePosition = q.imagePosition   // before | between | after
+      // 'between' parte la pregunta en dos: `question` (antes) + `questionAfter` (después de la imagen)
+      if (q.imagePosition === 'between' && q.questionAfter?.trim()) out.questionAfter = q.questionAfter.trim()
     }
     // Imágenes por opción (opciones visuales): array alineado por índice, '' donde no hay
     const optImgs = q.optionImages || []
@@ -343,9 +345,18 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
                           <label style={advLbl}>Posición de la imagen</label>
                           <select value={q.imagePosition || 'before'} onChange={e => updateQ(q.id, 'imagePosition', e.target.value)} style={{ ...inp, fontSize: 12, marginBottom: 6 }}>
                             <option value="before">Antes de la pregunta (arriba)</option>
-                            <option value="between">Entre la pregunta y las opciones</option>
+                            <option value="between">En medio del texto de la pregunta</option>
                             <option value="after">Después de las opciones (abajo)</option>
                           </select>
+                          {q.imagePosition === 'between' && (
+                            <div style={{ marginTop: 4 }}>
+                              <label style={advLbl}>Segunda parte de la pregunta (va DESPUÉS de la imagen)</label>
+                              <textarea value={q.questionAfter || ''} onChange={e => updateQ(q.id, 'questionAfter', e.target.value)} rows={2}
+                                placeholder="Continúa aquí el texto de la pregunta que va debajo de la imagen…"
+                                style={{ ...inp, fontSize: 12, resize: 'vertical', lineHeight: 1.5 }} />
+                              <p style={{ fontSize: 10, color: 'var(--subtle)', margin: '4px 0 0' }}>El cuadro principal de arriba es la primera parte; esto va después de la imagen.</p>
+                            </div>
+                          )}
                         </>
                       )}
                       <ImageUploader label={q.image ? 'Reemplazar imagen' : 'Subir imagen'} compact onUploaded={url => updateQ(q.id, 'image', url)} />

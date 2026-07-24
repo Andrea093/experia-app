@@ -729,8 +729,9 @@ const QuizChallenge = ({ mod, onComplete }) => {
       </div>
       <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
         <QuestionImage q={q} slot="before" />
-        <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.question}</h4>
+        <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:(q.imagePosition==='between'||q.questionAfter)?12:20}}>{q.question}</h4>
         <QuestionImage q={q} slot="between" />
+        {q.questionAfter && <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.questionAfter}</h4>}
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
           {(q.options||[]).map((opt,i) => {
             const isSel=selected===i, isOk=confirmed&&i===q.correct, isWrong=confirmed&&isSel&&i!==q.correct;
@@ -836,8 +837,9 @@ const PollChallenge = ({ mod, onComplete }) => {
       </div>
       <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
         <QuestionImage q={q} slot="before" />
-        <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.question}</h4>
+        <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:(q.imagePosition==='between'||q.questionAfter)?12:20}}>{q.question}</h4>
         <QuestionImage q={q} slot="between" />
+        {q.questionAfter && <h4 style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.questionAfter}</h4>}
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
           {(q.options||[]).map((opt,i) => {
             const isSel=selected===i;
