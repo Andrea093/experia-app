@@ -314,7 +314,7 @@ Capa **sincrónica** sobre los cursos existentes: el profesor lanza un quiz en v
 Candado **opcional por nodo** (aplica a cualquier `course_modules.type`, no es un `challenge_type` nuevo): marca `requires_presence_code = true` y el estudiante no puede ver el contenido de ese módulo/reto hasta ingresar un código corto que el instructor genera y dice en voz alta en clase. Pensado para asegurar que esa parte puntual de la ruta se resuelva estando físicamente presente. Backend en `0039_presence_gate.sql` + `0040_gate_module_content_server_side.sql` (ejecutar ambas, en orden, manual en SQL Editor).
 
 - **Marcar el nodo:** en el editor de ruta (`InstructorRouteEditor.jsx`), cada fila de módulo tiene un botón-candado que alterna `requiresPresenceCode`; con el candado activo y el módulo ya publicado aparece un botón "🔑 Código" que abre un modal para generarlo.
-- **Generar el código (profe, en clase):** `generatePresenceCode(moduleId)` → RPC `generate_presence_code`, solo instructor/admin. Desactiva el código anterior de ese módulo e inserta uno nuevo de 6 dígitos en `presence_gates` con vencimiento a 3h — mismo patrón anti-trampa que Modo Aula en Vivo (§8): el código en texto plano solo se devuelve al host, `presence_gates` no tiene policy de select pública.
+- **Generar el código (profe, en clase):** `generatePresenceCode(moduleId)` → RPC `generate_presence_code`, solo instructor/admin. Desactiva el código anterior de ese módulo e inserta uno nuevo de 6 dígitos en `presence_gates` — **sin vencimiento** (0042; antes expiraba a 3h, `expires_at` ahora es NULL). Mismo patrón anti-trampa que Modo Aula en Vivo (§8): el código en texto plano solo se devuelve al host, `presence_gates` no tiene policy de select pública.
 - **Canjearlo (estudiante):** el gate (`PresenceGate` en `ui.jsx`, insertado al inicio de `LessonView`/`ChallengeView`) llama `redeemPresenceCode(moduleId, code)` → RPC `redeem_presence_code` (SECURITY DEFINER), que valida el código en el servidor y, si coincide, hace upsert idempotente en `presence_unlocks`. Una vez desbloqueado queda desbloqueado (se carga en `unlockedPresenceModules` vía `loadStudentSession`, igual que `completed`/`badges`).
 - **El contenido en sí también se oculta en el servidor (0040), no solo en la UI:** los tres puntos donde el estudiante carga `course_modules` (`loadStudentSession.js`, `switchCourse`, `loadCourseModules`) usan la RPC `get_course_modules_for_student` en vez de `select('*')` plano — esa RPC vacía `content`/`challenge_data` de cualquier módulo gateado que el usuario no tenga en `presence_unlocks`, así que el candado no se puede saltar leyendo la respuesta de red en DevTools. `redeemPresenceCode` vuelve a llamar la RPC tras un canje exitoso para traer el contenido real. El editor de instructor sigue leyendo `course_modules` directo (necesita el contenido completo siempre).
 
@@ -368,7 +368,8 @@ supabase/
 │   ├── 0022_live_classroom.sql             # Modo Aula en Vivo: tablas live_* + RLS + RPCs (scoring server-side)
 │   ├── 0039_presence_gate.sql              # Código presencial: presence_gates/presence_unlocks + RPCs
 │   ├── 0040_gate_module_content_server_side.sql # RPC get_course_modules_for_student: oculta content/challenge_data en el servidor
-│   └── 0041_cross_institution_fork_clone.sql # RLS: instructor multi-colegio puede leer forks de sus otros colegios para clonarlos
+│   ├── 0041_cross_institution_fork_clone.sql # RLS: instructor multi-colegio puede leer forks de sus otros colegios para clonarlos
+│   └── 0042_presence_code_no_expiry.sql # Código presencial sin vencimiento (expires_at NULL)
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/

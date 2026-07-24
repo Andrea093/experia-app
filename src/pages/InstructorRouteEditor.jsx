@@ -163,7 +163,9 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
       const row = await generatePresenceCode(codeModalMod.id)
       setGeneratedCode(row)
     } catch (err) {
-      setCodeGenError('No se pudo generar el código. Intenta de nuevo.')
+      const detail = err?.message || err?.hint || err?.details || ''
+      setCodeGenError(detail ? `No se pudo generar el código: ${detail}` : 'No se pudo generar el código. Intenta de nuevo.')
+      console.error('generatePresenceCode:', err)
     } finally {
       setCodeGenLoading(false)
     }
@@ -515,7 +517,9 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
                 {generatedCode.code}
               </div>
               <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>
-                Válido hasta las {new Date(generatedCode.expires_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}.
+                {generatedCode.expires_at
+                  ? `Válido hasta las ${new Date(generatedCode.expires_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}.`
+                  : 'Sin vencimiento — funciona hasta que generes uno nuevo.'}
               </p>
               <p style={{ fontSize: 12, color: 'var(--muted)' }}>Dilo en voz alta en clase — solo funciona para este módulo.</p>
             </>
