@@ -3,11 +3,12 @@ import {
   useStore, nav, submitProduct, resubmitProduct, returnSubmission, approveSubmission,
   dismissStudentMessage, AREAS, RUBRIC_CRITERIA, getStudentModules,
   isRouteComplete, progressPct, gradeTotal, gradeMax, gradeSubmission, issueCertificate,
+  isBlockedByPresence,
 } from '../store/store.jsx'
 import {
   useMobile, LogoImg,
   CheckIc, FileIc, LockIc, ClockIc, UsersIc, XIc, PlusIc,
-  Btn, Confetti, Modal,
+  Btn, Confetti, Modal, PresenceGate,
 } from '../components/ui.jsx'
 
 // ---- File Drop Zone ----
@@ -316,6 +317,7 @@ const StudentProductUpload = () => {
   const courseModules = useStore(s => s.courseModules);
   const courses = useStore(s => s.courses);
   const workshopAccess = useStore(s => s.workshopAccess);
+  const unlockedPresence = useStore(s => s.unlockedPresenceModules);
   const isMobile = useMobile();
   const completed = useStore(s => s.completed);
   const [rejillaFile, setRejillaFile] = React.useState(null);
@@ -338,12 +340,18 @@ const StudentProductUpload = () => {
   const routeComplete = requiredMods.length === 0 || requiredMods.every(m => completed.includes(m.id));
   const routePct = progressPct(completed, selectedArea, enrolledCourseId ? studentModules : null);
 
-  // Gate del taller: solo si el curso lo requiere (requires_workshop). El tutor
-  // habilita por estudiante tras el taller presencial. Si el curso no lo usa,
-  // no bloquea nada.
+  // Módulo de entrega (final_delivery) — su candado de código presencial se
+  // trata igual que en lecciones/retos.
+  const finalMod = studentModules.find(m => m.type === 'final_delivery');
+  const finalUsesCode = !!finalMod?.requiresPresenceCode;
+
+  // Gate del taller: solo si el curso lo requiere (requires_workshop). PERO si la
+  // entrega usa CÓDIGO PRESENCIAL, el código reemplaza esa lógica: la habilitación
+  // pasa por ingresar el código en clase (no por el taller).
   const course = courses.find(c => c.id === enrolledCourseId);
   const requiresWorkshop = !!course?.requires_workshop;
-  const workshopEnabled = !requiresWorkshop
+  const workshopEnabled = finalUsesCode
+    || !requiresWorkshop
     || (workshopAccess || []).some(w => w.student_id === user?.id && w.course_id === enrolledCourseId && w.enabled);
   const canProceed = routeComplete && workshopEnabled;
 
@@ -388,6 +396,29 @@ const StudentProductUpload = () => {
 
   if (existingSub && existingSub.status === 'approved') {
     return <CertificatePage submission={existingSub} area={area} />;
+  }
+
+  // Candado de código presencial en la entrega (igual que lecciones/retos):
+  // si el módulo de entrega exige código y el estudiante no lo desbloqueó,
+  // pide el código antes de mostrar el cargue de documentos.
+  if (finalMod && finalMod.requiresPresenceCode && !completed.includes(finalMod.id) && !(unlockedPresence || []).includes(finalMod.id)) {
+    return <PresenceGate mod={finalMod} nodeId={finalMod.id} />;
+  }
+  // Bloqueo "de ahí en adelante": si un paso ANTERIOR con código aún no se
+  // desbloqueó, la entrega también queda cerrada.
+  if (finalMod && isBlockedByPresence(finalMod.id, completed, selectedArea, enrolledCourseId ? studentModules : null, unlockedPresence || [])) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', maxWidth: 380, margin: '0 auto' }}>
+        <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--orange-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <LockIc s={26} c="var(--orange)" />
+        </div>
+        <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>Paso bloqueado</h3>
+        <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 20 }}>
+          Antes de la entrega hay un paso que tu profe debe habilitar en clase con un código. Vuelve al mapa y desbloquéalo primero.
+        </p>
+        <Btn variant="primary" full onClick={() => nav('map')}>Volver al mapa</Btn>
+      </div>
+    );
   }
 
   if (existingSub && existingSub.status === 'returned' && !submitted) {
