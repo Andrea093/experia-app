@@ -3,7 +3,7 @@ import {
   useStore, nav, submitProduct, resubmitProduct, returnSubmission, approveSubmission,
   dismissStudentMessage, AREAS, RUBRIC_CRITERIA, getStudentModules,
   isRouteComplete, progressPct, gradeTotal, gradeMax, gradeSubmission, issueCertificate,
-  isBlockedByPresence, completeNode,
+  isBlockedByPresence,
 } from '../store/store.jsx'
 import {
   useMobile, LogoImg,
@@ -383,10 +383,10 @@ const StudentProductUpload = () => {
       } else {
         submitProduct(rejillaFile.name, preguntaFile.name, rejillaData, preguntaData);
       }
-      // La entrega se marca COMPLETADA al enviarla (como cualquier módulo), para
-      // que desbloquee el siguiente. El certificado NO se emite aquí: lo genera
-      // el nodo de certificado al completar toda la ruta.
-      if (finalMod) completeNode(finalMod.id);
+      // La entrega NO se marca completada al enviarla: el módulo siguiente solo
+      // se desbloquea cuando el instructor APRUEBA la entrega (ver el efecto en
+      // map.jsx que completa el nodo al detectar la aprobación). El certificado
+      // tampoco se emite aquí: lo genera el nodo de certificado al 100%.
       setSubmitted(true); setShowSuccess(true); setSubmitting(false);
     }, 600);
   };

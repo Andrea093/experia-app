@@ -364,6 +364,7 @@ const LearningMap = () => {
   const courses         = useStore(s => s.courses);
   const userCourses     = useStore(s => s.userCourses);
   const user            = useStore(s => s.user);
+  const submissions     = useStore(s => s.submissions);
   const isMobile = useMobile();
   const [showCourseSelector, setShowCourseSelector] = React.useState(false);
   const [switching, setSwitching] = React.useState(false);
@@ -397,6 +398,20 @@ const LearningMap = () => {
     if (enrolledCourseId) return courseModules; // puede ser [] si aún no publicaron
     return getRouteModules(selectedArea, routeConfigs);
   }, [enrolledCourseId, courseModules, selectedArea, routeConfigs]);
+
+  // La entrega (final_delivery) se completa SOLO cuando el instructor APRUEBA la
+  // entrega — no al enviarla. Aquí, en la sesión del estudiante, al detectar una
+  // entrega aprobada se marca el nodo completado (desbloquea el módulo siguiente
+  // y suma al 100%). Se hace en el estudiante porque completeNode escribe en SU
+  // course_progress. Idempotente: completeNode ignora ids ya completados.
+  React.useEffect(() => {
+    const finalMod = studentModules.find(m => m.type === 'final_delivery');
+    if (!finalMod || completed.includes(finalMod.id)) return;
+    const approved = (submissions || []).some(s =>
+      s.studentEmail === user?.email && s.status === 'approved' && (!selectedArea || s.area === selectedArea)
+    );
+    if (approved) completeNode(finalMod.id);
+  }, [studentModules, completed, submissions, user, selectedArea]);
 
   const enrolledCourse = React.useMemo(
     () => courses.find(c => c.id === enrolledCourseId),
