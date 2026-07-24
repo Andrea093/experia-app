@@ -28,6 +28,9 @@ comment on column public.course_modules.available_until is
   'Ventana de disponibilidad: el módulo cierra en esta fecha (NULL = sin fin).';
 
 -- Recrear la RPC del estudiante para incluir las dos columnas nuevas.
+-- DROP primero: al agregar columnas al RETURNS TABLE cambia el tipo de retorno,
+-- y CREATE OR REPLACE no permite cambiarlo (error 42P13). DROP + CREATE sí.
+drop function if exists public.get_course_modules_for_student(uuid);
 create or replace function public.get_course_modules_for_student(p_course_id uuid)
 returns table (
   id uuid, course_id uuid, title text, subtitle text, description text,
