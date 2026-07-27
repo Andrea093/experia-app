@@ -227,7 +227,10 @@ export function StudentProgressModal({ student, onClose }) {
           <div style={{ display:'flex', flexDirection:'column', gap:6, maxHeight:200, overflow:'auto' }}>
             {modules.map(m => {
               const done = completed.includes(m.id)
-              const att  = myAttempts.find(a => a.challengeId === m.id)
+              const moduleAttempts = myAttempts.filter(a => a.challengeId === m.id)
+              const att = moduleAttempts.at(-1)
+              const bestAtt = moduleAttempts.reduce((best, current) =>
+                !best || (current.score / current.maxScore) > (best.score / best.maxScore) ? current : best, null)
               return (
                 <div key={m.id} style={{ display:'flex', alignItems:'center', gap:10,
                   padding:'8px 12px', borderRadius:8,
@@ -243,7 +246,7 @@ export function StudentProgressModal({ student, onClose }) {
                   {att && (
                     <span style={{ fontSize:11, fontWeight:700,
                       color: att.score/att.maxScore >= .75 ? 'var(--success)' : 'var(--warn)' }}>
-                      {Math.round(att.score/att.maxScore*100)}%
+                      {Math.round(att.score/att.maxScore*100)}%{moduleAttempts.length > 1 && bestAtt !== att ? ` · mejor ${Math.round(bestAtt.score/bestAtt.maxScore*100)}%` : ''}
                     </span>
                   )}
                   {!done && !att && <ClockIc s={14} c="var(--border)" />}

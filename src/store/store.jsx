@@ -663,6 +663,28 @@ const recordQuizAttempt = async (moduleId, passed, score, maxScore) => {
   }
   return row;
 };
+
+// Guarda el detalle por ítem de un intento de quiz. `quiz_attempts` conserva
+// el agregado (contador, aprobado y mejor puntaje); esta tabla habilita el
+// análisis de distractores y la evolución entre intentos.
+const recordQuizAttemptAnswers = async (moduleId, attemptNo, questions, answers) => {
+  if (_previewMode || !attemptNo) return;
+  const s = XS.get();
+  const courseId = s.effectiveCourseId || s.enrolledCourseId || null;
+  const rows = (questions || []).map((q, itemIndex) => ({
+    user_id: s.user.id,
+    module_id: moduleId,
+    course_id: courseId,
+    attempt_no: attemptNo,
+    item_id: String(q.id || `legacy-${itemIndex}-${q.question || ''}`),
+    item_index: itemIndex,
+    chosen: answers?.[itemIndex] ?? null,
+    correct: answers?.[itemIndex] === q.correct,
+  }));
+  if (!rows.length) return;
+  const { error } = await supabase.from('quiz_attempt_answers').insert(rows);
+  if (error) console.error('recordQuizAttemptAnswers:', error);
+};
 // Instructor: reinicia los intentos de un estudiante en un reto quiz.
 const resetQuizAttempts = async (userId, moduleId) => {
   const { error } = await supabase.rpc('reset_quiz_attempts', { p_user_id: userId, p_module_id: moduleId });
@@ -685,13 +707,21 @@ const setPreviewMode = (v) => { _previewMode = !!v; };
 const recordAttempt = (challengeId, questions, score, maxScore) => {
   if (_previewMode) return; // vista previa: no se registra ningún intento
   const s = XS.get();
-  if (s.challengeAttempts.some(a => a.studentEmail === s.user.email && a.challengeId === challengeId)) return;
+  const courseId = s.effectiveCourseId || s.enrolledCourseId || null;
+  const isCourseModule = s.courseModules.some(m => m.id === challengeId);
+  const previousAttempts = s.challengeAttempts.filter(a =>
+    a.studentEmail === s.user.email && a.challengeId === challengeId &&
+    (a.courseId || null) === courseId
+  );
+  const attemptNo = previousAttempts.length + 1;
   const att = { id:'att_'+Date.now(), studentEmail:s.user.email, studentName:s.user.name,
-    challengeId, area:s.selectedArea, questions, score, maxScore,
+    challengeId, courseId, moduleId:isCourseModule ? challengeId : null, attemptNo,
+    area:s.selectedArea, questions, score, maxScore,
     date:new Date().toISOString().split('T')[0] };
   XS.set({ challengeAttempts:[...s.challengeAttempts, att] });
   supabase.from('challenge_attempts').insert({
     student_id: s.user.id, challenge_id: challengeId, area: s.selectedArea,
+    course_id: courseId, module_id: isCourseModule ? challengeId : null,
     questions, score, max_score: maxScore,
   }).then(({ error }) => { if (error) console.error('recordAttempt:', error); });
   // El personaje del tema reacciona al desempeño: perfecto (sin un solo error)
@@ -2055,7 +2085,7 @@ export {
   calcLevel, xpForNext, xpProgress, nodeStatus, isBlockedByPresence, progressPct, isRouteComplete, gradeTotal, gradeMax,
   nav, doLogout, selectArea, changeArea, completeNode, recordAttempt,
   redeemPresenceCode, generatePresenceCode,
-  recordQuizAttempt, resetQuizAttempts, loadStudentQuizAttempts,
+  recordQuizAttempt, recordQuizAttemptAnswers, resetQuizAttempts, loadStudentQuizAttempts,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
   saveAvatarConfig, selectAvatarConfig, selectHasThemedCourse, selectThemedCourses,

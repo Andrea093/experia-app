@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  useStore, nav, completeNode, recordAttempt, recordQuizAttempt, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
+  useStore, nav, completeNode, recordAttempt, recordQuizAttempt, recordQuizAttemptAnswers, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
   getStudentModules, nodeStatus, isBlockedByPresence, calcLevel, getActiveCourseTheme, isRouteComplete,
   reactCharacter,
 } from '../store/store.jsx'
@@ -721,10 +721,13 @@ const QuizChallenge = ({ mod, onComplete }) => {
       const qs = questions.map((q, i) => ({ q: q.question, correct: allAnswers[i] === q.correct }));
       recordAttempt(mod.id, qs, finalCorrect, questions.length);
       setDone(true);
-      // Registra el intento en el servidor (cuenta + aprobado) si aún no aprobó.
-      if (!alreadyPassed) {
-        const res = await recordQuizAttempt(mod.id, finalPct >= passingScore, finalCorrect, questions.length);
-        if (res) setAttemptInfo({ attempts: res.attempts });
+      // El agregado cuenta intentos; el detalle por pregunta queda en la tabla
+      // analítica. Se registra incluso si ya había aprobado para no perder la
+      // evidencia de una práctica posterior.
+      const res = await recordQuizAttempt(mod.id, finalPct >= passingScore, finalCorrect, questions.length);
+      if (res) {
+        setAttemptInfo({ attempts: res.attempts });
+        await recordQuizAttemptAnswers(mod.id, res.attempts, questions, allAnswers);
       }
     }
   };

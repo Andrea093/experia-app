@@ -1,6 +1,10 @@
 import React from 'react'
 import { PlusIc, XIc, CheckIc, ChevRIc, ArrowLIc, ArrowRIc, Btn, Modal, ImageUploader, RichInput } from '../ui.jsx'
 
+const newQuestionId = () => `q_${crypto.randomUUID().slice(0, 8)}`
+const newQuestion = (isPoll) => ({ id: newQuestionId(), question: '', options: ['', '', '', ''], ...(isPoll ? {} : { correct: 0 }) })
+const normalizeQuestion = (question, isPoll) => ({ ...question, id: question.id || newQuestionId(), ...(isPoll ? {} : { correct: question.correct ?? 0 }) })
+
 const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) => {
   const isPoll = variant === 'poll'
   const [title, setTitle]   = React.useState('')
@@ -29,7 +33,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
       setDesc(initial?.desc || '')
       setTask(initial?.task || '')
       setXp(initial?.xp || 100)
-      setQs(initial?.questions || [{ id: 1, question: '', options: ['', '', '', ''], ...(isPoll ? {} : { correct: 0 }) }])
+      setQs(initial?.questions?.length ? initial.questions.map(q => normalizeQuestion(q, isPoll)) : [newQuestion(isPoll)])
       setCorrectMsg(initial?.correctMessage || '')
       setIncorrectMsg(initial?.incorrectMessage || '')
       setPassingScore(initial?.passingScore ?? 60)
@@ -73,12 +77,12 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz' }) 
   const [advOpen, setAdvOpen] = React.useState({}) // id -> bool (opciones avanzadas abiertas)
   const toggleAdv = (id) => setAdvOpen(o => ({ ...o, [id]: !o[id] }))
 
-  const addQ = () => setQs(q => [...q, { id: Date.now(), question: '', options: ['', '', '', ''], ...(isPoll ? {} : { correct: 0 }) }])
+  const addQ = () => setQs(q => [...q, newQuestion(isPoll)])
   const removeQ = (id) => setQs(q => q.filter(x => x.id !== id))
   const updateQ = (id, key, val) => setQs(q => q.map(x => x.id === id ? { ...x, [key]: val } : x))
   const dupQ = (id) => setQs(q => {
     const i = q.findIndex(x => x.id === id); if (i < 0) return q
-    const copy = { ...q[i], id: Date.now(), options: [...q[i].options], optionImages: [...(q[i].optionImages || [])] }
+    const copy = { ...q[i], id: newQuestionId(), options: [...q[i].options], optionImages: [...(q[i].optionImages || [])] }
     return [...q.slice(0, i + 1), copy, ...q.slice(i + 1)]
   })
   const moveQ = (id, dir) => setQs(q => {
