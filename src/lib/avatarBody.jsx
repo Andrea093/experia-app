@@ -25,6 +25,43 @@ const HEAD = { x: 38, y: 0, w: 124, h: 124 }
 // Color de la energía del rango máximo (gemas, alas, anillo de runas).
 const LEGEND_HUE = '#8E7BE8'
 
+// Naranja Evolución del brandbook CEINFES (el mismo de AREAS en el store).
+const CEINFES_ORANGE = '#EC671A'
+
+// Emblema CEINFES sobre el pecho: mismo sitio en los 5 rangos, para que la
+// marca se reconozca sin importar el nivel.
+// El logo es un wordmark ("ceinfes") y a este tamaño sería una mancha, así que
+// se usa su elemento distintivo —la flecha ascendente sobre la "n"— en el
+// naranja de la marca. Cambia solo el ACABADO según el material: parche cosido
+// sobre tela, chapa remachada sobre metal.
+const CeinfesMark = ({ x = 76, y = 152, size = 15, finish = 'cloth', rim }) => {
+  const s = size / 24
+  return (
+    <g transform={`translate(${x - size / 2} ${y - size / 2}) scale(${s})`}>
+      <rect width="24" height="24" rx="7" fill={CEINFES_ORANGE} />
+      {finish === 'cloth' ? (
+        // costura del parche
+        <rect x="2.2" y="2.2" width="19.6" height="19.6" rx="5.2" fill="none"
+          stroke="#fff" strokeWidth="1.1" strokeDasharray="2.4 2.2" opacity=".75" />
+      ) : (
+        <>
+          {/* chapa remachada: aro del metal del rango + dos remaches */}
+          <rect width="24" height="24" rx="7" fill="none" stroke={rim || '#00000055'} strokeWidth="1.8" />
+          <circle cx="4.2" cy="4.2" r="1.1" fill="#ffffff" opacity=".55" />
+          <circle cx="19.8" cy="19.8" r="1.1" fill="#000000" opacity=".25" />
+        </>
+      )}
+      {/* Flecha ascendente: el gesto del "flick" que el logo lleva sobre la "n".
+          Trazar ese flick literal se vuelve una mancha por debajo de ~20 px
+          (comparado a 96/40/22/14 px), así que se usa esta versión geométrica,
+          que es la única que sigue leyéndose al tamaño real del emblema. */}
+      <path d="M6.5 17.5 L16.5 7.5" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" fill="none" />
+      <path d="M10.5 6 L18 6 L18 13.5" stroke="#fff" strokeWidth="3.2"
+        strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </g>
+  )
+}
+
 // Aclarar/oscurecer un hex para sombras y brillos sin pedir más colores.
 const shade = (hex, amount) => {
   const n = parseInt(hex.replace('#', ''), 16)
@@ -223,6 +260,7 @@ const ArmorForRank = ({ rank, cloth, metal, metalDark, uid }) => {
           <Strap color={shade(cloth, -.42)} bag />
           <Collar color={shade(cloth, -.3)} />
           <path d="M56 208 L144 208" stroke={shade(cloth, -.3)} strokeWidth="3.5" strokeLinecap="round" />
+          <CeinfesMark finish="cloth" />
         </g>
       )
     case 2: // Explorador — chaqueta abierta, hombreras de tela y cinturón de cuero
@@ -238,6 +276,7 @@ const ArmorForRank = ({ rank, cloth, metal, metalDark, uid }) => {
           <Epaulette x={66} cloth={shade(cloth, -.3)} trim={metal} />
           <Epaulette x={134} cloth={shade(cloth, -.42)} trim={metal} />
           <Collar color={shade(cloth, -.36)} />
+          <CeinfesMark finish="cloth" />
         </g>
       )
     case 3: // Especialista — peto ligero y dos hombreras
@@ -249,6 +288,7 @@ const ArmorForRank = ({ rank, cloth, metal, metalDark, uid }) => {
           <Belt metal={metal} metalDark={metalDark} />
           <Pauldron x={66} metal={metal} metalDark={metalDark} />
           <Pauldron x={134} metal={metal} metalDark={metalDark} />
+          <CeinfesMark finish="metal" rim={metalDark} />
         </g>
       )
     case 4: // Maestro — armadura completa, gola, hombreras grandes y estrella
@@ -260,6 +300,7 @@ const ArmorForRank = ({ rank, cloth, metal, metalDark, uid }) => {
           <Pauldron x={62} metal={metal} metalDark={metalDark} big />
           <Pauldron x={138} metal={metal} metalDark={metalDark} big />
           <Gorget metal={metal} metalDark={metalDark} />
+          <CeinfesMark finish="metal" rim={metalDark} />
         </g>
       )
     default: // 5 · Leyenda — metal con brillo, cristales y gema viva
@@ -276,6 +317,7 @@ const ArmorForRank = ({ rank, cloth, metal, metalDark, uid }) => {
           {/* filos encendidos */}
           <path d="M62 280 C62 194 70 132 86 118" fill="none" stroke="#FFF3B8" strokeWidth="3" opacity=".95" />
           <path d="M138 280 C138 194 130 132 114 118" fill="none" stroke="#FFF3B8" strokeWidth="3" opacity=".95" />
+          <CeinfesMark finish="metal" rim={metalDark} />
         </g>
       )
   }
