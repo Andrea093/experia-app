@@ -1,7 +1,12 @@
 import React from 'react'
-import { useStore } from '../store/store.jsx'
+import { useStore, selectActiveCourseTheme } from '../store/store.jsx'
 import { LiveQuestionView } from './LiveQuestionView.jsx'
 import { LessonBody } from '../pages/lesson.jsx'
+
+// El tutor del curso temático. La vista guiada se renderiza FUERA del shell
+// normal (app.jsx retorna antes de montar <CourseAmbient/>), así que hay que
+// montarlo aquí a mano o el personaje no aparecería durante la clase en vivo.
+const CharacterFloat = React.lazy(() => import('./CharacterBubble.jsx'))
 
 // Envoltorio de layout de la vista guiada (ocupa toda la pantalla, sin
 // sidebar/header — el profesor controla el avance, el estudiante no navega).
@@ -15,6 +20,18 @@ const Shell = ({ children }) => (
   </div>
 )
 
+// Envuelve cualquier pantalla de la clase con el tutor del curso (si el curso
+// tiene tema). El personaje va en position:fixed, así que no altera el layout.
+const WithTutor = ({ children }) => {
+  const theme = useStore(selectActiveCourseTheme)
+  return (
+    <>
+      {children}
+      {theme && <React.Suspense fallback={null}><CharacterFloat /></React.Suspense>}
+    </>
+  )
+}
+
 const LiveBadge = () => (
   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 20,
     background: 'var(--orange-bg)', color: 'var(--orange)', fontSize: 12, fontWeight: 700, marginBottom: 20 }}>
@@ -25,22 +42,26 @@ const LiveBadge = () => (
 // Vista de la Clase en Vivo Guiada para el estudiante: reemplaza por completo
 // la navegación normal (map/lesson/challenge) mientras está unido a una sesión
 // activa. Renderiza el mismo módulo que ve el profesor en cada momento.
-const GuidedClassView = ({ guided }) => {
+const GuidedClassViewInner = ({ guided }) => {
   const { session, participant } = guided
   const courseModules = useStore(s => s.courseModules) || []
   const currentMod = courseModules.find(m => m.id === session?.module_id)
+  // A diferencia de la página pública del PIN, aquí el estudiante SÍ tiene
+  // sesión: su avatar lo acompaña en el lobby, al responder, en el revelado
+  // (reacciona con la expresión) y en el podio.
+  const avatar = useStore(s => s.user?.avatarConfig) || null
 
   if (!session || !participant) return null
 
   // Sesión finalizada: LiveQuestionView muestra el podio con confeti; app.jsx
   // detecta status==='ended' y saca al estudiante de vuelta al mapa normal.
   if (session.status === 'ended') {
-    return <LiveQuestionView participant={participant} Wrap={Shell} />
+    return <LiveQuestionView participant={participant} Wrap={Shell} avatar={avatar} />
   }
 
   // Módulo interactivo (quiz o encuesta en vivo): reusa el ciclo ya construido.
   if (currentMod?.type === 'challenge' && (currentMod.ctype === 'quiz' || currentMod.ctype === 'poll')) {
-    return <LiveQuestionView participant={participant} Wrap={Shell} />
+    return <LiveQuestionView participant={participant} Wrap={Shell} avatar={avatar} />
   }
 
   // Lección de lectura: mismo contenido que ve el profesor, en modo solo-lectura.
@@ -71,5 +92,9 @@ const GuidedClassView = ({ guided }) => {
     </Shell>
   );
 }
+
+const GuidedClassView = ({ guided }) => (
+  <WithTutor><GuidedClassViewInner guided={guided} /></WithTutor>
+)
 
 export default GuidedClassView

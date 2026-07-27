@@ -26,12 +26,26 @@ export const CHARACTER_CONTEXTS = ['idle', 'lessonIntro', 'correct', 'wrong', 'm
 //   who  → 'tutor' | 'student'
 //   exp  → expresión del avatar en ese turno (idle | happy | sad | wow)
 //   {nombre} se reemplaza por el alias del avatar o el primer nombre real.
-// Momentos (los dispara CharacterBubble, no el store):
+// Un contexto puede tener UN guión —[{who,text}, …]— o VARIOS —[[…], […]]—;
+// en ese caso getDialogue elige uno al azar, para que los momentos frecuentes
+// no suenen siempre igual.
+//
+// Momentos:
 //   welcome       — primera entrada al curso ya con avatar creado
+//   comeback      — vuelve tras 3 días o más sin entrar
+//   avatarCreated — acaba de crear su avatar
+//   rankUp        — subió de rango (armadura nueva)
 //   milestone     — cada 3 módulos completados
+//   perfect       — reto resuelto sin un solo error
+//   badge         — ganó una insignia
 //   struggle      — dos fallos seguidos en el mismo reto
 //   routeComplete — al terminar la ruta
-export const DIALOGUE_CONTEXTS = ['welcome', 'milestone', 'struggle', 'routeComplete']
+//   liveStart     — entra al lobby de la Clase en Vivo Guiada
+//   liveEnd       — podio de la Clase en Vivo Guiada
+export const DIALOGUE_CONTEXTS = [
+  'welcome', 'comeback', 'avatarCreated', 'rankUp', 'milestone', 'perfect',
+  'badge', 'struggle', 'routeComplete', 'liveStart', 'liveEnd',
+]
 
 // ─── Avatares SVG inline (sin dependencias externas) ─────────────────────────
 
@@ -216,6 +230,11 @@ const ART = {
 // `art` + `side` + `fx` controlan la aparición de cuerpo entero por el lado de
 // la pantalla (ver CharacterBubble.jsx). `flip` refleja la figura para que
 // siempre gesticule hacia el centro de la pantalla.
+// ⚠️ Los cuatro tutores van a la DERECHA (`side: 'right'`) y el avatar del
+// estudiante entra por la izquierda: la posición es fija para que el estudiante
+// siempre sepa dónde mirar. `flip: true` en todos porque las ilustraciones
+// gesticulan hacia la derecha y, pegadas al borde derecho, apuntarían fuera de
+// la pantalla. Si algún día se cambia el lado, hay que invertir también `flip`.
 // `lines` define las frases por contexto (string o array → se elige una al azar).
 
 export const CHARACTERS_BY_THEME = {
@@ -223,7 +242,7 @@ export const CHARACTERS_BY_THEME = {
     id: 'vera',
     name: 'INSPECTORA VERA CLÍO',
     Avatar: VeraAvatar,
-    art: ART.detective, side: 'left', flip: false,
+    art: ART.detective, side: 'right', flip: true,
     fx: {
       accent: '#D4A017', accent2: '#EDE8DC',
       aura: 'rgba(212,160,23,.34)', glow: 'rgba(212,160,23,.55)',
@@ -252,18 +271,65 @@ export const CHARACTERS_BY_THEME = {
         { who: 'student', text: '¿Y por dónde se empieza a resolver un texto?', exp: 'wow' },
         { who: 'tutor', text: 'Por donde empieza todo buen detective: leyendo lo que nadie más se detuvo a leer.' },
       ],
+      comeback: [
+        { who: 'tutor', text: 'Volviste, {nombre}. El expediente llevaba días abierto sobre mi escritorio.' },
+        { who: 'student', text: 'Se me atravesó la vida, inspectora.', exp: 'sad' },
+        { who: 'tutor', text: 'A todos nos pasa. Los casos esperan. Retomemos.' },
+      ],
+      avatarCreated: [
+        { who: 'tutor', text: 'Así que esta es tu cara oficial. Va derecho al archivo.' },
+        { who: 'student', text: '¿Salgo bien en la ficha?', exp: 'wow' },
+        { who: 'tutor', text: 'Sales creíble. En este oficio eso vale más que salir guapo.' },
+      ],
+      rankUp: [
+        { who: 'tutor', text: 'Mira ese uniforme nuevo, {nombre}. Ya no eres el novato de la comisaría.' },
+        { who: 'student', text: '¿Se nota mucho?', exp: 'wow' },
+        { who: 'tutor', text: 'Se nota en cómo miras la evidencia. Eso no se disfraza.' },
+      ],
+      perfect: [
+        { who: 'tutor', text: 'Ni un solo error, {nombre}. Eso ya no es suerte.' },
+        { who: 'student', text: 'Leí dos veces antes de responder.', exp: 'happy' },
+        { who: 'tutor', text: 'Ese es exactamente el método. Anótalo.' },
+      ],
+      badge: [
+        { who: 'tutor', text: 'Condecoración nueva para tu expediente, {nombre}.' },
+        { who: 'student', text: '¿Y esto por qué?', exp: 'wow' },
+        { who: 'tutor', text: 'Por lo que acabas de resolver. Llévala.' },
+      ],
+      liveStart: [
+        { who: 'tutor', text: 'Sala llena y el reloj corriendo, {nombre}.' },
+        { who: 'student', text: '¿Y si me equivoco delante de todos?', exp: 'wow' },
+        { who: 'tutor', text: 'Entonces habrá testigos de que lo intentaste. Respira y lee.' },
+      ],
       milestone: [
-        { who: 'tutor', text: 'Tres expedientes cerrados, {nombre}. Ya no eres novato.' },
-        { who: 'student', text: 'Empiezo a ver las pistas antes de que me las señalen.', exp: 'happy' },
+        [
+          { who: 'tutor', text: 'Tres expedientes cerrados, {nombre}. Ya no eres novato.' },
+          { who: 'student', text: 'Empiezo a ver las pistas antes de que me las señalen.', exp: 'happy' },
+        ],
+        [
+          { who: 'student', text: 'Van varios casos seguidos, inspectora.', exp: 'happy' },
+          { who: 'tutor', text: 'Y ninguno se te ha caído. Eso en mi oficio se llama racha.' },
+        ],
       ],
       struggle: [
-        { who: 'student', text: 'Se me escapa algo… y no doy con qué.', exp: 'sad' },
-        { who: 'tutor', text: 'Le pasa a todo investigador. Vuelve al texto: la respuesta ya estaba escrita.' },
+        [
+          { who: 'student', text: 'Se me escapa algo… y no doy con qué.', exp: 'sad' },
+          { who: 'tutor', text: 'Le pasa a todo investigador. Vuelve al texto: la respuesta ya estaba escrita.' },
+        ],
+        [
+          { who: 'student', text: 'Dos veces seguidas. Me estoy enredando.', exp: 'sad' },
+          { who: 'tutor', text: 'Entonces deja de correr. Un buen detective relee antes de acusar.' },
+        ],
       ],
       routeComplete: [
         { who: 'tutor', text: 'Caso cerrado, {nombre}. Y no lo resolví yo.' },
         { who: 'student', text: 'Ahora leo distinto. Y mis estudiantes también lo van a notar.', exp: 'happy' },
         { who: 'tutor', text: 'Esa era la investigación de verdad. Buen trabajo, colega.' },
+      ],
+      liveEnd: [
+        { who: 'tutor', text: 'Se cierra la sala de interrogatorios. Buen pulso, {nombre}.' },
+        { who: 'student', text: '¡Con la clase entera mirando! Eso pone nervioso a cualquiera.', exp: 'wow' },
+        { who: 'tutor', text: 'Y aun así dedujiste. Eso es oficio.' },
       ],
     },
   },
@@ -300,18 +366,65 @@ export const CHARACTERS_BY_THEME = {
         { who: 'student', text: '¿Y si me equivoco al abrir el candado?', exp: 'wow' },
         { who: 'tutor', text: 'Entonces aprendes cómo NO se abre. Eso también es matemática.' },
       ],
+      comeback: [
+        { who: 'tutor', text: 'Volviste, {nombre}. La sala seguía cerrada, esperándote.' },
+        { who: 'student', text: 'Perdí el hilo unos días.', exp: 'sad' },
+        { who: 'tutor', text: 'Los candados no caducan. Empecemos otra vez.' },
+      ],
+      avatarCreated: [
+        { who: 'tutor', text: 'Ya tienes con quién resolver esto, {nombre}.' },
+        { who: 'student', text: 'Somos dos contra los candados.', exp: 'happy' },
+        { who: 'tutor', text: 'Tres. Yo también cuento, aunque no abra puertas.' },
+      ],
+      rankUp: [
+        { who: 'tutor', text: 'Equipo nuevo, {nombre}. Te lo ganaste abriendo puertas.' },
+        { who: 'student', text: '¿Ya no soy el que se quedaba atascado en la primera sala?', exp: 'wow' },
+        { who: 'tutor', text: 'Ese fue hace varias salas. Mírate ahora.' },
+      ],
+      perfect: [
+        { who: 'tutor', text: 'Todos los candados a la primera. Impecable, {nombre}.' },
+        { who: 'student', text: 'Ya no adivino: calculo.', exp: 'happy' },
+        { who: 'tutor', text: 'Esa frase vale más que el puntaje.' },
+      ],
+      badge: [
+        { who: 'tutor', text: 'Una llave nueva para tu llavero, {nombre}.' },
+        { who: 'student', text: '¿Y esta qué abre?', exp: 'wow' },
+        { who: 'tutor', text: 'La confianza. Que es la puerta más dura de todas.' },
+      ],
+      liveStart: [
+        { who: 'tutor', text: 'Contrarreloj y con toda la clase mirando, {nombre}.' },
+        { who: 'student', text: 'El pulso se me acelera.', exp: 'wow' },
+        { who: 'tutor', text: 'Úsalo. La prisa bien llevada también piensa.' },
+      ],
       milestone: [
-        { who: 'tutor', text: 'Tres salas abiertas, {nombre}. Ya le tomaste el ritmo a los candados.' },
-        { who: 'student', text: 'Ya no adivino: ahora razono el camino.', exp: 'happy' },
+        [
+          { who: 'tutor', text: 'Tres salas abiertas, {nombre}. Ya le tomaste el ritmo a los candados.' },
+          { who: 'student', text: 'Ya no adivino: ahora razono el camino.', exp: 'happy' },
+        ],
+        [
+          { who: 'student', text: 'Otra puerta que cede, profesor.', exp: 'happy' },
+          { who: 'tutor', text: 'Y cada vez tardas menos. Eso es el método haciendo su trabajo.' },
+        ],
       ],
       struggle: [
-        { who: 'student', text: 'Este candado no cede por más vueltas que le doy.', exp: 'sad' },
-        { who: 'tutor', text: 'Deja de forzarlo. Devuélvete un paso y revisa el razonamiento: ahí está la clave.' },
+        [
+          { who: 'student', text: 'Este candado no cede por más vueltas que le doy.', exp: 'sad' },
+          { who: 'tutor', text: 'Deja de forzarlo. Devuélvete un paso y revisa el razonamiento: ahí está la clave.' },
+        ],
+        [
+          { who: 'student', text: 'Dos intentos y nada. Me trabé.', exp: 'sad' },
+          { who: 'tutor', text: 'Trabarse es parte del acertijo. Cambia el ángulo, no la fuerza.' },
+        ],
       ],
       routeComplete: [
         { who: 'tutor', text: '¡La última puerta, {nombre}! ¿Sales tú o salgo yo?' },
         { who: 'student', text: 'Salimos los dos. Y me llevo el método para mi aula.', exp: 'happy' },
         { who: 'tutor', text: 'Eso vale más que cualquier llave. ¡Vamos!' },
+      ],
+      liveEnd: [
+        { who: 'tutor', text: 'Se acabó el cronómetro, {nombre}. Contrarreloj y con público.' },
+        { who: 'student', text: 'Pensar rápido es otra cosa muy distinta.', exp: 'wow' },
+        { who: 'tutor', text: 'Por eso se practica. Hoy lo hiciste.' },
       ],
     },
   },
@@ -319,7 +432,7 @@ export const CHARACTERS_BY_THEME = {
     id: 'nexus',
     name: 'DRA. NEXUS',
     Avatar: DraNexusAvatar,
-    art: ART.lab, side: 'left', flip: false,
+    art: ART.lab, side: 'right', flip: true,
     fx: {
       accent: '#00ff88', accent2: '#00d4ff',
       aura: 'rgba(0,255,136,.30)', glow: 'rgba(0,212,255,.5)',
@@ -348,18 +461,65 @@ export const CHARACTERS_BY_THEME = {
         { who: 'student', text: '¿Y si mi hipótesis resulta equivocada?', exp: 'wow' },
         { who: 'tutor', text: 'Entonces habrás aprendido algo. Eso es exactamente el método.' },
       ],
+      comeback: [
+        { who: 'tutor', text: 'El laboratorio te esperaba, {nombre}. Los cultivos aguantaron.' },
+        { who: 'student', text: 'Volví. Se me acumuló el trabajo.', exp: 'sad' },
+        { who: 'tutor', text: 'La ciencia es paciente. Retomemos donde quedó la bitácora.' },
+      ],
+      avatarCreated: [
+        { who: 'tutor', text: 'Sujeto de estudio identificado: tú, {nombre}.' },
+        { who: 'student', text: '¿Yo soy el experimento?', exp: 'wow' },
+        { who: 'tutor', text: 'Aprender también se observa. Empecemos.' },
+      ],
+      rankUp: [
+        { who: 'tutor', text: 'Bata nueva, {nombre}. Ya no eres asistente de laboratorio.' },
+        { who: 'student', text: '¿Y ahora qué me toca?', exp: 'wow' },
+        { who: 'tutor', text: 'Diseñar tus propios experimentos. Que es lo difícil.' },
+      ],
+      perfect: [
+        { who: 'tutor', text: 'Cero desviaciones, {nombre}. Resultado limpio.' },
+        { who: 'student', text: 'Revisé cada dato antes de responder.', exp: 'happy' },
+        { who: 'tutor', text: 'Eso se llama rigor. Que quede en la bitácora.' },
+      ],
+      badge: [
+        { who: 'tutor', text: 'Reconocimiento nuevo para tu hoja de vida científica.' },
+        { who: 'student', text: '¿Tan formal suena?', exp: 'wow' },
+        { who: 'tutor', text: 'El mérito se registra, {nombre}. Acéptalo.' },
+      ],
+      liveStart: [
+        { who: 'tutor', text: 'Experimento colectivo, {nombre}: todo el grupo midiendo a la vez.' },
+        { who: 'student', text: '¿Y si mi dato desentona?', exp: 'wow' },
+        { who: 'tutor', text: 'Entonces será el más interesante de todos. Adelante.' },
+      ],
       milestone: [
-        { who: 'tutor', text: 'Tres experimentos registrados, {nombre}. Tu bitácora ya dice mucho.' },
-        { who: 'student', text: 'Ahora observo antes de concluir.', exp: 'happy' },
+        [
+          { who: 'tutor', text: 'Tres experimentos registrados, {nombre}. Tu bitácora ya dice mucho.' },
+          { who: 'student', text: 'Ahora observo antes de concluir.', exp: 'happy' },
+        ],
+        [
+          { who: 'student', text: 'Otra serie completa, doctora.', exp: 'happy' },
+          { who: 'tutor', text: 'Y con datos consistentes. Eso no se improvisa.' },
+        ],
       ],
       struggle: [
-        { who: 'student', text: 'Los datos no me están dando lo que esperaba.', exp: 'sad' },
-        { who: 'tutor', text: 'Perfecto: eso es un hallazgo, no un fracaso. Ajusta una variable y repite.' },
+        [
+          { who: 'student', text: 'Los datos no me están dando lo que esperaba.', exp: 'sad' },
+          { who: 'tutor', text: 'Perfecto: eso es un hallazgo, no un fracaso. Ajusta una variable y repite.' },
+        ],
+        [
+          { who: 'student', text: 'Dos intentos fallidos seguidos.', exp: 'sad' },
+          { who: 'tutor', text: 'Dos datos, entonces. Ningún experimento sale a la primera, {nombre}.' },
+        ],
       ],
       routeComplete: [
         { who: 'tutor', text: 'Última anotación en la bitácora, {nombre}. ¿Qué concluyes?' },
         { who: 'student', text: 'Que la ciencia no se enseña: se hace con los estudiantes.', exp: 'happy' },
         { who: 'tutor', text: 'Hipótesis confirmada. Bienvenida al gremio, colega.' },
+      ],
+      liveEnd: [
+        { who: 'tutor', text: 'Experimento colectivo terminado. Datos recogidos, {nombre}.' },
+        { who: 'student', text: 'Con todo el grupo respondiendo a la vez la cosa cambia.', exp: 'wow' },
+        { who: 'tutor', text: 'Eso también es evidencia. Anótalo.' },
       ],
     },
   },
@@ -396,18 +556,65 @@ export const CHARACTERS_BY_THEME = {
         { who: 'student', text: '¿Puedo cambiar algo de lo que pasó?', exp: 'wow' },
         { who: 'tutor', text: 'No. Pero puedes cambiar cómo se entiende. Que no es poco.' },
       ],
+      comeback: [
+        { who: 'tutor', text: 'El portal reconoció tu huella, {nombre}. Aquí han pasado días.' },
+        { who: 'student', text: '¿Cuántos exactamente?', exp: 'sad' },
+        { who: 'tutor', text: 'Los suficientes para extrañarte. Sigamos.' },
+      ],
+      avatarCreated: [
+        { who: 'tutor', text: 'Ya tienes figura propia en la línea del tiempo, {nombre}.' },
+        { who: 'student', text: '¿Y eso para qué sirve?', exp: 'wow' },
+        { who: 'tutor', text: 'La historia solo recuerda a quien tiene rostro.' },
+      ],
+      rankUp: [
+        { who: 'tutor', text: 'Tu atuendo cambió de época, {nombre}. Es el viaje que llevas encima.' },
+        { who: 'student', text: 'No me había dado cuenta.', exp: 'wow' },
+        { who: 'tutor', text: 'Nadie se da cuenta mientras viaja. Solo al mirar atrás.' },
+      ],
+      perfect: [
+        { who: 'tutor', text: 'Ni una fecha fuera de lugar, {nombre}.' },
+        { who: 'student', text: 'Ordené las causas antes de responder.', exp: 'happy' },
+        { who: 'tutor', text: 'Así se lee la historia. No de memoria: de raíz.' },
+      ],
+      badge: [
+        { who: 'tutor', text: 'Otra marca en tu bitácora de viaje, {nombre}.' },
+        { who: 'student', text: '¿Se van acumulando?', exp: 'wow' },
+        { who: 'tutor', text: 'Como las épocas. Y pesan igual.' },
+      ],
+      liveStart: [
+        { who: 'tutor', text: 'Viaje en grupo, {nombre}. Todos a la misma época, al mismo tiempo.' },
+        { who: 'student', text: '¿Llegaremos todos juntos?', exp: 'wow' },
+        { who: 'tutor', text: 'Cada quien verá algo distinto. De eso se trata.' },
+      ],
       milestone: [
-        { who: 'tutor', text: 'Tres épocas recorridas, {nombre}. La línea del tiempo te va conociendo.' },
-        { who: 'student', text: 'Ya no veo fechas sueltas: veo causas y consecuencias.', exp: 'happy' },
+        [
+          { who: 'tutor', text: 'Tres épocas recorridas, {nombre}. La línea del tiempo te va conociendo.' },
+          { who: 'student', text: 'Ya no veo fechas sueltas: veo causas y consecuencias.', exp: 'happy' },
+        ],
+        [
+          { who: 'student', text: 'Otra época cerrada, profesor.', exp: 'happy' },
+          { who: 'tutor', text: 'Y sin juzgarla desde hoy. Eso cuesta años.' },
+        ],
       ],
       struggle: [
-        { who: 'student', text: 'Estoy juzgando esta época con los ojos de hoy, ¿cierto?', exp: 'sad' },
-        { who: 'tutor', text: 'Exacto, y por eso se te enreda. Vuelve al contexto y decide otra vez.' },
+        [
+          { who: 'student', text: 'Estoy juzgando esta época con los ojos de hoy, ¿cierto?', exp: 'sad' },
+          { who: 'tutor', text: 'Exacto, y por eso se te enreda. Vuelve al contexto y decide otra vez.' },
+        ],
+        [
+          { who: 'student', text: 'Dos veces me equivoqué en lo mismo.', exp: 'sad' },
+          { who: 'tutor', text: 'La historia también se repite hasta que alguien la entiende. Reintenta.' },
+        ],
       ],
       routeComplete: [
         { who: 'tutor', text: 'Fin del viaje, {nombre}. Te devuelvo a tu presente.' },
         { who: 'student', text: 'Al mismo presente no: ahora sé de dónde viene todo.', exp: 'happy' },
         { who: 'tutor', text: 'Esa es la única máquina del tiempo que existe. Llévala a tu aula.' },
+      ],
+      liveEnd: [
+        { who: 'tutor', text: 'El portal se cierra, {nombre}. Viajaron todos juntos esta vez.' },
+        { who: 'student', text: 'Y cada quien vio la época a su manera.', exp: 'wow' },
+        { who: 'tutor', text: 'Ahí está la historia: nunca se lee igual dos veces.' },
       ],
     },
   },
@@ -435,7 +642,10 @@ export const cropStyle = (c) => ({
 // Devuelve el guión de conversación de ese momento, con {nombre} ya resuelto.
 // null si el tema no tiene guión para ese contexto.
 export const getDialogue = (theme, context, nombre = '') => {
-  const script = CHARACTERS_BY_THEME[theme]?.dialogues?.[context]
+  const raw = CHARACTERS_BY_THEME[theme]?.dialogues?.[context]
+  if (!Array.isArray(raw) || !raw.length) return null
+  // Varias versiones del mismo momento: se elige una al azar.
+  const script = Array.isArray(raw[0]) ? raw[Math.floor(Math.random() * raw.length)] : raw
   if (!Array.isArray(script) || !script.length) return null
   return script.map(t => ({ ...t, text: t.text.replace(/\{nombre\}/g, nombre) }))
 }

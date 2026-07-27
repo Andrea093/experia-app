@@ -27,6 +27,12 @@ const BUBBLE_MS = 620  // cuándo aparece el globo, ya casi aterrizado
 
 const MILESTONE_EVERY = 3   // módulos completados entre conversaciones de hito
 const WELCOME_KEY = 'experia:char-welcome:'
+const VISIT_KEY   = 'experia:char-visit:'   // última visita al curso (ms)
+const RANK_KEY    = 'experia:char-rank:'    // último rango visto en el curso
+const COMEBACK_DAYS = 3                     // días sin entrar para el saludo de regreso
+
+const readLS = (k) => { try { return localStorage.getItem(k) } catch { return null } }
+const writeLS = (k, v) => { try { localStorage.setItem(k, v) } catch { /* incógnito */ } }
 
 // Cuánto dura un turno en pantalla, según lo que hay que leer.
 const readMs = (text) => Math.min(9000, Math.max(3200, 1600 + (text?.length || 0) * 52))
@@ -178,20 +184,43 @@ export const CharacterFloat = () => {
     wrongStreak.current = 0
     if (!char?.art) return
 
-    const key = WELCOME_KEY + (courseId || theme)
-    let seen = true
-    try { seen = localStorage.getItem(key) === '1' } catch {}
+    const id = courseId || theme
+    const welcomeKey = WELCOME_KEY + id
+    const visitKey = VISIT_KEY + id
+    const seen = readLS(welcomeKey) === '1'
+    const last = Number(readLS(visitKey)) || 0
+    const daysAway = last ? (Date.now() - last) / 86400000 : 0
+    writeLS(visitKey, String(Date.now()))
+    // El rango de referencia se fija en la primera visita, para no disparar un
+    // "subiste de rango" solo por abrir el curso con progreso previo.
+    if (readLS(RANK_KEY + id) === null) writeLS(RANK_KEY + id, String(rank))
 
     later(() => {
       if (!avatarCfg) { inviteToCreate(); return }        // aún no tiene avatar
       if (!seen) {
-        try { localStorage.setItem(key, '1') } catch {}
+        writeLS(welcomeKey, '1')
         if (converse('welcome')) return                    // presentación mutua
       }
+      if (daysAway >= COMEBACK_DAYS && converse('comeback')) return
       speak('idle')
     }, 1100)
     return clearTimers
   }, [theme, courseId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Subida de rango: la armadura cambió, el tutor lo celebra. Se compara contra
+  // el último rango visto EN ESTE CURSO (el rango depende del XP del curso).
+  React.useEffect(() => {
+    if (!char?.art || !avatarCfg) return
+    const key = RANK_KEY + (courseId || theme)
+    const prev = Number(readLS(key))
+    if (!prev) { writeLS(key, String(rank)); return }
+    if (rank > prev) {
+      writeLS(key, String(rank))
+      later(() => converse('rankUp'), 900)
+    } else if (rank < prev) {
+      writeLS(key, String(rank))   // cambió de curso: solo re-sincroniza
+    }
+  }, [rank, courseId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reacción a un evento del estudiante (correct/wrong/moduleComplete/…).
   React.useEffect(() => {
@@ -203,7 +232,10 @@ export const CharacterFloat = () => {
     else if (ctx === 'correct') wrongStreak.current = 0
 
     if (avatarCfg && !reaction.line) {
-      if (ctx === 'routeComplete' && converse('routeComplete')) return
+      // Cualquier contexto que tenga guión propio se juega como conversación
+      // (routeComplete, liveEnd…). Los demás caen a monólogo salvo los dos
+      // casos que dependen de un contador o una racha.
+      if (converse(ctx)) return
       if (ctx === 'wrong' && wrongStreak.current >= 2 && converse('struggle')) {
         wrongStreak.current = 0
         return
@@ -224,6 +256,9 @@ export const CharacterFloat = () => {
   const otherSide = side === 'left' ? 'right' : 'left'
   const current = script ? script[turn] : null
   const studentTurn = current?.who === 'student'
+  // Cuando el avatar escucha (monólogo o turno del tutor) reacciona con la cara
+  // al ánimo del momento, aunque no diga nada.
+  const listeningExp = mood === 'wrong' ? 'sad' : mood === 'correct' || mood === 'cheer' ? 'happy' : 'idle'
 
   const vars = {
     '--xch-accent': fx.accent,
@@ -313,8 +348,10 @@ export const CharacterFloat = () => {
         </div>
       )}
 
-      {/* El avatar del estudiante entra por el lado opuesto, solo en conversación */}
-      {onStage && script && avatarCfg && (
+      {/* El avatar del estudiante entra por el lado opuesto SIEMPRE que el tutor
+          esté en escena: en conversación se turnan la palabra, y en monólogo
+          acompaña en silencio reaccionando con la expresión. */}
+      {onStage && avatarCfg && (
         // --xch-ratio se pisa DESPUÉS de vars: el del tutor viene del recorte de
         // su ilustración y aquí manda el lienzo del cuerpo (200×280).
         <div className="xch-root xch-root-student" style={{ ...vars, '--xch-ratio': '0.714' }}
@@ -325,7 +362,7 @@ export const CharacterFloat = () => {
             <div className="xch-figure">
               <div className="xch-body">
                 <AvatarBody cfg={avatarCfg} rank={rank} fill
-                  expression={studentTurn ? (current.exp || 'idle') : 'idle'} />
+                  expression={studentTurn ? (current.exp || 'idle') : listeningExp} />
               </div>
             </div>
           </div>

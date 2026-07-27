@@ -69,11 +69,21 @@ export const fetchSessionByCode = async (code) => {
     .eq('code', code).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
   return data
 }
+// Una clase en vivo no dura más de una jornada. Si el profesor cierra el panel
+// sin finalizarla, la sesión se queda "activa" en la BD PARA SIEMPRE y todos los
+// estudiantes del curso seguirían viendo la invitación para unirse aunque no
+// haya clase. Por eso se ignoran las sesiones más viejas que esto: es la red de
+// seguridad del lado del cliente, además del botón de finalizar del panel.
+export const GUIDED_MAX_AGE_HOURS = 8
+
 // Sesión guiada activa de un curso (para el banner de invitación / vista del
 // estudiante). live_sessions tiene lectura pública, no requiere RPC.
 export const fetchActiveSessionForCourse = async (courseId) => {
+  const since = new Date(Date.now() - GUIDED_MAX_AGE_HOURS * 3600 * 1000).toISOString()
   const { data } = await supabase.from('live_sessions').select('*')
-    .eq('course_id', courseId).neq('status', 'ended').order('created_at', { ascending: false }).limit(1).maybeSingle()
+    .eq('course_id', courseId).neq('status', 'ended')
+    .gte('created_at', since)
+    .order('created_at', { ascending: false }).limit(1).maybeSingle()
   return data
 }
 // Solo columnas públicas del leaderboard. correo/user_id/claim_token NO son

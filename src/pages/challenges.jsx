@@ -2,6 +2,7 @@ import React from 'react'
 import {
   useStore, nav, completeNode, recordAttempt, recordQuizAttempt, findModule, findModuleInConfig, AREAS, BADGES, LEVELS,
   getStudentModules, nodeStatus, isBlockedByPresence, calcLevel, getActiveCourseTheme, isRouteComplete,
+  reactCharacter,
 } from '../store/store.jsx'
 import ThemeCelebration from '../components/ThemeCelebration.jsx'
 import {
@@ -1156,9 +1157,13 @@ const ChallengeView = () => {
   const handleComplete=()=>{
     let routeNowComplete=false;
     if(!isCompleted){
-      completeNode(nodeId);setShowConfetti(true);
+      const res=completeNode(nodeId);setShowConfetti(true);
       const newCompleted=[...completed,nodeId];
       routeNowComplete=isRouteComplete(newCompleted,selectedArea);
+      // Solo los momentos grandes: la reacción al desempeño ya la disparó
+      // recordAttempt al revisar la respuesta, y no queremos pisarla.
+      if(routeNowComplete) reactCharacter('routeComplete');
+      else if(res?.badge) reactCharacter('badge');
     }
     setTimeout(()=>nav(routeNowComplete?'grid':'map'),courseTheme?2300:1800);
   };

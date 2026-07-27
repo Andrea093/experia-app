@@ -5,6 +5,15 @@ import {
   subscribeSession, subscribeParticipants, unsubscribe,
 } from '../lib/liveClient.js'
 import { sCorrect, sWrong, sTick, sPodium } from '../lib/sound.js'
+import { reactCharacter } from '../store/store.jsx'
+
+// El avatar del estudiante (kit de DiceBear, ~250 KB) va en su propio chunk y
+// solo se descarga cuando hay avatar que mostrar — es decir, en la Clase en Vivo
+// Guiada. La página pública del PIN no pasa `avatar` y nunca lo carga.
+const LiveAvatar = React.lazy(() => import('./LiveAvatar.jsx'))
+const MyAvatar = ({ cfg, size, expression }) => (cfg
+  ? <React.Suspense fallback={null}><LiveAvatar cfg={cfg} size={size} expression={expression} /></React.Suspense>
+  : null)
 // =============================================
 // EXPERIA — Modo Aula en Vivo: ciclo de pregunta/revelado/leaderboard/podio,
 // compartido entre la página pública del estudiante (LivePlay.jsx) y la
@@ -91,7 +100,10 @@ const PollBars = ({ sessionId, index, options, myAns }) => {
 }
 
 // ---------- Ciclo de pregunta/revelado/leaderboard/podio ----------
-export const LiveQuestionView = ({ participant, Wrap }) => {
+// `avatar`: configuración del avatar del estudiante. Solo la pasa la Clase en
+// Vivo Guiada (ahí hay sesión iniciada); en la página pública llega undefined y
+// todo se ve exactamente como antes.
+export const LiveQuestionView = ({ participant, Wrap, avatar = null }) => {
   const Center = Wrap || (({ children }) => <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>)
   const [session, setSession]   = React.useState(null)
   const [parts, setParts]       = React.useState([])
@@ -121,8 +133,20 @@ export const LiveQuestionView = ({ participant, Wrap }) => {
       if (session.phase === 'reveal') {
         const correct = session.current_reveal?.correct
         const mine = myAnswers[session.current_index]
-        if (correct !== null && correct !== undefined && mine !== undefined) (mine === correct ? sCorrect() : sWrong())
-      } else if (session.phase === 'podium') sPodium()
+        if (correct !== null && correct !== undefined && mine !== undefined) {
+          const ok = mine === correct
+          ok ? sCorrect() : sWrong()
+          // El tutor del curso reacciona igual que en la ruta normal. En la
+          // página pública del PIN no hay curso activo y reactCharacter no hace
+          // nada, así que esto solo se nota en la Clase en Vivo Guiada.
+          reactCharacter(ok ? 'correct' : 'wrong')
+        }
+      } else if (session.phase === 'podium') {
+        sPodium()
+        reactCharacter('liveEnd')   // cierre: tutor + avatar conversan
+      } else if (session.phase === 'lobby') {
+        reactCharacter('liveStart') // el tutor recibe al estudiante en la sala
+      }
       prevPhase.current = session.phase
     }
   }, [session?.phase, session?.current_index]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -150,7 +174,9 @@ export const LiveQuestionView = ({ participant, Wrap }) => {
 
   if (session.phase === 'lobby') return (
     <Center><div style={cardStyle}>
-      <div style={{ fontSize: 40, textAlign: 'center' }}>✅</div>
+      {avatar
+        ? <MyAvatar cfg={avatar} size={96} expression="happy" />
+        : <div style={{ fontSize: 40, textAlign: 'center' }}>✅</div>}
       <h2 style={{ textAlign: 'center', fontSize: 20, fontWeight: 800, color: 'var(--dark)', margin: '10px 0 6px' }}>¡Estás dentro!</h2>
       <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>Hola <b>{me?.nombre || participant.nombre}</b>. Espera a que el profesor inicie…</p>
       <p style={{ textAlign: 'center', color: 'var(--subtle)', fontSize: 13, marginTop: 10 }}>{parts.length} participante(s) conectado(s)</p>
@@ -161,7 +187,9 @@ export const LiveQuestionView = ({ participant, Wrap }) => {
     const top = parts.slice(0, 5)
     return (
       <Center><Confetti /><div style={cardStyle}>
-        <div style={{ fontSize: 44, textAlign: 'center' }}>🏆</div>
+        {avatar
+          ? <MyAvatar cfg={avatar} size={116} expression={myRank <= 3 ? 'wow' : 'happy'} />
+          : <div style={{ fontSize: 44, textAlign: 'center' }}>🏆</div>}
         <h2 style={{ textAlign: 'center', fontSize: 20, fontWeight: 800, color: 'var(--dark)', margin: '8px 0 16px' }}>Resultados finales</h2>
         <Ranking list={top} meId={participant.id} />
         <div style={{ marginTop: 16, textAlign: 'center', padding: '12px', borderRadius: 12, background: 'var(--orange-bg)' }}>
@@ -209,9 +237,15 @@ export const LiveQuestionView = ({ participant, Wrap }) => {
         )}
         {!isPoll && (myAns === undefined
           ? <p style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: 'var(--muted)' }}>No respondiste a tiempo.</p>
-          : <p style={{ textAlign: 'center', marginTop: 12, fontSize: 14, fontWeight: 700, color: wasRight ? 'var(--success)' : 'var(--error)' }}>
-              {wasRight ? `✓ ¡Correcto! +${feedback?.points ?? ''} pts` : '✗ Respuesta incorrecta'}
-            </p>)}
+          : <>
+              {/* Tu personaje reacciona al resultado, igual que en el curso */}
+              <div style={{ marginTop: 14 }}>
+                <MyAvatar cfg={avatar} size={84} expression={wasRight ? 'happy' : 'sad'} />
+              </div>
+              <p style={{ textAlign: 'center', marginTop: 10, fontSize: 14, fontWeight: 700, color: wasRight ? 'var(--success)' : 'var(--error)' }}>
+                {wasRight ? `✓ ¡Correcto! +${feedback?.points ?? ''} pts` : '✗ Respuesta incorrecta'}
+              </p>
+            </>)}
         {session.phase === 'explanation' && (session.current_reveal?.explanation || session.current_reveal?.explanationImage) && (
           <div style={{ marginTop: 14, padding: '14px 16px', borderRadius: 12, background: 'var(--purple-bg)', borderLeft: '3px solid var(--purple)' }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--purple)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>💡 Explicación</div>
@@ -235,7 +269,9 @@ export const LiveQuestionView = ({ participant, Wrap }) => {
       <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--dark)', marginBottom: 16, lineHeight: 1.4 }}>{q.question}</h3>
       {answered ? (
         <div style={{ textAlign: 'center', padding: '24px 0' }}>
-          <div style={{ fontSize: 34 }}>📨</div>
+          {avatar
+            ? <MyAvatar cfg={avatar} size={80} expression="idle" />
+            : <div style={{ fontSize: 34 }}>📨</div>}
           <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', marginTop: 8 }}>¡Respuesta enviada!</p>
           <p style={{ fontSize: 13, color: 'var(--muted)' }}>Espera a que el profesor muestre los resultados.</p>
         </div>

@@ -571,13 +571,17 @@ const changeArea = (areaId) => {
       .then(({ error }) => { if (error) console.error('changeArea:', error); });
   }
 };
+// Devuelve { badge } con la insignia GANADA en esta llamada (o null), para que
+// quien lo llama pueda elegir la reacción del personaje: el momento "insignia
+// nueva" tiene conversación propia y pisa al genérico de módulo completado.
 const completeNode = (id) => {
   const s = XS.get();
-  if (s.completed.includes(id)) return;
+  if (s.completed.includes(id)) return null;
   const m = findModule(id);
-  if (!m) return;
+  if (!m) return null;
   const nxp = s.xp + (m.xp || 100), nc = [...s.completed, id], nb = [...s.badges];
-  if (m.badge && !nb.includes(m.badge)) nb.push(m.badge);
+  const wonBadge = m.badge && !nb.includes(m.badge) ? m.badge : null;
+  if (wonBadge) nb.push(wonBadge);
   const notifs = [...s.notifications, { type:'xp', amount:m.xp || 100, id:Date.now() }];
   if (m.badge && !s.badges.includes(m.badge)) notifs.push({ type:'badge', bid:m.badge, id:Date.now()+1 });
   XS.set({ xp:nxp, completed:nc, badges:nb, notifications:notifs }); // optimista: la UI reacciona de inmediato
@@ -605,6 +609,7 @@ const completeNode = (id) => {
         .then(({ error }) => { if (error) console.error('completeNode progress:', error); });
     }
   }
+  return { badge: wonBadge };
 };
 // Código presencial: el estudiante canjea el código que el profe generó/dijo en
 // clase. La validación real (¿el código coincide y sigue vigente?) ocurre en el
@@ -689,8 +694,10 @@ const recordAttempt = (challengeId, questions, score, maxScore) => {
     student_id: s.user.id, challenge_id: challengeId, area: s.selectedArea,
     questions, score, max_score: maxScore,
   }).then(({ error }) => { if (error) console.error('recordAttempt:', error); });
-  // El personaje del tema reacciona al desempeño (acierto si ≥60%).
-  reactCharacter(maxScore > 0 && score / maxScore >= 0.6 ? 'correct' : 'wrong');
+  // El personaje del tema reacciona al desempeño: perfecto (sin un solo error)
+  // tiene conversación propia; acierto si ≥60%.
+  const ratio = maxScore > 0 ? score / maxScore : 0;
+  reactCharacter(ratio >= 1 ? 'perfect' : ratio >= 0.6 ? 'correct' : 'wrong');
 };
 
 const submitProduct = (rejillaName, preguntaName, rejillaData, preguntaData) => {

@@ -2089,7 +2089,7 @@ table { min-width: 560px; }
    (CharacterBubble.jsx; colores por tema vía variables --xch-*)
    ============================================= */
 .xch-root {
-  --xch-h: clamp(240px, 52vh, 470px);
+  --xch-h: clamp(300px, 64vh, 580px);
   position: fixed; bottom: 0; z-index: 150;
   height: var(--xch-h);
   width: calc(var(--xch-h) * var(--xch-ratio));
@@ -2288,9 +2288,11 @@ table { min-width: 560px; }
 /* --- Figura del estudiante (conversación con el tutor) ------------------- */
 /* Reusa toda la coreografía de .xch-* pero con el cuerpo SVG del avatar en vez
    de la ilustración del tutor, y entrando por el lado contrario. */
-/* Un pelo más bajo que el tutor: la jerarquía de la escena la manda el tutor. */
+/* Más bajo que el tutor a propósito: el avatar es de cabeza grande (estilo
+   chibi) y, a igual altura, su cabeza duplica a la del tutor y desequilibra la
+   escena. La jerarquía visual la manda el tutor. */
 .xch-root-student {
-  --xch-h: clamp(210px, 46vh, 410px);
+  --xch-h: clamp(240px, 50vh, 450px);
   z-index: 149;
 }
 .xch-root-student[data-side="left"]  { left: 6px; }
@@ -2299,7 +2301,7 @@ table { min-width: 560px; }
 .xch-body svg { filter: drop-shadow(0 10px 20px rgba(0,0,0,.45)); }
 .xch-root-student .xch-aura { opacity: .8; }
 @media (max-width: 720px) {
-  .xch-root-student { --xch-h: clamp(150px, 30vh, 235px); }
+  .xch-root-student { --xch-h: clamp(180px, 36vh, 290px); }
 }
 
 /* --- Zona sensible al clic (solo sobre la figura) ------------------------ */
@@ -2393,7 +2395,7 @@ table { min-width: 560px; }
 
 /* --- Móvil: figura más pequeña y globo encima --------------------------- */
 @media (max-width: 720px) {
-  .xch-root { --xch-h: clamp(170px, 34vh, 265px); }
+  .xch-root { --xch-h: clamp(200px, 42vh, 330px); }
   .xch-bubble { bottom: calc(100% - 26px); width: min(260px, 66vw); padding: 11px 28px 12px 14px; }
   .xch-root[data-side="left"]  .xch-bubble { left: 4px; }
   .xch-root[data-side="right"] .xch-bubble { right: 4px; }

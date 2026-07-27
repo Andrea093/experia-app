@@ -1,5 +1,7 @@
 import React from 'react'
-import { useStore, saveAvatarConfig, selectAvatarConfig, selectThemedCourses, calcLevel } from '../store/store.jsx'
+import {
+  useStore, saveAvatarConfig, selectAvatarConfig, selectThemedCourses, calcLevel, reactCharacter,
+} from '../store/store.jsx'
 import { Btn } from '../components/ui.jsx'
 import {
   Avatar, SKIN_COLORS, HAIRS, HAIR_COLORS, EYES, MOUTHS, ACCESSORIES, BODY_COLORS, FRAMES,
@@ -100,11 +102,14 @@ const AvatarStudio = () => {
   const dirty = JSON.stringify(draft) !== JSON.stringify(savedNorm)
 
   const onSave = async () => {
+    const first = !savedNorm          // ¿es la primera vez que lo guarda?
     setStatus('saving')
     const { error } = await saveAvatarConfig(draft)
     if (error) { setStatus('error'); return }
     touched.current = false
     setStatus('saved')
+    // El tutor estrena el personaje recién creado (solo la primera vez).
+    if (first) setTimeout(() => reactCharacter('avatarCreated'), 700)
     setTimeout(() => setStatus(s => (s === 'saved' ? 'idle' : s)), 2500)
   }
 

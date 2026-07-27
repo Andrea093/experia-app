@@ -458,11 +458,13 @@ const LessonView = () => {
   const handleComplete = () => {
     let routeNowComplete = false;
     if (!isCompleted) {
-      completeNode(nodeId);
+      const res = completeNode(nodeId);
       setShowConfetti(true);
       const newCompleted = [...completed, nodeId];
       routeNowComplete = isRouteComplete(newCompleted, selectedArea);
-      reactCharacter(routeNowComplete ? 'routeComplete' : 'moduleComplete');
+      // Prioridad: fin de ruta > insignia nueva > módulo completado. Los tres
+      // momentos tienen guión propio, y solo puede sonar uno.
+      reactCharacter(routeNowComplete ? 'routeComplete' : res?.badge ? 'badge' : 'moduleComplete');
     }
     setTimeout(() => nav(routeNowComplete ? 'grid' : 'map'), courseTheme ? 2300 : 1500);
   };

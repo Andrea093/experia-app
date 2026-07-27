@@ -46,7 +46,7 @@ export default defineConfig({
         globIgnores: [
           '**/tutores/**',
           '**/avatarKit-*.js', '**/avatarBody-*.js',
-          '**/AvatarStudio-*.js', '**/AvatarChip-*.js',
+          '**/AvatarStudio-*.js', '**/AvatarChip-*.js', '**/LiveAvatar-*.js',
         ],
         navigateFallback: '/index.html',
         // Excluye las llamadas a la API de Supabase del caché

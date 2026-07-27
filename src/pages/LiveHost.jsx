@@ -185,6 +185,19 @@ const Control = ({ session: initial, moduleList, onExit }) => {
     await run(liveEnd(session.id))
   }
 
+  // Finalizar en CUALQUIER momento, no solo al llegar al último módulo. Sin
+  // esto, una clase que el profesor abandona a mitad queda activa para siempre
+  // y todos los estudiantes del curso siguen viendo la invitación para unirse.
+  const endNow = async () => {
+    if (!window.confirm(
+      '¿Finalizar la clase en vivo?\n\n'
+      + 'Los estudiantes conectados verán el podio y volverán a su ruta normal, '
+      + 'y dejará de aparecerles la invitación para unirse.'
+    )) return
+    setBusyGoto(true)
+    try { await finishSession() } finally { setBusyGoto(false) }
+  }
+
   // Siguiente pregunta del módulo actual, o siguiente módulo / fin de clase si
   // era la última pregunta. Único paso "avanzar" para encuestas (sin leaderboard).
   const advanceQuestionOrModule = () => {
@@ -373,11 +386,25 @@ const Control = ({ session: initial, moduleList, onExit }) => {
           </div>
         )}
         <div style={{ textAlign: 'center', marginTop: 16 }}>
-          {showPodium
-            ? <Btn variant="secondary" size="lg" onClick={() => { try { sessionStorage.removeItem(HOST_KEY) } catch (_) {} onExit() }}>Nueva clase en vivo</Btn>
-            : <button onClick={onExit} style={{ background: 'none', border: 'none', color: 'var(--subtle)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font)' }}>
-                Salir del panel
-              </button>}
+          {showPodium ? (
+            <Btn variant="secondary" size="lg" onClick={() => { try { sessionStorage.removeItem(HOST_KEY) } catch (_) {} onExit() }}>Nueva clase en vivo</Btn>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <Btn variant="danger" disabled={busy} onClick={endNow}>Finalizar clase en vivo 🏁</Btn>
+              <button
+                onClick={() => {
+                  if (!window.confirm(
+                    'Vas a salir del panel SIN finalizar la clase.\n\n'
+                    + 'La sesión seguirá activa y tus estudiantes seguirán viendo la invitación '
+                    + 'para unirse. Úsalo solo si vas a volver en un momento.'
+                  )) return
+                  onExit()
+                }}
+                style={{ background: 'none', border: 'none', color: 'var(--subtle)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font)' }}>
+                Salir sin finalizar
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
