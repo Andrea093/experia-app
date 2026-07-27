@@ -41,6 +41,7 @@ git push                       # Auto-deploys to Cloudflare
 | Backend | Supabase (PostgreSQL) | Pro |
 | Auth | Supabase Auth (JWT) | — |
 | Data imports | XLSX | 0.18.5 |
+| Avatares | @dicebear/core + @dicebear/styles | 10.x |
 
 **Not used:** TypeScript, CSS frameworks (Tailwind), Redux, react-router, testing frameworks
 
@@ -295,7 +296,8 @@ A course can have an immersive visual theme via the `courses.theme` column. Acti
 
 - **Activation:** `getActiveCourseTheme()` reads `theme` of the enrolled course. `<CourseAmbient>` (in `app.jsx`) subscribes **once** to the active theme and lazy-loads the matching `*Ambient.jsx` overlay (each is a separate chunk — only downloaded when its course is active). Themed end-of-module celebration in `ThemeCelebration.jsx`.
 - **Adding a theme:** add the `theme` value to `AdminCourses.jsx` (`THEME_HINTS` + `<option>`), build a `*Ambient.jsx`, register it in `CourseAmbient.jsx`, add a branch in `ThemeCelebration.jsx`, and a character entry in `src/lib/characters.jsx`.
-- **Characters (reactive):** `src/lib/characters.jsx` is the single registry (theme → character: avatar, `ui` palette, `lines` per context). `CharacterFloat` (lazy-loaded via `CourseAmbient`) renders the active theme's character and reacts to events fired with `reactCharacter(context)` — contexts: `idle`, `lessonIntro`, `correct`, `wrong`, `moduleComplete`, `routeComplete`. Triggered from `lesson.jsx` (intro/complete) and `recordAttempt` in `store.jsx` (correct/wrong by score). Missing lines fall back to `idle`; missing character = nothing renders.
+- **Characters (reactive):** `src/lib/characters.jsx` is the single registry (theme → character: avatar SVG, ilustración `art`, `side`/`flip`, paleta `ui` + `fx`, `lines` por contexto). `CharacterFloat` (lazy-loaded via `CourseAmbient`) renders the active theme's character and reacts to events fired with `reactCharacter(context)` — contexts: `idle`, `lessonIntro`, `correct`, `wrong`, `moduleComplete`, `routeComplete`. Triggered from `lesson.jsx` (intro/complete) and `recordAttempt` in `store.jsx` (correct/wrong by score). Missing lines fall back to `idle`; missing character/art = nothing renders.
+- **Tutor de cuerpo entero (jul 2026):** cada tema tiene una ilustración en `public/tutores/*.png` (1920×1080, figura a la izquierda, resto transparente). **No se recortan los archivos**: `characters.jsx` guarda el recuadro útil en fracciones (`art.body` para la figura, `art.head` para la insignia) y `cropStyle()`/`cropAspect()` lo encuadran por CSS. En reposo solo se ve una insignia circular con la cara; cuando hay algo que decir el tutor **irrumpe desde su lado de la pantalla** (`side`, con `flip` para que gesticule hacia el centro), habla con máquina de escribir y se retira solo (5–12 s según el largo de la frase; clic en la figura = se va antes; clic en la insignia = vuelve). Efectos en `styles.css` (prefijo `.xch-*`): estelas de velocidad, destello de silueta, aura, anillos de impacto, partículas y un barrido de luz — la silueta y el barrido se recortan con `mask-image` de la propia ilustración, así los efectos se pegan al personaje y no a un rectángulo. `fx.entrance` da el toque por tema: `flash` (detective), `spark` (escape-room), `scan` (lab), `warp` (time-travel). Respeta `prefers-reduced-motion` y va en `z-index:150` (bajo modales y toasts).
 - **Seeds:** course content lives in `supabase/migrations/0013`–`0016`. These are **run manually** in the Supabase SQL Editor (git push deploys only the frontend; migrations are never automatic). Canonical correct template: `0013`. They must match the real `course_modules` schema (id uuid auto, `"order"`, `is_enabled`, `area_id`, `challenge_type`, `challenge_data`) and the content shapes in §5.
 
 ### 8. Modo Aula en Vivo (quiz sincrónico tipo Kahoot)
@@ -309,7 +311,36 @@ Capa **sincrónica** sobre los cursos existentes: el profesor lanza un quiz en v
 - **Pulido:** `lib/sound.js` (beeps; el acierto/error suena en `reveal`, no al enviar, para no adelantar el resultado), QR del PIN (api.qrserver.com), `Podium` animado + `Confetti`, botón de silencio (`experia:live-muted`).
 - **Origen del contenido:** reúsa los retos `quiz` del curso (incluye `timeLimit`/`points`/`difficulty`/`explanation` por pregunta, §5). El host snapshotea las `questions` del módulo elegido.
 
-### 9. Código presencial (bloquear un paso hasta activarlo en clase)
+### 9. Avatar del estudiante (cursos temáticos)
+
+Cada persona arma **su propio personaje** para los cursos con tema inmersivo. Backend: `0046_avatar_config.sql` (aditiva; correr manual en SQL Editor).
+
+- **Dónde vive:** `profiles.avatar_config` (jsonb) — NO en la matrícula ni en `course_progress`. Por eso el avatar es **el mismo en todos los cursos** de esa persona. Se mapea a `user.avatarConfig` en `main.jsx` y `login.jsx` (ambos hacen `select('*')`, así que la columna llega sola). Si la migración no está aplicada queda `null` y toda la función desaparece sin errores.
+- **El kit** (`src/lib/avatarKit.jsx`) es la fuente única. El arte viene de **DiceBear**, estilo **«Big Smile»** (*Custom Avatar* de Ashley Seo). Motor `@dicebear/core` (MIT) + definición `@dicebear/styles/big-smile.json`. **Todo se genera en el cliente**: no hay llamada de red ni servicio externo.
+  - ⚠️ **El arte es CC BY 4.0: el crédito es OBLIGATORIO** donde se muestren los avatares. Vive en la constante `AVATAR_CREDIT` y se pinta al pie del estudio. Si algún día se cambia de estilo, revisar la licencia del nuevo en https://www.dicebear.com/licenses/ (varios son CC0 y no exigen nada; otros sí).
+  - Los catálogos (`HAIRS` 13, `EYES` 8, `MOUTHS` 8, `ACCESSORIES` 8) y las paletas (`SKIN_COLORS`, `HAIR_COLORS`, 8 cada una) se **derivan de la propia definición** del estilo: al actualizar DiceBear, las variantes nuevas aparecen solas en el editor (solo hay que ponerles nombre en `LABELS`). Los `FRAMES` sí son curados a mano.
+  - `avatarDataUri(cfg, expression)` genera el SVG y lo devuelve como data-URI, con **caché en memoria** (400 entradas): el editor pinta decenas de miniaturas y las repide en cada cambio. Se renderiza con `<img src=dataUri>` y no inline, para que React solo difunda un string y no haya choque de ids entre SVGs.
+  - `normalizeAvatar` valida contra los catálogos: cualquier id desconocido (config vieja, JSON manipulado) cae al default y el avatar guardado nunca puede romper el render.
+  - ⚠️ El encuadre (`FRAMING = { scale: .74, translateX: 2, translateY: -3 }`) encoge y recentra la cabeza para que quepa entera en el círculo del marco — en Big Smile llena el lienzo y va descentrada. **Al cambiar de estilo hay que recalibrarlo** (probar también los peinados altos: `froBun`, `bunHair`, `mohawk`).
+- **Cuerpo y rangos (`src/lib/avatarBody.jsx`):** ningún estilo de DiceBear trae armaduras ni progresión, así que **el cuerpo es arte nuestro** (SVG plano, para casar con Big Smile) y la cabeza se incrusta encima como `<image>` con el data-URI del kit (modo `'full'`, sin el recorte circular del retrato).
+  - `RANKS` (en `avatarKit.jsx`, para que `avatarBody` pueda importarlo sin ciclo) define 5 rangos: Aprendiz → Explorador → Especialista → Maestro → Leyenda, cada uno con su metal, aro, aura y emblema. `rankFromLevel(level)` agrupa de a dos los 9 niveles de `LEVELS`.
+  - **Se lee de dos formas según el tamaño**, misma configuración: en pequeño (insignia 44px, conversación 96px) el rango va en el **marco** del retrato (`<Avatar rank>`: metal del aro, aura, emblema); en grande (perfil, celebración) va la **armadura** del cuerpo entero (`<AvatarBody rank>`). Un cuerpo entero a 44 px sería ilegible.
+  - ⚠️ Lienzo del cuerpo 200×280 con referencias fijas: cabeza en x 38..162 / y 0..124 (la barbilla del estilo cae ~y 108), hombros en y 122, cintura y 212. Al agregar piezas o cambiar de estilo de cabeza hay que recalibrar esos números o el cuello queda desproporcionado.
+  - El disparador es el **nivel del curso activo** (`calcLevel(xp)`), así que el rango cambia al cambiar de curso — es deliberado: es "tu rango en este curso". El avatar en sí (cara, pelo, color) sí es el mismo en todos.
+- **Expresiones:** `idle | happy | sad | wow`, en `EXPRESSION_PATCH`. Big Smile trae ojos y bocas con nombre semántico (`cheery`, `sad`, `starstruck`, `openSad`, `kawaii`…), así que las expresiones se leen con claridad. Esa constante es la única palanca para ajustarlas.
+- **Peso:** el chunk `AvatarStudio` pesa ~250 KB (51 KB gzip) por la definición del estilo. Va **lazy** y está excluido del precaché del service worker (`globIgnores` en `vite.config.js`), igual que las ilustraciones de los tutores: solo lo descarga quien entra a la pestaña.
+- **Descartado (jul 2026):** avatares 3D tipo Meta. Ready Player Me —la única opción gratuita con ese look— cerró el 31 de enero de 2026; los reemplazos (Avatar SDK) son comerciales, basados en selfie y exigen tratar datos biométricos. Ninguna librería JS libre produce avatares realistas.
+- **Dónde se edita:** pestaña "Mi avatar" en `profile.jsx` → `AvatarStudio.jsx` (lazy). La pestaña **solo existe** si `selectHasThemedCourse` (estudiante con acceso activo a un curso con `theme`); sin eso el perfil se renderiza exactamente como antes — por eso el curso de DCE en producción no se ve afectado.
+- ⚠️ `selectThemedCourses` devuelve un array nuevo en cada llamada: **no pasarlo a `useStore`** (con `useSyncExternalStore` una referencia nueva por lectura hace bucle infinito). Para UI, derivarlo con `useMemo` desde `courses`/`userCourses`, o usar `selectHasThemedCourse`, que devuelve booleano.
+- **No reemplaza la foto de perfil:** `profiles.avatar` (Storage, `updateAvatar`) sigue siendo la foto institucional; el avatar es el personaje del curso. Conviven.
+- **Conversación tutor ↔ avatar:** `CharacterFloat` (`CharacterBubble.jsx`) tiene dos modos. En **monólogo** el tutor habla solo (lo de siempre). En **conversación** entra también el avatar del estudiante por el lado OPUESTO —cuerpo entero con su armadura— y se turnan la palabra; el globo del que escucha se apaga. Los guiones viven en `characters.jsx` → `dialogues` por tema (`getDialogue(theme, ctx, nombre)` resuelve `{nombre}`), con `exp` opcional por turno para la expresión del avatar.
+  - Momentos con conversación (los decide el componente, **no** el store): `welcome` (primera entrada al curso, marcada en `localStorage: experia:char-welcome:<courseId>`), `milestone` (cada 3 módulos completados), `struggle` (dos fallos seguidos, con racha interna) y `routeComplete`. Todo lo demás sigue siendo monólogo.
+  - **Sin avatar creado → nada de esto ocurre**: el tutor invita una vez a crearlo con un botón que lleva a `#/profile/avatar` (deep link nuevo: `profile.jsx` lee `nodeId === 'avatar'` para abrir la pestaña).
+  - ⚠️ El `--xch-ratio` del tutor sale del recorte de su ilustración; la figura del estudiante **pisa esa variable** con `0.714` (lienzo 200×280 de `avatarBody`). Si se pasa `vars` sin sobrescribirla, el avatar se dibuja pequeño y descolgado.
+- **Fuera del perfil:** `AvatarChip` (`components/AvatarChip.jsx`) muestra el avatar con su rango en la cabecera y lleva a la pestaña de edición. `Header.jsx` lo carga con `React.lazy` y solo lo monta si hay tema activo **y** avatar creado — así el kit nunca entra al bundle principal.
+- ⚠️ **Precaché:** los chunks del avatar (`avatarKit-*`, `avatarBody-*`, `AvatarStudio-*`, `AvatarChip-*`) están excluidos en `vite.config.js` → `globIgnores`. Si Vite renombra o divide esos chunks hay que actualizar la lista, o el precaché del service worker crece ~250 KB para todos los usuarios.
+
+### 10. Código presencial (bloquear un paso hasta activarlo en clase)
 
 Candado **opcional por nodo** (aplica a cualquier `course_modules.type`, no es un `challenge_type` nuevo): marca `requires_presence_code = true` y el estudiante no puede ver el contenido de ese módulo/reto hasta ingresar un código corto que el instructor genera y dice en voz alta en clase. Pensado para asegurar que esa parte puntual de la ruta se resuelva estando físicamente presente. Backend en `0039_presence_gate.sql` + `0040_gate_module_content_server_side.sql` (ejecutar ambas, en orden, manual en SQL Editor).
 
@@ -333,6 +364,8 @@ src/
 ├── styles.css               # Design system
 ├── store/store.jsx          # Reactive store + modules
 ├── lib/
+│   ├── avatarKit.jsx        # Avatar del estudiante: catálogos DiceBear + <Avatar/> (retrato) + RANKS
+│   ├── avatarBody.jsx       # Cuerpo entero + armadura por rango (arte propio)
 │   ├── supabaseClient.js    # Supabase init
 │   ├── loadStudentSession.js # Load XP, badges
 │   ├── idleTimeout.js       # Idle auto-logout (30 min)
@@ -344,6 +377,7 @@ src/
 │   ├── Sidebar.jsx
 │   ├── Header.jsx
 │   ├── Onboarding.jsx
+│   ├── AvatarChip.jsx       # Avatar + rango en la cabecera (lazy, solo con tema activo)
 │   ├── CourseAmbient.jsx    # Gate: lazy-loads the active course's theme overlay
 │   ├── DetectiveAmbient.jsx, EscapeRoomAmbient.jsx, LabAmbient.jsx, TimeTravelAmbient.jsx
 │   ├── ThemeCelebration.jsx, CharacterBubble.jsx  # Themed celebration + companion
@@ -354,6 +388,7 @@ src/
     ├── Grid.jsx, profile.jsx
     ├── LivePlay.jsx            # Modo Aula en Vivo — estudiante (página PÚBLICA #/live, sin login)
     ├── LiveHost.jsx            # Modo Aula en Vivo — profesor (page 'live-host': lanzador + panel)
+    ├── AvatarStudio.jsx        # Pestaña "Mi avatar" del perfil (solo con curso temático)
     ├── AdminUsers.jsx, AdminCourses.jsx, etc.
     └── InstructorStudentView.jsx, forum.jsx, etc.
 
@@ -376,7 +411,8 @@ supabase/
 │   ├── 0042_presence_code_no_expiry.sql # Código presencial sin vencimiento (expires_at NULL)
 │   ├── 0043_certificate_hours.sql # Intensidad horaria del certificado (courses.certificate_hours + certificates.hours)
 │   ├── 0044_module_availability_window.sql # Ventana de disponibilidad de la entrega (course_modules.available_from/until + RPC)
-│   └── 0045_quiz_attempts.sql # Intentos + puntaje mínimo en quiz (quiz_attempts + RPCs record/reset)
+│   ├── 0045_quiz_attempts.sql # Intentos + puntaje mínimo en quiz (quiz_attempts + RPCs record/reset)
+│   └── 0046_avatar_config.sql # Avatar del estudiante (profiles.avatar_config, jsonb)
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/

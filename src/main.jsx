@@ -146,7 +146,10 @@ async function restoreSession() {
             institution_id: profile.institution_id || null,
             // ?? true: si la migración 0009 no está aplicada, no molestar con onboarding
             onboarded: profile.onboarded ?? true,
-            onboardingBonus: profile.onboarding_bonus ?? true },
+            onboardingBonus: profile.onboarding_bonus ?? true,
+            // Avatar de los cursos temáticos (0046). Si la migración no está
+            // aplicada queda null y la función simplemente no aparece.
+            avatarConfig: profile.avatar_config || null },
     page, xp, completed, badges, notifications: [],
     selectedArea: profile.area || null, nodeId: null,
     institutions: institutionsRes.data || [],

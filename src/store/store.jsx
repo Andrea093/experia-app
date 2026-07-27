@@ -979,6 +979,45 @@ const updateAvatar = (url) => {
       .then(({ error }) => { if (error) console.error('updateAvatar:', error); });
   }
 };
+// --- Avatar del estudiante para los cursos temáticos (migración 0046) --------
+// Vive en profiles.avatar_config, NO en la matrícula: la misma persona conserva
+// su avatar en todos sus cursos. `updateAvatar` (arriba) es otra cosa: la foto
+// de perfil institucional en Storage. Conviven sin pisarse.
+
+// Cursos con tema inmersivo a los que este estudiante tiene acceso activo.
+// Mismo criterio que el switcher del mapa: user_courses activo + curso base
+// (los forks por colegio son reemplazos transparentes, nunca cursos aparte).
+// ⚠️ Devuelve un array NUEVO en cada llamada: no pasarlo a useStore (con
+// useSyncExternalStore una referencia nueva por lectura hace bucle). Para la UI,
+// derivarlo con useMemo desde courses/userCourses, o usar selectHasThemedCourse
+// que sí devuelve un booleano.
+const selectThemedCourses = (s) => {
+  const activeAccess = new Set(
+    (s.userCourses || []).filter(uc => uc.user_id === s.user?.id && uc.is_active).map(uc => uc.course_id)
+  );
+  return (s.courses || []).filter(c =>
+    !!c.theme && isBaseCourse(c) && (activeAccess.has(c.id) || c.id === s.enrolledCourseId)
+  );
+};
+
+// ¿Habilitar la pestaña "Mi avatar"? Solo estudiantes con al menos un curso
+// temático a la vista. Sin esto el perfil se comporta exactamente como antes.
+const selectHasThemedCourse = (s) =>
+  s.user?.role === 'student' && selectThemedCourses(s).length > 0;
+
+const selectAvatarConfig = (s) => s.user?.avatarConfig || null;
+
+const saveAvatarConfig = (cfg) => {
+  const { user } = XS.get();
+  if (!user?.id) return Promise.resolve({ error: null });
+  XS.set(s => ({ user: s.user ? { ...s.user, avatarConfig: cfg } : null }));
+  return supabase.from('profiles').update({ avatar_config: cfg }).eq('id', user.id)
+    .then(({ error }) => {
+      if (error) console.error('saveAvatarConfig:', error);
+      return { error };
+    });
+};
+
 const dismissNotif = id => XS.set(s=>({notifications:s.notifications.filter(n=>n.id!==id)}));
 const dismissStudentMessage = (msgId) => XS.set(s=>({studentMessages:(s.studentMessages||[]).map(m=>m.id===msgId?{...m,read:true}:m)}));
 
@@ -2012,6 +2051,7 @@ export {
   recordQuizAttempt, resetQuizAttempts, loadStudentQuizAttempts,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
+  saveAvatarConfig, selectAvatarConfig, selectHasThemedCourse, selectThemedCourses,
   loadRouteConfigs, saveRouteConfig, getRouteModules, findModuleInConfig, routeKey,
   loadInstructorInstitutions, assignInstructorInstitution, removeInstructorInstitution,
   assignRouteToInstitution,

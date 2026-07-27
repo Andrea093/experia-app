@@ -20,6 +20,19 @@ import React from 'react'
 
 export const CHARACTER_CONTEXTS = ['idle', 'lessonIntro', 'correct', 'wrong', 'moduleComplete', 'routeComplete']
 
+// Guiones de conversación entre el tutor y el AVATAR del estudiante (ver
+// avatarKit.jsx). Solo se usan si la persona ya creó su avatar; si no, el tutor
+// habla solo con sus `lines` de siempre.
+//   who  → 'tutor' | 'student'
+//   exp  → expresión del avatar en ese turno (idle | happy | sad | wow)
+//   {nombre} se reemplaza por el alias del avatar o el primer nombre real.
+// Momentos (los dispara CharacterBubble, no el store):
+//   welcome       — primera entrada al curso ya con avatar creado
+//   milestone     — cada 3 módulos completados
+//   struggle      — dos fallos seguidos en el mismo reto
+//   routeComplete — al terminar la ruta
+export const DIALOGUE_CONTEXTS = ['welcome', 'milestone', 'struggle', 'routeComplete']
+
 // ─── Avatares SVG inline (sin dependencias externas) ─────────────────────────
 
 const VeraAvatar = () => (
@@ -168,8 +181,41 @@ const PlaceholderAvatar = () => (
   </svg>
 )
 
+// ─── Arte de cuerpo entero (ilustraciones en /public/tutores) ────────────────
+// Cada PNG mide 1920×1080 con el personaje recortado a la izquierda y el resto
+// transparente. En vez de recortar los archivos, guardamos aquí el recuadro útil
+// en FRACCIONES de la imagen y el componente lo encuadra por CSS:
+//   body → figura completa (la que entra por el lado de la pantalla)
+//   head → primer plano de la cara (la insignia circular flotante)
+// Si algún día se reemplaza el arte, basta recalcular estos cuatro números.
+const ART = {
+  detective: {
+    src: '/tutores/tutor-lenguaje.png',
+    body: { x: .004, y: .007, w: .296, h: .993 },
+    head: { x: .1105, y: .020, w: .1125, h: .200 },
+  },
+  'escape-room': {
+    src: '/tutores/tutor-matematicas.png',
+    body: { x: .0085, y: .007, w: .3165, h: .981 },
+    head: { x: .1105, y: .025, w: .1125, h: .200 },
+  },
+  lab: {
+    src: '/tutores/tutor-ciencias-naturales.png',
+    body: { x: .017, y: .002, w: .329, h: .993 },
+    head: { x: .0700, y: .022, w: .1125, h: .200 },
+  },
+  'time-travel': {
+    src: '/tutores/tutor-ciencias-sociales.png',
+    body: { x: .0085, y: .002, w: .3035, h: .998 },
+    head: { x: .0480, y: .028, w: .1125, h: .200 },
+  },
+}
+
 // ─── Registro: tema → personaje ──────────────────────────────────────────────
 // `ui` controla la presentación de CharacterFloat (colores/animaciones por tema).
+// `art` + `side` + `fx` controlan la aparición de cuerpo entero por el lado de
+// la pantalla (ver CharacterBubble.jsx). `flip` refleja la figura para que
+// siempre gesticule hacia el centro de la pantalla.
 // `lines` define las frases por contexto (string o array → se elige una al azar).
 
 export const CHARACTERS_BY_THEME = {
@@ -177,6 +223,12 @@ export const CHARACTERS_BY_THEME = {
     id: 'vera',
     name: 'INSPECTORA VERA CLÍO',
     Avatar: VeraAvatar,
+    art: ART.detective, side: 'left', flip: false,
+    fx: {
+      accent: '#D4A017', accent2: '#EDE8DC',
+      aura: 'rgba(212,160,23,.34)', glow: 'rgba(212,160,23,.55)',
+      entrance: 'flash',
+    },
     ui: {
       bgCard: '#1C1A16', borderCard: 'rgba(212,160,23,.3)',
       nameColor: '#D4A017', textColor: '#EDE8DC',
@@ -194,11 +246,37 @@ export const CHARACTERS_BY_THEME = {
       moduleComplete: 'Expediente archivado. Pasemos al siguiente caso.',
       routeComplete: 'Has cerrado todos los casos. Eres un detective del texto de verdad.',
     },
+    dialogues: {
+      welcome: [
+        { who: 'tutor', text: 'Así que tú eres {nombre}. Necesito a alguien con ojo fino para este caso.' },
+        { who: 'student', text: '¿Y por dónde se empieza a resolver un texto?', exp: 'wow' },
+        { who: 'tutor', text: 'Por donde empieza todo buen detective: leyendo lo que nadie más se detuvo a leer.' },
+      ],
+      milestone: [
+        { who: 'tutor', text: 'Tres expedientes cerrados, {nombre}. Ya no eres novato.' },
+        { who: 'student', text: 'Empiezo a ver las pistas antes de que me las señalen.', exp: 'happy' },
+      ],
+      struggle: [
+        { who: 'student', text: 'Se me escapa algo… y no doy con qué.', exp: 'sad' },
+        { who: 'tutor', text: 'Le pasa a todo investigador. Vuelve al texto: la respuesta ya estaba escrita.' },
+      ],
+      routeComplete: [
+        { who: 'tutor', text: 'Caso cerrado, {nombre}. Y no lo resolví yo.' },
+        { who: 'student', text: 'Ahora leo distinto. Y mis estudiantes también lo van a notar.', exp: 'happy' },
+        { who: 'tutor', text: 'Esa era la investigación de verdad. Buen trabajo, colega.' },
+      ],
+    },
   },
   'escape-room': {
     id: 'axioma',
     name: 'PROF. AXIOMA',
     Avatar: ProfAxiomaAvatar,
+    art: ART['escape-room'], side: 'right', flip: true,
+    fx: {
+      accent: '#f0a500', accent2: '#ff6b35',
+      aura: 'rgba(240,165,0,.32)', glow: 'rgba(240,165,0,.55)',
+      entrance: 'spark',
+    },
     ui: {
       bgCard: 'rgba(10,18,10,.96)', borderCard: 'rgba(240,165,0,.3)',
       nameColor: '#f0a500', textColor: '#d8ccaa',
@@ -216,11 +294,37 @@ export const CHARACTERS_BY_THEME = {
       moduleComplete: 'Sala superada. La siguiente puerta te espera.',
       routeComplete: '¡Has escapado de todas las salas! Dominas el pensamiento matemático.',
     },
+    dialogues: {
+      welcome: [
+        { who: 'tutor', text: '{nombre}, estás encerrado conmigo en esta sala. La buena noticia: hay salida.' },
+        { who: 'student', text: '¿Y si me equivoco al abrir el candado?', exp: 'wow' },
+        { who: 'tutor', text: 'Entonces aprendes cómo NO se abre. Eso también es matemática.' },
+      ],
+      milestone: [
+        { who: 'tutor', text: 'Tres salas abiertas, {nombre}. Ya le tomaste el ritmo a los candados.' },
+        { who: 'student', text: 'Ya no adivino: ahora razono el camino.', exp: 'happy' },
+      ],
+      struggle: [
+        { who: 'student', text: 'Este candado no cede por más vueltas que le doy.', exp: 'sad' },
+        { who: 'tutor', text: 'Deja de forzarlo. Devuélvete un paso y revisa el razonamiento: ahí está la clave.' },
+      ],
+      routeComplete: [
+        { who: 'tutor', text: '¡La última puerta, {nombre}! ¿Sales tú o salgo yo?' },
+        { who: 'student', text: 'Salimos los dos. Y me llevo el método para mi aula.', exp: 'happy' },
+        { who: 'tutor', text: 'Eso vale más que cualquier llave. ¡Vamos!' },
+      ],
+    },
   },
   lab: {
     id: 'nexus',
     name: 'DRA. NEXUS',
     Avatar: DraNexusAvatar,
+    art: ART.lab, side: 'left', flip: false,
+    fx: {
+      accent: '#00ff88', accent2: '#00d4ff',
+      aura: 'rgba(0,255,136,.30)', glow: 'rgba(0,212,255,.5)',
+      entrance: 'scan',
+    },
     ui: {
       bgCard: 'rgba(4,12,10,.97)', borderCard: 'rgba(0,255,136,.3)',
       nameColor: '#00ff88', textColor: '#c0f0d8',
@@ -238,11 +342,37 @@ export const CHARACTERS_BY_THEME = {
       moduleComplete: 'Experimento documentado. Avancemos al siguiente.',
       routeComplete: 'Has completado todos los experimentos. Eres científica de aula de pleno derecho.',
     },
+    dialogues: {
+      welcome: [
+        { who: 'tutor', text: 'Bienvenido al laboratorio, {nombre}. Aquí nadie tiene la razón: la tienen los datos.' },
+        { who: 'student', text: '¿Y si mi hipótesis resulta equivocada?', exp: 'wow' },
+        { who: 'tutor', text: 'Entonces habrás aprendido algo. Eso es exactamente el método.' },
+      ],
+      milestone: [
+        { who: 'tutor', text: 'Tres experimentos registrados, {nombre}. Tu bitácora ya dice mucho.' },
+        { who: 'student', text: 'Ahora observo antes de concluir.', exp: 'happy' },
+      ],
+      struggle: [
+        { who: 'student', text: 'Los datos no me están dando lo que esperaba.', exp: 'sad' },
+        { who: 'tutor', text: 'Perfecto: eso es un hallazgo, no un fracaso. Ajusta una variable y repite.' },
+      ],
+      routeComplete: [
+        { who: 'tutor', text: 'Última anotación en la bitácora, {nombre}. ¿Qué concluyes?' },
+        { who: 'student', text: 'Que la ciencia no se enseña: se hace con los estudiantes.', exp: 'happy' },
+        { who: 'tutor', text: 'Hipótesis confirmada. Bienvenida al gremio, colega.' },
+      ],
+    },
   },
   'time-travel': {
     id: 'kronos',
     name: 'PROF. KRONOS',
     Avatar: ProfKronosAvatar,
+    art: ART['time-travel'], side: 'right', flip: true,
+    fx: {
+      accent: '#c9a227', accent2: '#5b8dd9',
+      aura: 'rgba(91,141,217,.32)', glow: 'rgba(201,162,39,.5)',
+      entrance: 'warp',
+    },
     ui: {
       bgCard: 'rgba(3,5,20,.97)', borderCard: 'rgba(201,162,39,.3)',
       nameColor: '#c9a227', textColor: '#d4c8e8',
@@ -260,6 +390,26 @@ export const CHARACTERS_BY_THEME = {
       moduleComplete: 'Época recorrida. El portal te lleva a la siguiente.',
       routeComplete: 'Has viajado por todas las épocas. Tu mirada histórica ya transformó tu aula.',
     },
+    dialogues: {
+      welcome: [
+        { who: 'tutor', text: 'El portal te reconoce, {nombre}. Vas a caminar por épocas que ya no existen.' },
+        { who: 'student', text: '¿Puedo cambiar algo de lo que pasó?', exp: 'wow' },
+        { who: 'tutor', text: 'No. Pero puedes cambiar cómo se entiende. Que no es poco.' },
+      ],
+      milestone: [
+        { who: 'tutor', text: 'Tres épocas recorridas, {nombre}. La línea del tiempo te va conociendo.' },
+        { who: 'student', text: 'Ya no veo fechas sueltas: veo causas y consecuencias.', exp: 'happy' },
+      ],
+      struggle: [
+        { who: 'student', text: 'Estoy juzgando esta época con los ojos de hoy, ¿cierto?', exp: 'sad' },
+        { who: 'tutor', text: 'Exacto, y por eso se te enreda. Vuelve al contexto y decide otra vez.' },
+      ],
+      routeComplete: [
+        { who: 'tutor', text: 'Fin del viaje, {nombre}. Te devuelvo a tu presente.' },
+        { who: 'student', text: 'Al mismo presente no: ahora sé de dónde viene todo.', exp: 'happy' },
+        { who: 'tutor', text: 'Esa es la única máquina del tiempo que existe. Llévala a tu aula.' },
+      ],
+    },
   },
 }
 
@@ -267,6 +417,28 @@ export const CHARACTERS_BY_THEME = {
 
 // Devuelve el personaje del tema (o null si el tema no tiene uno definido).
 export const getCharacter = (theme) => CHARACTERS_BY_THEME[theme] || null
+
+// Relación de aspecto (ancho/alto) del recuadro recortado, en píxeles reales.
+export const cropAspect = (c) => (c.w * 1920) / (c.h * 1080)
+
+// Estilos para encuadrar `crop` dentro de un contenedor con esa relación de
+// aspecto: la imagen se agranda 1/w veces y se desplaza para que el recuadro
+// quede exactamente sobre el contenedor. `left`/`top` en % del contenedor.
+export const cropStyle = (c) => ({
+  position: 'absolute',
+  width: `${100 / c.w}%`,
+  left: `${(-100 * c.x) / c.w}%`,
+  top: `${(-100 * c.y) / c.h}%`,
+  maxWidth: 'none',
+})
+
+// Devuelve el guión de conversación de ese momento, con {nombre} ya resuelto.
+// null si el tema no tiene guión para ese contexto.
+export const getDialogue = (theme, context, nombre = '') => {
+  const script = CHARACTERS_BY_THEME[theme]?.dialogues?.[context]
+  if (!Array.isArray(script) || !script.length) return null
+  return script.map(t => ({ ...t, text: t.text.replace(/\{nombre\}/g, nombre) }))
+}
 
 // Resuelve una línea de diálogo para un contexto. Si el contexto no tiene
 // línea propia, cae a `idle`. Si el valor es un array, elige una al azar.

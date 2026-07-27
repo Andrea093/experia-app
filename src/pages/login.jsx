@@ -82,7 +82,9 @@ const LoginPage = () => {
                 // switchCourse no resuelve la copia del colegio hasta recargar.
                 institution_id: profile.institution_id || null,
                 onboarded: profile.onboarded ?? true,
-                onboardingBonus: profile.onboarding_bonus ?? true },
+                onboardingBonus: profile.onboarding_bonus ?? true,
+                // Avatar de los cursos temáticos (0046); null si aún no lo creó.
+                avatarConfig: profile.avatar_config || null },
         page,
         xp, completed, badges,
         enrolledCourseId, effectiveCourseId, courseModules,

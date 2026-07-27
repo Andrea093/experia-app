@@ -1,104 +1,352 @@
 import React from 'react'
-import { useStore, selectActiveCourseTheme } from '../store/store.jsx'
-import { getCharacter, getCharacterLine } from '../lib/characters.jsx'
+import { useStore, nav, selectActiveCourseTheme, calcLevel } from '../store/store.jsx'
+import { getCharacter, getCharacterLine, getDialogue, cropAspect, cropStyle } from '../lib/characters.jsx'
+import { rankFromLevel, avatarDisplayName, normalizeAvatar } from '../lib/avatarKit.jsx'
+import { AvatarBody } from '../lib/avatarBody.jsx'
 
 // =============================================================================
-// CharacterFloat — guía flotante del curso temático (esquina inferior izquierda)
+// CharacterFloat — tutor de cuerpo entero que ENTRA POR EL LADO de la pantalla
 // -----------------------------------------------------------------------------
-// Data-driven desde src/lib/characters.jsx: el personaje, su paleta y sus
-// diálogos vienen del registro por tema. Reacciona a eventos del estudiante
-// mediante el store (`charReaction`), disparado con reactCharacter(context).
-//   - Al entrar a un curso con tema → saludo 'idle'.
-//   - Al acertar/fallar un reto, completar módulo, etc. → frase contextual.
-// Se monta una sola vez de forma global (app.jsx). Si el curso no tiene tema
-// o el tema no tiene personaje en el registro, no renderiza nada.
+// Data-driven desde src/lib/characters.jsx: la ilustración (public/tutores),
+// el lado, la paleta de efectos y los diálogos vienen del registro por tema.
+//
+// Dos modos:
+//   · MONÓLOGO — el tutor irrumpe y dice una frase (saludo, acierto, error…).
+//   · CONVERSACIÓN — si el estudiante ya creó su avatar, en ciertos momentos
+//     entra también su personaje por el lado OPUESTO y se turnan la palabra.
+//     Momentos: bienvenida al curso, cada 3 módulos, dos fallos seguidos y fin
+//     de ruta. Sin avatar, todo degrada al monólogo de siempre.
+//
+// Se monta una sola vez de forma global (app.jsx → CourseAmbient). Si el curso
+// no tiene tema, o el tema no tiene personaje/arte en el registro, no renderiza.
 // =============================================================================
+
+const ENTER_MS = 950   // duración de la entrada (sincronizada con xch-in)
+const LEAVE_MS = 620   // duración de la salida  (sincronizada con xch-out)
+const BUBBLE_MS = 620  // cuándo aparece el globo, ya casi aterrizado
+
+const MILESTONE_EVERY = 3   // módulos completados entre conversaciones de hito
+const WELCOME_KEY = 'experia:char-welcome:'
+
+// Cuánto dura un turno en pantalla, según lo que hay que leer.
+const readMs = (text) => Math.min(9000, Math.max(3200, 1600 + (text?.length || 0) * 52))
+
+// Partículas flotantes: se calculan una vez, no en cada render.
+const SPARKS = Array.from({ length: 14 }, (_, i) => ({
+  left: `${6 + (i * 37) % 88}%`,
+  size: 3 + ((i * 7) % 5),
+  delay: `${(i * 0.47) % 5.2}s`,
+  dur: `${4.2 + ((i * 3) % 5) * 0.6}s`,
+  drift: `${((i % 5) - 2) * 14}px`,
+  alt: i % 3 === 0,
+}))
+
+// Estelas de velocidad que acompañan la irrupción.
+const STREAKS = [
+  { top: '18%', w: '62%', delay: '0s',    h: 3 },
+  { top: '31%', w: '96%', delay: '.06s',  h: 2 },
+  { top: '46%', w: '74%', delay: '.02s',  h: 4 },
+  { top: '63%', w: '110%', delay: '.1s',  h: 2 },
+  { top: '78%', w: '58%', delay: '.14s',  h: 3 },
+]
+
+// Máquina de escribir: revela el texto carácter a carácter.
+const useTypewriter = (text, active) => {
+  const [shown, setShown] = React.useState('')
+  React.useEffect(() => {
+    if (!text || !active) { setShown(text || ''); return }
+    setShown('')
+    let i = 0
+    const id = setInterval(() => {
+      i += 1
+      setShown(text.slice(0, i))
+      if (i >= text.length) clearInterval(id)
+    }, 17)
+    return () => clearInterval(id)
+  }, [text, active])
+  return shown
+}
+
+const Bubble = ({ name, text, typed, onClose, cta }) => (
+  <div className="xch-bubble" key={text}>
+    <div className="xch-bubble-glint" />
+    <div className="xch-name">{name}</div>
+    <div className="xch-line">“{typed}”<i className="xch-caret" /></div>
+    {cta}
+    {onClose && <button className="xch-close" onClick={onClose} aria-label="Cerrar">×</button>}
+  </div>
+)
 
 export const CharacterFloat = () => {
   const theme = useStore(selectActiveCourseTheme)
   const reaction = useStore(s => s.charReaction)
+  const user = useStore(s => s.user)
+  const xp = useStore(s => s.xp)
+  const completedCount = useStore(s => (s.completed || []).length)
+  const courseId = useStore(s => s.enrolledCourseId)
   const char = theme ? getCharacter(theme) : null
 
-  const [open, setOpen] = React.useState(false)
-  const [line, setLine] = React.useState(null)
-  const [seen, setSeen] = React.useState(false)
+  const avatarCfg = user?.avatarConfig ? normalizeAvatar(user.avatarConfig) : null
+  const rank = rankFromLevel(calcLevel(xp || 0))
+  const myName = avatarDisplayName(avatarCfg, user?.name)
 
-  // Saludo idle al entrar a un curso con tema (o al cambiar de tema).
+  const [line, setLine] = React.useState(null)
+  const [mood, setMood] = React.useState('idle')
+  const [phase, setPhase] = React.useState('away')   // away | in | on | out
+  const [bubble, setBubble] = React.useState(false)
+  const [script, setScript] = React.useState(null)   // [{who,text,exp}] en conversación
+  const [turn, setTurn] = React.useState(0)
+  const [invite, setInvite] = React.useState(false)  // invitación a crear el avatar
+
+  const timers = React.useRef([])
+  const phaseRef = React.useRef('away')
+  const wrongStreak = React.useRef(0)
+
+  const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = [] }
+  const later = (fn, ms) => { timers.current.push(setTimeout(fn, ms)) }
+  const go = (p) => { phaseRef.current = p; setPhase(p) }
+
+  const dismiss = React.useCallback(() => {
+    clearTimers()
+    setBubble(false)
+    if (phaseRef.current === 'away') return
+    go('out')
+    later(() => { go('away'); setScript(null); setTurn(0); setInvite(false) }, LEAVE_MS)
+  }, [])
+
+  // Pone al tutor (y al avatar si hay guión) en escena.
+  const enter = React.useCallback((afterEnter) => {
+    if (phaseRef.current === 'on') { afterEnter(); return }
+    setBubble(false)
+    go('in')
+    later(() => { setBubble(true); afterEnter() }, BUBBLE_MS)
+    later(() => go('on'), ENTER_MS)
+  }, [])
+
+  // --- Monólogo ---
+  const speak = React.useCallback((context, forced) => {
+    const text = forced || getCharacterLine(theme, context)
+    if (!text) return
+    clearTimers()
+    setScript(null); setTurn(0); setInvite(false)
+    setLine(text)
+    setMood(context === 'wrong' ? 'wrong'
+      : context === 'correct' ? 'correct'
+      : (context === 'moduleComplete' || context === 'routeComplete') ? 'cheer'
+      : 'idle')
+    enter(() => {})
+    later(dismiss, Math.min(12000, Math.max(5200, 2600 + text.length * 55)))
+  }, [theme, dismiss, enter])
+
+  // --- Conversación por turnos ---
+  const converse = React.useCallback((dialogueContext) => {
+    const s = getDialogue(theme, dialogueContext, myName)
+    if (!s) return false
+    clearTimers()
+    setInvite(false)
+    setScript(s); setTurn(0)
+    setLine(s[0].text)
+    setMood(dialogueContext === 'struggle' ? 'idle' : 'cheer')
+    enter(() => {})
+
+    // Encadena los turnos; al terminar el último, ambos se retiran.
+    let acc = BUBBLE_MS
+    s.forEach((t, i) => {
+      if (i === 0) return
+      acc += readMs(s[i - 1].text)
+      later(() => { setTurn(i); setLine(t.text) }, acc)
+    })
+    later(dismiss, acc + readMs(s[s.length - 1].text))
+    return true
+  }, [theme, myName, dismiss, enter])
+
+  // --- Invitación única a crear el avatar ---
+  const inviteToCreate = React.useCallback(() => {
+    clearTimers()
+    setScript(null); setTurn(0)
+    setInvite(true)
+    setMood('idle')
+    setLine('Antes de empezar, ponle cara a quien va a recorrer esto conmigo. Créate un avatar.')
+    enter(() => {})
+    later(dismiss, 13000)
+  }, [dismiss, enter])
+
+  // Saludo al entrar a un curso con tema (o al cambiar de curso).
   React.useEffect(() => {
-    if (!char) { setOpen(false); return }
-    setLine(getCharacterLine(theme, 'idle'))
-    setSeen(false)
-    const t = setTimeout(() => { setOpen(true); setSeen(true) }, 800)
-    return () => clearTimeout(t)
-  }, [theme]) // eslint-disable-line react-hooks/exhaustive-deps
+    clearTimers()
+    go('away'); setBubble(false); setLine(null); setScript(null); setInvite(false)
+    wrongStreak.current = 0
+    if (!char?.art) return
+
+    const key = WELCOME_KEY + (courseId || theme)
+    let seen = true
+    try { seen = localStorage.getItem(key) === '1' } catch {}
+
+    later(() => {
+      if (!avatarCfg) { inviteToCreate(); return }        // aún no tiene avatar
+      if (!seen) {
+        try { localStorage.setItem(key, '1') } catch {}
+        if (converse('welcome')) return                    // presentación mutua
+      }
+      speak('idle')
+    }, 1100)
+    return clearTimers
+  }, [theme, courseId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reacción a un evento del estudiante (correct/wrong/moduleComplete/…).
   React.useEffect(() => {
-    if (!char || !reaction) return
-    const l = reaction.line || getCharacterLine(theme, reaction.context)
-    if (!l) return
-    setLine(l); setOpen(true); setSeen(true)
+    if (!char?.art || !reaction) return
+    const ctx = reaction.context
+
+    // Racha de errores: dos seguidos en el mismo reto → conversación de ánimo.
+    if (ctx === 'wrong') wrongStreak.current += 1
+    else if (ctx === 'correct') wrongStreak.current = 0
+
+    if (avatarCfg && !reaction.line) {
+      if (ctx === 'routeComplete' && converse('routeComplete')) return
+      if (ctx === 'wrong' && wrongStreak.current >= 2 && converse('struggle')) {
+        wrongStreak.current = 0
+        return
+      }
+      if (ctx === 'moduleComplete' && completedCount > 0
+        && completedCount % MILESTONE_EVERY === 0 && converse('milestone')) return
+    }
+    speak(ctx, reaction.line)
   }, [reaction?.ts]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-cerrar la burbuja tras unos segundos.
-  React.useEffect(() => {
-    if (!open) return
-    const t = setTimeout(() => setOpen(false), 6000)
-    return () => clearTimeout(t)
-  }, [open, line])
+  React.useEffect(() => clearTimers, [])
 
-  if (!char) return null
-  const ui = char.ui
+  const typed = useTypewriter(line, bubble)
+
+  if (!char?.art) return null
+  const { ui, fx, art, side, flip } = char
+  const onStage = phase !== 'away'
+  const otherSide = side === 'left' ? 'right' : 'left'
+  const current = script ? script[turn] : null
+  const studentTurn = current?.who === 'student'
+
+  const vars = {
+    '--xch-accent': fx.accent,
+    '--xch-accent2': fx.accent2,
+    '--xch-aura': fx.aura,
+    '--xch-glow': fx.glow,
+    '--xch-card': ui.bgCard,
+    '--xch-border': ui.borderCard,
+    '--xch-name': ui.nameColor,
+    '--xch-text': ui.textColor,
+    '--xch-ratio': cropAspect(art.body).toFixed(4),
+  }
+
+  // La silueta y el barrido de luz se recortan con la propia figura usando
+  // mask-image: así los efectos "se pegan" al personaje y no a un rectángulo.
+  const maskLayer = {
+    ...cropStyle(art.body),
+    aspectRatio: '1920 / 1080',
+    WebkitMaskImage: `url("${art.src}")`,
+    maskImage: `url("${art.src}")`,
+    WebkitMaskSize: '100% 100%',
+    maskSize: '100% 100%',
+    WebkitMaskRepeat: 'no-repeat',
+    maskRepeat: 'no-repeat',
+  }
 
   return (
-    <div style={{
-      position: 'fixed', bottom: 24, left: 16, zIndex: 200,
-      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
-      pointerEvents: 'none',
-    }}>
-      {open && line && (
-        <div style={{
-          maxWidth: 280, background: ui.bgCard,
-          border: `1px solid ${ui.borderCard}`,
-          borderRadius: '12px 12px 12px 2px',
-          padding: '10px 14px',
-          boxShadow: '0 8px 32px rgba(0,0,0,.8)',
-          animation: ui.revealAnim,
-          pointerEvents: 'auto',
-        }}>
-          <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase',
-            color: ui.nameColor, marginBottom: 4 }}>{char.name}</div>
-          <div style={{ fontSize: 12, color: ui.textColor, lineHeight: 1.6, fontStyle: 'italic' }}>
-            "{line}"
+    <>
+      {onStage && (
+        <div className="xch-root" style={vars}
+          data-side={side} data-phase={phase} data-mood={mood} data-fx={fx.entrance}>
+
+          <div className="xch-aura" />
+          <div className="xch-floor" />
+          <div className="xch-ring xch-ring-1" />
+          <div className="xch-ring xch-ring-2" />
+
+          <div className="xch-streaks">
+            {STREAKS.map((s, i) => (
+              <i key={i} style={{ top: s.top, width: s.w, height: s.h, animationDelay: s.delay }} />
+            ))}
           </div>
+
+          <div className="xch-stage">
+            {/* .xch-flip lleva el reflejo; .xch-figure lleva las animaciones de
+                respiración/reacción, que también usan transform */}
+            <div className="xch-flip" style={flip ? { transform: 'scaleX(-1)' } : undefined}>
+              <div className="xch-figure">
+                <img className="xch-art" src={art.src} alt={char.name} draggable="false"
+                  style={cropStyle(art.body)} />
+
+                {/* destello blanco de la silueta al aterrizar */}
+                <div className="xch-silhouette" style={maskLayer} />
+
+                {/* barrido de luz sobre la figura (recortado a su silueta) */}
+                <div className="xch-shine" style={maskLayer}><span /></div>
+
+                {/* líneas de escaneo holográfico — tema laboratorio */}
+                {fx.entrance === 'scan' && <div className="xch-scan" style={maskLayer} />}
+              </div>
+            </div>
+          </div>
+
+          <div className="xch-sparks">
+            {SPARKS.map((s, i) => (
+              <i key={i} style={{
+                left: s.left, width: s.size, height: s.size,
+                animationDelay: s.delay, animationDuration: s.dur,
+                '--xch-drift': s.drift,
+                background: s.alt ? 'var(--xch-accent2)' : 'var(--xch-accent)',
+              }} />
+            ))}
+          </div>
+
+          {/* zona sensible al clic, solo sobre la figura visible */}
+          <button className="xch-hit" onClick={dismiss} aria-label={`Despedir a ${char.name}`} />
+
+          {/* El globo del tutor calla mientras habla el avatar */}
+          {bubble && line && !studentTurn && (
+            <Bubble name={char.name} text={line} typed={typed} onClose={dismiss}
+              cta={invite ? (
+                <button className="xch-cta" onClick={() => { dismiss(); nav('profile', 'avatar') }}>
+                  Crear mi avatar
+                </button>
+              ) : null} />
+          )}
         </div>
       )}
 
-      <div
-        onClick={() => { setOpen(o => !o); setSeen(true) }}
-        style={{
-          width: 52, height: 52, borderRadius: '50%',
-          border: `2px solid ${open ? ui.borderActive : ui.borderIdle}`,
-          background: ui.bgAvatar, overflow: 'hidden', cursor: 'pointer',
-          boxShadow: open ? ui.glow : ui.glowIdle,
-          transition: 'all .3s ease',
-          animation: ui.animAvatar,
-          pointerEvents: 'auto', flexShrink: 0,
-        }}
-        title={`${char.name} — clic para escuchar`}
-      >
-        <char.Avatar />
-      </div>
-
-      {!seen && (
-        <div style={{
-          position: 'absolute', top: -4, right: -4,
-          width: 10, height: 10, borderRadius: '50%',
-          background: ui.dotBg, border: `2px solid ${ui.dotBorder}`,
-          animation: ui.dotAnim,
-        }} />
+      {/* El avatar del estudiante entra por el lado opuesto, solo en conversación */}
+      {onStage && script && avatarCfg && (
+        // --xch-ratio se pisa DESPUÉS de vars: el del tutor viene del recorte de
+        // su ilustración y aquí manda el lienzo del cuerpo (200×280).
+        <div className="xch-root xch-root-student" style={{ ...vars, '--xch-ratio': '0.714' }}
+          data-side={otherSide} data-phase={phase}>
+          <div className="xch-aura" />
+          <div className="xch-floor" />
+          <div className="xch-stage">
+            <div className="xch-figure">
+              <div className="xch-body">
+                <AvatarBody cfg={avatarCfg} rank={rank} fill
+                  expression={studentTurn ? (current.exp || 'idle') : 'idle'} />
+              </div>
+            </div>
+          </div>
+          {bubble && studentTurn && (
+            <Bubble name={myName} text={line} typed={typed} onClose={dismiss} />
+          )}
+        </div>
       )}
-    </div>
+
+      {/* Insignia en reposo: la cara del tutor, siempre a mano */}
+      <button
+        className="xch-badge" style={{ ...vars, opacity: onStage ? 0 : 1, pointerEvents: onStage ? 'none' : 'auto' }}
+        data-side={side}
+        onClick={() => speak('idle')}
+        title={`${char.name} — clic para escuchar`}
+        aria-label={`${char.name} — clic para escuchar`}
+      >
+        <img src={art.src} alt="" draggable="false" style={cropStyle(art.head)} />
+        <i className="xch-badge-ring" />
+      </button>
+    </>
   )
 }
 

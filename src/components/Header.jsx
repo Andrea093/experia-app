@@ -3,6 +3,10 @@ import { useStore, nav, calcLevel, doLogout, dismissStudentMessage, selectActive
 import { useTheme, useContrast } from '../lib/theme.js'
 import { useMobile, LogoImg, MenuIc, BellIc, SunIc, MoonIc, CheckIc, ClockIc, LogOutIc } from './ui.jsx'
 
+// El kit de avatares (DiceBear, ~250 KB) va aparte y solo se descarga si hay un
+// curso temático activo y la persona ya creó su avatar.
+const AvatarChip = React.lazy(() => import('./AvatarChip.jsx'))
+
 const Header = React.memo(({ onMenuClick }) => {
   const user = useStore(s => s.user);
   const xp = useStore(s => s.xp);
@@ -57,6 +61,13 @@ const Header = React.memo(({ onMenuClick }) => {
             {user.role === 'instructor' ? 'Instructor' : `Nivel ${level} · ${xp} pts`}
           </div>
         </div>
+
+        {/* Avatar del curso temático (con su rango). Fuera de esos cursos no existe. */}
+        {courseTheme && user.avatarConfig && (
+          <React.Suspense fallback={null}>
+            <AvatarChip cfg={user.avatarConfig} size={isMobile ? 34 : 38} />
+          </React.Suspense>
+        )}
 
         {/* Alto contraste */}
         <button onClick={toggleContrast}

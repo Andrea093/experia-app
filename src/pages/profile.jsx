@@ -3,7 +3,7 @@ import {
   useStore, nav, changeArea, updateAvatar, AREAS, BADGES, LEVELS,
   calcLevel, xpForNext, xpProgress, progressPct, isRouteComplete,
   getStudentModules, findModule, nodeStatus, gradeTotal, gradeMax,
-  selectActiveCourseTheme,
+  selectActiveCourseTheme, selectHasThemedCourse, selectAvatarConfig,
 } from '../store/store.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useTheme, useContrast, ACCENTS } from '../lib/theme.js'
@@ -155,6 +155,37 @@ const AppearanceCard = () => {
     </div>
   );
 };
+// El estudio del avatar solo se descarga cuando la persona abre esa pestaña
+// (y la pestaña solo existe si tiene un curso con temática).
+const AvatarStudio = React.lazy(() => import('./AvatarStudio.jsx'));
+
+// --- Barra de pestañas del perfil ---
+// Solo aparece cuando hay más de una pestaña que mostrar; sin cursos temáticos
+// el perfil se ve exactamente igual que antes.
+const ProfileTabs = ({ tab, setTab, tabs }) => (
+  <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 12, background: 'var(--bg-alt)',
+    marginBottom: 22, width: 'fit-content', maxWidth: '100%', flexWrap: 'wrap' }}>
+    {tabs.map(t => {
+      const active = tab === t.id;
+      return (
+        <button key={t.id} onClick={() => setTab(t.id)} aria-pressed={active}
+          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px',
+            borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: 'var(--font)',
+            fontSize: 13, fontWeight: active ? 700 : 600, minHeight: 38,
+            background: active ? 'var(--white)' : 'transparent',
+            color: active ? 'var(--dark)' : 'var(--muted)',
+            boxShadow: active ? 'var(--sh-sm)' : 'none',
+            transition: 'background .2s, color .2s, box-shadow .2s' }}>
+          {t.icon}{t.label}
+          {/* punto de aviso: aún no ha creado su avatar */}
+          {t.dot && <span style={{ width: 7, height: 7, borderRadius: '50%',
+            background: 'var(--orange)', display: 'inline-block' }} />}
+        </button>
+      );
+    })}
+  </div>
+);
+
 // =============================================
 // EXPERIA — Profile Page
 // =============================================
@@ -177,6 +208,14 @@ const ProfilePage = () => {
   const [uploading, setUploading] = React.useState(false);
   const [uploadError, setUploadError] = React.useState('');
   const fileInputRef = React.useRef(null);
+
+  // Pestaña "Mi avatar": solo para estudiantes con algún curso temático.
+  // Deep link #/profile/avatar — lo usa la invitación del tutor a crear el avatar.
+  const hasThemedCourse = useStore(selectHasThemedCourse);
+  const avatarCfg = useStore(selectAvatarConfig);
+  const nodeId = useStore(s => s.nodeId);
+  const [tab, setTab] = React.useState(() => (nodeId === 'avatar' ? 'avatar' : 'resumen'));
+  React.useEffect(() => { if (nodeId === 'avatar') setTab('avatar'); }, [nodeId]);
 
   if (!user) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -280,6 +319,25 @@ const ProfilePage = () => {
           Haz clic en el ícono 📷 para cambiar tu foto de perfil (JPG/PNG, máx. 3 MB)
         </p>
       </div>
+
+      {hasThemedCourse && (
+        <ProfileTabs tab={tab} setTab={setTab} tabs={[
+          { id: 'resumen', label: 'Resumen', icon: <UserIc s={15} /> },
+          { id: 'avatar',  label: 'Mi avatar', icon: <span style={{ fontSize: 15 }}>🧑‍🎨</span>,
+            dot: !avatarCfg },
+        ]} />
+      )}
+
+      {hasThemedCourse && tab === 'avatar' ? (
+        <React.Suspense fallback={
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+            Cargando…
+          </div>
+        }>
+          <AvatarStudio />
+        </React.Suspense>
+      ) : (
+      <>
 
       {/* Area (students only) */}
       {isStudent && area && (
@@ -411,6 +469,9 @@ const ProfilePage = () => {
       <AccessibilityCard />
       {/* Apariencia: tema y color de acento */}
       <AppearanceCard />
+
+      </>
+      )}
     </div>
   );
 };

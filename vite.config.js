@@ -39,6 +39,15 @@ export default defineConfig({
       workbox: {
         // Cachea solo assets estáticos del shell (no datos de Supabase)
         globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
+        // Las ilustraciones de los tutores (~160 KB c/u) y el kit de avatares
+        // (DiceBear + estilo Lorelei, ~320 KB) solo los necesita quien está
+        // dentro de un curso temático: se descargan bajo demanda, no en el
+        // precaché de todos los usuarios.
+        globIgnores: [
+          '**/tutores/**',
+          '**/avatarKit-*.js', '**/avatarBody-*.js',
+          '**/AvatarStudio-*.js', '**/AvatarChip-*.js',
+        ],
         navigateFallback: '/index.html',
         // Excluye las llamadas a la API de Supabase del caché
         navigateFallbackDenylist: [/^\/rest\//, /^\/auth\//],
