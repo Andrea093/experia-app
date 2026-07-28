@@ -1,7 +1,17 @@
 # Plan — Analítica de resultados de pruebas
 
-> Estado: **Fase 1 implementada en código; pendiente ejecutar la migración 0048 en Supabase**. Escrito el 2026-07-27 tras revisar el código real.
+> Estado al **2026-07-28**: **Fases 1–4 implementadas.** `0048` ya está corrida en
+> producción (verificado). Queda **ejecutar `0049_analytics_rpcs.sql`** en el SQL Editor;
+> sin ella la pantalla "Análisis de ítems" carga pero no devuelve datos.
+> Fase 5 (clases en vivo) sin empezar.
+> Escrito el 2026-07-27 tras revisar el código real.
 > Objetivo: que el análisis de respuestas sea el diferencial de Experia, no un tablero decorativo.
+
+> ⚠️ **Lección de la Fase 1.** El código de captura se desplegó antes de correr `0048`, y
+> como `recordAttempt` inserta `course_id`/`module_id`, PostgREST rechazaba el insert
+> completo: durante un día no se guardó **ningún** intento, en silencio (el error solo iba a
+> `console.error` y el store actualiza el estado local de forma optimista). Cuando una
+> migración y su código viajan juntos, **la migración va primero**.
 
 ---
 
@@ -191,11 +201,38 @@ distractores**, que es la mitad del valor del punto 3.
 
 ---
 
-## 5. Fase 2 — Leer agregado en el servidor
+## 5. Fase 2 — Leer agregado en el servidor ✅ (`0049_analytics_rpcs.sql`)
 
 Hoy se traen 300 filas al navegador y se calcula ahí. No escala y ya está truncando.
 
-RPC sugerida (`0049_analytics_rpcs.sql`):
+**Implementado.** `0049` agrega cinco funciones (todas `security definer`, todas exigen
+instructor/admin y acotan los estudiantes con `analytics_visible_students()`, mismo criterio
+de institución que `0029`):
+
+| Función | Para qué |
+|---|---|
+| `analytics_visible_students()` | Alcance: qué estudiantes puede agregar quien llama |
+| `analytics_module_answers(module)` | Respuestas normalizadas — une `quiz_attempt_answers` con el legado de `challenge_attempts.questions` |
+| `item_analysis(module, min_n)` | Dificultad, D, punto-biserial, distractores y recuperación |
+| `analytics_course_modules(course)` | Qué retos del curso tienen datos, con n y rango de fechas |
+| `analytics_raw_answers(module)` | Filas crudas por estudiante/ítem para exportar |
+
+Decisiones que importan:
+- **Todo se calcula sobre el PRIMER intento.** Mezclar reintentos infla la dificultad y
+  destruye la discriminación (quien repite ya vio la respuesta). La evolución 1→2 se
+  reporta aparte en `retry_recovery`.
+- Se añadió la **correlación punto-biserial corregida** (el total excluye el propio ítem)
+  además de `D`: con muestras chicas es más estable que la resta de cuartiles.
+- `D` y `r_pb` vuelven **`NULL`** bajo `min_n` (10 por defecto) — nunca un `0` que parezca
+  un hallazgo.
+- El legado de `challenge_attempts` solo se usa si el módulo aún no tiene datos del formato
+  nuevo, para no contar dos veces el mismo intento. Da dificultad y discriminación, pero no
+  distractores (no se guardaba la opción elegida).
+- ⚠️ Las columnas de `RETURNS TABLE` son parámetros OUT visibles en el cuerpo: toda
+  referencia a `student_id`/`item_id`/`correct`… va **calificada**, o la función falla por
+  ambigüedad. Al editar estas RPC, mantener esa disciplina.
+
+RPC original sugerida en el plan:
 
 ```sql
 -- Análisis de ítems de un módulo: dificultad, discriminación y distractores
@@ -215,9 +252,15 @@ Reglas:
 
 ---
 
-## 6. Fase 3 — Pantalla de análisis de ítems
+## 6. Fase 3 — Pantalla de análisis de ítems ✅ (`src/pages/InstructorItemAnalysis.jsx`)
 
-Nueva vista para instructor (o pestaña dentro de `InstructorStats`):
+**Implementada** como página propia (`instructor-items`), en el sidebar de instructor y de
+admin como "Análisis de ítems". Selector colegio → curso → reto; los cursos incluyen los
+**forks por colegio**, porque los intentos de esos estudiantes caen en los `module_id` del
+fork, no del curso original. Los 5 puntos de abajo están cubiertos, incluida la cabecera con
+la muestra y el "muestra insuficiente" en vez de un número inventado.
+
+Diseño original:
 
 1. **Selector**: curso → módulo (quiz/reto). Ya no por área.
 2. **Tabla de ítems** ordenada por discriminación ascendente (lo peor primero), con:
@@ -231,15 +274,16 @@ Nueva vista para instructor (o pestaña dentro de `InstructorStats`):
 
 ---
 
-## 7. Fase 4 — Exportación
+## 7. Fase 4 — Exportación ✅ (parcial)
 
 `xlsx` **ya está en el bundle** (`vendor-xlsx`, se usa para importar usuarios). Reutilizarlo:
 
-- Respuestas crudas por estudiante/ítem (para quien quiera hacer su propio análisis).
-- Tabla de análisis de ítems.
-- Resultados de una clase en vivo.
+- ✅ Respuestas crudas por estudiante/ítem (para quien quiera hacer su propio análisis).
+- ✅ Tabla de análisis de ítems.
+- ⬜ Resultados de una clase en vivo — depende de la Fase 5.
 
-Es lo primero que va a pedir un coordinador y es casi gratis.
+Ambos botones viven en la cabecera de la pantalla de análisis y cargan `xlsx` con
+`await import('xlsx')`, así que no engordan el chunk de la página.
 
 ---
 
@@ -281,21 +325,35 @@ pregunta respondida por 30 personas a la vez: **la mejor muestra para calcular d
 
 ---
 
-## 11. Antes de todo esto: migraciones pendientes
+## 11. Estado de las migraciones
 
-Sin correr en Supabase al 2026-07-27:
+Al 2026-07-28:
 
-- **`0046_avatar_config.sql`** — avatar del estudiante. *(verificado: la columna ya existe en la
-  base de producción, así que esta parece corrida)*
-- **`0047_live_session_cleanup.sql`** — cierra las clases en vivo colgadas. **Pendiente.**
-  Sin esto, los estudiantes siguen viendo la invitación a unirse a clases que nunca terminaron.
+- **`0046_avatar_config.sql`** — corrida.
+- **`0047_live_session_cleanup.sql`** — corrida.
+- **`0048_analytics_capture.sql`** — corrida (verificado contra la base: existen
+  `quiz_attempt_answers` y las columnas nuevas de `challenge_attempts`).
+- **`0049_analytics_rpcs.sql`** — ⬜ **pendiente de ejecutar.** Hasta que se corra, la pantalla
+  de análisis de ítems abre pero cada consulta devuelve error de función inexistente.
+  Esta migración es **solo de lectura** (crea funciones, no toca datos), así que a diferencia
+  de `0048` desplegar el frontend antes no rompe nada: la pantalla simplemente no muestra datos.
 
 ---
 
 ## 12. Orden recomendado
 
-1. Fase 1 (captura) — sin esto lo demás miente.
-2. Fase 2 (lectura agregada) — sin esto no escala.
-3. Fase 3 (pantalla) — el valor visible.
-4. Fase 4 (exportación) — barato, muy pedido.
-5. Fase 5 (clases en vivo) — cierra el círculo.
+1. ✅ Fase 1 (captura) — sin esto lo demás miente.
+2. ✅ Fase 2 (lectura agregada) — sin esto no escala.
+3. ✅ Fase 3 (pantalla) — el valor visible.
+4. ✅ Fase 4 (exportación) — barato, muy pedido. *(falta el export de clase en vivo)*
+5. ⬜ Fase 5 (clases en vivo) — cierra el círculo.
+
+**Lo que sigue, en orden:**
+1. Correr `0049` y probar la pantalla con un reto que ya tenga respuestas.
+2. Fase 5: informe posterior a la clase en vivo. `live_answers` ya guarda respuesta, tiempo y
+   puntaje: son 30 personas respondiendo la misma pregunta a la vez, la mejor muestra posible
+   para discriminación. Falta el puente de identidad (§8) y decidir el borrado de PII de
+   `live_participants` (§9).
+3. Pendiente menor de la Fase 2: `sessionData.js` sigue trayendo 300 filas de toda la
+   plataforma para `InstructorStats`. Esa pantalla no se tocó; ahora que existe la agregación
+   en servidor, migrarla es el siguiente paso natural.

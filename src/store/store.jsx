@@ -699,6 +699,31 @@ const loadStudentQuizAttempts = async (userId) => {
   return data || [];
 };
 
+// ── Análisis de ítems (instructor) ────────────────────────────────────────
+// La agregación ocurre en la base (0049): trae solo el resultado y siempre con
+// el tamaño de la muestra, en vez de calcular en el navegador sobre las 300
+// filas truncadas que carga sessionData.
+const fetchAnalyticsModules = async (courseId) => {
+  if (!courseId) return { rows: [] };
+  const { data, error } = await supabase.rpc('analytics_course_modules', { p_course_id: courseId });
+  if (error) { console.error('fetchAnalyticsModules:', error); return { rows: [], error: error.message }; }
+  return { rows: data || [] };
+};
+// minN: bajo ese número de estudiantes la discriminación es ruido y la RPC
+// devuelve null en vez de un número sin sentido.
+const fetchItemAnalysis = async (moduleId, minN = 10) => {
+  if (!moduleId) return { rows: [] };
+  const { data, error } = await supabase.rpc('item_analysis', { p_module_id: moduleId, p_min_n: minN });
+  if (error) { console.error('fetchItemAnalysis:', error); return { rows: [], error: error.message }; }
+  return { rows: data || [] };
+};
+const fetchRawAnswers = async (moduleId) => {
+  if (!moduleId) return { rows: [] };
+  const { data, error } = await supabase.rpc('analytics_raw_answers', { p_module_id: moduleId });
+  if (error) { console.error('fetchRawAnswers:', error); return { rows: [], error: error.message }; }
+  return { rows: data || [] };
+};
+
 // Modo vista previa (instructor): cuando está activo, los retos se renderizan
 // tal cual los ve el estudiante pero NADA se persiste ni afecta al progreso real.
 let _previewMode = false;
@@ -2086,6 +2111,7 @@ export {
   nav, doLogout, selectArea, changeArea, completeNode, recordAttempt,
   redeemPresenceCode, generatePresenceCode,
   recordQuizAttempt, recordQuizAttemptAnswers, resetQuizAttempts, loadStudentQuizAttempts,
+  fetchAnalyticsModules, fetchItemAnalysis, fetchRawAnswers,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
   saveAvatarConfig, selectAvatarConfig, selectHasThemedCourse, selectThemedCourses,

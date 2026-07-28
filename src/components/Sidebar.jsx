@@ -2,7 +2,7 @@ import React from 'react'
 import { useStore, nav, doLogout, AREAS } from '../store/store.jsx'
 import {
   useMobile, LogoImg, MapIc, GameIc, FileIc, UserIc, BookIc,
-  SchoolIc, BarIc, ClockIc, UsersIc, LogOutIc, XIc, MsgIc, ChevRIc
+  SchoolIc, BarIc, ClockIc, UsersIc, LogOutIc, XIc, MsgIc, ChevRIc, TargetIc
 } from './ui.jsx'
 
 const COLLAPSE_KEY = 'experia:sidebar-collapsed';
@@ -38,6 +38,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   const instructorItems = [
     { key: 'instructor-dashboard', label: 'Entregas',     icon: <FileIc s={19} />, active: ['instructor-dashboard'] },
     { key: 'instructor-stats',     label: 'Estadísticas', icon: <BarIc s={19} />,  active: ['instructor-stats'] },
+    { key: 'instructor-items',     label: 'Análisis de ítems', icon: <TargetIc s={19} />, active: ['instructor-items'] },
     { key: 'instructor-route',     label: 'Ruta',         icon: <MapIc s={19} />,  active: ['instructor-route'] },
     { key: 'live-host',            label: 'Aula en Vivo', icon: <GameIc s={19} />, active: ['live-host'] },
     { key: 'forum',                label: 'Comunidad',    icon: <MsgIc s={19} />,  active: ['forum'] },
@@ -48,6 +49,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
     { key: 'admin-courses',    label: 'Cursos',     icon: <BookIc s={19} />,  active: ['admin-courses'] },
     { key: 'admin-schools',    label: 'Colegios',   icon: <SchoolIc s={19} />, active: ['admin-schools'] },
     { key: 'admin-analytics',  label: 'Analítica',  icon: <BarIc s={19} />,   active: ['admin-analytics'] },
+    { key: 'instructor-items', label: 'Análisis de ítems', icon: <TargetIc s={19} />, active: ['instructor-items'] },
     { key: 'forum',            label: 'Comunidad',  icon: <MsgIc s={19} />,   active: ['forum'] },
     { key: 'profile',          label: 'Perfil',     icon: <UserIc s={19} />,  active: ['profile'] },
   ];

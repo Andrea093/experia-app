@@ -361,6 +361,47 @@ Candado **opcional por nodo** (aplica a cualquier `course_modules.type`, no es u
 - **Bloquea "de ahí en adelante" (no solo el nodo puntual):** `nodeStatus` (store.jsx) recibe `unlockedPresenceModules` y usa el helper `isBlockedByPresence` — si algún módulo ANTERIOR en el orden exige código y el estudiante no lo desbloqueó (ni completó, que implica haberlo desbloqueado), TODOS los nodos posteriores quedan `locked` en el mapa. El módulo gateado NO se bloquea a sí mismo (debe abrirse para ingresar el código). Cierra el hueco de cuando los módulos no forman cadena estricta de requisitos (p. ej. todos dependen solo del primero) y el gateado se saltaba. Callers de `nodeStatus` que pasan el nuevo arg: `map.jsx` (×2) y `games.jsx`. Además, `LessonView`/`ChallengeView` llaman `isBlockedByPresence` para cerrar el acceso por **enlace directo** a un nodo posterior (muestran "Paso bloqueado → Volver al mapa"). Solo frontend, sin migración.
 - **El contenido en sí también se oculta en el servidor (0040), no solo en la UI:** los tres puntos donde el estudiante carga `course_modules` (`loadStudentSession.js`, `switchCourse`, `loadCourseModules`) usan la RPC `get_course_modules_for_student` en vez de `select('*')` plano — esa RPC vacía `content`/`challenge_data` de cualquier módulo gateado que el usuario no tenga en `presence_unlocks`, así que el candado no se puede saltar leyendo la respuesta de red en DevTools. `redeemPresenceCode` vuelve a llamar la RPC tras un canje exitoso para traer el contenido real. El editor de instructor sigue leyendo `course_modules` directo (necesita el contenido completo siempre).
 
+### 11. Análisis de ítems (analítica de pruebas)
+
+Le devuelve al instructor evidencia sobre **sus propias pruebas** — que es el contenido del
+curso de DCE aplicado a la plataforma misma. Backend: `0048_analytics_capture.sql` (captura,
+ya corrida) + `0049_analytics_rpcs.sql` (agregación). Plan completo y decisiones en
+`Experia-Plan-Analitica.md`.
+
+- **Captura (0048).** `challenge_attempts` gana `course_id`/`module_id`/`attempt_no`, y un
+  trigger `assign_challenge_attempt_no` asigna el número de intento en el servidor.
+  `recordAttempt` ya **no descarta el segundo intento**. `quiz_attempt_answers` guarda una
+  fila por pregunta **con la opción elegida** (`recordQuizAttemptAnswers`) — eso es lo que
+  habilita el análisis de distractores. `quiz_attempts` sigue siendo solo el agregado.
+- **Id estable por pregunta.** `QuizCreatorModal` asigna `id: q_<8 hex>` a cada pregunta y lo
+  conserva al editar el texto; los quizzes viejos lo reciben al abrirlos en el editor. Sin
+  eso, corregir una tilde partía el histórico del ítem en dos.
+- **Agregación (0049).** Cinco RPC `security definer` que exigen instructor/admin y acotan la
+  muestra con `analytics_visible_students()` (institución, mismo criterio que 0029):
+  `analytics_module_answers`, `item_analysis`, `analytics_course_modules`,
+  `analytics_raw_answers`. Métricas: dificultad `p`, discriminación `D` (cuartil alto −
+  cuartil bajo), punto-biserial corregida y distractores con cuántos del cuartil alto los
+  eligieron.
+- ⚠️ **Todo se calcula sobre el PRIMER intento.** Mezclar reintentos infla la dificultad y
+  destruye la discriminación (quien repite ya vio la respuesta). La evolución 1→2 va aparte
+  en `retry_recovery`. Si se toca esta zona, no "arreglar" eso promediando todos los intentos.
+- ⚠️ **Bajo 10 estudiantes, `D` y `r_pb` vuelven `NULL`** y la UI dice "muestra insuficiente".
+  Nunca convertirlos en `0`: un cero se lee como hallazgo.
+- ⚠️ En las RPC, las columnas de `RETURNS TABLE` son parámetros OUT visibles dentro del
+  cuerpo: toda referencia a `student_id`/`item_id`/`correct`… va **calificada** o la función
+  falla por ambigüedad.
+- **Pantalla:** `InstructorItemAnalysis.jsx` (page `instructor-items`, sidebar de instructor y
+  admin). Selector colegio → curso → reto; la lista de cursos incluye los **forks por
+  colegio**, porque los intentos de esos estudiantes caen en los `module_id` del fork. Exporta
+  a xlsx (análisis y respuestas crudas) con `await import('xlsx')`.
+- **Legado.** Si un módulo aún no tiene filas en `quiz_attempt_answers`, `item_analysis` cae a
+  `challenge_attempts.questions`: da dificultad y discriminación, no distractores. Nunca mezcla
+  los dos orígenes, para no contar dos veces el mismo intento. `challenge_attempts.area` quedó
+  **obsoleta** para segmentar (se conserva por los datos históricos): la analítica va por curso.
+- ⚠️ `InstructorStats.jsx` **no** se migró: sigue calculando en el navegador sobre las 300
+  filas de toda la plataforma que trae `sessionData.js`, y agrupa las preguntas por su texto.
+  Sus números son una muestra arbitraria, no el total.
+
 ---
 
 ## File Structure
@@ -394,6 +435,7 @@ src/
     ├── landing.jsx, login.jsx
     ├── map.jsx, lesson.jsx, challenges.jsx
     ├── Grid.jsx, profile.jsx
+    ├── InstructorItemAnalysis.jsx # Análisis de ítems: dificultad, discriminación, distractores
     ├── LivePlay.jsx            # Modo Aula en Vivo — estudiante (página PÚBLICA #/live, sin login)
     ├── LiveHost.jsx            # Modo Aula en Vivo — profesor (page 'live-host': lanzador + panel)
     ├── AvatarStudio.jsx        # Pestaña "Mi avatar" del perfil (solo con curso temático)
@@ -421,7 +463,9 @@ supabase/
 │   ├── 0044_module_availability_window.sql # Ventana de disponibilidad de la entrega (course_modules.available_from/until + RPC)
 │   ├── 0045_quiz_attempts.sql # Intentos + puntaje mínimo en quiz (quiz_attempts + RPCs record/reset)
 │   ├── 0046_avatar_config.sql # Avatar del estudiante (profiles.avatar_config, jsonb)
-│   └── 0047_live_session_cleanup.sql # Clases en vivo colgadas: cierra las viejas + create_live_session cierra la anterior del curso
+│   ├── 0047_live_session_cleanup.sql # Clases en vivo colgadas: cierra las viejas + create_live_session cierra la anterior del curso
+│   ├── 0048_analytics_capture.sql # Analítica: todos los intentos + respuestas por ítem (quiz_attempt_answers)
+│   └── 0049_analytics_rpcs.sql # Analítica: item_analysis + agregación por curso/módulo (server-side)
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/
