@@ -57,6 +57,8 @@ experia-app/
 │   │   ├── Grid.jsx              # Entrega de productos + calificación instructor
 │   │   ├── InstructorDashboard.jsx
 │   │   ├── InstructorStudentView.jsx  # Vista de progreso por estudiante
+│   │   ├── InstructorStats.jsx   # Estadísticas por reto y pregunta (cálculo en cliente)
+│   │   ├── InstructorItemAnalysis.jsx # Análisis de ítems: dificultad, discriminación, distractores
 │   │   ├── AdminAnalytics.jsx    # Panel de métricas (5 gráficos)
 │   │   ├── AdminCohorts.jsx      # CRUD cohortes + asignación de docentes
 │   │   ├── AdminSchools.jsx      # CRUD instituciones
@@ -73,11 +75,8 @@ experia-app/
 │   └── (generación de datos de prueba, stress testing)
 │
 └── supabase/
-    ├── migrations/
-    │   ├── 0001_init.sql
-    │   ├── 0002_features.sql
-    │   ├── 0003_cohort_institution.sql
-    │   └── 0004_cohort_drop_area.sql
+    ├── migrations/               # 0001 … 0049 · se ejecutan A MANO en el SQL Editor
+    │                             # (el listado comentado vive en CLAUDE.md)
     └── functions/
         ├── bulk-create-users/index.ts
         ├── delete-user/index.ts
@@ -123,7 +122,10 @@ profiles (id, email, name, role, area, institution_id, cohort_id, last_seen, cur
      ├──▶ submissions (id, student_id, area, rejilla_data, pregunta_data,
      │                 grade, feedback, status, return_count, history[])
      │
-     ├──▶ challenge_attempts (id, student_id, challenge_id, score, max_score)
+     ├──▶ challenge_attempts (id, student_id, challenge_id, course_id, module_id,
+     │                        attempt_no, questions, score, max_score)
+     │
+     ├──▶ quiz_attempt_answers (user_id, module_id, attempt_no, item_id, chosen, correct)
      │
      └──▶ messages (id, to_user_id, submission_id, type, read)
 
@@ -205,11 +207,42 @@ profiles.cohort_id
 | `id` | uuid PK | |
 | `student_id` | uuid | FK → profiles |
 | `challenge_id` | text | |
-| `area` | text | |
-| `questions` | jsonb | respuestas del intento |
+| `area` | text | ⚠️ **obsoleta** para segmentar (ver nota abajo) |
+| `questions` | jsonb | respuestas del intento: `[{q, correct}]` |
 | `score` | int | |
 | `max_score` | int | |
+| `course_id` | uuid | FK → courses · migración `0048` |
+| `module_id` | uuid | FK → course_modules · migración `0048` |
+| `attempt_no` | int | nº de intento, lo asigna el trigger `assign_challenge_attempt_no` · `0048` |
 | `created_at` | timestamptz | |
+
+> **Nota v15 (`0048`):** hasta julio de 2026 la tabla guardaba **solo el primer intento** de
+> cada estudiante (`recordAttempt` descartaba los siguientes) y se segmentaba por `area`, que
+> en el mundo multi-curso viene vacía. Ahora se guardan todos los intentos numerados y con su
+> contexto de curso/módulo. `area` se conserva únicamente por los datos históricos.
+
+#### `quiz_attempt_answers` (migración `0048`)
+
+Una fila **por pregunta y por intento**, con la opción elegida. Es lo que habilita el análisis
+de distractores. `quiz_attempts` (`0045`) sigue siendo solo el agregado por estudiante/módulo
+(contador, aprobado, mejor puntaje) y no guarda respuestas.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | uuid PK | |
+| `user_id` | uuid | FK → profiles |
+| `module_id` | uuid | FK → course_modules |
+| `course_id` | uuid | FK → courses |
+| `attempt_no` | int | > 0; se alinea con el contador de `quiz_attempts` |
+| `item_id` | text | id estable de la pregunta (`q_<8 hex>`, lo asigna el editor) |
+| `item_index` | int | posición en el quiz al momento de responder |
+| `chosen` | int | índice de la opción elegida (`null` = sin responder) |
+| `correct` | boolean | |
+| `time_ms` | int | reservado; hoy no se llena |
+| `created_at` | timestamptz | |
+
+> El `item_id` es lo que permite el análisis longitudinal: antes las preguntas se agregaban por
+> su **texto**, así que corregir una tilde partía el histórico del ítem en dos.
 
 #### `messages`
 | Campo | Tipo | Notas |
@@ -239,6 +272,40 @@ Quiz sincrónico tipo Kahoot, dirigido por el profesor. Cuatro tablas:
 | `submit_live_answer(session,participant,index,answer)` | anon | Valida fase, calcula puntaje `base*(1-0.5*tiempo/límite)` + racha, idempotente |
 | `live_set_phase(session,phase)` / `live_goto(session,index)` / `live_end(session)` | authenticated (solo host) | Avanzan la sesión; en reveal copian la llave a `current_reveal` |
 
+> **`0047`:** `create_live_session` cierra primero cualquier sesión anterior del mismo curso que
+> siguiera abierta. Antes una sesión abandonada a mitad quedaba `lobby`/`active` para siempre y
+> los estudiantes seguían viendo la invitación indefinidamente.
+
+#### Análisis de ítems (migración `0049`)
+
+Agregación **en el servidor**. Antes cada pantalla traía 300 filas de `challenge_attempts` de
+toda la plataforma (`sessionData.js`) y calculaba en el navegador: una muestra arbitraria
+presentada como si fuera el total.
+
+Todas son `SECURITY DEFINER`, exigen instructor/admin y acotan la muestra con
+`analytics_visible_students()` — la institución del que llama, mismo criterio que `0029`.
+
+| Función | Devuelve |
+|---|---|
+| `analytics_visible_students()` | Los `student_id` que quien llama puede agregar |
+| `analytics_module_answers(module)` | Respuestas normalizadas; une `quiz_attempt_answers` con el legado de `challenge_attempts.questions` |
+| `item_analysis(module, min_n)` | Por ítem: `p_value`, `discrimination`, `r_pb`, `distractors`, `retry_n`/`retry_recovery`, `n` |
+| `analytics_course_modules(course)` | Retos del curso con datos: `n_attempts`, `n_students`, `avg_pct`, rango de fechas |
+| `analytics_raw_answers(module)` | Filas crudas por estudiante/ítem, para exportar a xlsx |
+
+Reglas que hay que respetar al tocar estas funciones:
+- **Todo se calcula sobre el primer intento.** Mezclar reintentos infla la dificultad y destruye
+  la discriminación (quien repite ya vio la respuesta). La evolución 1→2 va aparte en
+  `retry_recovery`.
+- `discrimination` y `r_pb` vuelven **`NULL`** bajo `min_n` (10 por defecto). La UI muestra
+  "muestra insuficiente"; un `0` se leería como hallazgo.
+- El legado de `challenge_attempts` solo se usa si el módulo **no tiene** filas en
+  `quiz_attempt_answers`, para no contar dos veces el mismo intento. Da dificultad y
+  discriminación, no distractores (no se guardaba la opción elegida).
+- ⚠️ Las columnas de `RETURNS TABLE` son parámetros OUT visibles dentro del cuerpo: toda
+  referencia a `student_id`/`item_id`/`correct`… debe ir **calificada** o la función falla por
+  ambigüedad.
+
 ---
 
 ## Seguridad (RLS)
@@ -259,8 +326,14 @@ public.is_admin()      → boolean
 | `progress` | CRUD propio | SELECT | SELECT |
 | `submissions` | SELECT propio + INSERT + UPDATE propio | SELECT + UPDATE (calificar) | Todo |
 | `challenge_attempts` | SELECT propio + INSERT | SELECT | SELECT |
+| `quiz_attempt_answers` | SELECT propio + INSERT propio | SELECT | SELECT |
 | `messages` | SELECT/UPDATE propio (marcar leído) | INSERT | SELECT + INSERT |
 | `cohorts` | SELECT | SELECT | CRUD |
+
+> Las RPC de análisis (`0049`) son `SECURITY DEFINER`: no dependen de estas policies, validan
+> instructor/admin ellas mismas y filtran por institución. La lectura directa de las tablas
+> por parte de un instructor sigue sin estar acotada por institución — el filtro vive en las
+> RPC, no en el RLS de `challenge_attempts`.
 
 ### Trigger de creación automática
 Al crear un usuario en `auth.users`, `handle_new_user()` inserta automáticamente en `profiles` y `progress`. Lee `raw_user_meta_data` para asignar `name`, `role`, `area`, `institution_id`.
@@ -419,6 +492,15 @@ En el modo en vivo, host y estudiantes se suscriben a la sesión por su `id` y a
 - El store tiene ~6000 líneas incluyendo todo el contenido educativo embebido; considerar separar contenido a JSON o Supabase si crece.
 - `send-reminders` tiene un límite de 50 emails por invocación manual; para volúmenes mayores se necesita paginación o un cron job.
 - La eliminación de usuarios (`delete-user`) es irreversible — no hay soft-delete.
+- `InstructorStats.jsx` y `AdminAnalytics.jsx` siguen calculando en el navegador sobre las 300
+  filas de `challenge_attempts` (últimos 30 días, **de toda la plataforma**) que trae
+  `sessionData.js`, y agrupan las preguntas por su texto. Sus números son una muestra
+  arbitraria, no el total. La agregación correcta ya existe en las RPC de `0049`; falta
+  migrar esas dos pantallas.
+- Guardar todos los intentos (`0048`) más una fila por respuesta multiplica el volumen de
+  filas. Con los volúmenes actuales no es problema; revisar a los 6 meses y definir retención.
+- `live_participants` acumula nombre y correo por sesión sin política de borrado. Falta
+  decidir el plazo de retención de esa PII.
 
 ---
 

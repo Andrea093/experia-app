@@ -133,7 +133,8 @@ npm run dev
 | `institutions` | Colegios / instituciones educativas |
 | `progress` | XP, módulos completados, insignias por estudiante |
 | `submissions` | Entregas de producto final con historial de versiones |
-| `challenge_attempts` | Intentos de retos interactivos |
+| `challenge_attempts` | Intentos de retos interactivos (todos, numerados, con curso y módulo) |
+| `quiz_attempt_answers` | Una fila por pregunta respondida, con la opción elegida — alimenta el análisis de ítems |
 | `messages` | Notificaciones de devolución instructor → estudiante |
 
 ### Seguridad (RLS)
@@ -233,6 +234,36 @@ Para usar en clase: el profesor lanza un reto **Quiz** en vivo y los estudiantes
 - **Estudiantes:** entran a `…/#/live` (sin login), escriben el PIN y sus datos (nombre, apellido, correo, salón), o escanean el QR.
 - **Flujo por pregunta:** pregunta (con cuenta regresiva) → resultados → explicación → ranking → siguiente; al final, **podio**.
 - El contenido sale de los retos `quiz` del curso. Edita preguntas, explicaciones, tiempo y puntos en **Ruta → reto Quiz** (incluye subida de imágenes y un texto/imágenes de apoyo "passage").
+
+---
+
+## Análisis de ítems (calidad de tus pruebas)
+
+Le responde al instructor si **sus preguntas están bien construidas**, que es exactamente lo
+que el curso de DCE enseña a hacer. Menú lateral → **Análisis de ítems** → colegio → curso →
+reto.
+
+- **Activar (una sola vez):** ejecuta `0048_analytics_capture.sql` y `0049_analytics_rpcs.sql`
+  en el SQL Editor de Supabase, en ese orden.
+- **Dificultad (p):** qué % acertó. Cerca de 0.5 es donde la pregunta aporta más información;
+  por encima de 0.9 casi no distingue a nadie.
+- **Discriminación (D):** compara el cuartil de mejor desempeño contra el de menor. Si es
+  **negativa**, los que más saben la fallan más: casi siempre es un problema de redacción o de
+  clave, no de los estudiantes. Los ítems salen ordenados de peor a mejor D, con semáforo.
+- **Distractores:** al abrir un ítem se ve qué opción incorrecta eligió cada quién y **cuántos
+  del cuartil alto** cayeron en ella — ahí se detecta la opción ambigua.
+- **Evolución:** de los que fallaron y volvieron a intentar, cuántos acertaron después.
+- **Muestra:** la cabecera siempre dice sobre cuántos intentos, cuántos estudiantes y en qué
+  rango de fechas se calculó. Con menos de 10 estudiantes, `D` no se muestra (diría
+  "muestra insuficiente"): con esa cantidad el número es ruido.
+- **Sobre qué se calcula:** el **primer intento** de cada estudiante. Mezclar los reintentos
+  inflaría la dificultad, porque quien repite ya vio la respuesta.
+- **Exportar:** dos botones xlsx — la tabla de análisis y las respuestas crudas por
+  estudiante/ítem, para quien quiera hacer su propio análisis.
+
+> Las preguntas nuevas nacen con un id estable, así que **corregir el texto de una pregunta ya
+> no parte su histórico**. Los quizzes creados antes reciben ese id la primera vez que se
+> abren en el editor de ruta y se guardan.
 
 ---
 
@@ -496,8 +527,10 @@ git push           # Deploy automático a Cloudflare Pages
 
 ## Pendientes / Roadmap
 
-- [ ] Migrar progreso del estudiante (XP, módulos) a tabla `progress` en Supabase
-- [ ] Migrar `submissions` y `challenge_attempts` a Supabase
+- [ ] Ejecutar `0049_analytics_rpcs.sql` en Supabase (sin esto la pantalla de análisis de ítems abre vacía)
+- [ ] Migrar `InstructorStats` y `AdminAnalytics` a las RPC de `0049` — hoy calculan en el navegador sobre 300 filas de toda la plataforma
+- [ ] Informe posterior a la clase en vivo: `live_answers` es la mejor muestra para discriminación (30 personas, misma pregunta) y hoy se descarta al terminar
+- [ ] Definir retención de datos: intentos + respuestas por ítem, y PII de `live_participants`
 - [ ] Agregar `deleteAccount` conectado a Supabase Auth
 - [ ] Prueba de carga: 5 → 20 → 50 → 200 usuarios simultáneos
 - [ ] Sentry para monitoreo de errores en producción

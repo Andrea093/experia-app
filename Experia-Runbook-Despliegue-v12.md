@@ -403,6 +403,35 @@ ALTER TABLE public.cohorts DROP COLUMN IF EXISTS area;
 > ```
 > Una cohorte pertenece a una institución. Al asignar docentes a una cohorte, el modal filtra automáticamente solo los docentes de esa institución.
 
+### FASE 2C — Migraciones `0005` en adelante (v15)
+
+De `0005` a `0049` las migraciones **no se transcriben aquí**: viven como archivos en
+`supabase/migrations/` y se ejecutan **una por una, en orden, copiándolas al SQL Editor**
+(el listado con la descripción de cada una está en `CLAUDE.md`). Todas son aditivas e
+idempotentes salvo que el encabezado del archivo diga lo contrario.
+
+⚠️ **Regla de oro: la migración va ANTES del `git push`.** Cloudflare despliega el frontend en
+~2 minutos, pero las migraciones son manuales; si el código nuevo escribe una columna que
+todavía no existe, PostgREST **rechaza el insert completo**. Pasó en julio de 2026 con
+`0048_analytics_capture.sql`: durante un día no se guardó ningún intento de reto, y **en
+silencio** — el error solo iba a `console.error` y el store actualiza el estado local de forma
+optimista, así que ni el estudiante ni el instructor notaron nada.
+
+Cómo comprobar desde afuera si una migración ya está aplicada, sin abrir el dashboard
+(la anon key basta; RLS devuelve `[]` pero el error de esquema es distinto):
+
+```bash
+curl -s "$SUPABASE_URL/rest/v1/<tabla>?select=<columna>&limit=1" \
+  -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY"
+# []                          → existe (RLS lo deja vacío, pero el objeto está)
+# 42703 column ... not exist  → falta la columna
+# PGRST205 Could not find the table → falta la tabla
+```
+
+Al día de hoy (2026-07-28) están aplicadas hasta `0048`; **`0049_analytics_rpcs.sql` está
+pendiente**. Al ser solo funciones de lectura, desplegar el frontend antes no rompe nada: la
+pantalla de análisis de ítems simplemente no muestra datos.
+
 ---
 
 ### FASE 3 — Edge Functions (carga masiva + recordatorios)
@@ -690,6 +719,13 @@ EDGE FUNCTION v14
 [ ] supabase functions deploy delete-user --no-verify-jwt ejecutado
 [ ] Probado: admin elimina usuario desde AdminUsers → desaparece de la lista
 
+MIGRACIONES v15 (analítica de pruebas)
+[x] 0048_analytics_capture.sql aplicado (challenge_attempts.course_id/module_id/attempt_no + quiz_attempt_answers)
+[ ] 0049_analytics_rpcs.sql aplicado (item_analysis y demás RPC de agregación)
+[ ] Verificado: un reto respondido dos veces genera DOS filas en challenge_attempts (attempt_no 1 y 2)
+[ ] Verificado: un quiz de N preguntas genera N filas en quiz_attempt_answers con la opción elegida
+[ ] Verificado: el instructor solo ve datos de su institución (probar con dos instituciones)
+
 FUNCIONALIDAD v13 (verificar en producción)
 [x] Admin puede crear cohorte asignando institución
 [x] Modal "Asignar docentes" solo muestra docentes de esa institución
@@ -711,6 +747,8 @@ FUNCIONALIDAD v13 (verificar en producción)
 | "infinite recursion" en RLS | política consulta la misma tabla | usar siempre `is_admin()` / `is_instructor()` security definer |
 | Admin de Supabase no puede iniciar sesión | confundir Auth del dashboard con Auth de la app | son distintos: el admin de la app es un usuario más en `auth.users` con `role='admin'` |
 | Usuarios viejos del seed (`admin123` / `123456`) en producción | quedaron en código | borra `INITIAL_ACCOUNTS` antes del primer deploy |
+| Se dejan de guardar datos **sin ningún error visible** | se desplegó código que escribe una columna cuya migración aún no se corrió: PostgREST rechaza el insert completo y el frontend solo hace `console.error` | corre la migración; de ahí en adelante, migración **antes** del push (ver FASE 2C) |
+| La pantalla de análisis de ítems abre vacía | falta `0049`; las RPC no existen | ejecutar `0049_analytics_rpcs.sql` en el SQL Editor |
 
 ---
 
@@ -718,7 +756,7 @@ FUNCIONALIDAD v13 (verificar en producción)
 
 1. **Antes del primer despliegue real, borra TODAS las cuentas seed con contraseñas débiles** (`admin123`, `123456`). El admin real lo creas tú con una contraseña fuerte vía Supabase Authentication → Users.
 2. **Prueba la Edge Function en `localhost` primero**: `supabase functions serve bulk-create-users` y un fetch al endpoint local. Mucho más rápido que iterar deploy tras deploy.
-3. **Versionar el schema** desde el día 1 con archivos en `supabase/migrations/`. Aplica los cambios con `supabase db push` en vez de tocar el SQL Editor del dashboard.
+3. **Versionar el schema** desde el día 1 con archivos en `supabase/migrations/`. En este proyecto los archivos se aplican **a mano en el SQL Editor** (no hay `supabase db push` en el flujo): por eso cada uno es idempotente y por eso la migración va antes del push. Si algún día se adopta el CLI, migrar el historial completo de una vez, no a medias.
 4. **Migra en este orden estrictamente:** Fase 1 (Vite, todo funcional en local con seeds duros) → Fase 2 (schema en Supabase) → Fase 3 (Edge Function) → Fase 4 (reemplazo de cada acción del store, **una por una**, verificando en local con `supabase start` o contra Supabase remoto en dev). No mezcles fases en el mismo commit.
 5. **Plan de prueba de carga sugerido** antes del pico de 200: 5 → 20 → 50 → 100 estudiantes en sesiones reales (clases pequeñas), midiendo tiempos de respuesta en Supabase → Reports. Si todo va bien, el salto a 200 es seguro.
 

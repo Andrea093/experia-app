@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > **Experia** is a web platform for teacher training in Experience-Centered Design (DCE). Teachers progress through interactive lessons, challenges, and final deliverables, supervised by instructors.
 
 **Production:** https://experia-app.pages.dev  
-**Version:** v15 (June 2026) — multi-course + 4 immersive themes + **Modo Aula en Vivo** (quiz sincrónico tipo Kahoot)
+**Version:** v15 (July 2026) — multi-course + 4 immersive themes + **Modo Aula en Vivo** (quiz sincrónico tipo Kahoot) + **análisis de ítems** (dificultad/discriminación/distractores)
 
 ---
 
@@ -587,6 +587,6 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 ## Maintenance
 
 - **Author:** Sergio Bahamon (sergiobaha05@gmail.com)
-- **Version:** v14 (stable, multi-course)
-- **Roadmap:** course_progress migration, Sentry, advanced analytics
+- **Version:** v15 (stable, multi-course)
+- **Roadmap:** migrar `InstructorStats`/`AdminAnalytics` a las RPC de 0049, informe posterior de clases en vivo (Fase 5 de `Experia-Plan-Analitica.md`), retención de datos, Sentry
 
