@@ -726,6 +726,13 @@ MIGRACIONES v15 (analítica de pruebas)
 [ ] Verificado: un quiz de N preguntas genera N filas en quiz_attempt_answers con la opción elegida
 [ ] Verificado: el instructor solo ve datos de su institución (probar con dos instituciones)
 
+ACTA DE CIERRE (v15)
+[ ] 0050_closing_record.sql aplicado (tipo closing_record + course_roster + closing_records)
+[ ] Verificado: el admin sube el Excel del listado en Admin → Cursos → Listado de asistentes
+[ ] Verificado: con el acta en borrador, el docente ve "todavía no está firmada" y el nodo sigue pendiente
+[ ] Verificado: al cerrarla, el docente ve el acta completa y su nodo queda completado (tras recargar)
+[ ] Verificado: al cerrar el acta ya no se puede editar y el PDF sale por Imprimir
+
 FUNCIONALIDAD v13 (verificar en producción)
 [x] Admin puede crear cohorte asignando institución
 [x] Modal "Asignar docentes" solo muestra docentes de esa institución

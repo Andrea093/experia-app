@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, setInstitutionCourseExpiry, loadCourseModules } from '../store/store.jsx'
+import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, setInstitutionCourseExpiry, loadCourseModules, loadCourseRoster, saveCourseRoster } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal, ChecklistDropdown, ImageUploader, FileUploader } from '../components/ui.jsx'
 import { StatsRow, SearchInput, Pill, EmptyState, RowMenu } from '../components/adminUI.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -10,6 +10,152 @@ const THEME_HINTS = {
   'escape-room': '🔐 Ambiente de sala de escape: candados, mecanismos y la metáfora de abrir puertas con el pensamiento matemático. Ideal para el curso de Matemáticas.',
   lab: '🔬 Ambiente de laboratorio científico: probetas, burbujas y método científico. Ideal para el curso de Ciencias Naturales.',
   'time-travel': '⏳ Ambiente de viaje en el tiempo: portal temporal, personaje Prof. Kronos y recorrido por épocas. Ideal para el curso de Ciencias Sociales.',
+}
+
+// ── Listado de asistentes para el acta de cierre ─────────────
+// Lo carga el ADMIN por Excel, por curso y colegio. El tutor solo lo consume:
+// marca asistencia en el módulo `closing_record` y genera el acta.
+const nrmKey = (str) => str.toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+
+const RosterModal = ({ course, onClose }) => {
+  const institutions       = useStore(s => s.institutions || [])
+  const institutionCourses = useStore(s => s.institutionCourses || [])
+  const [instId, setInstId] = React.useState('')
+  const [people, setPeople] = React.useState([])
+  const [loaded, setLoaded] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+  const [msg, setMsg]       = React.useState('')
+  const fileRef = React.useRef(null)
+
+  // Colegios donde este curso está habilitado (a los que tiene sentido cargarle listado)
+  const linked = React.useMemo(() => institutionCourses
+    .filter(r => r.course_id === course.id && r.is_active)
+    .map(r => institutions.find(i => i.id === r.institution_id))
+    .filter(Boolean), [institutionCourses, institutions, course.id])
+
+  React.useEffect(() => { if (linked.length === 1 && !instId) setInstId(linked[0].id) }, [linked])
+
+  // Muestra lo que ya está cargado para ese colegio
+  React.useEffect(() => {
+    let alive = true
+    setLoaded(false); setMsg('')
+    if (!instId) { setPeople([]); return }
+    loadCourseRoster(course.id, instId).then(({ rows }) => {
+      if (!alive) return
+      setPeople(rows.map(r => ({ full_name: r.full_name, document: r.document || '', email: r.email || '' })))
+      setLoaded(true)
+    })
+    return () => { alive = false }
+  }, [instId, course.id])
+
+  const processFile = (file) => {
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      try {
+        const XLSX = await import('xlsx')
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+        const parsed = rows.map(row => {
+          const n = {}
+          Object.keys(row).forEach(k => { n[nrmKey(k)] = row[k] })
+          const full_name = (n['nombre'] || n['nombres'] || n['nombre completo'] || n['name'] || '').toString().trim()
+          const apellido  = (n['apellido'] || n['apellidos'] || '').toString().trim()
+          return {
+            full_name: [full_name, apellido].filter(Boolean).join(' ').trim(),
+            document: (n['documento'] || n['cedula'] || n['identificacion'] || n['cc'] || '').toString().trim(),
+            email: (n['correo'] || n['email'] || '').toString().trim().toLowerCase(),
+          }
+        }).filter(p => p.full_name)
+        if (!parsed.length) { setMsg('⚠️ No se encontró ninguna fila con nombre. Revisa que haya una columna "Nombre".'); return }
+        setPeople(parsed)
+        setMsg(`📄 ${parsed.length} persona${parsed.length !== 1 ? 's' : ''} leídas del archivo — aún sin guardar`)
+      } catch { setMsg('⚠️ No se pudo leer el archivo. Debe ser .xlsx, .xls o .csv') }
+    }
+    reader.readAsArrayBuffer(file)
+  }
+
+  const handleSave = async () => {
+    setSaving(true); setMsg('')
+    const { error, count } = await saveCourseRoster(course.id, instId, people)
+    setSaving(false)
+    setMsg(error ? '⚠️ ' + error : `✅ Listado guardado (${count} personas)`)
+  }
+
+  const downloadTemplate = async () => {
+    const XLSX = await import('xlsx')
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Nombre', 'Documento', 'Correo'],
+      ['María García', '1023456789', 'maria@colegio.com'],
+      ['Carlos Ruiz', '1098765432', 'carlos@colegio.com'],
+    ])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Asistentes')
+    XLSX.writeFile(wb, 'plantilla_listado_acta.xlsx')
+  }
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.6, marginBottom: 14 }}>
+        Lista oficial del grupo para el <strong>acta de cierre</strong>. El tutor marca la asistencia
+        sobre este listado; no tiene que ser gente registrada en la plataforma.
+        Columnas: <strong>Nombre</strong> (obligatoria), Documento y Correo.
+      </p>
+
+      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 5 }}>Colegio</label>
+      <select value={instId} onChange={e => setInstId(e.target.value)}
+        style={{ width: '100%', padding: '9px 12px', borderRadius: 9, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, background: 'var(--white)', boxSizing: 'border-box', marginBottom: 14 }}>
+        <option value="">Elige el colegio…</option>
+        {linked.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+      </select>
+      {!linked.length && (
+        <p style={{ fontSize: 12, color: 'var(--warn)', marginTop: -8, marginBottom: 14 }}>
+          Este curso no está habilitado en ningún colegio todavía.
+        </p>
+      )}
+
+      {instId && (
+        <>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+            <Btn variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>📤 Subir Excel</Btn>
+            <Btn variant="ghost" size="sm" onClick={downloadTemplate}>⬇ Plantilla</Btn>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) processFile(f); e.target.value = '' }} />
+          </div>
+
+          {loaded && (
+            <div style={{ maxHeight: 260, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 10, marginBottom: 12 }}>
+              {people.length === 0 ? (
+                <p style={{ fontSize: 13, color: 'var(--subtle)', fontStyle: 'italic', padding: 14, margin: 0 }}>
+                  Sin listado cargado para este colegio.
+                </p>
+              ) : people.map((p, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '7px 12px',
+                  borderBottom: i < people.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                  <span style={{ fontSize: 11, color: 'var(--subtle)', minWidth: 22 }}>{i + 1}</span>
+                  <span style={{ fontSize: 13, color: 'var(--dark)', flex: 1, minWidth: 0 }}>{p.full_name}</span>
+                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>{p.document}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {msg && <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 12, color: msg.startsWith('⚠️') ? 'var(--error)' : 'var(--success)' }}>{msg}</p>}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Btn variant="secondary" full onClick={onClose}>Cerrar</Btn>
+            <Btn variant="gradient" full disabled={saving || !instId} onClick={handleSave}>
+              {saving ? '⏳ Guardando…' : `💾 Guardar listado (${people.length})`}
+            </Btn>
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--subtle)', marginTop: 10, lineHeight: 1.5 }}>
+            Guardar <strong>reemplaza</strong> el listado de este colegio. Las actas ya cerradas no cambian:
+            guardan su propia copia de los asistentes.
+          </p>
+        </>
+      )}
+    </div>
+  )
 }
 
 // ── Formulario de curso ──────────────────────────────────────
@@ -746,6 +892,7 @@ const AdminCourses = () => {
   const [search, setSearch]           = React.useState('')
   const [editCourse, setEditCourse]   = React.useState(null)
   const [modsCourse, setModsCourse]   = React.useState(null)
+  const [rosterCourse, setRosterCourse] = React.useState(null)
   const [previewCourse, setPreviewCourse] = React.useState(null)
   const [deleteConfirm, setDeleteConfirm] = React.useState(null)
   const [togglingId, setTogglingId]   = React.useState(null)
@@ -877,6 +1024,11 @@ const AdminCourses = () => {
           {modsCourse && <CourseModulesPanel course={modsCourse} onClose={() => setModsCourse(null)} />}
         </Modal>
 
+        {/* Modal listado de asistentes (acta de cierre) */}
+        <Modal open={!!rosterCourse} onClose={() => setRosterCourse(null)} title="Listado de asistentes" width={560}>
+          {rosterCourse && <RosterModal course={rosterCourse} onClose={() => setRosterCourse(null)} />}
+        </Modal>
+
         {/* Modal vista previa */}
         <Modal open={!!previewCourse} onClose={() => setPreviewCourse(null)} title="Vista previa del mapa" width={780}>
           {previewCourse && <CourseMapPreview course={previewCourse} />}
@@ -951,6 +1103,7 @@ const AdminCourses = () => {
                       { icon: '👁', label: 'Vista previa del mapa', onClick: () => setPreviewCourse(course) },
                       { icon: '✏️', label: 'Editar curso', onClick: () => setEditCourse(course) },
                       { icon: '🎯', label: addingFD === course.id ? 'Agregando…' : 'Agregar Entrega Final', onClick: () => handleAddFinalDelivery(course) },
+                      { icon: '📝', label: 'Listado de asistentes (acta)', onClick: () => setRosterCourse(course) },
                       { icon: '🎓', label: course.requires_workshop ? 'Quitar requisito de taller' : 'Requerir taller presencial',
                         onClick: () => updateCourse(course.id, { requires_workshop: !course.requires_workshop }) },
                       { icon: '🗑️', label: 'Eliminar curso', danger: true, onClick: () => setDeleteConfirm(course) },

@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  useStore,
+  useStore, nav,
   forkCourseForInstitution, loadCourseForEditing, loadModulesForImport,
   saveCourseDraft, discardCourseDraft, publishCourseModules,
   getCourseDisplayName, generatePresenceCode,
@@ -17,7 +17,7 @@ import {
 const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
   onDragStart, onDragOver, onDrop, onDragEnd,
   onEdit, onDuplicate, onToggle, onDelete, showDelete,
-  onTogglePresence, onGenerateCode, onSetAvailability }) => {
+  onTogglePresence, onGenerateCode, onSetAvailability, onOpenActa }) => {
   const isOver = overIdx === idx
   return (
     <div draggable
@@ -72,6 +72,14 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
               height: 26, padding: '0 8px', borderRadius: 7, display: 'flex', alignItems: 'center', gap: 4,
               flexShrink: 0, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
             🔑 Código
+          </button>
+        )}
+        {mod.type === 'closing_record' && (
+          <button onClick={onOpenActa} title="Diligenciar el acta de cierre"
+            style={{ background: '#FEF3C7', border: 'none', cursor: 'pointer', color: '#B45309',
+              height: 26, padding: '0 8px', borderRadius: 7, display: 'flex', alignItems: 'center', gap: 4,
+              flexShrink: 0, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            📋 Diligenciar
           </button>
         )}
         {mod.type === 'final_delivery' && (
@@ -293,6 +301,18 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
     }])
   }
 
+  // Acta de cierre: la DILIGENCIA el tutor; el docente-estudiante la ve en su
+  // ruta como constancia y el nodo se le completa cuando el tutor la cierra.
+  // ⚠️ Mientras siga en borrador, bloquea el nodo siguiente del grupo.
+  const addClosingRecord = () => {
+    if (moduleList.some(m => m.type === 'closing_record')) return
+    setModuleList(l => [...l, {
+      id: 'new_cr_' + Date.now(), type: 'closing_record', ctype: null,
+      title: 'Acta de cierre', desc: 'Asistencia y observaciones del cierre del curso con el grupo.',
+      task: '', xp: 50, enabled: true, _dbRow: null,
+    }])
+  }
+
   const addCustomModule = (mod) => {
     setModuleList(l => [...l, { id: 'new_' + Date.now(), enabled: true, _dbRow: null, ...mod }])
   }
@@ -496,8 +516,12 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
                 onDragOver={() => setOverIdx(i)}
                 onDrop={() => handleDrop(i)}
                 onDragEnd={() => { setDragIdx(null); setOverIdx(null) }}
+                onOpenActa={() => {
+                  if (!mod.isDbModule) { setSavedMsg('⚠️ Publica la ruta primero para poder diligenciar el acta'); return }
+                  nav('closing-record', mod.id)
+                }}
                 onEdit={() => {
-                  if (mod.type === 'lesson' || mod.type === 'final_delivery') setEditingModule(mod)
+                  if (mod.type === 'lesson' || mod.type === 'final_delivery' || mod.type === 'closing_record') setEditingModule(mod)
                   else if (mod.ctype === 'quiz' || mod.ctype === 'poll') setEditingQuiz(mod)
                   else setEditingChallenge(mod)
                 }}
@@ -521,6 +545,11 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
           {!moduleList.some(m => m.type === 'final_delivery') && (
             <button {...btnRow(addFinalDelivery, 'var(--success)', '#CCFBF1', '#99F6E4')}>
               <PlusIc s={18} c="var(--success)" /> Agregar Entrega Final
+            </button>
+          )}
+          {!moduleList.some(m => m.type === 'closing_record') && (
+            <button {...btnRow(addClosingRecord, '#B45309', '#FEF3C7', '#FDE68A')}>
+              <PlusIc s={18} c="#B45309" /> Agregar Acta de Cierre
             </button>
           )}
         </div>

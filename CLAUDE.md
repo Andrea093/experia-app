@@ -402,6 +402,52 @@ ya corrida) + `0049_analytics_rpcs.sql` (agregación). Plan completo y decisione
   filas de toda la plataforma que trae `sessionData.js`, y agrupa las preguntas por su texto.
   Sus números son una muestra arbitraria, no el total.
 
+### 12. Acta de cierre (`closing_record`)
+
+Tipo de módulo nuevo (`course_modules.type = 'closing_record'`) para el cierre del curso con
+un grupo: el tutor confirma la asistencia contra un listado, agrega observaciones y genera el
+acta en PDF. Backend: `0050_closing_record.sql` (ejecutar manual en SQL Editor).
+
+> **Recordatorio de dominio:** esto es formación docente — el "estudiante" de la plataforma
+> **es un docente** en formación, y el instructor es su tutor. Por eso el acta de cierre es un
+> documento que también le pertenece al estudiante, no solo un trámite del tutor.
+
+- **Quién hace qué:** el **admin** carga el listado, el **tutor** diligencia y cierra el acta,
+  el **docente-estudiante** la ve y la descarga. Es el único módulo con esa división.
+- ⚠️ **El nodo aparece en la ruta del estudiante y se completa cuando el tutor CIERRA el acta**
+  (`status='final'`), con el mismo patrón que la entrega aprobada: un `useEffect` en `map.jsx`
+  llama `completeNode` en la sesión del estudiante (el instructor no puede escribir en su
+  `course_progress`). **Si el tutor nunca la cierra, el nodo siguiente y el certificado del
+  grupo quedan bloqueados** — es el comportamiento pedido, pero es la primera causa a revisar
+  si aparece un grupo trabado al final de la ruta. Sin realtime: el estudiante lo ve al recargar.
+- **El estudiante solo ve actas CERRADAS**, y en modo lectura: la policy
+  `closing_records_student_read` (0050) exige `status='final'` y matrícula en el curso (o en su
+  curso padre, porque el acta suele vivir en el fork del colegio). Un borrador a medio
+  diligenciar no sale de manos del tutor. Ve el acta **completa** del grupo — es un documento
+  institucional que todos firman.
+- **"Grupo" = curso + colegio.** Tanto el listado (`course_roster`) como el acta
+  (`closing_records`) llevan `institution_id`; el mismo curso en dos colegios tiene dos actas.
+  Índice único `(module_id, coalesce(institution_id, …))`.
+- **Listado — lo carga el ADMIN**, no el tutor: Admin → Cursos → menú de la fila → "Listado de
+  asistentes (acta)". Excel con columna `Nombre` obligatoria (+ `Documento`, `Correo`); acepta
+  `Nombres`/`Apellidos` por separado. Guardar **reemplaza** el listado de ese curso/colegio.
+  No son necesariamente usuarios de la plataforma — por eso es una tabla propia y no las
+  matrículas.
+- **Diligenciar — el TUTOR**: editor de ruta → botón `📋 Diligenciar` en la fila del módulo
+  (`page 'closing-record'`, `nodeId` = id del módulo). Requiere que la ruta esté **publicada**
+  (el módulo necesita su UUID real). La misma página sirve al estudiante en modo lectura
+  (`isStudent` en `ClosingRecord.jsx`); él no carga `course_roster` — no tiene permiso ni lo
+  necesita, porque el acta guarda su propia copia de los asistentes.
+- `closing_records.entries` es un **snapshot** del listado al diligenciar: recargar el Excel
+  después no altera un acta ya diligenciada.
+- **Cerrar el acta** (`status='final'`) la congela: el trigger `guard_finalized_closing_record`
+  rechaza cualquier update posterior salvo de un admin.
+- **PDF por `window.print()`** + `@media print`, igual que los certificados (`CertPage`,
+  `CourseCertificatePage`). No hay librería de PDF en el proyecto y no hacía falta agregarla.
+  Solo `#acta-print` queda visible al imprimir.
+- `loadCourseRoster` resuelve el **fork**: si el curso es la copia del colegio, cae al listado
+  cargado sobre el curso padre. Sin eso, un acta en un fork no encontraría nunca su listado.
+
 ---
 
 ## File Structure
@@ -436,6 +482,7 @@ src/
     ├── map.jsx, lesson.jsx, challenges.jsx
     ├── Grid.jsx, profile.jsx
     ├── InstructorItemAnalysis.jsx # Análisis de ítems: dificultad, discriminación, distractores
+    ├── ClosingRecord.jsx       # Acta de cierre: asistencia + observaciones → PDF (solo tutor/admin)
     ├── LivePlay.jsx            # Modo Aula en Vivo — estudiante (página PÚBLICA #/live, sin login)
     ├── LiveHost.jsx            # Modo Aula en Vivo — profesor (page 'live-host': lanzador + panel)
     ├── AvatarStudio.jsx        # Pestaña "Mi avatar" del perfil (solo con curso temático)
@@ -465,7 +512,8 @@ supabase/
 │   ├── 0046_avatar_config.sql # Avatar del estudiante (profiles.avatar_config, jsonb)
 │   ├── 0047_live_session_cleanup.sql # Clases en vivo colgadas: cierra las viejas + create_live_session cierra la anterior del curso
 │   ├── 0048_analytics_capture.sql # Analítica: todos los intentos + respuestas por ítem (quiz_attempt_answers)
-│   └── 0049_analytics_rpcs.sql # Analítica: item_analysis + agregación por curso/módulo (server-side)
+│   ├── 0049_analytics_rpcs.sql # Analítica: item_analysis + agregación por curso/módulo (server-side)
+│   └── 0050_closing_record.sql # Acta de cierre: tipo de módulo closing_record + course_roster + closing_records
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/

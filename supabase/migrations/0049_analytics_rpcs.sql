@@ -17,7 +17,7 @@
 --   • recuperación    = de los que fallaron en el intento 1, cuántos acertaron
 --                       después
 --
--- ⚠️ Todo se calcula sobre el PRIMER intento. Mezclar reintentos infla la
+-- ⚠️ Todo se calcula sobre el PRIMER intentox|. Mezclar reintentos infla la
 -- dificultad y destruye la discriminación (quien repite ya vio la respuesta).
 -- La evolución entre intentos se reporta aparte, en `retry_recovery`.
 --

@@ -4,12 +4,14 @@ import {
   getStudentModules, getRouteModules, findModule,
   calcLevel, xpForNext, xpProgress, nodeStatus, progressPct, isRouteComplete,
   gradeTotal, gradeMax, switchCourse, hashFor, isBaseCourse, getCourseCertConfig,
+  loadFinalClosingRecord,
 } from '../store/store.jsx'
 
 const hrefForMod = (mod) => {
   if (!mod) return '#'
   if (mod.type === 'certificate') return '#/course-cert'
   if (mod.type === 'final_delivery') return '#/grid'
+  if (mod.type === 'closing_record') return hashFor('closing-record', mod.id)
   if (mod.type === 'lesson') return hashFor('lesson', mod.id)
   return hashFor('challenge', mod.id)
 }
@@ -33,6 +35,7 @@ const NODE_ICONS = {
   evaluation: (status) => status === 'completed' ? <CheckIc s={24} c="#fff"/> : <TrophyIc s={22} c="#fff"/>,
   final_delivery: (status) => status === 'completed' ? <CheckIc s={24} c="#fff"/> : <AwardIc s={22} c="#fff"/>,
   certificate: (status) => status === 'completed' ? <AwardIc s={24} c="#fff"/> : <LockIc s={22} c="#fff"/>,
+  closing_record: (status) => status === 'completed' ? <CheckIc s={24} c="#fff"/> : <FileIc s={22} c="#fff"/>,
 };
 
 const NODE_COLORS = {
@@ -48,8 +51,8 @@ const CERT_NODE_COLORS = {
   locked: NODE_COLORS.locked,
 };
 
-const TYPE_LABELS = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUACIÓN', final_delivery: 'ENTREGA FINAL', certificate: 'CERTIFICADO' };
-const TYPE_COLORS = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: 'var(--success)', certificate: '#C9A227' };
+const TYPE_LABELS = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUACIÓN', final_delivery: 'ENTREGA FINAL', certificate: 'CERTIFICADO', closing_record: 'ACTA DE CIERRE' };
+const TYPE_COLORS = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: 'var(--orange)', final_delivery: 'var(--success)', certificate: '#C9A227', closing_record: '#B45309' };
 
 // --- Desktop: Node circle ---
 const MapNode = React.memo(({ mod, status, index, onClick, courseTheme }) => {
@@ -413,6 +416,21 @@ const LearningMap = () => {
     if (approved) completeNode(finalMod.id);
   }, [studentModules, completed, submissions, user, selectedArea]);
 
+  // El acta de cierre la diligencia el TUTOR; para el docente-estudiante es un
+  // nodo de consulta que se completa cuando el tutor la CIERRA (status='final').
+  // Mismo patrón que la entrega aprobada: se marca aquí porque completeNode
+  // escribe en el course_progress del estudiante, no en el del instructor.
+  // ⚠️ Sin realtime: el estudiante lo ve al recargar.
+  React.useEffect(() => {
+    const actaMod = studentModules.find(m => m.type === 'closing_record');
+    if (!actaMod || completed.includes(actaMod.id)) return;
+    let alive = true
+    loadFinalClosingRecord(actaMod.id, user?.institution_id || null).then(({ record }) => {
+      if (alive && record) completeNode(actaMod.id);
+    });
+    return () => { alive = false }
+  }, [studentModules, completed, user]);
+
   const enrolledCourse = React.useMemo(
     () => courses.find(c => c.id === enrolledCourseId),
     [courses, enrolledCourseId]
@@ -469,6 +487,7 @@ const LearningMap = () => {
     const status = nodeStatus(mod.id, completed, selectedArea, enrolledCourseId ? studentModules : null, unlockedPresence);
     if (status === 'locked') return;
     if (mod.type === 'final_delivery') nav('grid');
+    else if (mod.type === 'closing_record') nav('closing-record', mod.id);
     else if (mod.type === 'lesson') nav('lesson', mod.id);
     else nav('challenge', mod.id);
   }, [completed, selectedArea, studentModules, enrolledCourseId, pct, unlockedPresence]);

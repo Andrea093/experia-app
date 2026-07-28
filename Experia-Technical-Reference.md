@@ -276,6 +276,29 @@ Quiz sincrónico tipo Kahoot, dirigido por el profesor. Cuatro tablas:
 > siguiera abierta. Antes una sesión abandonada a mitad quedaba `lobby`/`active` para siempre y
 > los estudiantes seguían viendo la invitación indefinidamente.
 
+#### Acta de cierre (migración `0050`)
+
+`course_modules.type` admite `closing_record`. Lo diligencia el **tutor**; el
+**docente-estudiante** lo ve como constancia (en formación docente el "estudiante" es un
+docente). El nodo sí está en la ruta y se marca completo cuando el tutor **cierra** el acta
+(efecto en `map.jsx`, mismo patrón que la entrega aprobada). ⚠️ Mientras siga en borrador,
+bloquea el nodo siguiente y el certificado del grupo.
+
+- **`course_roster`** — listado oficial del grupo que carga el **admin** por Excel:
+  `course_id`, `institution_id`, `full_name`, `document`, `email`, `extra` (jsonb),
+  `sort_order`. Lectura: instructor/admin. Escritura: **solo admin**.
+- **`closing_records`** — el acta: `module_id`, `course_id`, `institution_id`, `instructor_id`,
+  `session_date`, `place`, `general_comments`, `entries` (jsonb: `[{name,document,email,present,comment}]`),
+  `status` (`draft`/`final`), `finalized_at`. Único por `(module_id, institution_id)`.
+  `entries` es un **snapshot**: recargar el Excel no altera un acta ya diligenciada.
+- Instructor: solo las actas de los colegios a los que está asignado (`my_institution_ids()`,
+  helper nuevo que 0049 duplica en su propio CTE — unificar si se vuelve a tocar).
+- Estudiante: `closing_records_student_read` le entrega el acta **solo con `status='final'`** y
+  si está matriculado en ese curso (o en su curso padre, porque el acta suele vivir en el fork
+  del colegio). Sin policy de escritura. No lee `course_roster`: el acta ya trae `entries`.
+- El trigger `guard_finalized_closing_record` impide editar un acta `final` salvo a un admin.
+- El PDF sale por `window.print()` + `@media print` (mismo camino que los certificados).
+
 #### Análisis de ítems (migración `0049`)
 
 Agregación **en el servidor**. Antes cada pantalla traía 300 filas de `challenge_attempts` de

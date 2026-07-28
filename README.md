@@ -267,6 +267,38 @@ reto.
 
 ---
 
+## Acta de cierre (asistencia → PDF)
+
+Un paso más de la ruta. Lo **diligencia el tutor** (confirma asistencia y deja observaciones) y
+el **docente en formación lo ve como constancia** y lo descarga en PDF: en Experia el
+"estudiante" es un docente, así que el acta también le pertenece.
+
+- **Activar (una sola vez):** ejecuta `0050_closing_record.sql` en el SQL Editor de Supabase.
+- **1 · El admin carga el listado:** Admin → Cursos → menú (⋮) del curso → **Listado de
+  asistentes (acta)** → elige el colegio → sube el Excel. Una columna **Nombre** obligatoria,
+  y opcionalmente **Documento** y **Correo** (también acepta *Nombres* y *Apellidos*
+  separados). Hay botón de plantilla. No tienen que ser usuarios de la plataforma.
+- **2 · El tutor agrega el nodo:** Ruta → **Agregar Acta de Cierre** → Publicar.
+- **3 · El tutor la diligencia:** botón **📋 Diligenciar** en la fila del módulo → marca quién
+  asistió, escribe observaciones por persona y generales, y **Guardar borrador** cuantas veces
+  quiera.
+- **4 · Cerrar y generar el PDF:** **🔒 Cerrar acta** la congela (ya no se edita, salvo un
+  admin) y **🖨️ Imprimir / PDF** abre el diálogo del navegador → *Guardar como PDF*.
+
+- **5 · El docente la consulta:** el nodo aparece en su mapa. Mientras el tutor no la cierre,
+  ve "el acta todavía no está firmada"; cuando la cierra, ve el acta completa del grupo y puede
+  descargarla en PDF, y **el nodo se le marca como completado**.
+
+> ⚠️ **El nodo del acta bloquea el resto de la ruta hasta que el tutor la cierre.** Si un grupo
+> aparece trabado al final del curso (o sin poder emitir el certificado), lo primero que hay que
+> revisar es si el acta quedó en borrador.
+>
+> El acta guarda su propia copia de los asistentes: si el admin recarga el Excel después,
+> las actas ya diligenciadas no cambian. Hay **una sola acta por curso y colegio**.
+> Los docentes solo ven actas **cerradas**; los borradores no salen de manos del tutor.
+
+---
+
 ## Carga masiva de usuarios (Excel)
 
 El admin puede importar usuarios desde un archivo `.xlsx` / `.csv` con las columnas:

@@ -89,6 +89,7 @@ const CourseSelection       = React.lazy(() => import('./pages/CourseSelection.j
 const GamesPage             = React.lazy(() => import('./pages/games.jsx'))
 const InstructorStatsPage   = React.lazy(() => import('./pages/InstructorStats.jsx'))
 const ItemAnalysisPage      = React.lazy(() => import('./pages/InstructorItemAnalysis.jsx'))
+const ClosingRecordPage     = React.lazy(() => import('./pages/ClosingRecord.jsx'))
 const SchoolsAdminPage      = React.lazy(() => import('./pages/AdminSchools.jsx'))
 const AdminPage             = React.lazy(() => import('./pages/AdminUsers.jsx'))
 const ForumPage             = React.lazy(() => import('./pages/forum.jsx'))
@@ -202,6 +203,7 @@ const App = () => {
         case 'admin-schools':    return <SchoolsAdminPage />;
         case 'admin-analytics':  return <AdminAnalytics />;
         case 'instructor-items': return <ItemAnalysisPage />;
+        case 'closing-record':   return <ClosingRecordPage />;
         case 'live-host':        return <LiveHostPage />;
         case 'forum':            return <ForumPage />;
         case 'profile':          return <ProfilePage />;
@@ -220,6 +222,7 @@ const App = () => {
         case 'instructor-stats': return <InstructorStatsPage />;
         case 'instructor-items': return <ItemAnalysisPage />;
         case 'instructor-route': return <InstructorRouteEditor />;
+        case 'closing-record':   return <ClosingRecordPage />;
         case 'live-host':        return <LiveHostPage />;
         case 'forum':            return <ForumPage />;
         case 'profile':          return <ProfilePage />;
@@ -233,6 +236,7 @@ const App = () => {
       case 'games':    return <GamesPage />;
       case 'grid':     return <StudentProductUpload />;
       case 'course-cert': return <CourseCertificatePage />;
+      case 'closing-record': return <ClosingRecordPage />;
       case 'forum':    return <ForumPage />;
       case 'profile':  return <ProfilePage />;
       default:         return <LearningMap />;

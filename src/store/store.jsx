@@ -724,6 +724,88 @@ const fetchRawAnswers = async (moduleId) => {
   return { rows: data || [] };
 };
 
+// ── Acta de cierre (módulo `closing_record`) ──────────────────────────────
+// El listado lo carga el admin por Excel; el tutor confirma asistencia y cierra
+// el acta. "Grupo" = curso + colegio, así que todo va acotado por institución.
+
+// Listado del grupo. Si el curso es un fork por colegio, cae al listado del
+// curso padre: el admin normalmente lo carga sobre el curso original.
+const loadCourseRoster = async (courseId, institutionId, parentCourseId = null) => {
+  const ids = [courseId, parentCourseId].filter(Boolean);
+  if (!ids.length) return { rows: [] };
+  let q = supabase.from('course_roster').select('*').in('course_id', ids).order('sort_order');
+  const { data, error } = await q;
+  if (error) { console.error('loadCourseRoster:', error); return { rows: [], error: error.message }; }
+  const all = data || [];
+  // Preferir el listado más específico que exista: mismo curso + mismo colegio.
+  const byScope = (cid, iid) => all.filter(r => r.course_id === cid && (r.institution_id || null) === (iid || null));
+  const rows = byScope(courseId, institutionId).length ? byScope(courseId, institutionId)
+    : byScope(parentCourseId, institutionId).length ? byScope(parentCourseId, institutionId)
+    : byScope(courseId, null).length ? byScope(courseId, null)
+    : byScope(parentCourseId, null);
+  return { rows };
+};
+
+// Admin: reemplaza el listado de ese curso/colegio por el del Excel.
+const saveCourseRoster = async (courseId, institutionId, people) => {
+  const s = XS.get();
+  const del = supabase.from('course_roster').delete().eq('course_id', courseId);
+  const { error: de } = institutionId ? await del.eq('institution_id', institutionId) : await del.is('institution_id', null);
+  if (de) { console.error('saveCourseRoster/delete:', de); return { error: de.message }; }
+  if (!people.length) return { ok: true, count: 0 };
+  const rows = people.map((p, i) => ({
+    course_id: courseId, institution_id: institutionId || null,
+    full_name: p.full_name, document: p.document || null, email: p.email || null,
+    extra: p.extra || {}, sort_order: i, uploaded_by: s.user?.id || null,
+  }));
+  const { error } = await supabase.from('course_roster').insert(rows);
+  if (error) { console.error('saveCourseRoster:', error); return { error: error.message }; }
+  return { ok: true, count: rows.length };
+};
+
+// Lectura del estudiante: solo actas ya CERRADAS (la RLS de 0050 no le deja ver
+// borradores). Si el curso es compartido por varios colegios puede haber un acta
+// por colegio; se prefiere la del suyo.
+const loadFinalClosingRecord = async (moduleId, institutionId) => {
+  if (!moduleId) return { record: null };
+  const { data, error } = await supabase.from('closing_records')
+    .select('*').eq('module_id', moduleId).eq('status', 'final');
+  if (error) { console.error('loadFinalClosingRecord:', error); return { record: null, error: error.message }; }
+  const rows = data || [];
+  const mine = rows.find(r => (r.institution_id || null) === (institutionId || null));
+  return { record: mine || rows[0] || null };
+};
+
+const loadClosingRecord = async (moduleId, institutionId) => {
+  let q = supabase.from('closing_records').select('*').eq('module_id', moduleId);
+  const { data, error } = institutionId ? await q.eq('institution_id', institutionId) : await q.is('institution_id', null);
+  if (error) { console.error('loadClosingRecord:', error); return { record: null, error: error.message }; }
+  return { record: (data || [])[0] || null };
+};
+
+// Guarda borrador o cierra el acta. Al cerrar, `entries` queda como snapshot:
+// recargar el Excel después NO altera un acta ya firmada.
+const saveClosingRecord = async (record, finalize = false) => {
+  const s = XS.get();
+  const payload = {
+    module_id: record.moduleId, course_id: record.courseId,
+    institution_id: record.institutionId || null,
+    instructor_id: s.user?.id || null,
+    session_date: record.sessionDate || null,
+    place: record.place || null,
+    general_comments: record.generalComments || null,
+    entries: record.entries || [],
+    status: finalize ? 'final' : 'draft',
+    finalized_at: finalize ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = record.id
+    ? await supabase.from('closing_records').update(payload).eq('id', record.id).select().single()
+    : await supabase.from('closing_records').insert(payload).select().single();
+  if (error) { console.error('saveClosingRecord:', error); return { error: error.message }; }
+  return { record: data };
+};
+
 // Modo vista previa (instructor): cuando está activo, los retos se renderizan
 // tal cual los ve el estudiante pero NADA se persiste ni afecta al progreso real.
 let _previewMode = false;
@@ -2112,6 +2194,7 @@ export {
   redeemPresenceCode, generatePresenceCode,
   recordQuizAttempt, recordQuizAttemptAnswers, resetQuizAttempts, loadStudentQuizAttempts,
   fetchAnalyticsModules, fetchItemAnalysis, fetchRawAnswers,
+  loadCourseRoster, saveCourseRoster, loadClosingRecord, saveClosingRecord, loadFinalClosingRecord,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
   saveAvatarConfig, selectAvatarConfig, selectHasThemedCourse, selectThemedCourses,
