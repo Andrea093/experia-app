@@ -806,6 +806,170 @@ const saveClosingRecord = async (record, finalize = false) => {
   return { record: data };
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MODO CLON — piloto TEMPORAL (migración 0051)
+//
+// "Rol clon" NO es un rol de base de datos: es la variante de interfaz
+// `profiles.ui_variant = 'clone'`. El usuario sigue siendo student o instructor
+// y conserva exactamente sus permisos; lo único distinto es lo que ve.
+// Ver §13 de CLAUDE.md. Al desmontar el piloto, esta sección se borra entera.
+//
+// Recordatorio de dominio: el "estudiante" es un DOCENTE en formación. Aquí ese
+// docente registra la asistencia y la efectividad de SUS alumnos de colegio.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const isCloneUser = (u) => u?.uiVariant === 'clone';
+const selectIsClone       = (s) => isCloneUser(s.user);
+const selectIsCloneStudent = (s) => isCloneUser(s.user) && s.user?.role === 'student';
+const selectIsCloneTutor   = (s) => isCloneUser(s.user) && s.user?.role === 'instructor';
+
+// Páginas exclusivas del piloto (se usan para saltarse los guards de curso:
+// el docente clon debe poder entrar a asistencia/efectividad aunque todavía no
+// tenga una matrícula resuelta).
+const CLONE_PAGES = ['clone-attendance', 'clone-effectiveness', 'clone-groups'];
+
+// Admin: activa/desactiva el modo clon de una cuenta.
+const setAccountUiVariant = async (id, variant) => {
+  const { user } = XS.get();
+  if (user?.role !== 'admin') return { error: 'Solo un administrador puede cambiar esto' };
+  XS.set(s => ({ accounts: s.accounts.map(a => a.id === id ? { ...a, ui_variant: variant } : a) }));
+  const { error } = await supabase.from('profiles').update({ ui_variant: variant }).eq('id', id);
+  if (error) {
+    console.error('setAccountUiVariant:', error);
+    // Revertir el optimismo: la columna puede no existir si falta correr 0051.
+    XS.set(s => ({ accounts: s.accounts.map(a => a.id === id ? { ...a, ui_variant: variant ? null : 'clone' } : a) }));
+    return { error: error.message };
+  }
+  return { ok: true };
+};
+
+// Grupos visibles: la RLS ya decide (el docente ve los suyos; el tutor los de
+// sus colegios), así que aquí no se filtra por rol.
+const loadCloneGroups = async () => {
+  const { data, error } = await supabase.from('clone_groups')
+    .select('*').eq('is_active', true).order('name');
+  if (error) { console.error('loadCloneGroups:', error); return { groups: [], error: error.message }; }
+  return { groups: data || [] };
+};
+
+const saveCloneGroup = async (g) => {
+  const s = XS.get();
+  const payload = {
+    name: (g.name || '').trim(),
+    grade: g.grade?.trim() || null,
+    teacher_id: g.teacherId,
+    institution_id: g.institutionId || null,
+    course_id: g.courseId || null,
+  };
+  if (!payload.name)       return { error: 'El grupo necesita un nombre' };
+  if (!payload.teacher_id) return { error: 'Elige el docente responsable del grupo' };
+  const { data, error } = g.id
+    ? await supabase.from('clone_groups').update(payload).eq('id', g.id).select().single()
+    : await supabase.from('clone_groups').insert({ ...payload, created_by: s.user?.id || null }).select().single();
+  if (error) { console.error('saveCloneGroup:', error); return { error: error.message }; }
+  return { group: data };
+};
+
+const deleteCloneGroup = async (id) => {
+  const { error } = await supabase.from('clone_groups').delete().eq('id', id);
+  if (error) { console.error('deleteCloneGroup:', error); return { error: error.message }; }
+  return { ok: true };
+};
+
+const loadCloneGroupStudents = async (groupId) => {
+  if (!groupId) return { rows: [] };
+  const { data, error } = await supabase.from('clone_group_students')
+    .select('*').eq('group_id', groupId).order('sort_order');
+  if (error) { console.error('loadCloneGroupStudents:', error); return { rows: [], error: error.message }; }
+  return { rows: data || [] };
+};
+
+// Tutor: reemplaza el listado del grupo por el del Excel (mismo criterio que
+// saveCourseRoster). Un acta ya diligenciada no cambia: guarda su propio
+// snapshot en `entries`.
+const saveCloneGroupStudents = async (groupId, people) => {
+  const { error: de } = await supabase.from('clone_group_students').delete().eq('group_id', groupId);
+  if (de) { console.error('saveCloneGroupStudents/delete:', de); return { error: de.message }; }
+  if (!people.length) return { ok: true, count: 0 };
+  const rows = people.map((p, i) => ({
+    group_id: groupId, full_name: p.full_name,
+    document: p.document || null, email: p.email || null,
+    extra: p.extra || {}, sort_order: i,
+  }));
+  const { error } = await supabase.from('clone_group_students').insert(rows);
+  if (error) { console.error('saveCloneGroupStudents:', error); return { error: error.message }; }
+  return { ok: true, count: rows.length };
+};
+
+const loadCloneAttendance = async (groupId) => {
+  if (!groupId) return { rows: [] };
+  const { data, error } = await supabase.from('clone_attendance')
+    .select('*').eq('group_id', groupId).order('session_date', { ascending: false });
+  if (error) { console.error('loadCloneAttendance:', error); return { rows: [], error: error.message }; }
+  return { rows: data || [] };
+};
+
+// `entries` queda como snapshot del listado al diligenciar. Cerrar el acta
+// (finalize) la congela: el trigger de 0051 rechaza updates posteriores.
+const saveCloneAttendance = async (rec, finalize = false) => {
+  const s = XS.get();
+  const payload = {
+    group_id: rec.groupId, teacher_id: s.user?.id || null,
+    session_date: rec.sessionDate || new Date().toISOString().slice(0, 10),
+    topic: rec.topic || null, place: rec.place || null, notes: rec.notes || null,
+    entries: rec.entries || [],
+    status: finalize ? 'final' : 'draft',
+    finalized_at: finalize ? new Date().toISOString() : null,
+  };
+  const { data, error } = rec.id
+    ? await supabase.from('clone_attendance').update(payload).eq('id', rec.id).select().single()
+    : await supabase.from('clone_attendance').insert(payload).select().single();
+  if (error) {
+    console.error('saveCloneAttendance:', error);
+    // El índice único (group_id, session_date) impide dos actas del mismo día.
+    return { error: error.code === '23505'
+      ? 'Ya existe un acta de asistencia de este grupo para esa fecha.'
+      : error.message };
+  }
+  return { record: data };
+};
+
+const loadCloneEffectiveness = async (groupId) => {
+  if (!groupId) return { rows: [] };
+  const { data, error } = await supabase.from('clone_effectiveness')
+    .select('*').eq('group_id', groupId).order('session_date', { ascending: false });
+  if (error) { console.error('loadCloneEffectiveness:', error); return { rows: [], error: error.message }; }
+  return { rows: data || [] };
+};
+
+// `sections` = lo capturado, `summary` = lo calculado. El summary lo arma quien
+// llama con buildSummary() de lib/effectiveness.js — se recomputa en CADA
+// guardado, nunca se edita a mano.
+const saveCloneEffectiveness = async (rec, finalize = false) => {
+  const s = XS.get();
+  const payload = {
+    group_id: rec.groupId, teacher_id: s.user?.id || null,
+    attendance_id: rec.attendanceId || null,
+    session_date: rec.sessionDate || new Date().toISOString().slice(0, 10),
+    title: rec.title || null,
+    sections: rec.sections || {},
+    summary: rec.summary || {},
+    status: finalize ? 'final' : 'draft',
+    finalized_at: finalize ? new Date().toISOString() : null,
+  };
+  const { data, error } = rec.id
+    ? await supabase.from('clone_effectiveness').update(payload).eq('id', rec.id).select().single()
+    : await supabase.from('clone_effectiveness').insert(payload).select().single();
+  if (error) { console.error('saveCloneEffectiveness:', error); return { error: error.message }; }
+  return { record: data };
+};
+
+const deleteCloneEffectiveness = async (id) => {
+  const { error } = await supabase.from('clone_effectiveness').delete().eq('id', id);
+  if (error) { console.error('deleteCloneEffectiveness:', error); return { error: error.message }; }
+  return { ok: true };
+};
+
 // Modo vista previa (instructor): cuando está activo, los retos se renderizan
 // tal cual los ve el estudiante pero NADA se persiste ni afecta al progreso real.
 let _previewMode = false;
@@ -2195,6 +2359,12 @@ export {
   recordQuizAttempt, recordQuizAttemptAnswers, resetQuizAttempts, loadStudentQuizAttempts,
   fetchAnalyticsModules, fetchItemAnalysis, fetchRawAnswers,
   loadCourseRoster, saveCourseRoster, loadClosingRecord, saveClosingRecord, loadFinalClosingRecord,
+  // Modo clon (piloto temporal, 0051)
+  isCloneUser, selectIsClone, selectIsCloneStudent, selectIsCloneTutor, CLONE_PAGES,
+  setAccountUiVariant, loadCloneGroups, saveCloneGroup, deleteCloneGroup,
+  loadCloneGroupStudents, saveCloneGroupStudents,
+  loadCloneAttendance, saveCloneAttendance,
+  loadCloneEffectiveness, saveCloneEffectiveness, deleteCloneEffectiveness,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
   saveAvatarConfig, selectAvatarConfig, selectHasThemedCourse, selectThemedCourses,

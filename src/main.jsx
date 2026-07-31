@@ -149,7 +149,10 @@ async function restoreSession() {
             onboardingBonus: profile.onboarding_bonus ?? true,
             // Avatar de los cursos temáticos (0046). Si la migración no está
             // aplicada queda null y la función simplemente no aparece.
-            avatarConfig: profile.avatar_config || null },
+            avatarConfig: profile.avatar_config || null,
+            // Modo clon: variante de interfaz del piloto temporal (0051). Sin la
+            // migración queda null y todo se ve exactamente como antes.
+            uiVariant: profile.ui_variant || null },
     page, xp, completed, badges, notifications: [],
     selectedArea: profile.area || null, nodeId: null,
     institutions: institutionsRes.data || [],

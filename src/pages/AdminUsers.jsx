@@ -3,7 +3,8 @@ import {
   useStore, INITIAL_INSTITUTIONS, AREAS,
   createAccount, deleteAccount, changeAccountArea, changeAccountInstitution, resetStudentProgress, setAccountActive,
   assignInstructorInstitution, removeInstructorInstitution, assignRouteToInstitution,
-  bulkCreateAccounts, setUserCourseAccess, setUserCourseAccessBulk, isBaseCourse
+  bulkCreateAccounts, setUserCourseAccess, setUserCourseAccessBulk, isBaseCourse,
+  setAccountUiVariant
 } from '../store/store.jsx'
 import {
   useMobile, LogoImg, CheckIc, XIc, PlusIc, TrashIc, EditIc, UploadIc, Btn, Modal, ChecklistDropdown
@@ -669,6 +670,16 @@ const AdminPage = () => {
     setErrors({});
   };
 
+  // Modo clon — piloto TEMPORAL (0051). NO es un rol: es la variante de interfaz
+  // `profiles.ui_variant`. La cuenta conserva sus permisos de student/instructor
+  // y solo cambia el menú y las páginas que ve.
+  const toggleClone = async (acc, isClone) => {
+    const { error } = await setAccountUiVariant(acc.id, isClone ? null : 'clone');
+    if (error) window.alert(
+      'No se pudo cambiar el modo clon: ' + error +
+      '\n\nSi dice que la columna ui_variant no existe, falta correr la migración 0051 en Supabase.');
+  };
+
   const handleEditArea = () => {
     if (!editAreaEmail || !editAreaValue) return;
     changeAccountArea(editAreaEmail, editAreaValue);
@@ -793,6 +804,7 @@ const AdminPage = () => {
               const isAdmin = acc.role === 'admin';
               const isStudent = acc.role === 'student';
               const isActive = acc.is_active !== false;
+              const isClone = acc.ui_variant === 'clone';
               const isSel = selected.has(acc.email);
               const nCourses = acc.id ? (courseCountByUser[acc.id] || 0) : 0;
               return (
@@ -813,6 +825,7 @@ const AdminPage = () => {
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                           <span style={{ fontSize:13, fontWeight:600, color:'var(--dark)' }}>{acc.name}</span>
                           {!isActive && <Pill tone="error" style={{ borderRadius:6 }}>Inactivo</Pill>}
+                          {isClone && <Pill tone="purple" style={{ borderRadius:6 }} title="Modo clon: interfaz del piloto temporal">🧬 Clon</Pill>}
                         </div>
                         <div style={{ fontSize:11.5, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{acc.email}</div>
                       </div>
@@ -855,6 +868,11 @@ const AdminPage = () => {
                         ...(isStudent ? [{ icon:'✏️', label:'Editar área',       onClick:() => openEditArea(acc) }] : []),
                         { icon:'🏫', label:'Cambiar colegio',   onClick:() => openEditInstitution(acc) },
                         ...(isStudent ? [{ icon:'🔄', label:'Resetear progreso', onClick:() => setResetConfirm(acc) }] : []),
+                        // Modo clon: piloto TEMPORAL (0051). No cambia permisos,
+                        // solo la interfaz que ve la cuenta.
+                        { icon: isClone ? '🧪' : '🧬',
+                          label: isClone ? 'Quitar modo clon' : 'Activar modo clon',
+                          onClick:() => toggleClone(acc, isClone) },
                         { icon: isActive ? '🚫' : '✅', label: isActive ? 'Desactivar' : 'Activar', onClick:() => setAccountActive(acc.id, !isActive) },
                         { icon:'🗑️', label:'Eliminar', danger:true, onClick:() => setDeleteConfirm(acc.email) },
                       ]} />

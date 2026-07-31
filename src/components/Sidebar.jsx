@@ -1,8 +1,8 @@
 import React from 'react'
-import { useStore, nav, doLogout, AREAS } from '../store/store.jsx'
+import { useStore, nav, doLogout, AREAS, isCloneUser } from '../store/store.jsx'
 import {
   useMobile, LogoImg, MapIc, GameIc, FileIc, UserIc, BookIc,
-  SchoolIc, BarIc, ClockIc, UsersIc, LogOutIc, XIc, MsgIc, ChevRIc, TargetIc
+  SchoolIc, BarIc, ClockIc, UsersIc, LogOutIc, XIc, MsgIc, ChevRIc, TargetIc, CheckIc
 } from './ui.jsx'
 
 const COLLAPSE_KEY = 'experia:sidebar-collapsed';
@@ -53,7 +53,27 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
     { key: 'forum',            label: 'Comunidad',  icon: <MsgIc s={19} />,   active: ['forum'] },
     { key: 'profile',          label: 'Perfil',     icon: <UserIc s={19} />,  active: ['profile'] },
   ];
-  const items = role === 'instructor' ? instructorItems : role === 'admin' ? adminItems : studentItems;
+  // ── Modo clon (piloto temporal, 0051) ──────────────────────────────────────
+  // No es un rol de BD: es la variante de interfaz `profiles.ui_variant`. El
+  // docente clon conserva su ruta de formación tal cual y suma los dos módulos
+  // del piloto; el tutor clon suma la gestión de grupos a su menú normal.
+  const isClone = isCloneUser(user);
+  const cloneStudentItems = [
+    { key: 'map',                 label: 'Mi ruta de formación', icon: <MapIc s={19} />,   active: ['map','lesson','challenge','grid','course-cert','closing-record'] },
+    { key: 'clone-attendance',    label: 'Marcar asistencia',    icon: <CheckIc s={19} />, active: ['clone-attendance'] },
+    { key: 'clone-effectiveness', label: 'Tabla de efectividad', icon: <BarIc s={19} />,   active: ['clone-effectiveness'] },
+    { key: 'profile',             label: 'Perfil',               icon: <UserIc s={19} />,  active: ['profile'] },
+  ];
+  const cloneTutorItems = [
+    { key: 'clone-groups', label: 'Grupos y listados', icon: <UsersIc s={19} />, active: ['clone-groups'] },
+    ...instructorItems,
+  ];
+
+  const items = isClone && role === 'student'    ? cloneStudentItems
+              : isClone && role === 'instructor' ? cloneTutorItems
+              : role === 'instructor' ? instructorItems
+              : role === 'admin'      ? adminItems
+              : studentItems;
 
   const handleNav = (e, key) => {
     // Allow Ctrl/Cmd+click and middle-click to open in new tab naturally
@@ -65,7 +85,10 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
 
   const roleColor = role === 'admin' ? '#7C3AED' : role === 'instructor' ? 'var(--success)' : 'var(--purple)';
   const roleBg    = role === 'admin' ? 'var(--violet-bg)' : role === 'instructor' ? 'var(--success-bg-strong)' : 'var(--purple-bg)';
-  const roleLabel = role === 'admin' ? 'Administrador' : role === 'instructor' ? 'Instructor' : 'Estudiante';
+  const baseLabel = role === 'admin' ? 'Administrador' : role === 'instructor' ? 'Instructor' : 'Estudiante';
+  // El distintivo importa: en el piloto conviven cuentas normales y clon, y el
+  // menú es lo único que las diferencia a simple vista.
+  const roleLabel = isClone ? (role === 'instructor' ? 'Tutor clon' : 'Estudiante clon') : baseLabel;
 
   // Botón de colapsar/expandir — solo en desktop.
   const collapseToggle = !isMobile && (

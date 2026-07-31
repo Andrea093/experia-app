@@ -84,7 +84,9 @@ const LoginPage = () => {
                 onboarded: profile.onboarded ?? true,
                 onboardingBonus: profile.onboarding_bonus ?? true,
                 // Avatar de los cursos temáticos (0046); null si aún no lo creó.
-                avatarConfig: profile.avatar_config || null },
+                avatarConfig: profile.avatar_config || null,
+                // Modo clon: variante de interfaz del piloto temporal (0051).
+                uiVariant: profile.ui_variant || null },
         page,
         xp, completed, badges,
         enrolledCourseId, effectiveCourseId, courseModules,

@@ -36,6 +36,8 @@ export async function loadStaffData(profile, institutions) {
       institution_id: p.institution_id || null,
       cohort_id: p.cohort_id || null,
       is_active: p.is_active !== false,
+      // Modo clon (piloto temporal, 0051). null si la migración no está aplicada.
+      ui_variant: p.ui_variant || null,
       pass: '',
     })),
     submissions: (subsData || []).map(s => mapSubmission(s, allProfiles, instById)),

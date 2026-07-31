@@ -1,6 +1,6 @@
 import React from 'react'
 import { useStore, nav, doLogout } from './store/store.jsx'
-import { selectActiveCourseTheme } from './store/store.jsx'
+import { selectActiveCourseTheme, CLONE_PAGES } from './store/store.jsx'
 import { startIdleWatch } from './lib/idleTimeout.js'
 import { applySavedTheme, applyLightOnly } from './lib/theme.js'
 import { useGuidedSession } from './lib/liveClient.js'
@@ -98,6 +98,12 @@ const LivePlayPage          = React.lazy(() => import('./pages/LivePlay.jsx'))
 const LiveHostPage          = React.lazy(() => import('./pages/LiveHost.jsx'))
 const GuidedClassView       = React.lazy(() => import('./components/GuidedClassView.jsx'))
 
+// Modo clon — piloto TEMPORAL (0051). Lazy, así que las cuentas normales nunca
+// descargan estos chunks.
+const CloneAttendancePage    = React.lazy(() => import('./pages/CloneAttendance.jsx'))
+const CloneEffectivenessPage = React.lazy(() => import('./pages/CloneEffectiveness.jsx'))
+const CloneGroupsPage        = React.lazy(() => import('./pages/CloneGroups.jsx'))
+
 const PageSpinner = () => (
   <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
     flexDirection: 'column', gap: 14, animation: 'fadeIn .3s ease' }}>
@@ -177,14 +183,19 @@ const App = () => {
   if (!isLoggedIn) { setTimeout(() => nav('landing'), 0); return null; }
 
   const role = user?.role;
+  // Los módulos del piloto clon (asistencia / efectividad) no dependen de la
+  // matrícula: viven al lado de la ruta de formación, no dentro de ella. Por eso
+  // se saltan los guards de curso/área — si no, un docente clon sin curso
+  // resuelto quedaría atrapado en la selección de curso y no podría entrar.
+  const isClonePage = CLONE_PAGES.includes(page);
   // Esperar a que courses + userCourses estén cargados antes de decidir la ruta
   // del estudiante. Sin esto, el primer render ocurre con datos a medias y se ve
   // un parpadeo entre el mapa/onboarding y la selección de curso.
-  if (role === 'student' && !coursesLoaded) return <PageSpinner />;
+  if (role === 'student' && !coursesLoaded && !isClonePage) return <PageSpinner />;
   // Guard estudiante: si hay cursos en BD y no está inscrito → selección de curso
-  if (role === 'student' && hasCourses && !enrolledCourse) return <React.Suspense fallback={<PageSpinner />}><CourseSelection /></React.Suspense>;
+  if (role === 'student' && hasCourses && !enrolledCourse && !isClonePage) return <React.Suspense fallback={<PageSpinner />}><CourseSelection /></React.Suspense>;
   // Guard legado: sin cursos en BD y sin área → selección de área
-  if (role === 'student' && !hasCourses && !selectedArea) return <React.Suspense fallback={<PageSpinner />}><AreaSelection /></React.Suspense>;
+  if (role === 'student' && !hasCourses && !selectedArea && !isClonePage) return <React.Suspense fallback={<PageSpinner />}><AreaSelection /></React.Suspense>;
 
   // Clase en Vivo Guiada: mientras el estudiante está unido, su pantalla queda
   // completamente controlada por el profesor — sin sidebar ni navegación libre.
@@ -204,6 +215,7 @@ const App = () => {
         case 'admin-analytics':  return <AdminAnalytics />;
         case 'instructor-items': return <ItemAnalysisPage />;
         case 'closing-record':   return <ClosingRecordPage />;
+        case 'clone-groups':     return <CloneGroupsPage />;
         case 'live-host':        return <LiveHostPage />;
         case 'forum':            return <ForumPage />;
         case 'profile':          return <ProfilePage />;
@@ -223,6 +235,7 @@ const App = () => {
         case 'instructor-items': return <ItemAnalysisPage />;
         case 'instructor-route': return <InstructorRouteEditor />;
         case 'closing-record':   return <ClosingRecordPage />;
+        case 'clone-groups':     return <CloneGroupsPage />;
         case 'live-host':        return <LiveHostPage />;
         case 'forum':            return <ForumPage />;
         case 'profile':          return <ProfilePage />;
@@ -237,6 +250,10 @@ const App = () => {
       case 'grid':     return <StudentProductUpload />;
       case 'course-cert': return <CourseCertificatePage />;
       case 'closing-record': return <ClosingRecordPage />;
+      // Piloto clon: solo llegan aquí las cuentas con ui_variant='clone',
+      // porque son las únicas que ven el enlace en el sidebar.
+      case 'clone-attendance':    return <CloneAttendancePage />;
+      case 'clone-effectiveness': return <CloneEffectivenessPage />;
       case 'forum':    return <ForumPage />;
       case 'profile':  return <ProfilePage />;
       default:         return <LearningMap />;

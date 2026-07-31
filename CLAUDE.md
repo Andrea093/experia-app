@@ -448,6 +448,65 @@ acta en PDF. Backend: `0050_closing_record.sql` (ejecutar manual en SQL Editor).
 - `loadCourseRoster` resuelve el **fork**: si el curso es la copia del colegio, cae al listado
   cargado sobre el curso padre. Sin eso, un acta en un fork no encontraría nunca su listado.
 
+### 13. Modo clon (piloto TEMPORAL — estudiante clon / tutor clon)
+
+Piloto de dos funcionalidades que después **migran a otra plataforma**: el docente
+marca la **asistencia de sus alumnos de colegio** y captura la **tabla de
+efectividad** de la sesión. Backend: `0051_clone_role.sql` (correr manual en SQL
+Editor). Toda la zona está pensada para **borrarse de una pieza** cuando el piloto
+termine.
+
+- ⚠️ **NO es un rol de base de datos.** El enum `user_role` no se tocó: en Postgres
+  un valor de enum **no se puede eliminar nunca**, y agregarlo obligaría a revisar
+  `is_instructor()`, `is_admin()` y todas las policies que comparan
+  `role='student'/'instructor'` (user_courses, live_*, presence_*, closing_records,
+  submissions…). El "rol clon" es una **variante de interfaz**:
+  `profiles.ui_variant = 'clone'`. Los permisos siguen siendo los de
+  student/instructor; lo único que cambia es lo que pinta el frontend. Desmontarlo
+  = borrar la columna y las cuatro tablas.
+- **Quién ve qué:** el **tutor clon** (instructor) suma "Grupos y listados"
+  (`clone-groups`) a su menú normal. El **estudiante clon** (docente) ve un menú
+  propio: *Mi ruta de formación* (su `map` tal cual, sin cambios), *Marcar
+  asistencia* (`clone-attendance`), *Tabla de efectividad* (`clone-effectiveness`)
+  y *Perfil*. Se asigna desde AdminUsers → menú de la fila → "Activar modo clon".
+- **"Grupo" = los alumnos de colegio de UN docente.** El tutor crea el grupo, le
+  asigna un docente (`clone_groups.teacher_id`) y le carga el listado por Excel
+  (`clone_group_students`). El docente **no edita** el listado: solo marca
+  asistencia sobre él. Los alumnos **no son usuarios de la plataforma** — misma
+  razón por la que `course_roster` es tabla propia (§12).
+- ⚠️ **No confundir con el acta de cierre (§12).** Aquel listado lo carga el
+  **admin** y es la lista de los **docentes** del grupo de formación; este lo carga
+  el **tutor** y es la lista de los **alumnos de colegio** del docente. Son tablas
+  distintas a propósito.
+- **Asistencia:** una acta por grupo y fecha (índice único). `entries` es un
+  **snapshot** del listado al diligenciar: recargar el Excel después no altera un
+  acta ya hecha. Cerrarla (`status='final'`) la congela vía trigger. El PDF sale por
+  `window.print()` + `@media print`, igual que los certificados y §12.
+- **Tabla de efectividad:** dos momentos por sesión (*Exploro mis competencias* /
+  *Desarrollo mis competencias*), cada uno con su total de estudiantes y sus
+  preguntas (letra correcta + conteos A/B/C/D). Captura por formulario **o** por
+  importación de Excel (plantilla descargable); exporta a xlsx e imprime informe.
+- ⚠️ **Todo el cálculo vive en `src/lib/effectiveness.js`** (funciones puras, sin
+  React ni Supabase). Las páginas solo capturan y pintan — **no reimplementar
+  fórmulas en la UI**. `clone_effectiveness.sections` = lo capturado;
+  `summary` = lo calculado con `buildSummary()`, recomputado en **cada** guardado:
+  es una foto para reportes/exportación, nunca la fuente de verdad.
+  Reglas que suelen malinterpretarse:
+  - **VALOR es dificultad, no desempeño**: 3 = pocos acertaron, 1 = casi todos.
+    No confundirlo con el P.E.P.
+  - Una pregunta con `aplicada:false` se **excluye por completo** del promedio —
+    nunca cuenta como cero (bajaría la efectividad artificialmente).
+  - Si la suma de los 4 conteos ≠ total de estudiantes, es **error de captura**: se
+    señala en rojo, no se corrige solo.
+  - La efectividad de la sesión promedia **solo los momentos aplicados**; con uno
+    solo se reporta ese. Sin ninguno, `reportable=false` y no deja guardar.
+- **Guards:** las páginas del piloto están en `CLONE_PAGES` (store) y `app.jsx` las
+  **exceptúa de los guards de curso/área** — viven al lado de la ruta de formación,
+  no dentro de ella. Sin eso, un docente clon sin matrícula resuelta quedaría
+  atrapado en la selección de curso.
+- **Peso:** las tres páginas y `cloneShared.jsx` van lazy, así que una cuenta normal
+  nunca descarga esos chunks.
+
 ---
 
 ## File Structure
@@ -459,6 +518,7 @@ src/
 ├── styles.css               # Design system
 ├── store/store.jsx          # Reactive store + modules
 ├── lib/
+│   ├── effectiveness.js     # Motor PURO de la Tabla de Efectividad (P.E.P., VALOR, efectividad de sesión)
 │   ├── avatarKit.jsx        # Avatar del estudiante: catálogos DiceBear + <Avatar/> (retrato) + RANKS
 │   ├── avatarBody.jsx       # Cuerpo entero + armadura por rango (arte propio)
 │   ├── supabaseClient.js    # Supabase init
@@ -483,6 +543,9 @@ src/
     ├── Grid.jsx, profile.jsx
     ├── InstructorItemAnalysis.jsx # Análisis de ítems: dificultad, discriminación, distractores
     ├── ClosingRecord.jsx       # Acta de cierre: asistencia + observaciones → PDF (solo tutor/admin)
+    ├── CloneAttendance.jsx     # PILOTO clon: el docente marca asistencia de SUS alumnos → acta
+    ├── CloneEffectiveness.jsx  # PILOTO clon: tabla de efectividad (formulario + Excel) → informe
+    ├── CloneGroups.jsx         # PILOTO clon (tutor): grupos por docente + listado de alumnos
     ├── LivePlay.jsx            # Modo Aula en Vivo — estudiante (página PÚBLICA #/live, sin login)
     ├── LiveHost.jsx            # Modo Aula en Vivo — profesor (page 'live-host': lanzador + panel)
     ├── AvatarStudio.jsx        # Pestaña "Mi avatar" del perfil (solo con curso temático)
@@ -513,7 +576,8 @@ supabase/
 │   ├── 0047_live_session_cleanup.sql # Clases en vivo colgadas: cierra las viejas + create_live_session cierra la anterior del curso
 │   ├── 0048_analytics_capture.sql # Analítica: todos los intentos + respuestas por ítem (quiz_attempt_answers)
 │   ├── 0049_analytics_rpcs.sql # Analítica: item_analysis + agregación por curso/módulo (server-side)
-│   └── 0050_closing_record.sql # Acta de cierre: tipo de módulo closing_record + course_roster + closing_records
+│   ├── 0050_closing_record.sql # Acta de cierre: tipo de módulo closing_record + course_roster + closing_records
+│   └── 0051_clone_role.sql # PILOTO TEMPORAL modo clon: profiles.ui_variant + clone_groups/_students/_attendance/_effectiveness
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/
