@@ -1,8 +1,11 @@
 // closing_record = acta de cierre. Es el único tipo que NO resuelve el estudiante
 // (lo diligencia el tutor) y por eso se filtra de la ruta en `dbRowsToCourseModules`.
-export const TYPE_LABELS = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUACIÓN', final_delivery: 'ENTREGA FINAL', closing_record: 'ACTA DE CIERRE' }
-export const TYPE_COLORS = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: '#0D9488', final_delivery: '#0D9488', closing_record: '#B45309' }
-export const TYPE_BG    = { lesson: 'var(--orange-bg)', challenge: 'var(--purple-bg)', evaluation: '#CCFBF1', final_delivery: '#CCFBF1', closing_record: '#FEF3C7' }
+// clone_dashboard = tablero del plan de unidades del libro (piloto clon, 0052).
+// El contenido no vive en el módulo sino en el plan que el tutor carga por grupo
+// desde "Grupos y listados": aquí el módulo solo es la puerta de entrada.
+export const TYPE_LABELS = { lesson: 'MÓDULO', challenge: 'RETO', evaluation: 'EVALUACIÓN', final_delivery: 'ENTREGA FINAL', closing_record: 'ACTA DE CIERRE', clone_dashboard: 'PLAN DE UNIDADES' }
+export const TYPE_COLORS = { lesson: 'var(--orange)', challenge: 'var(--purple)', evaluation: '#0D9488', final_delivery: '#0D9488', closing_record: '#B45309', clone_dashboard: '#1D4ED8' }
+export const TYPE_BG    = { lesson: 'var(--orange-bg)', challenge: 'var(--purple-bg)', evaluation: '#CCFBF1', final_delivery: '#CCFBF1', closing_record: '#FEF3C7', clone_dashboard: '#DBEAFE' }
 
 export const PAIR_COLORS = ['#E8732C','#7B3FA0','#3B82F6','#10B981','#F59E0B','#EC4899']
 

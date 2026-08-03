@@ -504,8 +504,33 @@ termine.
   **exceptúa de los guards de curso/área** — viven al lado de la ruta de formación,
   no dentro de ella. Sin eso, un docente clon sin matrícula resuelta quedaría
   atrapado en la selección de curso.
-- **Peso:** las tres páginas y `cloneShared.jsx` van lazy, así que una cuenta normal
-  nunca descarga esos chunks.
+- **Tablero del plan de unidades (`clone_dashboard`, 0052).** Tipo de módulo nuevo
+  para el **último paso** de la ruta del producto sustituto: el docente ve, de solo
+  lectura, en qué **orden** debe trabajar las unidades del **libro físico** con sus
+  alumnos y los **ejes articuladores** de cada una. Lo carga el **tutor**.
+  - ⚠️ **El plan cuelga del GRUPO (`clone_unit_plans.group_id`, único), no del
+    módulo ni del curso.** Cada docente lleva su propio ritmo con el libro, que es
+    justo lo que `clone_groups` modela. El módulo de la ruta es solo la puerta: si
+    el docente tiene varios grupos, elige cuál mirar. Por eso el mismo módulo
+    publicado una sola vez sirve a todos los docentes con planes distintos.
+  - **Dónde se carga:** tutor → "Grupos y listados" → `📚 N unidades` en la fila del
+    grupo (`UnitPlanModal` en `CloneGroups.jsx`). Filas a mano (subir/bajar, el
+    **orden del array ES el orden**) o Excel (`Unidad`, `Ejes` separados por coma,
+    `Notas`) con plantilla descargable. Los ejes son **texto libre**, no un catálogo
+    cerrado — no hay un listado oficial estable al que amarrarlos.
+  - **Dónde se ve:** `CloneUnitDashboard.jsx` (page `clone-dashboard`, `nodeId` = id
+    del módulo). Se agrega a la ruta desde el editor (botón "Agregar Plan de
+    Unidades del libro"); el botón `📚 Cargar plan` de esa fila solo lleva a
+    "Grupos y listados", porque el contenido no vive en el módulo.
+  - ⚠️ **El nodo se completa al ABRIRLO**, haya plan o no — deliberadamente
+    distinto del acta de cierre (§12). Si dependiera de que el tutor ya lo hubiera
+    cargado, un tutor despistado dejaría trabados el nodo siguiente y el
+    certificado; el docente ve un estado vacío ("tu tutor aún no publicó el plan")
+    y sigue su ruta.
+  - `clone-dashboard` **NO va en `CLONE_PAGES`**: a diferencia de asistencia y
+    efectividad, este sí vive dentro de la ruta y debe pasar por los guards de curso.
+- **Peso:** las cuatro páginas y `cloneShared.jsx` van lazy, así que una cuenta
+  normal nunca descarga esos chunks.
 
 ---
 
@@ -545,7 +570,8 @@ src/
     ├── ClosingRecord.jsx       # Acta de cierre: asistencia + observaciones → PDF (solo tutor/admin)
     ├── CloneAttendance.jsx     # PILOTO clon: el docente marca asistencia de SUS alumnos → acta
     ├── CloneEffectiveness.jsx  # PILOTO clon: tabla de efectividad (formulario + Excel) → informe
-    ├── CloneGroups.jsx         # PILOTO clon (tutor): grupos por docente + listado de alumnos
+    ├── CloneGroups.jsx         # PILOTO clon (tutor): grupos por docente + listado de alumnos + plan de unidades
+    ├── CloneUnitDashboard.jsx  # PILOTO clon: tablero de solo lectura con el orden de unidades del libro + ejes
     ├── LivePlay.jsx            # Modo Aula en Vivo — estudiante (página PÚBLICA #/live, sin login)
     ├── LiveHost.jsx            # Modo Aula en Vivo — profesor (page 'live-host': lanzador + panel)
     ├── AvatarStudio.jsx        # Pestaña "Mi avatar" del perfil (solo con curso temático)
@@ -577,7 +603,8 @@ supabase/
 │   ├── 0048_analytics_capture.sql # Analítica: todos los intentos + respuestas por ítem (quiz_attempt_answers)
 │   ├── 0049_analytics_rpcs.sql # Analítica: item_analysis + agregación por curso/módulo (server-side)
 │   ├── 0050_closing_record.sql # Acta de cierre: tipo de módulo closing_record + course_roster + closing_records
-│   └── 0051_clone_role.sql # PILOTO TEMPORAL modo clon: profiles.ui_variant + clone_groups/_students/_attendance/_effectiveness
+│   ├── 0051_clone_role.sql # PILOTO TEMPORAL modo clon: profiles.ui_variant + clone_groups/_students/_attendance/_effectiveness
+│   └── 0052_clone_unit_plan.sql # PILOTO clon: tipo de módulo clone_dashboard + clone_unit_plans (orden de unidades + ejes por grupo)
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/

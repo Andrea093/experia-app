@@ -17,7 +17,7 @@ import {
 const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
   onDragStart, onDragOver, onDrop, onDragEnd,
   onEdit, onDuplicate, onToggle, onDelete, showDelete,
-  onTogglePresence, onGenerateCode, onSetAvailability, onOpenActa }) => {
+  onTogglePresence, onGenerateCode, onSetAvailability, onOpenActa, onOpenPlan }) => {
   const isOver = overIdx === idx
   return (
     <div draggable
@@ -80,6 +80,14 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
               height: 26, padding: '0 8px', borderRadius: 7, display: 'flex', alignItems: 'center', gap: 4,
               flexShrink: 0, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
             📋 Diligenciar
+          </button>
+        )}
+        {mod.type === 'clone_dashboard' && (
+          <button onClick={onOpenPlan} title="El plan se carga por grupo, en Grupos y listados"
+            style={{ background: '#DBEAFE', border: 'none', cursor: 'pointer', color: '#1D4ED8',
+              height: 26, padding: '0 8px', borderRadius: 7, display: 'flex', alignItems: 'center', gap: 4,
+              flexShrink: 0, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            📚 Cargar plan
           </button>
         )}
         {mod.type === 'final_delivery' && (
@@ -313,6 +321,19 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
     }])
   }
 
+  // Tablero del plan de unidades (piloto clon, 0052). El módulo NO guarda el
+  // contenido: el plan lo carga el tutor por GRUPO en "Grupos y listados", así
+  // que cada docente ve el suyo. Aquí solo se agrega la puerta a la ruta.
+  const addCloneDashboard = () => {
+    if (moduleList.some(m => m.type === 'clone_dashboard')) return
+    setModuleList(l => [...l, {
+      id: 'new_cd_' + Date.now(), type: 'clone_dashboard', ctype: null,
+      title: 'Plan de unidades del libro',
+      desc: 'Orden en que debes trabajar las unidades del libro con tus alumnos y los ejes articuladores de cada una.',
+      task: '', xp: 100, enabled: true, _dbRow: null,
+    }])
+  }
+
   const addCustomModule = (mod) => {
     setModuleList(l => [...l, { id: 'new_' + Date.now(), enabled: true, _dbRow: null, ...mod }])
   }
@@ -520,8 +541,10 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
                   if (!mod.isDbModule) { setSavedMsg('⚠️ Publica la ruta primero para poder diligenciar el acta'); return }
                   nav('closing-record', mod.id)
                 }}
+                onOpenPlan={() => nav('clone-groups')}
                 onEdit={() => {
-                  if (mod.type === 'lesson' || mod.type === 'final_delivery' || mod.type === 'closing_record') setEditingModule(mod)
+                  if (mod.type === 'lesson' || mod.type === 'final_delivery' || mod.type === 'closing_record'
+                      || mod.type === 'clone_dashboard') setEditingModule(mod)
                   else if (mod.ctype === 'quiz' || mod.ctype === 'poll') setEditingQuiz(mod)
                   else setEditingChallenge(mod)
                 }}
@@ -550,6 +573,11 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
           {!moduleList.some(m => m.type === 'closing_record') && (
             <button {...btnRow(addClosingRecord, '#B45309', '#FEF3C7', '#FDE68A')}>
               <PlusIc s={18} c="#B45309" /> Agregar Acta de Cierre
+            </button>
+          )}
+          {!moduleList.some(m => m.type === 'clone_dashboard') && (
+            <button {...btnRow(addCloneDashboard, '#1D4ED8', '#DBEAFE', '#BFDBFE')}>
+              <PlusIc s={18} c="#1D4ED8" /> Agregar Plan de Unidades del libro
             </button>
           )}
         </div>

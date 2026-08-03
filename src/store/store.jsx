@@ -964,6 +964,42 @@ const saveCloneEffectiveness = async (rec, finalize = false) => {
   return { record: data };
 };
 
+// ── Plan de unidades del libro (módulo `clone_dashboard`, 0052) ────────────
+// Lo define el TUTOR por grupo y el docente lo consulta de solo lectura en su
+// ruta. Cuelga del grupo, no del módulo: cada docente lleva su propio ritmo con
+// sus alumnos. La RLS de 0052 ya impide que el docente escriba.
+const loadCloneUnitPlan = async (groupId) => {
+  if (!groupId) return { plan: null };
+  const { data, error } = await supabase.from('clone_unit_plans')
+    .select('*').eq('group_id', groupId).maybeSingle();
+  if (error) { console.error('loadCloneUnitPlan:', error); return { plan: null, error: error.message }; }
+  return { plan: data || null };
+};
+
+// Un plan por grupo (índice único): upsert por group_id, así el tutor puede
+// volver a guardar sin preocuparse de si ya existía.
+const saveCloneUnitPlan = async (plan) => {
+  const s = XS.get();
+  const units = (plan.units || [])
+    .map(u => ({
+      title: (u.title || '').trim(),
+      ejes: (u.ejes || []).map(e => (e || '').trim()).filter(Boolean),
+      notes: (u.notes || '').trim() || null,
+    }))
+    .filter(u => u.title);
+  const payload = {
+    group_id: plan.groupId,
+    book_title: plan.bookTitle?.trim() || null,
+    intro: plan.intro?.trim() || null,
+    units,
+    updated_by: s.user?.id || null,
+  };
+  const { data, error } = await supabase.from('clone_unit_plans')
+    .upsert(payload, { onConflict: 'group_id' }).select().single();
+  if (error) { console.error('saveCloneUnitPlan:', error); return { error: error.message }; }
+  return { plan: data, count: units.length };
+};
+
 const deleteCloneEffectiveness = async (id) => {
   const { error } = await supabase.from('clone_effectiveness').delete().eq('id', id);
   if (error) { console.error('deleteCloneEffectiveness:', error); return { error: error.message }; }
@@ -2365,6 +2401,7 @@ export {
   loadCloneGroupStudents, saveCloneGroupStudents,
   loadCloneAttendance, saveCloneAttendance,
   loadCloneEffectiveness, saveCloneEffectiveness, deleteCloneEffectiveness,
+  loadCloneUnitPlan, saveCloneUnitPlan,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
   saveAvatarConfig, selectAvatarConfig, selectHasThemedCourse, selectThemedCourses,

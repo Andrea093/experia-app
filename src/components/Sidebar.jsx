@@ -59,7 +59,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   // del piloto; el tutor clon suma la gestión de grupos a su menú normal.
   const isClone = isCloneUser(user);
   const cloneStudentItems = [
-    { key: 'map',                 label: 'Mi ruta de formación', icon: <MapIc s={19} />,   active: ['map','lesson','challenge','grid','course-cert','closing-record'] },
+    { key: 'map',                 label: 'Mi ruta de formación', icon: <MapIc s={19} />,   active: ['map','lesson','challenge','grid','course-cert','closing-record','clone-dashboard'] },
     { key: 'clone-attendance',    label: 'Marcar asistencia',    icon: <CheckIc s={19} />, active: ['clone-attendance'] },
     { key: 'clone-effectiveness', label: 'Tabla de efectividad', icon: <BarIc s={19} />,   active: ['clone-effectiveness'] },
     { key: 'profile',             label: 'Perfil',               icon: <UserIc s={19} />,  active: ['profile'] },

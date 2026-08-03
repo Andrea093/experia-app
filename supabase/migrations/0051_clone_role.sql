@@ -21,6 +21,12 @@
 -- Aditiva e idempotente. ⚠️ Ejecutar MANUALMENTE en el SQL Editor de Supabase.
 -- ============================================================
 
+-- Depende de `instructor_institutions` (0005) e `institutions` (0001/0003): el
+-- cuerpo de `my_institution_ids()` se valida al crear la función, así que si esas
+-- tablas faltan la migración falla entera. Si eso pasa, lo más probable es que se
+-- esté corriendo en el proyecto de Supabase equivocado — verificar el host contra
+-- `VITE_SUPABASE_URL` antes de tocar nada.
+
 -- ── [1] La variante de interfaz ────────────────────────────────────────────
 alter table public.profiles
   add column if not exists ui_variant text;
@@ -40,28 +46,29 @@ comment on column public.profiles.ui_variant is
 -- `trg_guard_profile_privileged`; se REEMPLAZA esa misma función (mismos
 -- nombres, para no dejar dos triggers haciendo lo mismo) agregando ui_variant,
 -- así un estudiante no puede concederse el piloto por API.
+-- ⚠️ Se comparan las columnas vía to_jsonb en vez de `new.is_active`, etc.
+-- Referenciar un campo directamente hace que plpgsql falle EN TIEMPO DE
+-- EJECUCIÓN si la columna no existe (0003/0017 pueden no estar aplicadas en esta
+-- base — 0005 no lo estaba). Ese fallo tumbaría CUALQUIER update de perfil de un
+-- no-admin, incluido el `last_seen`/`current_module` que escribe nav() en cada
+-- navegación: la plataforma entera se caería. Con to_jsonb, una columna ausente
+-- simplemente no se vigila.
 create or replace function public.guard_profile_privileged_columns()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  j_new jsonb := to_jsonb(new);
+  j_old jsonb := to_jsonb(old);
+  col   text;
 begin
   if public.is_admin() then
     return new;  -- admin puede todo (AdminUsers, AdminSchools, AdminCohorts)
   end if;
 
-  if new.role is distinct from old.role then
-    raise exception 'No autorizado: no puedes cambiar el rol' using errcode = '42501';
-  end if;
-  if new.is_active is distinct from old.is_active then
-    raise exception 'No autorizado: no puedes cambiar el estado activo' using errcode = '42501';
-  end if;
-  if new.institution_id is distinct from old.institution_id then
-    raise exception 'No autorizado: no puedes cambiar la institución' using errcode = '42501';
-  end if;
-  if new.cohort_id is distinct from old.cohort_id then
-    raise exception 'No autorizado: no puedes cambiar la cohorte' using errcode = '42501';
-  end if;
-  if new.ui_variant is distinct from old.ui_variant then
-    raise exception 'No autorizado: no puedes cambiar tu variante de interfaz' using errcode = '42501';
-  end if;
+  foreach col in array array['role', 'is_active', 'institution_id', 'cohort_id', 'ui_variant'] loop
+    if (j_new ? col) and (j_old ? col) and (j_new -> col) is distinct from (j_old -> col) then
+      raise exception 'No autorizado: no puedes cambiar %', col using errcode = '42501';
+    end if;
+  end loop;
 
   return new;
 end; $$;

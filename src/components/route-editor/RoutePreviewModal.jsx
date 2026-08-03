@@ -72,8 +72,13 @@ const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules, the
   if (viewing) {
     const isLesson = viewing.type === 'lesson'
     const isFinal  = viewing.type === 'final_delivery'
+    // Ni el acta de cierre ni el tablero del plan de unidades son retos: su
+    // contenido no vive en el módulo (lo diligencia/carga el tutor aparte). Sin
+    // esta salida, el dispatcher de retos caía en `designlab` y la vista previa
+    // mostraba una rejilla que el estudiante nunca verá ahí.
+    const isExternal = viewing.type === 'closing_record' || viewing.type === 'clone_dashboard'
     const studentMod = toStudentMod(viewing)
-    const Comp = (!isLesson && !isFinal)
+    const Comp = (!isLesson && !isFinal && !isExternal)
       ? (CHALLENGE_COMPONENTS[studentMod.ctype] || CHALLENGE_COMPONENTS.designlab)
       : null
 
@@ -110,6 +115,24 @@ const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules, the
             <div style={{ maxWidth: 680, margin: '0 auto' }}>
               {isLesson && <LessonBody mod={studentMod} />}
               {isFinal && <FinalDeliveryNote mod={studentMod} />}
+              {isExternal && (
+                <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                  <div style={{ fontSize: 34, marginBottom: 8 }}>
+                    {viewing.type === 'clone_dashboard' ? '📚' : '📋'}
+                  </div>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--dark)', margin: '0 0 6px' }}>
+                    {studentMod.title}
+                  </h3>
+                  <p style={{ fontSize: 13.5, color: 'var(--text-sec)', lineHeight: 1.6, margin: '0 auto', maxWidth: 460 }}>
+                    {studentMod.desc}
+                  </p>
+                  <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 12 }}>
+                    {viewing.type === 'clone_dashboard'
+                      ? 'El contenido sale del plan de unidades que cargas por grupo en “Grupos y listados”.'
+                      : 'El contenido sale del acta que diligencia el tutor desde el editor de ruta.'}
+                  </p>
+                </div>
+              )}
               {Comp && (
                 <>
                   {studentMod.task && (

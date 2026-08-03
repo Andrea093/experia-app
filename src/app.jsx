@@ -103,6 +103,7 @@ const GuidedClassView       = React.lazy(() => import('./components/GuidedClassV
 const CloneAttendancePage    = React.lazy(() => import('./pages/CloneAttendance.jsx'))
 const CloneEffectivenessPage = React.lazy(() => import('./pages/CloneEffectiveness.jsx'))
 const CloneGroupsPage        = React.lazy(() => import('./pages/CloneGroups.jsx'))
+const CloneUnitDashboard     = React.lazy(() => import('./pages/CloneUnitDashboard.jsx'))
 
 const PageSpinner = () => (
   <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -254,6 +255,10 @@ const App = () => {
       // porque son las únicas que ven el enlace en el sidebar.
       case 'clone-attendance':    return <CloneAttendancePage />;
       case 'clone-effectiveness': return <CloneEffectivenessPage />;
+      // Tablero de unidades: SÍ vive dentro de la ruta (es un módulo del mapa),
+      // así que a diferencia de los dos anteriores no va en CLONE_PAGES — debe
+      // pasar por los guards de curso como cualquier otro nodo.
+      case 'clone-dashboard':     return <CloneUnitDashboard />;
       case 'forum':    return <ForumPage />;
       case 'profile':  return <ProfilePage />;
       default:         return <LearningMap />;
