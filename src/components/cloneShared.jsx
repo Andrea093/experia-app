@@ -149,6 +149,18 @@ export const parsePct = (raw) => {
 export const fmtPct1 = (n) =>
   n === null || n === undefined ? '—' : `${n.toFixed(1).replace('.', ',')}%`
 
+// Paleta de la gráfica de ejes transversales (0053). Los planes guardan el SLOT
+// (1..8), no el hex: el color real sale de `--viz-N` (styles.css), que ya tiene
+// su propio paso para modo oscuro. Ver la nota de validación en styles.css antes
+// de agregar o cambiar un color.
+export const VIZ_SLOTS = [
+  { slot: 1, name: 'Azul' }, { slot: 2, name: 'Naranja' },
+  { slot: 3, name: 'Aqua' }, { slot: 4, name: 'Amarillo' },
+  { slot: 5, name: 'Magenta' }, { slot: 6, name: 'Verde' },
+  { slot: 7, name: 'Violeta' }, { slot: 8, name: 'Rojo' },
+]
+export const vizColor = (slot) => `var(--viz-${Math.min(8, Math.max(1, slot || 1))})`
+
 // CSS de impresión compartido: en el piloto solo debe salir el documento.
 export const PRINT_CSS = `
   @media print {

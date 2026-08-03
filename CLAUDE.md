@@ -519,17 +519,29 @@ termine.
     `Nivel`, `Ejes` separados por coma, `Notas`) con plantilla descargable. Los ejes
     son **texto libre**, no un catálogo cerrado — no hay un listado oficial estable
     al que amarrarlos.
-  - **Cobertura / prioridad / nivel** son opcionales: si hay puntajes, el tablero
-    agrega una **gráfica de barras horizontales** ordenada de mayor a menor
-    (`PriorityChart`). ⚠️ Se guardan **en porcentaje** (27.6 = 27,6 %), pero Excel
+  - **Cobertura / prioridad / nivel** por unidad son opcionales y hoy son **solo
+    texto** bajo cada unidad — ya no alimentan ninguna gráfica (la alimentaban
+    hasta 0053). ⚠️ Se guardan **en porcentaje** (27.6 = 27,6 %), pero Excel
     entrega las celdas con formato de porcentaje como **fracción** — `parsePct`
     (`cloneShared.jsx`) normaliza ambas formas y un número ≤ 1 se asume fracción.
     `level` es texto del Excel, **no** se deriva del puntaje.
-  - ⚠️ La gráfica usa **un solo color**: el color identifica la serie, nunca el
-    puesto en el ranking (si no, una unidad cambiaría de color al cargar otro plan
-    sin que su dato cambie). El largo de la barra es relativo al **máximo del
-    plan**, no a 100 — los puntajes reales son de un dígito y contra 100 todas se
-    verían vacías.
+  - **Gráfica de ejes transversales (`clone_unit_plans.chart`, 0053).**
+    Parametrizable por el tutor y **sin cálculo**: cada barra es `{label, value,
+    color}` — texto libre, valor y color — capturada a mano en el modal (no viene
+    del Excel). Sin barras, no se dibuja nada. Escala **0–100 literal** (barra
+    llena = 100), elegida sobre "relativo al máximo" para poder comparar dos
+    grupos o dos planes mirando la misma barra. El valor se muestra **sin `%`**:
+    el tutor puede estar cargando un puntaje y no una proporción.
+  - ⚠️ **`color` se guarda como SLOT 1..8, nunca como hex.** El hex real sale de
+    `--viz-N` (`styles.css`), que tiene su propio paso para modo oscuro. Guardar
+    el hex congelaría el color claro en modo oscuro y obligaría a reescribir los
+    planes al recalibrar la paleta.
+  - ⚠️ **La paleta `--viz-1..8` está validada como CONJUNTO** (banda de
+    luminosidad, croma, separación para daltonismo y contraste) contra las dos
+    superficies de la app. La peor pareja adyacente queda en ΔE 9.1 (protanopía),
+    legal **solo** porque cada barra lleva siempre su nombre y su valor en texto.
+    Si se toca un color hay que revalidar el conjunto, y **no** convertir esos
+    rótulos en leyenda ni en tooltip.
   - **Dónde se ve:** `CloneUnitDashboard.jsx` (page `clone-dashboard`, `nodeId` = id
     del módulo). Se agrega a la ruta desde el editor (botón "Agregar Plan de
     Unidades del libro"); el botón `📚 Cargar plan` de esa fila solo lleva a
@@ -616,7 +628,8 @@ supabase/
 │   ├── 0049_analytics_rpcs.sql # Analítica: item_analysis + agregación por curso/módulo (server-side)
 │   ├── 0050_closing_record.sql # Acta de cierre: tipo de módulo closing_record + course_roster + closing_records
 │   ├── 0051_clone_role.sql # PILOTO TEMPORAL modo clon: profiles.ui_variant + clone_groups/_students/_attendance/_effectiveness
-│   └── 0052_clone_unit_plan.sql # PILOTO clon: tipo de módulo clone_dashboard + clone_unit_plans (orden de unidades + ejes por grupo)
+│   ├── 0052_clone_unit_plan.sql # PILOTO clon: tipo de módulo clone_dashboard + clone_unit_plans (orden de unidades + ejes por grupo)
+│   └── 0053_clone_plan_chart.sql # PILOTO clon: clone_unit_plans.chart (gráfica de ejes transversales parametrizable)
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/

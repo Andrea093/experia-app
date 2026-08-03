@@ -997,11 +997,26 @@ const saveCloneUnitPlan = async (plan) => {
       level: (u.level || '').trim() || null,
     }))
     .filter(u => u.title);
+  // Gráfica de ejes transversales (0053). `color` se guarda como SLOT (1..8) de
+  // la paleta, no como hex: así el modo oscuro usa su propio paso y recalibrar
+  // la paleta no obliga a reescribir los planes guardados.
+  const bars = (plan.chart?.bars || [])
+    .map(b => ({
+      label: (b.label || '').trim(),
+      value: Math.min(100, Math.max(0, num(b.value) ?? 0)),
+      color: Math.min(8, Math.max(1, parseInt(b.color, 10) || 1)),
+    }))
+    .filter(b => b.label);
+  const chart = {
+    title: plan.chart?.title?.trim() || null,
+    bars,
+  };
   const payload = {
     group_id: plan.groupId,
     book_title: plan.bookTitle?.trim() || null,
     intro: plan.intro?.trim() || null,
     units,
+    chart,
     updated_by: s.user?.id || null,
   };
   const { data, error } = await supabase.from('clone_unit_plans')

@@ -1,7 +1,7 @@
 import React from 'react'
 import { useStore, nav, completeNode, loadCloneUnitPlan } from '../store/store.jsx'
 import { useMobile, Btn, Skeleton } from '../components/ui.jsx'
-import { useMyCloneGroups, GroupPicker, card, PRINT_CSS, fmtPct1 } from '../components/cloneShared.jsx'
+import { useMyCloneGroups, GroupPicker, card, PRINT_CSS, fmtPct1, vizColor } from '../components/cloneShared.jsx'
 
 // ── Tablero de unidades del libro (módulo `clone_dashboard`, 0052) ───────────
 // Último paso de la ruta del docente clon: le muestra, de solo lectura, el orden
@@ -29,58 +29,53 @@ const Chip = ({ text, color }) => (
     background: color.bg, color: color.fg, whiteSpace: 'nowrap' }}>{text}</span>
 )
 
-// ── Gráfica de prioridad ────────────────────────────────────────────────────
-// Serie ÚNICA de magnitud → barras horizontales ordenadas de mayor a menor, un
-// solo tono y el valor rotulado al final de cada barra.
-// ⚠️ Un solo color a propósito: el color identifica la serie, NUNCA el puesto en
-// el ranking. Pintar la barra más alta de rojo y la más baja de verde haría que
-// una unidad cambiara de color al cargar otro plan, sin que su dato cambie. La
-// jerarquía ya la comunican el orden y el largo de la barra.
-const BAR_HUE = '#1D4ED8'
+// ── Gráfica de ejes transversales ───────────────────────────────────────────
+// Barras horizontales parametrizadas por el TUTOR: él escribe el texto de cada
+// eje, su valor y su color. Aquí no se calcula ni se ordena nada — se pinta lo
+// que él cargó, en el orden en que lo dejó.
+//
+// ⚠️ La escala es 0–100 LITERAL (barra llena = 100), no relativa al mayor: así
+// dos grupos o dos planes distintos se pueden comparar mirando la misma barra.
+// ⚠️ Cada barra lleva SIEMPRE su nombre y su valor en texto: la paleta de
+// `--viz-N` está validada para daltonismo con esa condición (ver styles.css).
+// No convertir los rótulos en leyenda ni en tooltip.
+// El valor se muestra tal cual (sin "%"): el tutor puede estar cargando un
+// porcentaje o un puntaje, y poner un símbolo que él no escribió sería inventar
+// una unidad. La escala la explica la nota al pie.
+const fmtVal = (n) => Number.isFinite(n) ? String(Math.round(n * 10) / 10).replace('.', ',') : '—'
 
-const PriorityChart = ({ rows }) => {
-  const max = Math.max(...rows.map(r => r.priority), 0.0001)
-  return (
-    <div style={{ ...card, padding: '16px 18px', marginBottom: 16 }}>
-      <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--dark)', margin: '0 0 2px' }}>
-        Puntaje de prioridad por unidad
-      </h3>
-      <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 14px' }}>
-        De mayor a menor. Empieza por las de arriba.
-      </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {rows.map((r, i) => (
-          <div key={i} title={`${r.title} — prioridad ${fmtPct1(r.priority)}${r.level ? ` · ${r.level}` : ''}`}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-sec)', flex: 1,
-                minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {r.title}
-              </span>
-              {r.level && (
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>{r.level}</span>
-              )}
-              <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--dark)',
-                fontVariantNumeric: 'tabular-nums' }}>{fmtPct1(r.priority)}</span>
-            </div>
-            {/* Pista completa = escala; el relleno se mide contra el máximo del
-                plan, no contra 100: los puntajes reales son de un dígito y
-                contra 100 todas las barras se verían vacías e iguales. */}
-            <div style={{ height: 10, borderRadius: 6, background: 'var(--bg-alt)', overflow: 'hidden' }}>
-              {/* printColorAdjust: sin esto el navegador descarta los fondos al
-                  imprimir y las barras salen en blanco. */}
-              <div style={{ height: '100%', width: `${Math.max((r.priority / max) * 100, 1.5)}%`,
-                background: BAR_HUE, borderRadius: '3px 6px 6px 3px',
-                WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />
-            </div>
+const TransversalChart = ({ title, bars }) => (
+  <div style={{ ...card, padding: '16px 18px', marginBottom: 16 }}>
+    <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--dark)', margin: '0 0 14px' }}>
+      {title || 'Ejes transversales'}
+    </h3>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {bars.map((b, i) => (
+        <div key={i} title={`${b.label} — ${fmtVal(b.value)} de 100`}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-sec)', flex: 1,
+              minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {b.label}
+            </span>
+            <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--dark)',
+              fontVariantNumeric: 'tabular-nums' }}>{fmtVal(b.value)}</span>
           </div>
-        ))}
-      </div>
-      <p style={{ fontSize: 11, color: 'var(--subtle)', margin: '12px 0 0' }}>
-        El largo de cada barra es relativo a la unidad más prioritaria del plan.
-      </p>
+          {/* La pista completa ES la escala: su ancho representa el 100. */}
+          <div style={{ height: 10, borderRadius: 6, background: 'var(--bg-alt)', overflow: 'hidden' }}>
+            {/* printColorAdjust: sin esto el navegador descarta los fondos al
+                imprimir y las barras salen en blanco. */}
+            <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, b.value))}%`,
+              background: vizColor(b.color), borderRadius: '3px 6px 6px 3px',
+              WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />
+          </div>
+        </div>
+      ))}
     </div>
-  )
-}
+    <p style={{ fontSize: 11, color: 'var(--subtle)', margin: '12px 0 0' }}>
+      La barra completa equivale a 100. Los valores los define tu tutor.
+    </p>
+  </div>
+)
 
 const Stat = ({ value, label }) => (
   <div style={{ ...card, padding: '12px 16px', minWidth: 108 }}>
@@ -126,12 +121,10 @@ const CloneUnitDashboard = () => {
   }, [units])
   const colorFor = (eje) => EJE_COLORS[(ejeIndex.get(eje) ?? 0) % EJE_COLORS.length]
 
-  // La gráfica solo aparece si el tutor cargó puntajes; un plan sin ellos sigue
-  // siendo un plan válido (orden + ejes).
-  const priorityRows = React.useMemo(() => units
-    .filter(u => typeof u.priority === 'number')
-    .map(u => ({ title: u.title, priority: u.priority, level: u.level || '' }))
-    .sort((a, b) => b.priority - a.priority), [units])
+  // La gráfica solo aparece si el tutor cargó barras; un plan sin ellas sigue
+  // siendo un plan válido (orden + ejes articuladores).
+  const chartBars = React.useMemo(
+    () => (plan?.chart?.bars || []).filter(b => b && b.label), [plan])
 
   const pad = isMobile ? '0 16px 40px' : '0 24px 40px'
 
@@ -218,7 +211,7 @@ const CloneUnitDashboard = () => {
             </div>
           )}
 
-          {priorityRows.length > 0 && <PriorityChart rows={priorityRows} />}
+          {chartBars.length > 0 && <TransversalChart title={plan?.chart?.title} bars={chartBars} />}
 
           <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--dark)', margin: '0 0 10px' }}>
             Orden de trabajo

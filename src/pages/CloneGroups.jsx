@@ -7,7 +7,7 @@ import {
 } from '../store/store.jsx'
 import { useMobile, Btn, Modal, Skeleton } from '../components/ui.jsx'
 import { PageHead, EmptyState, Pill, RowMenu } from '../components/adminUI.jsx'
-import { inp, lbl, card, fmtFecha, readSheet, parsePct } from '../components/cloneShared.jsx'
+import { inp, lbl, card, fmtFecha, readSheet, parsePct, VIZ_SLOTS, vizColor } from '../components/cloneShared.jsx'
 import { fmtPct, colorEfectividad } from '../lib/effectiveness.js'
 
 // ── Grupos y listados — MODO CLON, lado del TUTOR (piloto temporal, 0051) ───
@@ -140,10 +140,31 @@ const splitEjes = (str) => (str || '').split(/[,;|]/).map(e => e.trim()).filter(
 
 const emptyUnit = () => ({ title: '', ejes: [], notes: '', coverage: null, priority: null, level: '' })
 
+// Barra de la gráfica de ejes transversales (0053): texto libre + valor 0–100
+// (el largo de la barra) + color escogido entre los ocho de la paleta.
+const emptyBar = () => ({ label: '', value: 50, color: 1 })
+
+// Selector de color: ocho muestras. Es un radiogroup, no un <select>, porque el
+// tutor está eligiendo un color — tiene que verlo, no leer su nombre.
+const ColorPicker = ({ value, onChange }) => (
+  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+    {VIZ_SLOTS.map(({ slot, name }) => (
+      <button key={slot} type="button" onClick={() => onChange(slot)} title={name}
+        aria-label={name} aria-pressed={value === slot}
+        style={{ width: 22, height: 22, borderRadius: 6, cursor: 'pointer', padding: 0,
+          background: vizColor(slot),
+          border: value === slot ? '2px solid var(--dark)' : '2px solid transparent',
+          boxShadow: value === slot ? '0 0 0 2px var(--white)' : 'none' }} />
+    ))}
+  </div>
+)
+
 const UnitPlanModal = ({ group, onSaved }) => {
   const [bookTitle, setBookTitle] = React.useState('')
   const [intro, setIntro]         = React.useState('')
   const [units, setUnits]         = React.useState([])
+  const [chartTitle, setChartTitle] = React.useState('')
+  const [bars, setBars]           = React.useState([])
   const [loaded, setLoaded]       = React.useState(false)
   const [saving, setSaving]       = React.useState(false)
   const [msg, setMsg]             = React.useState('')
@@ -159,6 +180,10 @@ const UnitPlanModal = ({ group, onSaved }) => {
         title: u.title || '', ejes: u.ejes || [], notes: u.notes || '',
         coverage: u.coverage ?? null, priority: u.priority ?? null, level: u.level || '',
       })))
+      setChartTitle(plan?.chart?.title || '')
+      setBars((plan?.chart?.bars || []).map(b => ({
+        label: b.label || '', value: b.value ?? 0, color: b.color || 1,
+      })))
       setLoaded(true)
     })
     return () => { alive = false }
@@ -172,6 +197,15 @@ const UnitPlanModal = ({ group, onSaved }) => {
     const j = i + dir
     if (j < 0 || j >= u.length) return u
     const c = [...u]; [c[i], c[j]] = [c[j], c[i]]; return c
+  })
+
+  const setBar = (i, key, val) => setBars(b => b.map((x, j) => j === i ? { ...x, [key]: val } : x))
+  const addBar = () => setBars(b => [...b, { ...emptyBar(), color: (b.length % 8) + 1 }])
+  const delBar = (i) => setBars(b => b.filter((_, j) => j !== i))
+  const moveBar = (i, dir) => setBars(b => {
+    const j = i + dir
+    if (j < 0 || j >= b.length) return b
+    const c = [...b]; [c[i], c[j]] = [c[j], c[i]]; return c
   })
 
   const importar = async (file) => {
@@ -215,11 +249,13 @@ const UnitPlanModal = ({ group, onSaved }) => {
 
   const guardar = async () => {
     setSaving(true); setMsg('')
-    const { error, count } = await saveCloneUnitPlan({ groupId: group.id, bookTitle, intro, units })
+    const { error, count } = await saveCloneUnitPlan({
+      groupId: group.id, bookTitle, intro, units, chart: { title: chartTitle, bars },
+    })
     setSaving(false)
     if (error) {
-      setMsg('⚠️ ' + error + (/clone_unit_plans/.test(error)
-        ? ' — si dice que la tabla no existe, falta correr la migración 0052 en Supabase.' : ''))
+      setMsg('⚠️ ' + error + (/clone_unit_plans|chart/.test(error)
+        ? ' — si dice que la tabla o la columna no existe, faltan las migraciones 0052/0053 en Supabase.' : ''))
       return
     }
     setMsg(`✅ Plan guardado (${count} unidades). Tu docente ya lo ve en su ruta.`)
@@ -304,7 +340,53 @@ const UnitPlanModal = ({ group, onSaved }) => {
         ))}
       </div>
 
-      <Btn variant="secondary" size="sm" onClick={addUnit} style={{ marginBottom: 12 }}>+ Agregar unidad</Btn>
+      <Btn variant="secondary" size="sm" onClick={addUnit} style={{ marginBottom: 16 }}>+ Agregar unidad</Btn>
+
+      {/* ── Gráfica de ejes transversales (0053) ── */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginBottom: 12 }}>
+        <label style={lbl}>Gráfica de ejes transversales</label>
+        <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, margin: '0 0 10px' }}>
+          Cada fila es una barra: el texto que escribas, un valor de 0 a 100 (barra llena = 100)
+          y su color. Si la dejas vacía, el docente no ve ninguna gráfica.
+        </p>
+        <input value={chartTitle} onChange={e => setChartTitle(e.target.value)}
+          placeholder="Título de la gráfica (opcional)" style={{ ...inp, marginBottom: 10 }} />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 260, overflow: 'auto' }}>
+          {bars.map((b, i) => (
+            <div key={i} style={{ ...card, padding: '10px 12px', borderRadius: 10 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <input value={b.label} onChange={e => setBar(i, 'label', e.target.value)}
+                  placeholder="Eje transversal" style={{ ...rowInp, flex: 1 }} />
+                <input type="number" min="0" max="100" step="1" value={b.value}
+                  onChange={e => setBar(i, 'value', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                  title="Valor de 0 a 100 — es el largo de la barra"
+                  style={{ ...rowInp, width: 74, flexShrink: 0 }} />
+                <button onClick={() => moveBar(i, -1)} disabled={i === 0} title="Subir"
+                  style={{ background: 'var(--bg-alt)', border: 'none', borderRadius: 7, width: 26, height: 26,
+                    cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? .4 : 1 }}>↑</button>
+                <button onClick={() => moveBar(i, 1)} disabled={i === bars.length - 1} title="Bajar"
+                  style={{ background: 'var(--bg-alt)', border: 'none', borderRadius: 7, width: 26, height: 26,
+                    cursor: i === bars.length - 1 ? 'default' : 'pointer', opacity: i === bars.length - 1 ? .4 : 1 }}>↓</button>
+                <button onClick={() => delBar(i)} title="Eliminar"
+                  style={{ background: '#FEE2E2', border: 'none', borderRadius: 7, width: 26, height: 26,
+                    cursor: 'pointer', color: 'var(--error)' }}>✕</button>
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <ColorPicker value={b.color} onChange={(c) => setBar(i, 'color', c)} />
+                {/* Vista previa del largo real: el tutor ve lo que verá el docente */}
+                <div style={{ flex: 1, minWidth: 120, height: 10, borderRadius: 6,
+                  background: 'var(--bg-alt)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: '3px 6px 6px 3px',
+                    width: `${Math.min(100, Math.max(0, b.value || 0))}%`, background: vizColor(b.color) }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <Btn variant="secondary" size="sm" onClick={addBar} style={{ marginTop: 10 }}>+ Agregar eje transversal</Btn>
+      </div>
 
       {msg && (
         <p style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 12,

@@ -104,6 +104,32 @@
   --bg-alt: #2D2B40;             /* gris-violeta, coherente con la base */
   --success: #5EEAD4;            /* teal claro — alto contraste sobre oscuro */
 }
+/* =============================================
+   PALETA DE GRÁFICAS (--viz-1..8)
+   Ocho tonos para series/categorías, en orden FIJO. El tutor elige el color de
+   cada barra entre estos ocho (plan de unidades, §13 de CLAUDE.md).
+   ⚠️ Validados como conjunto (lightness, croma, separación para daltonismo y
+   contraste) sobre las dos superficies de la app: claro #FFFFFF y oscuro
+   #1C1B28. Los valores oscuros NO son un filtro del claro, son su propio paso.
+   Si se cambia alguno hay que volver a validar el conjunto completo, no el
+   color suelto. La peor pareja adyacente queda en ΔE 9.1 (protanopía), que es
+   legal solo porque cada barra lleva SIEMPRE su nombre y su valor en texto —
+   la identidad nunca depende del color. Al usarlos, no quitar esos rótulos. */
+:root {
+  --viz-1: #2A78D6;  /* azul     */
+  --viz-2: #EB6834;  /* naranja  */
+  --viz-3: #1BAF7A;  /* aqua     */
+  --viz-4: #EDA100;  /* amarillo */
+  --viz-5: #E87BA4;  /* magenta  */
+  --viz-6: #008300;  /* verde    */
+  --viz-7: #4A3AA7;  /* violeta  */
+  --viz-8: #E34948;  /* rojo     */
+}
+[data-theme="dark"] {
+  --viz-1: #3987E5; --viz-2: #D95926; --viz-3: #199E70; --viz-4: #C98500;
+  --viz-5: #D55181; --viz-6: #008300; --viz-7: #9085E9; --viz-8: #E66767;
+}
+
 /* Los botones con acento en alto contraste llevan borde explícito */
 [data-contrast="alto"] button,
 [data-contrast="alto"] a {
