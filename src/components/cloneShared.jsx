@@ -128,6 +128,27 @@ export const readSheet = (file) => new Promise((resolve, reject) => {
   reader.readAsArrayBuffer(file)
 })
 
+// Porcentajes del plan de unidades (0052). Excel entrega una celda con formato
+// de porcentaje como FRACCIÓN (7,6 % → 0.076), pero un tutor también puede
+// escribir "7,6%" o 7.6 a secas. Se normaliza todo a porcentaje:
+//   · texto con % → el número tal cual ("7,6%" → 7.6)
+//   · número ≤ 1  → se asume fracción de Excel (0.076 → 7.6)
+//   · resto       → ya viene en porcentaje (7.6 → 7.6)
+// ⚠️ El caso ambiguo es el 1: un "1" suelto se lee como 100 %. Es el precio de
+// aceptar las dos formas; la plantilla usa celdas con formato de porcentaje.
+export const parsePct = (raw) => {
+  if (raw === null || raw === undefined || raw === '') return null
+  const str = String(raw).trim()
+  const hasSign = str.includes('%')
+  const n = typeof raw === 'number' ? raw : parseFloat(str.replace('%', '').replace(',', '.'))
+  if (!Number.isFinite(n)) return null
+  const pct = (!hasSign && Math.abs(n) > 0 && Math.abs(n) <= 1) ? n * 100 : n
+  return Math.round(pct * 10) / 10
+}
+
+export const fmtPct1 = (n) =>
+  n === null || n === undefined ? '—' : `${n.toFixed(1).replace('.', ',')}%`
+
 // CSS de impresión compartido: en el piloto solo debe salir el documento.
 export const PRINT_CSS = `
   @media print {

@@ -7,7 +7,7 @@ import {
 } from '../store/store.jsx'
 import { useMobile, Btn, Modal, Skeleton } from '../components/ui.jsx'
 import { PageHead, EmptyState, Pill, RowMenu } from '../components/adminUI.jsx'
-import { inp, lbl, card, fmtFecha, readSheet } from '../components/cloneShared.jsx'
+import { inp, lbl, card, fmtFecha, readSheet, parsePct } from '../components/cloneShared.jsx'
 import { fmtPct, colorEfectividad } from '../lib/effectiveness.js'
 
 // ── Grupos y listados — MODO CLON, lado del TUTOR (piloto temporal, 0051) ───
@@ -138,7 +138,7 @@ const RosterModal = ({ group, onSaved }) => {
 // ejes articuladores de cada una. El docente NO lo edita (RLS de 0052).
 const splitEjes = (str) => (str || '').split(/[,;|]/).map(e => e.trim()).filter(Boolean)
 
-const emptyUnit = () => ({ title: '', ejes: [], notes: '' })
+const emptyUnit = () => ({ title: '', ejes: [], notes: '', coverage: null, priority: null, level: '' })
 
 const UnitPlanModal = ({ group, onSaved }) => {
   const [bookTitle, setBookTitle] = React.useState('')
@@ -155,7 +155,10 @@ const UnitPlanModal = ({ group, onSaved }) => {
       if (!alive) return
       setBookTitle(plan?.book_title || '')
       setIntro(plan?.intro || '')
-      setUnits((plan?.units || []).map(u => ({ title: u.title || '', ejes: u.ejes || [], notes: u.notes || '' })))
+      setUnits((plan?.units || []).map(u => ({
+        title: u.title || '', ejes: u.ejes || [], notes: u.notes || '',
+        coverage: u.coverage ?? null, priority: u.priority ?? null, level: u.level || '',
+      })))
       setLoaded(true)
     })
     return () => { alive = false }
@@ -179,6 +182,9 @@ const UnitPlanModal = ({ group, onSaved }) => {
         title: (n['unidad'] || n['titulo'] || n['nombre'] || n['tema'] || '').toString().trim(),
         ejes: splitEjes((n['ejes'] || n['ejes articuladores'] || n['eje'] || '').toString()),
         notes: (n['notas'] || n['nota'] || n['indicaciones'] || n['observaciones'] || '').toString().trim(),
+        coverage: parsePct(n['cobertura'] ?? n['cobertura diagnostica']),
+        priority: parsePct(n['prioridad'] ?? n['puntaje de prioridad'] ?? n['puntaje']),
+        level: (n['nivel'] || n['nivel de prioridad'] || n['clasificacion'] || '').toString().trim(),
       })).filter(u => u.title)
       if (!parsed.length) {
         setMsg('⚠️ No se encontró ninguna fila con unidad. Revisa que haya una columna "Unidad".')
@@ -189,12 +195,18 @@ const UnitPlanModal = ({ group, onSaved }) => {
     } catch (e) { setMsg('⚠️ ' + (e.message || 'No se pudo leer el archivo')) }
   }
 
+  // Las celdas de porcentaje se escriben como FRACCIÓN con formato '0,0%', que
+  // es como Excel las maneja de forma nativa: así el tutor puede editarlas sin
+  // pensar y `parsePct` las vuelve a leer igual (0.076 → 7,6 %).
   const plantilla = async () => {
     const XLSX = await import('xlsx')
+    const pct = (v) => ({ v, t: 'n', z: '0.0%' })
     const ws = XLSX.utils.aoa_to_sheet([
-      ['Unidad', 'Ejes', 'Notas'],
-      ['Unidad 3 — Números racionales', 'Pensamiento crítico, Vida saludable', 'Trabajar antes de la salida pedagógica'],
-      ['Unidad 1 — Conjuntos', 'Inclusión', ''],
+      ['Unidad', 'Cobertura', 'Prioridad', 'Nivel', 'Ejes', 'Notas'],
+      ['Unidad 1. La materia y sus propiedades', pct(0.276), pct(0.076), 'Alta',
+        'Pensamiento crítico, Vida saludable', 'Trabajar antes de la salida pedagógica'],
+      ['Unidad 2. Tabla periódica y enlace químico', pct(0.10), pct(0.044), 'Media', 'Inclusión', ''],
+      ['Unidad 3. Estequiometría y gases', pct(0.118), pct(0.001), 'Baja', '', ''],
     ])
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Unidades')
@@ -225,6 +237,8 @@ const UnitPlanModal = ({ group, onSaved }) => {
       <p style={{ fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.6, marginBottom: 14 }}>
         Orden en que <strong>{group.name}</strong> debe trabajar las unidades del libro físico y los
         ejes articuladores de cada una. El docente lo ve de solo lectura en el último módulo de su ruta.
+        Si cargas <strong>cobertura</strong> y <strong>prioridad</strong>, verá además la gráfica de
+        barras con las unidades más prioritarias.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 14 }}>
@@ -269,6 +283,18 @@ const UnitPlanModal = ({ group, onSaved }) => {
               <button onClick={() => delUnit(i)} title="Eliminar"
                 style={{ background: '#FEE2E2', border: 'none', borderRadius: 7, width: 26, height: 26,
                   cursor: 'pointer', color: 'var(--error)' }}>✕</button>
+            </div>
+            {/* Los dos porcentajes se capturan como número (27,6), no como
+                fracción: el campo dice "%" al lado y es lo que el tutor lee. */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 6 }}>
+              <input type="number" step="0.1" value={u.coverage ?? ''}
+                onChange={e => setUnit(i, 'coverage', e.target.value === '' ? null : parseFloat(e.target.value))}
+                placeholder="Cobertura %" title="Cobertura diagnóstica (%)" style={rowInp} />
+              <input type="number" step="0.1" value={u.priority ?? ''}
+                onChange={e => setUnit(i, 'priority', e.target.value === '' ? null : parseFloat(e.target.value))}
+                placeholder="Prioridad %" title="Puntaje de prioridad (%)" style={rowInp} />
+              <input value={u.level} onChange={e => setUnit(i, 'level', e.target.value)}
+                placeholder="Nivel" title="Nivel de prioridad: Alta, Media, Baja…" style={rowInp} />
             </div>
             <input value={(u.ejes || []).join(', ')} onChange={e => setUnit(i, 'ejes', splitEjes(e.target.value))}
               placeholder="Ejes articuladores, separados por coma" style={{ ...rowInp, marginBottom: 6 }} />

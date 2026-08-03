@@ -1,7 +1,7 @@
 import React from 'react'
 import { useStore, nav, completeNode, loadCloneUnitPlan } from '../store/store.jsx'
 import { useMobile, Btn, Skeleton } from '../components/ui.jsx'
-import { useMyCloneGroups, GroupPicker, card, PRINT_CSS } from '../components/cloneShared.jsx'
+import { useMyCloneGroups, GroupPicker, card, PRINT_CSS, fmtPct1 } from '../components/cloneShared.jsx'
 
 // ── Tablero de unidades del libro (módulo `clone_dashboard`, 0052) ───────────
 // Último paso de la ruta del docente clon: le muestra, de solo lectura, el orden
@@ -28,6 +28,59 @@ const Chip = ({ text, color }) => (
   <span style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
     background: color.bg, color: color.fg, whiteSpace: 'nowrap' }}>{text}</span>
 )
+
+// ── Gráfica de prioridad ────────────────────────────────────────────────────
+// Serie ÚNICA de magnitud → barras horizontales ordenadas de mayor a menor, un
+// solo tono y el valor rotulado al final de cada barra.
+// ⚠️ Un solo color a propósito: el color identifica la serie, NUNCA el puesto en
+// el ranking. Pintar la barra más alta de rojo y la más baja de verde haría que
+// una unidad cambiara de color al cargar otro plan, sin que su dato cambie. La
+// jerarquía ya la comunican el orden y el largo de la barra.
+const BAR_HUE = '#1D4ED8'
+
+const PriorityChart = ({ rows }) => {
+  const max = Math.max(...rows.map(r => r.priority), 0.0001)
+  return (
+    <div style={{ ...card, padding: '16px 18px', marginBottom: 16 }}>
+      <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--dark)', margin: '0 0 2px' }}>
+        Puntaje de prioridad por unidad
+      </h3>
+      <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 14px' }}>
+        De mayor a menor. Empieza por las de arriba.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {rows.map((r, i) => (
+          <div key={i} title={`${r.title} — prioridad ${fmtPct1(r.priority)}${r.level ? ` · ${r.level}` : ''}`}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-sec)', flex: 1,
+                minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {r.title}
+              </span>
+              {r.level && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>{r.level}</span>
+              )}
+              <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--dark)',
+                fontVariantNumeric: 'tabular-nums' }}>{fmtPct1(r.priority)}</span>
+            </div>
+            {/* Pista completa = escala; el relleno se mide contra el máximo del
+                plan, no contra 100: los puntajes reales son de un dígito y
+                contra 100 todas las barras se verían vacías e iguales. */}
+            <div style={{ height: 10, borderRadius: 6, background: 'var(--bg-alt)', overflow: 'hidden' }}>
+              {/* printColorAdjust: sin esto el navegador descarta los fondos al
+                  imprimir y las barras salen en blanco. */}
+              <div style={{ height: '100%', width: `${Math.max((r.priority / max) * 100, 1.5)}%`,
+                background: BAR_HUE, borderRadius: '3px 6px 6px 3px',
+                WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--subtle)', margin: '12px 0 0' }}>
+        El largo de cada barra es relativo a la unidad más prioritaria del plan.
+      </p>
+    </div>
+  )
+}
 
 const Stat = ({ value, label }) => (
   <div style={{ ...card, padding: '12px 16px', minWidth: 108 }}>
@@ -72,6 +125,13 @@ const CloneUnitDashboard = () => {
     return m
   }, [units])
   const colorFor = (eje) => EJE_COLORS[(ejeIndex.get(eje) ?? 0) % EJE_COLORS.length]
+
+  // La gráfica solo aparece si el tutor cargó puntajes; un plan sin ellos sigue
+  // siendo un plan válido (orden + ejes).
+  const priorityRows = React.useMemo(() => units
+    .filter(u => typeof u.priority === 'number')
+    .map(u => ({ title: u.title, priority: u.priority, level: u.level || '' }))
+    .sort((a, b) => b.priority - a.priority), [units])
 
   const pad = isMobile ? '0 16px 40px' : '0 24px 40px'
 
@@ -158,6 +218,11 @@ const CloneUnitDashboard = () => {
             </div>
           )}
 
+          {priorityRows.length > 0 && <PriorityChart rows={priorityRows} />}
+
+          <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--dark)', margin: '0 0 10px' }}>
+            Orden de trabajo
+          </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {units.map((u, i) => (
               <div key={i} style={{ ...card, padding: '14px 16px', display: 'flex', gap: 14,
@@ -169,6 +234,24 @@ const CloneUnitDashboard = () => {
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', lineHeight: 1.35 }}>
                     {u.title}
                   </div>
+                  {(typeof u.coverage === 'number' || typeof u.priority === 'number' || u.level) && (
+                    <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6,
+                      fontSize: 12, color: 'var(--muted)' }}>
+                      {typeof u.coverage === 'number' && (
+                        <span>Cobertura diagnóstica{' '}
+                          <strong style={{ color: 'var(--text-sec)', fontVariantNumeric: 'tabular-nums' }}>
+                            {fmtPct1(u.coverage)}</strong>
+                        </span>
+                      )}
+                      {typeof u.priority === 'number' && (
+                        <span>Prioridad{' '}
+                          <strong style={{ color: 'var(--text-sec)', fontVariantNumeric: 'tabular-nums' }}>
+                            {fmtPct1(u.priority)}</strong>
+                        </span>
+                      )}
+                      {u.level && <span>Nivel <strong style={{ color: 'var(--text-sec)' }}>{u.level}</strong></span>}
+                    </div>
+                  )}
                   {(u.ejes || []).length > 0 && (
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                       {u.ejes.map((e, j) => <Chip key={j} text={e} color={colorFor(e)} />)}

@@ -980,11 +980,21 @@ const loadCloneUnitPlan = async (groupId) => {
 // volver a guardar sin preocuparse de si ya existía.
 const saveCloneUnitPlan = async (plan) => {
   const s = XS.get();
+  // coverage/priority se guardan en PORCENTAJE (27.6 = 27,6 %) o null. Se
+  // normalizan aquí y no en la UI para que el Excel y el formulario dejen
+  // siempre la misma forma en la BD.
+  const num = (v) => {
+    const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(',', '.'));
+    return Number.isFinite(n) ? Math.round(n * 10) / 10 : null;
+  };
   const units = (plan.units || [])
     .map(u => ({
       title: (u.title || '').trim(),
       ejes: (u.ejes || []).map(e => (e || '').trim()).filter(Boolean),
       notes: (u.notes || '').trim() || null,
+      coverage: num(u.coverage),
+      priority: num(u.priority),
+      level: (u.level || '').trim() || null,
     }))
     .filter(u => u.title);
   const payload = {

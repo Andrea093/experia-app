@@ -515,9 +515,21 @@ termine.
     publicado una sola vez sirve a todos los docentes con planes distintos.
   - **Dónde se carga:** tutor → "Grupos y listados" → `📚 N unidades` en la fila del
     grupo (`UnitPlanModal` en `CloneGroups.jsx`). Filas a mano (subir/bajar, el
-    **orden del array ES el orden**) o Excel (`Unidad`, `Ejes` separados por coma,
-    `Notas`) con plantilla descargable. Los ejes son **texto libre**, no un catálogo
-    cerrado — no hay un listado oficial estable al que amarrarlos.
+    **orden del array ES el orden**) o Excel (`Unidad`, `Cobertura`, `Prioridad`,
+    `Nivel`, `Ejes` separados por coma, `Notas`) con plantilla descargable. Los ejes
+    son **texto libre**, no un catálogo cerrado — no hay un listado oficial estable
+    al que amarrarlos.
+  - **Cobertura / prioridad / nivel** son opcionales: si hay puntajes, el tablero
+    agrega una **gráfica de barras horizontales** ordenada de mayor a menor
+    (`PriorityChart`). ⚠️ Se guardan **en porcentaje** (27.6 = 27,6 %), pero Excel
+    entrega las celdas con formato de porcentaje como **fracción** — `parsePct`
+    (`cloneShared.jsx`) normaliza ambas formas y un número ≤ 1 se asume fracción.
+    `level` es texto del Excel, **no** se deriva del puntaje.
+  - ⚠️ La gráfica usa **un solo color**: el color identifica la serie, nunca el
+    puesto en el ranking (si no, una unidad cambiaría de color al cargar otro plan
+    sin que su dato cambie). El largo de la barra es relativo al **máximo del
+    plan**, no a 100 — los puntajes reales son de un dígito y contra 100 todas se
+    verían vacías.
   - **Dónde se ve:** `CloneUnitDashboard.jsx` (page `clone-dashboard`, `nodeId` = id
     del módulo). Se agrega a la ruta desde el editor (botón "Agregar Plan de
     Unidades del libro"); el botón `📚 Cargar plan` de esa fila solo lleva a

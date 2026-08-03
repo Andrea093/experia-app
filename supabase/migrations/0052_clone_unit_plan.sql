@@ -38,7 +38,11 @@ create table if not exists public.clone_unit_plans (
   book_title text,                                   -- "Matemáticas 9 — Serie X"
   intro      text,                                   -- indicaciones generales del tutor
   units      jsonb not null default '[]'::jsonb,
-    -- [{ title, ejes: [text], notes }]  ← el índice del array manda el orden
+    -- [{ title, ejes: [text], notes, coverage, priority, level }]
+    --   ← el índice del array manda el orden de trabajo
+    --   coverage/priority: número en PORCENTAJE (27.6 = 27,6 %) o null si el
+    --   tutor no lo cargó. level: texto libre ('Alta', 'Media'…), lo trae el
+    --   Excel; no se deriva del puntaje.
   updated_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -109,4 +113,4 @@ create trigger trg_touch_clone_unit_plan
 comment on table public.clone_unit_plans is
   'PILOTO TEMPORAL (0052). Orden de las unidades del libro físico + ejes articuladores por unidad, definido por el tutor para UN grupo. El docente lo consulta en el módulo clone_dashboard de su ruta.';
 comment on column public.clone_unit_plans.units is
-  'Array ORDENADO: [{title, ejes:[text], notes}]. La posición en el array es el orden en que debe trabajarse la unidad.';
+  'Array ORDENADO: [{title, ejes:[text], notes, coverage, priority, level}]. La posición en el array es el orden en que debe trabajarse la unidad. coverage/priority van en porcentaje (27.6 = 27,6 %) o null.';
