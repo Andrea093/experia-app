@@ -2,6 +2,25 @@ import React from 'react'
 import { PlusIc, XIc, Btn, Modal, ImageUploader, FileUploader } from '../ui.jsx'
 import { SECTION_TYPES } from './constants.js'
 
+// Ancho y alto de imágenes y del visor de PDF. Ambos son OPCIONALES y se
+// guardan como número de píxeles (el ancho admite además '%'), porque así viajan
+// dentro de `content` sin tocar el esquema. Dejarlos vacíos conserva exactamente
+// el comportamiento anterior — es lo que hace que las lecciones ya publicadas no
+// cambien de aspecto al agregar esta función.
+const SizeFields = ({ sec, idx, update, inp, hint }) => (
+  <>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+      <input value={sec.width ?? ''} onChange={e => update(idx, 'width', e.target.value)}
+        placeholder="Ancho (ej. 640 o 80%)" style={inp} />
+      <input value={sec.height ?? ''} onChange={e => update(idx, 'height', e.target.value)}
+        placeholder="Alto en px (ej. 600)" style={inp} />
+    </div>
+    {hint && (
+      <p style={{ fontSize: 11, color: 'var(--subtle)', lineHeight: 1.5, margin: '6px 0 0' }}>{hint}</p>
+    )}
+  </>
+)
+
 const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => {
   const [title, setTitle]     = React.useState('')
   const [desc, setDesc]       = React.useState('')
@@ -28,7 +47,11 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
       callout: { type: 'callout', title: '', text: '', icon: '💡' },
       video:   { type: 'video',   title: '', url: '', desc: '' },
       embed:   { type: 'embed',   title: '', url: '', desc: '' },
-      image:   { type: 'image',   title: '', url: '', caption: '', height: '' },
+      // width/height vacíos = comportamiento histórico (ancho completo, alto
+      // máximo 420 px recortado). Solo al escribirlos se activa el encuadre sin
+      // recorte — así ninguna lección ya publicada cambia de aspecto.
+      image:   { type: 'image',   title: '', url: '', caption: '', height: '', width: '' },
+      pdf:     { type: 'pdf',     title: '', url: '', filename: '', caption: '', height: '', width: '' },
       checklist: { type: 'checklist', title: '', desc: '', items: [{ t: '' }] },
       download: { type: 'download', title: '', desc: '', url: '', filename: '', filesize: '' },
     }
@@ -102,7 +125,7 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                   </div>
                 </div>
 
-                {sec.type !== 'video' && sec.type !== 'embed' && sec.type !== 'image' && sec.type !== 'checklist' && sec.type !== 'download' && (
+                {sec.type !== 'video' && sec.type !== 'embed' && sec.type !== 'image' && sec.type !== 'pdf' && sec.type !== 'checklist' && sec.type !== 'download' && (
                   <input value={sec.title} onChange={e => updateSection(idx, 'title', e.target.value)}
                     placeholder="Título de esta sección" style={{ ...inp, marginBottom: 8 }} />
                 )}
@@ -145,13 +168,37 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                     <input value={sec.title} onChange={e => updateSection(idx, 'title', e.target.value)}
                       placeholder="Título de la imagen (opcional)" style={{ ...inp, marginBottom: 8 }} />
                     {sec.url && (
-                      <img src={sec.url} alt="" style={{ width: '100%', maxHeight: 160, objectFit: 'cover',
-                        borderRadius: 8, marginBottom: 8, border: '1px solid var(--border)' }} />
+                      <img src={sec.url} alt="" style={{ width: '100%', maxHeight: 160, objectFit: 'contain',
+                        borderRadius: 8, marginBottom: 8, border: '1px solid var(--border)', background: 'var(--bg-alt)' }} />
                     )}
                     <ImageUploader label={sec.url ? 'Reemplazar imagen' : 'Subir imagen'} compact
                       onUploaded={url => updateSection(idx, 'url', url)} />
+                    <SizeFields sec={sec} idx={idx} update={updateSection} inp={inp}
+                      hint="Con el alto en blanco la imagen se recorta a 420 px de alto. Escribe un alto para verla completa (sin recorte) y un ancho para que no ocupe todo el espacio." />
                     <input value={sec.caption} onChange={e => updateSection(idx, 'caption', e.target.value)}
                       placeholder="Pie de foto (opcional)" style={{ ...inp, marginTop: 8 }} />
+                  </>
+                )}
+                {sec.type === 'pdf' && (
+                  <>
+                    <input value={sec.title} onChange={e => updateSection(idx, 'title', e.target.value)}
+                      placeholder="Título del documento (opcional)" style={{ ...inp, marginBottom: 8 }} />
+                    {sec.url && (
+                      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>📕 {sec.filename || 'documento.pdf'}</div>
+                    )}
+                    <FileUploader label={sec.url ? 'Reemplazar PDF' : 'Subir PDF'} compact
+                      accept="application/pdf,.pdf" maxSizeMB={25}
+                      onUploaded={({ url, name }) => {
+                        updateSection(idx, 'url', url)
+                        updateSection(idx, 'filename', name)
+                      }} />
+                    <SizeFields sec={sec} idx={idx} update={updateSection} inp={inp}
+                      hint="Alto del visor en píxeles (por defecto 720). El ancho en blanco ocupa todo el espacio disponible." />
+                    <input value={sec.caption} onChange={e => updateSection(idx, 'caption', e.target.value)}
+                      placeholder="Nota al pie (opcional)" style={{ ...inp, marginTop: 8 }} />
+                    <p style={{ fontSize: 11, color: 'var(--subtle)', lineHeight: 1.5, margin: '8px 0 0' }}>
+                      En celular el navegador no incrusta PDFs: ahí el estudiante verá una tarjeta con el botón para abrirlo.
+                    </p>
                   </>
                 )}
                 {sec.type === 'download' && (

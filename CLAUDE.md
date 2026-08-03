@@ -270,7 +270,13 @@ Next module unlocks (dependencies checked)
 
 **Adding a challenge type** (e.g. `truefalse`) touches: `challenges.jsx` (render component + dispatcher map), `store.jsx` (`dbModToAppMod` forward + `publishRouteToCourse` ×2), `route-editor/constants.js` (`CHALLENGE_TYPES` + `CTYPE_EMOJI`), `route-editor/EditorContents.jsx` (author UI) + `ChallengeEditorModal.jsx` (register), `route-editor/RoutePreviewModal.jsx` (preview), `games.jsx` (icon/label).
 
-**Lesson `content`** is an array of sections rendered by `lesson.jsx`. Supported `type`s: `intro`, `text`, `quote`, `steps`, `reveal`, `image`, `callout`, `concepts`, `compare`, `video`. There is **no** `heading` type. `steps`/`reveal`/`concepts` items use `t`/`d` keys; images use `url`.
+**Lesson `content`** is an array of sections rendered by `lesson.jsx`. Supported `type`s: `intro`, `text`, `quote`, `steps`, `reveal`, `image`, `callout`, `concepts`, `compare`, `video`, `embed`, `checklist`, `download`, `pdf`. There is **no** `heading` type. `steps`/`reveal`/`concepts` items use `t`/`d` keys; images use `url`.
+
+**Tamaño de imágenes y visor de PDF (ago 2026).** `image` y `pdf` aceptan `width` y `height` opcionales (número = px; también `'80%'`, `'40rem'` — los normaliza `cssSize` en `lesson.jsx`). Se editan en `CustomModuleModal` (`SizeFields`), que es el editor de contenido de TODOS los módulos tipo lección, no solo los personalizados.
+- ⚠️ **Vacíos = comportamiento histórico**: la imagen va a ancho completo con `objectFit:'cover'` y `maxHeight` 420 px, o sea **recortada**. Solo al escribir un alto se pasa a `contain` (imagen completa, sin recorte). Es deliberado: cambiar el default le habría cambiado el aspecto a todas las lecciones ya publicadas.
+- `pdf` ≠ `download`: el primero se **lee incrustado** (`<object>`, alto 720 px por defecto), el segundo se **baja**. Es la alternativa a subir un documento largo como una imagen gigante.
+- ⚠️ **En móvil el PDF no se incrusta**: iOS Safari y varios Android dejan el marco en blanco o solo pintan la primera página. `PdfSection` detecta `useMobile()` y ahí muestra una tarjeta con el botón "Abrir el PDF". No "arreglarlo" forzando el `<object>` en móvil.
+- Nada de esto toca el esquema: viaja dentro de `content` (jsonb). La vista previa del editor lo hereda porque reusa `LessonBody`.
 
 **Quiz `passage` + per-question fields** (lectura crítica y similares): a `quiz` reto can carry an optional `challenge_data.passage` (texto/imágenes mostrados **encima** de las preguntas) and each question accepts optional fields:
 - `passage`: `{ intro, title, paragraphs:[str], source, images:[{url,caption,width,height}], imagesLayout:'row'|'column' }`. Rendered by `QuizPassage` in `challenges.jsx` con `objectFit:contain` (no recorta); `width`/`height` aceptan número (px) o string CSS.

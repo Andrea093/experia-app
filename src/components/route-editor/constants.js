@@ -29,6 +29,10 @@ export const SECTION_TYPES = [
   { id: 'video',   label: '🎬 Video YouTube',  icon: '🎬' },
   { id: 'embed',   label: '🧩 Embed (Genially, etc.)', icon: '🧩' },
   { id: 'image',   label: '🖼️ Imagen',         icon: '🖼️' },
+  // pdf = se LEE dentro de la lección (visor incrustado); download = se BAJA.
+  // Para un documento largo, el visor evita tener que subirlo como una imagen
+  // gigante que descuadra la página.
+  { id: 'pdf',     label: '📕 Documento PDF (visor)', icon: '📕' },
   { id: 'checklist', label: '✅ Checklist',     icon: '✅' },
   { id: 'download', label: '📄 Material descargable', icon: '📄' },
 ]

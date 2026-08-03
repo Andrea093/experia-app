@@ -17,6 +17,90 @@ import {
 // EXPERIA — Lesson Viewer
 // =============================================
 
+// Ancho/alto opcionales de imágenes y del visor de PDF: el autor escribe "640",
+// "80%" o "40rem" y aquí se normaliza. Un número pelado se interpreta en px, que
+// es lo que espera quien escribe "600" en el editor. Vacío → null (el llamador
+// decide el valor por defecto).
+const cssSize = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  const s = String(v).trim();
+  return /^\d+(\.\d+)?$/.test(s) ? `${s}px` : s;
+};
+
+// Visor de PDF incrustado. Alternativa a subir un documento largo como imagen
+// gigante: el estudiante lo lee con el visor nativo del navegador (zoom, buscar,
+// paginar) sin salir de la lección.
+// ⚠️ En móvil NO se incrusta: iOS Safari y varios Android muestran un marco en
+// blanco o solo la primera página. Ahí se ofrece la tarjeta con el botón para
+// abrirlo, que es lo que sí funciona en todos.
+const PdfSection = ({ section, delay }) => {
+  const isMobile = useMobile();
+  if (!section.url) return null;
+  const width  = cssSize(section.width) || '100%';
+  const height = cssSize(section.height) || '720px';
+  const name   = section.filename || 'Documento PDF';
+
+  const OpenBtn = ({ full }) => (
+    <a href={section.url} target="_blank" rel="noopener noreferrer"
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        padding: '10px 16px', borderRadius: 10, background: 'var(--orange)', color: '#fff',
+        fontSize: 13.5, fontWeight: 700, textDecoration: 'none', width: full ? '100%' : 'auto' }}>
+      Abrir el PDF ↗
+    </a>
+  );
+
+  return (
+    <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
+      {section.title && (
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>{section.title}</h3>
+      )}
+
+      {isMobile ? (
+        <div style={{ padding: '20px 18px', borderRadius: 14, background: 'var(--white)',
+          border: '1px solid var(--border)', textAlign: 'center' }}>
+          <div style={{ fontSize: 34, marginBottom: 8 }}>📕</div>
+          <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', margin: '0 0 4px' }}>{name}</p>
+          <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
+            Se abre en el visor de tu teléfono.
+          </p>
+          <OpenBtn full />
+        </div>
+      ) : (
+        <div style={{ width, maxWidth: '100%', marginInline: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            padding: '8px 12px', borderRadius: '14px 14px 0 0', background: 'var(--bg-alt)',
+            border: '1px solid var(--border)', borderBottom: 'none' }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-sec)', flex: 1,
+              minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              📕 {name}
+            </span>
+            <a href={section.url} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange)', textDecoration: 'none' }}>
+              Abrir en pestaña nueva ↗
+            </a>
+          </div>
+          {/* <object> con <iframe> adentro: si el navegador no tiene visor de
+              PDF, cae al contenido de respaldo en vez de dejar un marco vacío. */}
+          <object data={section.url} type="application/pdf"
+            style={{ display: 'block', width: '100%', height,
+              border: '1px solid var(--border)', borderRadius: '0 0 14px 14px', background: 'var(--bg-alt)' }}>
+            <div style={{ padding: 24, textAlign: 'center' }}>
+              <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 12px' }}>
+                Tu navegador no puede mostrar el documento aquí.
+              </p>
+              <OpenBtn />
+            </div>
+          </object>
+        </div>
+      )}
+
+      {section.caption && (
+        <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', marginTop: 10 }}>{section.caption}</p>
+      )}
+    </div>
+  );
+};
+
 // Tarjeta de evidencia: click para revelar contenido oculto
 const RevealSection = ({ section, delay }) => {
   const [open, setOpen] = React.useState(false);
@@ -200,18 +284,25 @@ const LessonSection = React.memo(({ section, index }) => {
   }
 
   if (section.type === 'image') {
+    // Encuadre: con alto explícito se muestra la imagen COMPLETA (contain) — es
+    // el caso de los documentos altos, donde recortar es justo lo que estorba.
+    // Sin alto se conserva el comportamiento histórico (cover a 420 px), para no
+    // cambiarle el aspecto a las lecciones ya publicadas.
+    const hasHeight = !!section.height;
     return (
       <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
         {section.title && (
           <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 12 }}>{section.title}</h3>
         )}
-        <div className="ls-image-wrap">
+        <div className="ls-image-wrap" style={{ width: cssSize(section.width) || '100%', maxWidth: '100%', marginInline: 'auto' }}>
           <img
             src={section.url}
             alt={section.caption || section.title || ''}
             style={{ width: '100%', borderRadius: 14, display: 'block',
-              boxShadow: 'var(--sh-lg)', objectFit: 'cover',
-              maxHeight: section.height || 420 }}
+              boxShadow: 'var(--sh-lg)',
+              objectFit: hasHeight ? 'contain' : 'cover',
+              background: hasHeight ? 'var(--bg-alt)' : undefined,
+              maxHeight: cssSize(section.height) || 420 }}
           />
           {section.caption && (
             <p className="ls-image-caption">{section.caption}</p>
@@ -222,6 +313,8 @@ const LessonSection = React.memo(({ section, index }) => {
       </div>
     );
   }
+
+  if (section.type === 'pdf') return <PdfSection section={section} delay={delay} />;
 
   if (section.type === 'download') {
     const sizeLabel = section.filesize
