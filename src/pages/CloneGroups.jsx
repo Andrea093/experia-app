@@ -469,6 +469,9 @@ const EvidenceModal = ({ group }) => {
               <div key={t.id} style={{ ...card, padding: '9px 12px', borderRadius: 10,
                 display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)' }}>{fmtFecha(t.session_date)}</span>
+                {t.unit_label && (
+                  <span style={{ fontSize: 12, color: 'var(--text-sec)', fontWeight: 600 }}>📕 {t.unit_label}</span>
+                )}
                 {t.title && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t.title}</span>}
                 <div style={{ flex: 1 }} />
                 <span style={{ fontSize: 15, fontWeight: 900, color: colorEfectividad(ses) }}>

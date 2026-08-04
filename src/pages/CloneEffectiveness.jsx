@@ -1,12 +1,12 @@
 import React from 'react'
 import {
   useStore, loadCloneAttendance, loadCloneEffectiveness, saveCloneEffectiveness,
-  deleteCloneEffectiveness,
+  deleteCloneEffectiveness, loadCloneUnitPlan,
 } from '../store/store.jsx'
 import { useMobile, Btn, Skeleton, TrashIc, PlusIc } from '../components/ui.jsx'
 import {
   hoy, fmtFecha, inp, lbl, card, useMyCloneGroups, GroupPicker, SinGrupo,
-  CloneHead, PRINT_CSS, readSheet, nrmKey,
+  CloneHead, PRINT_CSS, readSheet, nrmKey, fmtPct1,
 } from '../components/cloneShared.jsx'
 import {
   LETTERS, SECTIONS, emptyQuestion, emptySection, sectionStats, sessionEffectiveness,
@@ -68,6 +68,12 @@ const CloneEffectivenessPage = () => {
 
   const [sessionDate, setSessionDate] = React.useState(hoy())
   const [title, setTitle]     = React.useState('')
+  // Unidad del libro sobre la que se aplicó la sesión. Las opciones salen del
+  // plan que cargó el tutor (0052). Se guardan el TEXTO y una COPIA de los datos
+  // de la unidad (ejes, notas, puntajes), nunca un índice (0054).
+  const [unitLabel, setUnitLabel] = React.useState('')
+  const [unitData, setUnitData]   = React.useState(null)
+  const [planUnits, setPlanUnits] = React.useState([])
   const [sections, setSections] = React.useState(EMPTY)
   const [tab, setTab]         = React.useState('exploro')
   const [saving, setSaving]   = React.useState('')
@@ -79,18 +85,22 @@ const CloneEffectivenessPage = () => {
     if (!groupId) { setLoading(false); return }
     setLoading(true)
     ;(async () => {
-      const [{ rows }, { rows: acts }] = await Promise.all([
+      const [{ rows }, { rows: acts }, { plan }] = await Promise.all([
         loadCloneEffectiveness(groupId),
         loadCloneAttendance(groupId),
+        loadCloneUnitPlan(groupId),
       ])
       if (!alive) return
-      setTablas(rows); setActas(acts); abrirNueva(); setLoading(false)
+      setTablas(rows); setActas(acts)
+      setPlanUnits((plan?.units || []).filter(u => u?.title))
+      abrirNueva(); setLoading(false)
     })()
     return () => { alive = false }
   }, [groupId])
 
   const abrirNueva = () => {
     setRecord(null); setSessionDate(hoy()); setTitle('')
+    setUnitLabel(''); setUnitData(null)
     setSections(EMPTY()); setTab('exploro'); setMsg('')
   }
 
@@ -98,6 +108,11 @@ const CloneEffectivenessPage = () => {
     setRecord(t)
     setSessionDate(t.session_date || hoy())
     setTitle(t.title || '')
+    setUnitLabel(t.unit_label || '')
+    // Se prefiere el snapshot guardado. El fallback al plan actual es solo para
+    // las tablas registradas antes de que existiera la columna.
+    setUnitData(t.unit?.title ? t.unit
+      : (planUnits.find(u => u.title === t.unit_label) || null))
     setSections(normalizeSections(t.sections))
     setTab('exploro'); setMsg('')
   }
@@ -212,8 +227,17 @@ const CloneEffectivenessPage = () => {
 
   const exportar = async () => {
     const XLSX = await import('xlsx')
-    const aoa = [['Momento', 'Pregunta', 'Correcta', 'A', 'B', 'C', 'D', 'Suma', 'Válida',
-      'Aciertos', 'P.E.P.', 'VALOR', 'Aplicada']]
+    const aoa = []
+    // Encabezado de contexto: sin esto, dos exportaciones del mismo grupo en
+    // fechas distintas son indistinguibles al abrirlas.
+    aoa.push(['Grupo', group?.name || ''], ['Fecha', sessionDate])
+    if (unitLabel) aoa.push(['Unidad trabajada', unitLabel])
+    if ((unitData?.ejes || []).length) aoa.push(['Ejes articuladores', unitData.ejes.join(', ')])
+    if (unitData?.level) aoa.push(['Nivel de la unidad', unitData.level])
+    if (title)     aoa.push(['Título / tema', title])
+    aoa.push([])
+    aoa.push(['Momento', 'Pregunta', 'Correcta', 'A', 'B', 'C', 'D', 'Suma', 'Válida',
+      'Aciertos', 'P.E.P.', 'VALOR', 'Aplicada'])
     SECTIONS.forEach(({ key, label }) => {
       const st = sectionStats(sections[key])
       st.rows.forEach(({ q, st: r }) => {
@@ -248,7 +272,7 @@ const CloneEffectivenessPage = () => {
 
     setSaving(finalize ? 'final' : 'draft'); setMsg('')
     const { record: saved, error } = await saveCloneEffectiveness({
-      id: record?.id, groupId, sessionDate, title,
+      id: record?.id, groupId, sessionDate, title, unitLabel, unit: unitData,
       attendanceId: ultimaActa?.id || null,
       sections,
       summary: buildSummary(sections),
@@ -316,6 +340,7 @@ const CloneEffectivenessPage = () => {
             const activo = record?.id === t.id
             return (
               <button key={t.id} onClick={() => abrirTabla(t)}
+                title={t.unit_label || t.title || ''}
                 style={{ padding: '5px 11px', borderRadius: 8, cursor: 'pointer', fontFamily: 'var(--font)',
                   fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
                   border: activo ? '1.5px solid var(--orange)' : '1.5px solid var(--border)',
@@ -347,6 +372,49 @@ const CloneEffectivenessPage = () => {
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }}
               onChange={e => { const f = e.target.files?.[0]; if (f) importar(f); e.target.value = '' }} />
           </div>
+        </div>
+      )}
+
+      {/* ── Unidad trabajada ── */}
+      {/* Botones y no un <select>: son pocas unidades, el docente las reconoce
+          por su nombre y así ve de una el plan completo mientras elige. Volver a
+          pulsar la unidad activa la deselecciona (el campo es opcional). */}
+      {canEdit && (
+        <div className="no-print" style={{ marginBottom: 18 }}>
+          <label style={lbl}>Unidad del libro trabajada</label>
+          {planUnits.length > 0 ? (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {planUnits.map((u, i) => {
+                const active = unitLabel === u.title
+                return (
+                  <button key={i} type="button"
+                    onClick={() => {
+                      setUnitLabel(active ? '' : u.title)
+                      setUnitData(active ? null : u)
+                    }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                      padding: '7px 12px', borderRadius: 20, fontFamily: 'var(--font)', fontSize: 12.5,
+                      fontWeight: 700, transition: 'all .15s',
+                      background: active ? 'var(--orange)' : 'var(--white)',
+                      color: active ? '#fff' : 'var(--text-sec)',
+                      border: `1.5px solid ${active ? 'var(--orange)' : 'var(--border)'}` }}>
+                    <span style={{ opacity: active ? .85 : .6, fontWeight: 900 }}>{i + 1}</span>
+                    {u.title}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            // Sin plan cargado por el tutor, el docente igual puede escribirla:
+            // el piloto no puede quedar bloqueado por algo que no depende de él.
+            <>
+              <input value={unitLabel} onChange={e => setUnitLabel(e.target.value)}
+                placeholder="Ej. Unidad 3. Estequiometría y gases" style={inp} />
+              <p style={{ fontSize: 11, color: 'var(--subtle)', margin: '5px 0 0' }}>
+                Tu tutor aún no ha cargado el plan de unidades; escríbela a mano.
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -525,6 +593,37 @@ const CloneEffectivenessPage = () => {
             {fmtFecha(sessionDate)} · Docente: {user?.name || '—'}
           </div>
         </div>
+
+        {/* Unidad del libro trabajada. Los datos salen del snapshot guardado con
+            la tabla (0054), no del plan vigente: un informe cerrado tiene que
+            seguir diciendo lo mismo aunque el tutor recargue el plan después. */}
+        {unitLabel && (
+          <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: '12px 14px', marginBottom: 24 }}>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .8, color: '#666',
+              fontWeight: 700, marginBottom: 4 }}>Unidad del libro trabajada</div>
+            <div style={{ fontSize: 14.5, fontWeight: 800 }}>📕 {unitLabel}</div>
+
+            {(unitData?.ejes || []).length > 0 && (
+              <div style={{ fontSize: 12, color: '#444', marginTop: 6 }}>
+                <strong>Ejes articuladores:</strong> {unitData.ejes.join(' · ')}
+              </div>
+            )}
+
+            {(unitData?.level || typeof unitData?.coverage === 'number' || typeof unitData?.priority === 'number') && (
+              <div style={{ fontSize: 12, color: '#444', marginTop: 4, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                {typeof unitData.coverage === 'number' && <span><strong>Cobertura diagnóstica:</strong> {fmtPct1(unitData.coverage)}</span>}
+                {typeof unitData.priority === 'number' && <span><strong>Prioridad:</strong> {fmtPct1(unitData.priority)}</span>}
+                {unitData.level && <span><strong>Nivel:</strong> {unitData.level}</span>}
+              </div>
+            )}
+
+            {unitData?.notes && (
+              <div style={{ fontSize: 12, color: '#555', marginTop: 6, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                <strong>Indicaciones del tutor:</strong> {unitData.notes}
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 16, marginBottom: 24, textAlign: 'center' }}>
           {SECTIONS.map(({ key, label }) => (

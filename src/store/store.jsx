@@ -952,6 +952,17 @@ const saveCloneEffectiveness = async (rec, finalize = false) => {
     attendance_id: rec.attendanceId || null,
     session_date: rec.sessionDate || new Date().toISOString().slice(0, 10),
     title: rec.title || null,
+    // Unidad del plan (0054): SNAPSHOT, no referencia — el informe imprime estos
+    // datos y no deben cambiar si el tutor recarga el plan. Ver la migración.
+    unit_label: rec.unitLabel?.trim() || null,
+    unit: rec.unit && rec.unit.title ? {
+      title: rec.unit.title,
+      ejes: rec.unit.ejes || [],
+      notes: rec.unit.notes || null,
+      coverage: rec.unit.coverage ?? null,
+      priority: rec.unit.priority ?? null,
+      level: rec.unit.level || null,
+    } : {},
     sections: rec.sections || {},
     summary: rec.summary || {},
     status: finalize ? 'final' : 'draft',

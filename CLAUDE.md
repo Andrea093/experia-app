@@ -492,6 +492,19 @@ termine.
   *Desarrollo mis competencias*), cada uno con su total de estudiantes y sus
   preguntas (letra correcta + conteos A/B/C/D). Captura por formulario **o** por
   importación de Excel (plantilla descargable); exporta a xlsx e imprime informe.
+  - **Unidad trabajada** (`clone_effectiveness.unit_label` + `unit`, 0054):
+    botones con las unidades del plan del grupo (§ tablero de unidades). El
+    informe impreso lleva un bloque con la unidad y **sus datos** (ejes
+    articuladores, cobertura/prioridad/nivel, indicaciones del tutor); el xlsx
+    lleva unidad, ejes y nivel en su encabezado. Sin plan cargado cae a un campo
+    de texto: el docente no puede quedar bloqueado por algo que depende de su
+    tutor.
+  - ⚠️ **Ambas columnas son un SNAPSHOT**, no una referencia: `unit_label` guarda
+    el texto (no un índice ni un id) y `unit` una copia de los datos de esa
+    unidad. `clone_unit_plans.units` es un jsonb que el tutor reemplaza entero al
+    recargar el plan — un índice apuntaría a otra unidad tras un reordenamiento, y
+    releer los datos al imprimir haría que un informe cerrado mostrara unos ejes
+    distintos de los que se trabajaron. Mismo criterio que `entries` en las actas.
 - ⚠️ **Todo el cálculo vive en `src/lib/effectiveness.js`** (funciones puras, sin
   React ni Supabase). Las páginas solo capturan y pintan — **no reimplementar
   fórmulas en la UI**. `clone_effectiveness.sections` = lo capturado;
@@ -645,7 +658,8 @@ supabase/
 │   ├── 0050_closing_record.sql # Acta de cierre: tipo de módulo closing_record + course_roster + closing_records
 │   ├── 0051_clone_role.sql # PILOTO TEMPORAL modo clon: profiles.ui_variant + clone_groups/_students/_attendance/_effectiveness
 │   ├── 0052_clone_unit_plan.sql # PILOTO clon: tipo de módulo clone_dashboard + clone_unit_plans (orden de unidades + ejes por grupo)
-│   └── 0053_clone_plan_chart.sql # PILOTO clon: clone_unit_plans.chart (gráfica de ejes transversales parametrizable)
+│   ├── 0053_clone_plan_chart.sql # PILOTO clon: clone_unit_plans.chart (gráfica de ejes transversales parametrizable)
+│   └── 0054_clone_effectiveness_unit.sql # PILOTO clon: clone_effectiveness.unit_label (unidad del libro trabajada)
 └── functions/           # Edge Functions
     ├── bulk-create-users/
     └── send-reminders/
