@@ -51,7 +51,7 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
       // máximo 420 px recortado). Solo al escribirlos se activa el encuadre sin
       // recorte — así ninguna lección ya publicada cambia de aspecto.
       image:   { type: 'image',   title: '', url: '', caption: '', height: '', width: '' },
-      pdf:     { type: 'pdf',     title: '', url: '', filename: '', caption: '', height: '', width: '' },
+      pdf:     { type: 'pdf',     title: '', url: '', filename: '', caption: '', height: '', width: '', allowDownload: true },
       checklist: { type: 'checklist', title: '', desc: '', items: [{ t: '' }] },
       download: { type: 'download', title: '', desc: '', url: '', filename: '', filesize: '' },
     }
@@ -193,11 +193,26 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                         updateSection(idx, 'filename', name)
                       }} />
                     <SizeFields sec={sec} idx={idx} update={updateSection} inp={inp}
-                      hint="Alto del visor en píxeles (por defecto 720). El ancho en blanco ocupa todo el espacio disponible." />
+                      hint="Alto del visor en píxeles (por defecto 720). El ancho en blanco ocupa todo el espacio disponible. El estudiante puede ampliarlo a pantalla completa." />
+                    {/* Lo decide quien arma la ruta: hay material que se consulta
+                        en la plataforma pero no se reparte. */}
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 10, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={sec.allowDownload !== false}
+                        onChange={e => updateSection(idx, 'allowDownload', e.target.checked)}
+                        style={{ marginTop: 2, cursor: 'pointer' }} />
+                      <span style={{ fontSize: 12.5, color: 'var(--text-sec)', lineHeight: 1.5 }}>
+                        Permitir descargarlo y abrirlo aparte
+                        <span style={{ display: 'block', fontSize: 11, color: 'var(--subtle)' }}>
+                          Desmárcalo para material restringido: se lee dentro de la lección, sin botones de descarga.
+                        </span>
+                      </span>
+                    </label>
                     <input value={sec.caption} onChange={e => updateSection(idx, 'caption', e.target.value)}
                       placeholder="Nota al pie (opcional)" style={{ ...inp, marginTop: 8 }} />
                     <p style={{ fontSize: 11, color: 'var(--subtle)', lineHeight: 1.5, margin: '8px 0 0' }}>
                       En celular el navegador no incrusta PDFs: ahí el estudiante verá una tarjeta con el botón para abrirlo.
+                      ⚠️ Restringir la descarga <strong>desalienta</strong> el reparto, pero el archivo sigue siendo accesible
+                      para quien conozca su enlace: no lo uses para material confidencial.
                     </p>
                   </>
                 )}

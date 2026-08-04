@@ -35,10 +35,33 @@ const cssSize = (v) => {
 // abrirlo, que es lo que sí funciona en todos.
 const PdfSection = ({ section, delay }) => {
   const isMobile = useMobile();
+  const [expanded, setExpanded] = React.useState(false);
+
+  // Cerrar la vista ampliada con Escape y bloquear el scroll de la página
+  // detrás mientras está abierta.
+  React.useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e) => { if (e.key === 'Escape') setExpanded(false); };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [expanded]);
+
   if (!section.url) return null;
   const width  = cssSize(section.width) || '100%';
   const height = cssSize(section.height) || '720px';
   const name   = section.filename || 'Documento PDF';
+
+  // Lo decide quien arma la ruta. `undefined` = permitido, para no cambiarle el
+  // comportamiento a los PDF que ya estén publicados.
+  // ⚠️ Esto NO es un control de seguridad: el archivo vive en un bucket público
+  // y quien tenga la URL puede bajarlo. `#toolbar=0` esconde la barra del visor
+  // de Chrome/Edge (Firefox la respeta solo a medias). Es un freno para el uso
+  // normal, no una protección real — para eso habría que servir el archivo con
+  // URLs firmadas y de corta vida.
+  const allowDownload = section.allowDownload !== false;
+  const viewerSrc = allowDownload ? section.url : `${section.url}#toolbar=0&navpanes=0`;
 
   const OpenBtn = ({ full }) => (
     <a href={section.url} target="_blank" rel="noopener noreferrer"
@@ -47,6 +70,35 @@ const PdfSection = ({ section, delay }) => {
         fontSize: 13.5, fontWeight: 700, textDecoration: 'none', width: full ? '100%' : 'auto' }}>
       Abrir el PDF ↗
     </a>
+  );
+
+  const ExpandBtn = () => (
+    <button type="button" onClick={() => setExpanded(true)} title="Ver en grande"
+      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+        fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700, color: 'var(--orange)' }}>
+      ⛶ Ampliar
+    </button>
+  );
+
+  const Restricted = () => (
+    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)' }} title="El tutor no habilitó la descarga de este material">
+      🔒 Material restringido
+    </span>
+  );
+
+  const Viewer = ({ h, radius }) => (
+    // <object> con contenido de respaldo: si el navegador no tiene visor de PDF,
+    // cae a un mensaje en vez de dejar un marco vacío.
+    <object data={viewerSrc} type="application/pdf"
+      style={{ display: 'block', width: '100%', height: h,
+        border: '1px solid var(--border)', borderRadius: radius, background: 'var(--bg-alt)' }}>
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 12px' }}>
+          Tu navegador no puede mostrar el documento aquí.
+        </p>
+        {allowDownload && <OpenBtn />}
+      </div>
+    </object>
   );
 
   return (
@@ -61,41 +113,68 @@ const PdfSection = ({ section, delay }) => {
           <div style={{ fontSize: 34, marginBottom: 8 }}>📕</div>
           <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', margin: '0 0 4px' }}>{name}</p>
           <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
-            Se abre en el visor de tu teléfono.
+            {allowDownload
+              ? 'Se abre en el visor de tu teléfono.'
+              : 'Material restringido: ábrelo para leerlo, pero no lo compartas.'}
           </p>
           <OpenBtn full />
         </div>
       ) : (
         <div style={{ width, maxWidth: '100%', marginInline: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
             padding: '8px 12px', borderRadius: '14px 14px 0 0', background: 'var(--bg-alt)',
             border: '1px solid var(--border)', borderBottom: 'none' }}>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-sec)', flex: 1,
               minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               📕 {name}
             </span>
-            <a href={section.url} target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange)', textDecoration: 'none' }}>
-              Abrir en pestaña nueva ↗
-            </a>
+            <ExpandBtn />
+            {allowDownload ? (
+              <a href={section.url} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange)', textDecoration: 'none' }}>
+                Abrir en pestaña nueva ↗
+              </a>
+            ) : <Restricted />}
           </div>
-          {/* <object> con <iframe> adentro: si el navegador no tiene visor de
-              PDF, cae al contenido de respaldo en vez de dejar un marco vacío. */}
-          <object data={section.url} type="application/pdf"
-            style={{ display: 'block', width: '100%', height,
-              border: '1px solid var(--border)', borderRadius: '0 0 14px 14px', background: 'var(--bg-alt)' }}>
-            <div style={{ padding: 24, textAlign: 'center' }}>
-              <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 12px' }}>
-                Tu navegador no puede mostrar el documento aquí.
-              </p>
-              <OpenBtn />
-            </div>
-          </object>
+          <Viewer h={height} radius="0 0 14px 14px" />
         </div>
       )}
 
       {section.caption && (
         <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', marginTop: 10 }}>{section.caption}</p>
+      )}
+
+      {/* ── Vista ampliada ── */}
+      {expanded && (
+        <div onClick={() => setExpanded(false)}
+          // z-index 6000: por encima de los modales (5000 en ui.jsx) para que
+          // "Ampliar" también funcione dentro de la vista previa del editor de
+          // ruta, que renderiza la lección dentro de un modal.
+          style={{ position: 'fixed', inset: 0, zIndex: 6000, background: 'rgba(0,0,0,.82)',
+            display: 'flex', flexDirection: 'column', padding: 'clamp(8px, 2vh, 24px)' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', flex: 1, minWidth: 0,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              📕 {name}
+            </span>
+            {allowDownload && (
+              <a href={section.url} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', textDecoration: 'none', opacity: .85 }}>
+                Abrir en pestaña nueva ↗
+              </a>
+            )}
+            <button type="button" onClick={() => setExpanded(false)} aria-label="Cerrar"
+              style={{ background: 'rgba(255,255,255,.14)', border: 'none', cursor: 'pointer',
+                color: '#fff', borderRadius: 8, padding: '6px 12px', fontFamily: 'var(--font)',
+                fontSize: 12.5, fontWeight: 700 }}>
+              ✕ Cerrar
+            </button>
+          </div>
+          <div onClick={e => e.stopPropagation()} style={{ flex: 1, minHeight: 0 }}>
+            <Viewer h="100%" radius="10px" />
+          </div>
+        </div>
       )}
     </div>
   );
