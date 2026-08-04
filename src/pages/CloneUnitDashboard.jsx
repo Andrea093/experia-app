@@ -45,7 +45,7 @@ const Chip = ({ text, color }) => (
 const fmtVal = (n) => Number.isFinite(n) ? String(Math.round(n * 10) / 10).replace('.', ',') : '—'
 
 const TransversalChart = ({ title, bars }) => (
-  <div style={{ ...card, padding: '16px 18px', marginBottom: 16 }}>
+  <div style={{ ...card, padding: '16px 18px' }}>
     <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--dark)', margin: '0 0 14px' }}>
       {title || 'Ejes transversales'}
     </h3>
@@ -126,6 +126,9 @@ const CloneUnitDashboard = () => {
   const chartBars = React.useMemo(
     () => (plan?.chart?.bars || []).filter(b => b && b.label), [plan])
 
+  // "Cuando se pueda": solo con las dos cosas cargadas y en pantalla ancha.
+  const twoCols = !isMobile && chartBars.length > 0 && units.length > 0
+
   const pad = isMobile ? '0 16px 40px' : '0 24px 40px'
 
   if (loadingGroups || loading) return (
@@ -185,7 +188,7 @@ const CloneUnitDashboard = () => {
           </p>
         </div>
       ) : (
-        <div id="clone-print" style={{ maxWidth: 860 }}>
+        <div id="clone-print" style={{ maxWidth: twoCols ? 1180 : 860 }}>
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted)', textTransform: 'uppercase',
               letterSpacing: .8 }}>
@@ -198,9 +201,15 @@ const CloneUnitDashboard = () => {
             )}
           </div>
 
+          {/* Los dos tipos de eje se cuentan por separado y cada tarjeta solo
+              aparece si hay de ese tipo. Antes había una sola tarjeta "Ejes"
+              que contaba los ARTICULADORES por unidad, y marcaba 0 en un plan
+              que sí tenía ejes transversales cargados — un cero que se leía
+              como "no hay nada" justo al lado de la gráfica que los mostraba. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
             <Stat value={units.length} label="Unidades" />
-            <Stat value={ejeIndex.size} label="Ejes" />
+            {chartBars.length > 0 && <Stat value={chartBars.length} label="Ejes transversales" />}
+            {ejeIndex.size > 0 && <Stat value={ejeIndex.size} label="Ejes articuladores" />}
           </div>
 
           {plan?.intro && (
@@ -211,12 +220,26 @@ const CloneUnitDashboard = () => {
             </div>
           )}
 
-          {chartBars.length > 0 && <TransversalChart title={plan?.chart?.title} bars={chartBars} />}
+          {/* Ejes y orden LADO A LADO cuando hay espacio: son las dos mitades
+              de la misma indicación y el docente las cruza mientras planea. En
+              móvil (o si falta una de las dos) se apilan — a menos de ~380 px
+              por columna, ni los nombres de los ejes ni los títulos de las
+              unidades caben sin partirse. */}
+          <div style={{ display: 'grid', gap: 16, alignItems: 'start',
+            gridTemplateColumns: twoCols ? 'minmax(0,1fr) minmax(0,1fr)' : '1fr' }}>
+            {chartBars.length > 0 && (
+              // En dos columnas la gráfica queda fija: la lista de unidades es
+              // larga y la idea es poder cruzarla con los ejes sin devolverse.
+              <div style={twoCols ? { position: 'sticky', top: 0 } : undefined}>
+                <TransversalChart title={plan?.chart?.title} bars={chartBars} />
+              </div>
+            )}
 
-          <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--dark)', margin: '0 0 10px' }}>
-            Orden de trabajo
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--dark)', margin: '0 0 10px' }}>
+                Orden de trabajo
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {units.map((u, i) => (
               <div key={i} style={{ ...card, padding: '14px 16px', display: 'flex', gap: 14,
                 alignItems: 'flex-start' }}>
@@ -257,6 +280,8 @@ const CloneUnitDashboard = () => {
                 </div>
               </div>
             ))}
+              </div>
+            </div>
           </div>
 
           {plan?.updated_at && (

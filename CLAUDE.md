@@ -542,6 +542,16 @@ termine.
     `--viz-N` (`styles.css`), que tiene su propio paso para modo oscuro. Guardar
     el hex congelaría el color claro en modo oscuro y obligaría a reescribir los
     planes al recalibrar la paleta.
+  - **Dos tipos de eje, dos contadores.** Las tarjetas del tablero cuentan por
+    separado *ejes transversales* (barras de la gráfica) y *ejes articuladores*
+    (los de cada unidad), y cada una aparece solo si hay de ese tipo. ⚠️ No
+    volver a una sola tarjeta "Ejes": contaba los articuladores y marcaba **0**
+    en planes que sí tenían transversales, justo al lado de la gráfica que los
+    mostraba.
+  - **Gráfica y orden de trabajo van lado a lado** (`twoCols`) cuando hay ambos y
+    la pantalla es ancha; la gráfica queda `sticky` para cruzarla con la lista sin
+    devolverse. En móvil se apilan: bajo ~380 px por columna los nombres de ejes
+    y los títulos de unidad se parten.
   - ⚠️ **La paleta `--viz-1..8` está validada como CONJUNTO** (banda de
     luminosidad, croma, separación para daltonismo y contraste) contra las dos
     superficies de la app. La peor pareja adyacente queda en ΔE 9.1 (protanopía),
