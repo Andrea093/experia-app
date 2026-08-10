@@ -58,6 +58,12 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
     setSections(s => [...s, { ...defaults[type], _id: Date.now() }])
   }
 
+  // Salto de página: NO es un tipo de contenido (sin campos propios), es un
+  // marcador estructural que `splitContentPages` (lesson.jsx) usa para partir
+  // `content` en pantallas. El estudiante debe llegar a la última para poder
+  // completar el módulo — ver §5 de CLAUDE.md.
+  const addPageBreak = () => setSections(s => [...s, { type: 'pagebreak', _id: Date.now() }])
+
   const updateSection = (idx, key, val) => setSections(s => s.map((sec, i) => i === idx ? { ...sec, [key]: val } : sec))
   const removeSection = (idx) => setSections(s => s.filter((_, i) => i !== idx))
   const moveSection   = (idx, dir) => {
@@ -107,7 +113,21 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 10 }}>Contenido del módulo</label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {sections.map((sec, idx) => (
+            {sections.map((sec, idx) => sec.type === 'pagebreak' ? (
+              <div key={sec._id || idx} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, borderTop: '2px dashed var(--orange)' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', whiteSpace: 'nowrap' }}>➗ Nueva página</span>
+                <div style={{ flex: 1, borderTop: '2px dashed var(--orange)' }} />
+                <button onClick={() => moveSection(idx, -1)} disabled={idx === 0}
+                  style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: 'pointer', background: 'var(--bg-alt)', fontSize: 12, opacity: idx === 0 ? .3 : 1, flexShrink: 0 }}>↑</button>
+                <button onClick={() => moveSection(idx, 1)} disabled={idx === sections.length - 1}
+                  style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: 'pointer', background: 'var(--bg-alt)', fontSize: 12, opacity: idx === sections.length - 1 ? .3 : 1, flexShrink: 0 }}>↓</button>
+                <button onClick={() => removeSection(idx)}
+                  style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: 'pointer', background: '#FEE2E2', flexShrink: 0 }}>
+                  <XIc s={12} c="var(--error)" />
+                </button>
+              </div>
+            ) : (
               <div key={sec._id || idx} style={{ padding: '14px', borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)' }}>
@@ -272,7 +292,18 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                 <PlusIc s={12} c="currentColor" /> {t.label}
               </button>
             ))}
+            <button onClick={addPageBreak}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 8,
+                border: '1.5px dashed var(--orange)', background: 'var(--orange-bg)', color: 'var(--orange)',
+                cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600 }}>
+              <PlusIc s={12} c="currentColor" /> ➗ Salto de página
+            </button>
           </div>
+          {sections.some(s => s.type === 'pagebreak') && (
+            <p style={{ fontSize: 11, color: 'var(--subtle)', lineHeight: 1.5, margin: '8px 0 0' }}>
+              Con saltos de página el estudiante navega pantalla por pantalla y debe llegar a la última para poder completar el módulo.
+            </p>
+          )}
         </div>
 
         {err && <p style={{ fontSize: 12, color: 'var(--error)', margin: 0 }}>{err}</p>}

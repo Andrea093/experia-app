@@ -192,7 +192,12 @@ const App = () => {
   // Esperar a que courses + userCourses estén cargados antes de decidir la ruta
   // del estudiante. Sin esto, el primer render ocurre con datos a medias y se ve
   // un parpadeo entre el mapa/onboarding y la selección de curso.
-  if (role === 'student' && !coursesLoaded && !isClonePage) return <PageSpinner />;
+  // ⚠️ Este `return` NO debe saltarse el layout (Sidebar/Header): son datos que
+  // tardan un viaje de red normal (más en frío — primera visita del navegador,
+  // sin conexión ya calentada con Supabase) y antes esto dejaba al estudiante
+  // viendo una pantalla en blanco sin menú ni cabecera hasta que la carga
+  // terminaba — el "bug" era justo esta espera sin chrome, no una carga colgada.
+  const waitingCourses = role === 'student' && !coursesLoaded && !isClonePage;
   // Guard estudiante: si hay cursos en BD y no está inscrito → selección de curso
   if (role === 'student' && hasCourses && !enrolledCourse && !isClonePage) return <React.Suspense fallback={<PageSpinner />}><CourseSelection /></React.Suspense>;
   // Guard legado: sin cursos en BD y sin área → selección de área
@@ -208,6 +213,7 @@ const App = () => {
   const isFullPage = fullPages.includes(page);
 
   const renderPage = () => {
+    if (waitingCourses) return <PageSpinner />;
     if (role === 'admin') {
       switch (page) {
         case 'admin-dashboard':  return <AdminPage />;

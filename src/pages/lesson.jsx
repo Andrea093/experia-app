@@ -27,6 +27,19 @@ const cssSize = (v) => {
   return /^\d+(\.\d+)?$/.test(s) ? `${s}px` : s;
 };
 
+// Divide `content` en páginas usando las secciones `{type:'pagebreak'}` como
+// separador. Sin ningún salto (el caso de casi todas las lecciones publicadas
+// hasta ahora) devuelve un único grupo con todo el contenido — pagination
+// queda desactivada y el módulo se comporta exactamente como antes.
+export const splitContentPages = (content) => {
+  const pages = [[]];
+  (content || []).forEach(sec => {
+    if (sec.type === 'pagebreak') { pages.push([]); return; }
+    pages[pages.length - 1].push(sec);
+  });
+  return pages;
+};
+
 // Visor de PDF incrustado. Alternativa a subir un documento largo como imagen
 // gigante: el estudiante lo lee con el visor nativo del navegador (zoom, buscar,
 // paginar) sin salir de la lección.
@@ -507,9 +520,25 @@ const LessonSection = React.memo(({ section, index }) => {
 // ─── Cuerpo de la lección: hero + tarea + secciones + extras ───
 // Es EXACTAMENTE lo que ve el estudiante. Se reutiliza en LessonView y en la
 // vista previa del instructor para que el preview sea fiel al 100%.
-export const LessonBody = ({ mod }) => (
+//
+// `page` es OPCIONAL: sin él (previews, clase en vivo, etc.) se renderiza todo
+// el contenido de corrido, tal como siempre — así ningún llamador existente
+// cambia de comportamiento. LessonView sí lo pasa: ahí `mod.content` puede
+// venir partido en páginas por marcadores `{type:'pagebreak'}` (ver
+// `splitContentPages`), y solo se pinta la página activa. Hero/tarea van
+// únicamente en la primera página y los extras del instructor en la última,
+// para no repetirlos en cada pantalla.
+export const LessonBody = ({ mod, page }) => {
+  const pages = splitContentPages(mod.content);
+  const paginated = page !== undefined && pages.length > 1;
+  const sections = paginated ? (pages[page] || []) : (mod.content || []).filter(s => s.type !== 'pagebreak');
+  const showIntro = !paginated || page === 0;
+  const showExtras = !paginated || page === pages.length - 1;
+
+  return (
   <>
     {/* Hero */}
+    {showIntro && (
     <div style={{
       padding: '32px 28px', borderRadius: 16, background: 'var(--gradient)',
       marginBottom: 36, animation: 'fadeUp .5s ease',
@@ -519,9 +548,10 @@ export const LessonBody = ({ mod }) => (
       <h1 style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginTop: 6 }}>{mod.title}</h1>
       <p style={{ fontSize: 14, color: 'rgba(255,255,255,.75)', marginTop: 8 }}>{mod.desc}</p>
     </div>
+    )}
 
     {/* Task instruction */}
-    {mod.task && (
+    {showIntro && mod.task && (
       <div className="ls-task-box" style={{ marginBottom: 28, animation: 'fadeUp .4s ease' }}>
         <span style={{ fontSize: 22, flexShrink: 0 }}>📋</span>
         <div>
@@ -532,10 +562,10 @@ export const LessonBody = ({ mod }) => (
     )}
 
     {/* Sections */}
-    {(mod.content || []).map((sec, i) => <LessonSection key={i} section={sec} index={i} />)}
+    {sections.map((sec, i) => <LessonSection key={i} section={sec} index={i} />)}
 
     {/* Extras added by instructor */}
-    {mod.extras?.length > 0 && (
+    {showExtras && mod.extras?.length > 0 && (
       <div style={{ margin: '32px 0', padding: '20px 24px', borderRadius: 16, background: 'var(--white)', border: '1px solid var(--border)' }}>
         <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span>📎</span> Recursos adicionales del instructor
@@ -581,7 +611,8 @@ export const LessonBody = ({ mod }) => (
       </div>
     )}
   </>
-);
+  );
+};
 
 const LessonView = () => {
   const nodeId = useStore(s => s.nodeId);
@@ -595,21 +626,31 @@ const LessonView = () => {
   const [progress, setProgress] = React.useState(0);
   const [done, setDone] = React.useState(false);
   const [showConfetti, setShowConfetti] = React.useState(false);
+  const [pageIdx, setPageIdx] = React.useState(0);
   const scrollRef = React.useRef(null);
 
   const isCompleted = completed.includes(nodeId);
 
+  // Módulos multipágina: `content` viene partido por marcadores `pagebreak`.
+  // Sin ninguno (la inmensa mayoría), `pages.length===1` y todo el bloque de
+  // paginación queda desactivado — se comporta exactamente como antes.
+  const pages = splitContentPages(mod?.content);
+  const isPaginated = pages.length > 1;
+  const isLastPage = pageIdx === pages.length - 1;
+
   React.useEffect(() => {
-    setProgress(0); setDone(false);
+    setProgress(0); setDone(false); setPageIdx(0);
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
     // El personaje del tema saluda con la línea del módulo (si la tiene).
     reactCharacter('lessonIntro', mod?.characterLine);
   }, [nodeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Track scroll progress
+  // Track scroll progress — solo aplica a módulos de una sola página. En un
+  // módulo paginado el criterio de "leído" es haber llegado a la última
+  // página (ver efecto de abajo), no el scroll de cada pantalla.
   React.useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || isPaginated) return;
     const handler = () => {
       const scrollable = el.scrollHeight - el.clientHeight;
       // Contenido corto que ya cabe entero en pantalla (sin necesidad de
@@ -623,7 +664,23 @@ const LessonView = () => {
     handler(); // corre una vez al montar, por si el contenido ya cabe sin scroll
     el.addEventListener('scroll', handler);
     return () => el.removeEventListener('scroll', handler);
-  }, [nodeId]);
+  }, [nodeId, isPaginated]);
+
+  // Progreso y gate de completar por página: llegar a la última página basta
+  // (no exige volver a hacer scroll dentro de ella).
+  React.useEffect(() => {
+    if (!isPaginated) return;
+    setProgress(Math.round(((pageIdx + 1) / pages.length) * 100));
+    setDone(isLastPage);
+  }, [pageIdx, isPaginated, isLastPage, pages.length]);
+
+  const gotoPage = (idx) => {
+    setPageIdx(p => {
+      const next = Math.max(0, Math.min(pages.length - 1, idx));
+      return next === p ? p : next;
+    });
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  };
 
   const courseTheme = getActiveCourseTheme();
 
@@ -708,9 +765,31 @@ const LessonView = () => {
       {/* Content */}
       <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '20px 16px' : '32px 28px' }}>
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
-          <LessonBody mod={mod} />
+          <LessonBody mod={mod} page={isPaginated ? pageIdx : undefined} />
 
-          {/* Completion */}
+          {/* Navegación entre páginas */}
+          {isPaginated && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: 12, margin: '32px 0 8px' }}>
+              <Btn variant="secondary" onClick={() => gotoPage(pageIdx - 1)} disabled={pageIdx === 0}>
+                <ArrowLIc s={16} /> Anterior
+              </Btn>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>
+                Página {pageIdx + 1} de {pages.length}
+              </span>
+              {isLastPage
+                ? <div style={{ width: 108 }} />
+                : (
+                  <Btn variant="primary" onClick={() => gotoPage(pageIdx + 1)}>
+                    Siguiente <ArrowRIc s={16} />
+                  </Btn>
+                )}
+            </div>
+          )}
+
+          {/* Completion — en módulos paginados solo aparece en la última página;
+              antes de eso el botón "Siguiente" de arriba ya guía el avance. */}
+          {(!isPaginated || isLastPage) && (
           <div style={{
             marginTop: 48, padding: '32px', borderRadius: 16, textAlign: 'center',
             background: done || isCompleted ? '#F0FDFA' : 'var(--bg-alt)',
@@ -756,6 +835,7 @@ const LessonView = () => {
               </>
             )}
           </div>
+          )}
           <div style={{ height: 80 }} />
         </div>
       </div>
