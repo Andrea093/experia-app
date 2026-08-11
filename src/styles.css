@@ -32,11 +32,11 @@
   --error-bg: #FEF2F2;   --error-bg-strong: #FEE2E2;
   --info-bg: #EFF6FF;    --warn-bg: #FFFBEB;  --violet-bg: #EDEAF7;
 
-  /* Gradientes premium (derivados del acento activo) */
-  --gradient: linear-gradient(125deg, var(--purple-deep) 0%, var(--purple) 32%, var(--grad-mid) 64%, var(--orange) 100%);
-  --gradient-orange: linear-gradient(135deg, #EC671A 0%, #F59E33 100%);
-  --gradient-soft: linear-gradient(135deg, var(--orange-bg) 0%, var(--purple-bg) 100%);
-  --gradient-text: linear-gradient(120deg, var(--purple) 0%, var(--orange) 100%);
+  /* Acentos sólidos (antes degradados; mismos nombres para no romper usos existentes) */
+  --gradient: var(--purple);
+  --gradient-orange: var(--orange);
+  --gradient-soft: var(--orange-bg);
+  --gradient-text: var(--orange);
 
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --sidebar-w: 260px; --header-h: 64px;
@@ -274,8 +274,8 @@ h1,h2,h3{letter-spacing:-.02em}
 /* Microinteracción de presión en botones */
 .btn-press:active:not(:disabled){transform:translateY(0) scale(.97) !important;transition-duration:.08s}
 
-/* Texto con gradiente */
-.gradient-text{background:var(--gradient-text);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+/* Texto acentuado (antes con gradiente) */
+.gradient-text{color:var(--gradient-text)}
 
 /* =============================================
    MOBILE RESPONSIVENESS

@@ -12,9 +12,9 @@ const ACCENT_KEY = 'experia-accent'
 
 // Acentos disponibles — colores CEINFES Brandbook. `preview` alimenta los swatches en Perfil.
 export const ACCENTS = [
-  { id: 'morado',    name: 'Morado Formación',    color: '#5E4F9C', preview: 'linear-gradient(125deg,#45397A,#5E4F9C 40%,#C0538A 70%,#EC671A)' },
-  { id: 'azul',      name: 'Azul Pensamiento',     color: '#3A5BA7', preview: 'linear-gradient(125deg,#2B4485,#3A5BA7 40%,#9A5CB8 70%,#EC671A)' },
-  { id: 'esmeralda', name: 'Verde Transformación', color: '#024B4E', preview: 'linear-gradient(125deg,#013738,#024B4E 40%,#8CCAAE 70%,#EC671A)' },
+  { id: 'morado',    name: 'Morado Formación',    color: '#5E4F9C', preview: '#5E4F9C' },
+  { id: 'azul',      name: 'Azul Pensamiento',     color: '#3A5BA7', preview: '#3A5BA7' },
+  { id: 'esmeralda', name: 'Verde Transformación', color: '#024B4E', preview: '#024B4E' },
 ]
 
 const safeGet = (key) => { try { return localStorage.getItem(key) } catch { return null } }

@@ -142,7 +142,7 @@ const AnimNum = ({value, duration=600}) => {
 const XPToast = ({amount, onDone}) => {
   React.useEffect(()=>{const t=setTimeout(onDone,2200);return()=>clearTimeout(t);},[]);
   return <div style={{position:'fixed',top:80,right:24,zIndex:9999,
-    background:'linear-gradient(135deg,var(--orange),var(--orange-light))',
+    background:'var(--orange)',
     color:'#fff',padding:'12px 24px',borderRadius:14,fontWeight:700,fontSize:18,
     animation:'xpPop 2.2s ease-out forwards',boxShadow:'0 4px 20px rgba(232,115,44,.4)',
     display:'flex',alignItems:'center',gap:8}}>
@@ -232,7 +232,7 @@ const BadgeCard = ({bid, earned=false, size='md'}) => {
   return <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,
     opacity:earned?1:.35,filter:earned?'none':'grayscale(1)',transition:'all .3s'}}>
     <div style={{width:sz,height:sz,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',
-      fontSize:sz*.42,background:earned?'linear-gradient(135deg,var(--orange-bg),var(--purple-bg))':'var(--bg-alt)',
+      fontSize:sz*.42,background:earned?'var(--orange-bg)':'var(--bg-alt)',
       border:earned?'2px solid var(--orange-light)':'2px solid var(--border)',
       animation:earned?'badgePop .5s ease':'none'}}>
       {b.icon}

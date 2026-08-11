@@ -426,7 +426,7 @@ const Podium = ({ top }) => {
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', margin: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.p.nombre}</div>
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--orange)' }}>{s.p.score} pts</div>
           <div style={{ height: s.h, borderRadius: '10px 10px 0 0', marginTop: 6,
-            background: `linear-gradient(180deg, ${s.color}, ${s.color}99)`,
+            background: s.color,
             display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 6,
             color: 'rgba(0,0,0,.45)', fontWeight: 900, fontSize: 18 }}>{s.place}</div>
         </div>

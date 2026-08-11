@@ -22,7 +22,6 @@ const themePalette = (theme) => {
   const base = character.ui.bgAvatar
   return {
     accent, base,
-    gradient: `linear-gradient(135deg, ${base} 0%, ${accent}26 140%)`,
     glow: character.ui.glow,
     Avatar: character.Avatar,
     charName: character.name,
@@ -159,7 +158,7 @@ const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules, the
       <div style={{ maxHeight: '75vh', overflow: 'auto', paddingRight: 4 }}>
         {themed ? (
           <div style={{ padding: '16px 18px', borderRadius: 14, marginBottom: 18,
-            background: themed.gradient, border: `1.5px solid ${themed.accent}40`,
+            background: themed.base, border: `1.5px solid ${themed.accent}40`,
             boxShadow: themed.glow, display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
               overflow: 'hidden', border: `2px solid ${themed.accent}`, background: themed.base }}>
@@ -179,7 +178,7 @@ const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules, the
           </div>
         ) : area && (
           <div style={{ padding: '14px 18px', borderRadius: 14, marginBottom: 18,
-            background: `linear-gradient(135deg, ${area.color}18, ${area.color}06)`,
+            background: `${area.color}12`,
             border: `2px solid ${area.color}25`, display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 32 }}>{area.icon}</span>
             <div>
