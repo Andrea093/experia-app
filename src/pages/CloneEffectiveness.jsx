@@ -7,6 +7,7 @@ import { useMobile, Btn, Skeleton, TrashIc, PlusIc } from '../components/ui.jsx'
 import {
   hoy, fmtFecha, inp, lbl, card, useMyCloneGroups, GroupPicker, SinGrupo,
   CloneHead, PRINT_CSS, readSheet, nrmKey, fmtPct1,
+  BRAND, PrintDocHeader, PrintSection, PrintDocFooter,
 } from '../components/cloneShared.jsx'
 import {
   LETTERS, SECTIONS, emptyQuestion, emptySection, sectionStats, sessionEffectiveness,
@@ -62,57 +63,51 @@ const SectionSummary = ({ label, st }) => (
 // ── Un módulo del informe final (recomendaciones o tareas) ─────────────────
 // Las dos listas se pintan igual y salen impresas: cambian el título, el color
 // del filo y de dónde salió el texto (rejilla académica, `tareasRecomendaciones`).
-const ModuloFichas = ({ titulo, intro, items, color, vacio }) => (
-  <div style={{ marginBottom: 26 }}>
-    <div style={{ borderLeft: `4px solid ${color}`, paddingLeft: 10, marginBottom: 10 }}>
-      <h2 style={{ fontSize: 14, fontWeight: 900, margin: 0, textTransform: 'uppercase', letterSpacing: .6 }}>
-        {titulo}
-      </h2>
-      <p style={{ fontSize: 11, color: '#666', margin: '3px 0 0', lineHeight: 1.5 }}>{intro}</p>
-    </div>
-
-    {items.length === 0 ? (
-      <p style={{ fontSize: 11.5, color: '#888', fontStyle: 'italic', margin: 0 }}>{vacio}</p>
-    ) : items.map((it, i) => (
-      <div key={i} style={{ border: '1px solid #ddd', borderRadius: 8, padding: '10px 12px',
-        marginBottom: 8, pageBreakInside: 'avoid' }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 4 }}>
-          <span style={{ fontSize: 12.5, fontWeight: 900 }}>
-            {it.momentoLabel} · Pregunta {it.n}
-          </span>
-          <span style={{ fontSize: 11.5, fontWeight: 800, color }}>
-            P.E.P. {it.pep.toFixed(1)}%
-          </span>
-          <span style={{ fontSize: 10.5, color: '#666' }}>
-            {it.aciertos} de {it.total} acertaron · VALOR {it.valor}
-          </span>
-        </div>
-
-        {(it.categoria || it.dificultad) && (
-          <div style={{ fontSize: 10, color: '#666', marginBottom: 4 }}>
-            {[it.categoria && `Categoría: ${it.categoria}`,
-              it.dificultad && `Dificultad: ${it.dificultad}`].filter(Boolean).join(' · ')}
-          </div>
-        )}
-
-        {it.eje && (
-          <div style={{ fontSize: 11, color: '#444', marginBottom: 5, lineHeight: 1.45 }}>
-            <strong>Eje articulador:</strong> {it.eje}
-          </div>
-        )}
-
-        {it.texto ? (
-          <p style={{ fontSize: 11.5, color: '#1a1a2e', margin: 0, lineHeight: 1.6 }}>{it.texto}</p>
-        ) : (
-          // La rejilla no cubre esta pregunta (p. ej. el docente agregó una más
-          // de las que trae el libro). Se lista igual: hace parte del desempeño.
-          <p style={{ fontSize: 11, color: '#888', margin: 0, fontStyle: 'italic' }}>
-            La rejilla del libro no tiene texto para esta pregunta de la unidad.
-          </p>
-        )}
+const ModuloFichas = ({ items, color, tint, vacio }) => (
+  items.length === 0 ? (
+    <p style={{ fontSize: 11.5, color: '#888', fontStyle: 'italic', margin: 0 }}>{vacio}</p>
+  ) : items.map((it, i) => (
+    <div key={i} style={{ border: `1px solid ${BRAND.line}`, borderLeft: `3px solid ${color}`,
+      borderRadius: '0 8px 8px 0', padding: '10px 12px', marginBottom: 8, pageBreakInside: 'avoid' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 4 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 900, color: BRAND.dark }}>
+          {it.momentoLabel} · Pregunta {it.n}
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 900, color: '#fff', background: color,
+          padding: '2px 8px', borderRadius: 20 }}>
+          P.E.P. {it.pep.toFixed(1)}%
+        </span>
+        <span style={{ fontSize: 10.5, color: BRAND.gray }}>
+          {it.aciertos} de {it.total} acertaron · VALOR {it.valor}
+        </span>
       </div>
-    ))}
-  </div>
+
+      {(it.categoria || it.dificultad) && (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 5 }}>
+          {[it.categoria, it.dificultad].filter(Boolean).map((t, j) => (
+            <span key={j} style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase',
+              letterSpacing: .5, color, background: tint, padding: '2px 7px', borderRadius: 4 }}>{t}</span>
+          ))}
+        </div>
+      )}
+
+      {it.eje && (
+        <div style={{ fontSize: 11, color: BRAND.gray, marginBottom: 5, lineHeight: 1.45 }}>
+          <strong style={{ color: BRAND.purple }}>Eje articulador:</strong> {it.eje}
+        </div>
+      )}
+
+      {it.texto ? (
+        <p style={{ fontSize: 11.5, color: BRAND.dark, margin: 0, lineHeight: 1.6 }}>{it.texto}</p>
+      ) : (
+        // La rejilla no cubre esta pregunta (p. ej. el docente agregó una más
+        // de las que trae el libro). Se lista igual: hace parte del desempeño.
+        <p style={{ fontSize: 11, color: '#888', margin: 0, fontStyle: 'italic' }}>
+          La rejilla del libro no tiene texto para esta pregunta de la unidad.
+        </p>
+      )}
+    </div>
+  ))
 )
 
 const CloneEffectivenessPage = () => {
@@ -712,43 +707,46 @@ const CloneEffectivenessPage = () => {
       {/* Cuatro bloques, en este orden: asistencia · tabla de efectividad ·
           recomendaciones · tareas. Los dos últimos salen de cruzar cada
           pregunta con la rejilla del libro (lib/tareasRecomendaciones.js). */}
-      <div id="clone-print" style={{ ...card, background: '#fff', color: '#1a1a2e', padding: isMobile ? 20 : 40 }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h1 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 4px' }}>INFORME FINAL DE LA SESIÓN</h1>
-          <div style={{ fontSize: 13, color: '#444' }}>
-            {group?.name}{group?.grade ? ` · ${group.grade}` : ''}{title ? ` · ${title}` : ''}
-          </div>
-          <div style={{ fontSize: 12, color: '#666', marginTop: 3 }}>
-            {fmtFecha(sessionDate)} · Docente: {user?.name || '—'}
-          </div>
-        </div>
+      <div id="clone-print" style={{ ...card, background: '#fff', color: BRAND.dark,
+        padding: isMobile ? 20 : 40, borderTop: `5px solid ${BRAND.orange}` }}>
+
+        <PrintDocHeader
+          title="INFORME FINAL DE LA SESIÓN"
+          subtitle={`${group?.name || ''}${group?.grade ? ` · ${group.grade}` : ''}${title ? ` · ${title}` : ''}`}
+          meta={[
+            { label: 'Fecha', value: fmtFecha(sessionDate) },
+            { label: 'Docente', value: user?.name || '—' },
+            { label: 'Unidad', value: unitLabel },
+          ]}
+        />
 
         {/* Unidad del libro trabajada. Los datos salen del snapshot guardado con
             la tabla (0054), no del plan vigente: un informe cerrado tiene que
             seguir diciendo lo mismo aunque el tutor recargue el plan después. */}
         {unitLabel && (
-          <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: '12px 14px', marginBottom: 24 }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .8, color: '#666',
-              fontWeight: 700, marginBottom: 4 }}>Unidad del libro trabajada</div>
+          <div style={{ background: BRAND.orangeSoft, borderLeft: `4px solid ${BRAND.orange}`,
+            borderRadius: '0 8px 8px 0', padding: '12px 14px', marginBottom: 24 }}>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .8, color: BRAND.orange,
+              fontWeight: 800, marginBottom: 4 }}>Unidad del libro trabajada</div>
             <div style={{ fontSize: 14.5, fontWeight: 800 }}>📕 {unitLabel}</div>
 
             {(unitData?.ejes || []).length > 0 && (
-              <div style={{ fontSize: 12, color: '#444', marginTop: 6 }}>
-                <strong>Ejes articuladores:</strong> {unitData.ejes.join(' · ')}
+              <div style={{ fontSize: 12, color: BRAND.gray, marginTop: 6 }}>
+                <strong style={{ color: BRAND.purple }}>Ejes articuladores:</strong> {unitData.ejes.join(' · ')}
               </div>
             )}
 
             {(unitData?.level || typeof unitData?.coverage === 'number' || typeof unitData?.priority === 'number') && (
-              <div style={{ fontSize: 12, color: '#444', marginTop: 4, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                {typeof unitData.coverage === 'number' && <span><strong>Cobertura diagnóstica:</strong> {fmtPct1(unitData.coverage)}</span>}
-                {typeof unitData.priority === 'number' && <span><strong>Prioridad:</strong> {fmtPct1(unitData.priority)}</span>}
-                {unitData.level && <span><strong>Nivel:</strong> {unitData.level}</span>}
+              <div style={{ fontSize: 12, color: BRAND.gray, marginTop: 4, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                {typeof unitData.coverage === 'number' && <span><strong style={{ color: BRAND.purple }}>Cobertura diagnóstica:</strong> {fmtPct1(unitData.coverage)}</span>}
+                {typeof unitData.priority === 'number' && <span><strong style={{ color: BRAND.purple }}>Prioridad:</strong> {fmtPct1(unitData.priority)}</span>}
+                {unitData.level && <span><strong style={{ color: BRAND.purple }}>Nivel:</strong> {unitData.level}</span>}
               </div>
             )}
 
             {unitData?.notes && (
-              <div style={{ fontSize: 12, color: '#555', marginTop: 6, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
-                <strong>Indicaciones del tutor:</strong> {unitData.notes}
+              <div style={{ fontSize: 12, color: BRAND.gray, marginTop: 6, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                <strong style={{ color: BRAND.purple }}>Indicaciones del tutor:</strong> {unitData.notes}
               </div>
             )}
           </div>
@@ -757,9 +755,8 @@ const CloneEffectivenessPage = () => {
         {/* ── 1. Asistencia ── */}
         {/* Sale del acta que el docente ya diligenció en "Marcar asistencia":
             el informe no la vuelve a capturar, solo la trae. */}
-        <div style={{ marginBottom: 26 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1,
-            color: '#666', marginBottom: 8 }}>Asistencia</div>
+        <PrintSection n={1} title="Asistencia" color={BRAND.blue} tint={BRAND.blueSoft}
+          note={acta ? `${actaPresentes} de ${actaEntries.length} asistieron` : null}>
 
           {!acta ? (
             <p style={{ fontSize: 11.5, color: '#888', fontStyle: 'italic', margin: 0 }}>
@@ -770,19 +767,19 @@ const CloneEffectivenessPage = () => {
               <table style={{ width: '100%', fontSize: 12, marginBottom: 12, borderCollapse: 'collapse' }}>
                 <tbody>
                   <tr>
-                    <td style={{ padding: '4px 0', width: 110, color: '#666' }}>Fecha del acta</td>
+                    <td style={{ padding: '4px 0', width: 110, color: BRAND.gray }}>Fecha del acta</td>
                     <td style={{ padding: '4px 0', fontWeight: 600 }}>{fmtFecha(acta.session_date)}</td>
-                    <td style={{ padding: '4px 0', width: 90, color: '#666' }}>Lugar</td>
+                    <td style={{ padding: '4px 0', width: 90, color: BRAND.gray }}>Lugar</td>
                     <td style={{ padding: '4px 0', fontWeight: 600 }}>{acta.place || '—'}</td>
                   </tr>
                   <tr>
-                    <td style={{ padding: '4px 0', color: '#666' }}>Asistencia</td>
-                    <td style={{ padding: '4px 0', fontWeight: 600 }}>
+                    <td style={{ padding: '4px 0', color: BRAND.gray }}>Asistencia</td>
+                    <td style={{ padding: '4px 0', fontWeight: 800, color: BRAND.blue }}>
                       {actaPresentes} de {actaEntries.length}
                       {actaEntries.length > 0 &&
                         ` (${((actaPresentes * 100) / actaEntries.length).toFixed(1)}%)`}
                     </td>
-                    <td style={{ padding: '4px 0', color: '#666' }}>Tema</td>
+                    <td style={{ padding: '4px 0', color: BRAND.gray }}>Tema</td>
                     <td style={{ padding: '4px 0', fontWeight: 600 }}>{acta.topic || '—'}</td>
                   </tr>
                 </tbody>
@@ -790,110 +787,125 @@ const CloneEffectivenessPage = () => {
 
               <table style={{ width: '100%', fontSize: 11.5, borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '2px solid #1a1a2e' }}>
-                    <th style={{ textAlign: 'left', padding: '5px 4px', width: 26 }}>#</th>
-                    <th style={{ textAlign: 'left', padding: '5px 4px' }}>Alumno</th>
-                    <th style={{ textAlign: 'left', padding: '5px 4px', width: 100 }}>Documento</th>
-                    <th style={{ textAlign: 'center', padding: '5px 4px', width: 60 }}>Asistió</th>
-                    <th style={{ textAlign: 'left', padding: '5px 4px' }}>Observación</th>
+                  <tr style={{ background: BRAND.blueSoft, color: BRAND.blue }}>
+                    <th style={{ textAlign: 'left', padding: '6px 5px', width: 26 }}>#</th>
+                    <th style={{ textAlign: 'left', padding: '6px 5px' }}>Alumno</th>
+                    <th style={{ textAlign: 'left', padding: '6px 5px', width: 100 }}>Documento</th>
+                    <th style={{ textAlign: 'center', padding: '6px 5px', width: 60 }}>Asistió</th>
+                    <th style={{ textAlign: 'left', padding: '6px 5px' }}>Observación</th>
                   </tr>
                 </thead>
                 <tbody>
                   {actaEntries.map((e, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #e5e5e5' }}>
-                      <td style={{ padding: '4px', color: '#888' }}>{i + 1}</td>
-                      <td style={{ padding: '4px' }}>{e.name}</td>
-                      <td style={{ padding: '4px', color: '#555' }}>{e.document || '—'}</td>
-                      <td style={{ padding: '4px', textAlign: 'center', fontWeight: 700 }}>{e.present ? 'Sí' : 'No'}</td>
-                      <td style={{ padding: '4px', color: '#555' }}>{e.comment || ''}</td>
+                    <tr key={i} style={{ borderBottom: `1px solid ${BRAND.line}` }}>
+                      <td style={{ padding: '4px 5px', color: '#888' }}>{i + 1}</td>
+                      <td style={{ padding: '4px 5px' }}>{e.name}</td>
+                      <td style={{ padding: '4px 5px', color: BRAND.gray }}>{e.document || '—'}</td>
+                      <td style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 800,
+                        color: e.present ? BRAND.green : '#B91C1C' }}>{e.present ? 'Sí' : 'No'}</td>
+                      <td style={{ padding: '4px 5px', color: BRAND.gray }}>{e.comment || ''}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
               {acta.notes && (
-                <p style={{ fontSize: 11.5, color: '#555', lineHeight: 1.6, marginTop: 8, whiteSpace: 'pre-wrap' }}>
-                  <strong>Observaciones generales:</strong> {acta.notes}
+                <p style={{ fontSize: 11.5, color: BRAND.gray, lineHeight: 1.6, marginTop: 8, whiteSpace: 'pre-wrap' }}>
+                  <strong style={{ color: BRAND.blue }}>Observaciones generales:</strong> {acta.notes}
                 </p>
               )}
             </>
           )}
-        </div>
+        </PrintSection>
 
         {/* ── 2. Tabla de efectividad ── */}
-        <div style={{ display: 'flex', gap: 16, marginBottom: 24, textAlign: 'center' }}>
-          {SECTIONS.map(({ key, label }) => (
-            <div key={key} style={{ flex: 1, border: '1px solid #ddd', borderRadius: 8, padding: '10px 8px' }}>
-              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .8, color: '#666', fontWeight: 700 }}>{label}</div>
-              <div style={{ fontSize: 22, fontWeight: 900, marginTop: 4 }}>
-                {result[key].tieneDatos ? fmtPct(result[key].efectividadGrupo) : 'No aplicado'}
-              </div>
-              {result[key].tieneDatos && (
-                <div style={{ fontSize: 10.5, color: '#666', marginTop: 2 }}>
-                  Máx. por estudiante: {result[key].efectividadMaxima} · {result[key].total} estudiantes
+        <PrintSection n={2} title="Tabla de efectividad" color={BRAND.purple} tint={BRAND.purpleSoft}
+          note={`Efectividad de la sesión: ${fmtPct(result.efectividadSesion)}`}>
+
+          <div style={{ display: 'flex', gap: 12, marginBottom: 20, textAlign: 'center' }}>
+            {SECTIONS.map(({ key, label }) => (
+              <div key={key} style={{ flex: 1, border: `1px solid ${BRAND.line}`, borderTop: `3px solid ${BRAND.purple}`,
+                borderRadius: 8, padding: '10px 8px' }}>
+                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .8,
+                  color: BRAND.purple, fontWeight: 800 }}>{label}</div>
+                <div style={{ fontSize: 22, fontWeight: 900, marginTop: 4, color: BRAND.dark }}>
+                  {result[key].tieneDatos ? fmtPct(result[key].efectividadGrupo) : 'No aplicado'}
                 </div>
+                {result[key].tieneDatos && (
+                  <div style={{ fontSize: 10.5, color: BRAND.gray, marginTop: 2 }}>
+                    Máx. por estudiante: {result[key].efectividadMaxima} · {result[key].total} estudiantes
+                  </div>
+                )}
+              </div>
+            ))}
+            {/* La cifra que manda en todo el informe: es el umbral de los dos
+                módulos siguientes, así que va con el naranja de marca. */}
+            <div style={{ flex: 1, borderRadius: 8, padding: '10px 8px', background: BRAND.orange, color: '#fff' }}>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .8, fontWeight: 800,
+                color: 'rgba(255,255,255,.85)' }}>
+                Efectividad de la sesión
+              </div>
+              <div style={{ fontSize: 25, fontWeight: 900, marginTop: 4 }}>{fmtPct(result.efectividadSesion)}</div>
+            </div>
+          </div>
+
+          {SECTIONS.filter(({ key }) => result[key].tieneDatos).map(({ key, label }) => (
+            <div key={key} style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1,
+                color: BRAND.purple, marginBottom: 6 }}>{label}</div>
+              <table style={{ width: '100%', fontSize: 11.5, borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: BRAND.purpleSoft, color: BRAND.purple }}>
+                    <th style={{ textAlign: 'left', padding: '6px 5px', width: 34 }}>#</th>
+                    <th style={{ textAlign: 'center', padding: '6px 5px', width: 66 }}>Correcta</th>
+                    {LETTERS.map(l => <th key={l} style={{ textAlign: 'center', padding: '6px 5px', width: 40 }}>{l}</th>)}
+                    <th style={{ textAlign: 'center', padding: '6px 5px', width: 60 }}>Aciertos</th>
+                    <th style={{ textAlign: 'center', padding: '6px 5px', width: 66 }}>P.E.P.</th>
+                    <th style={{ textAlign: 'center', padding: '6px 5px', width: 54 }}>VALOR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result[key].rows.filter(r => r.q.aplicada !== false).map(({ q, st }, i) => (
+                    <tr key={i} style={{ borderBottom: `1px solid ${BRAND.line}` }}>
+                      <td style={{ padding: '4px 5px', color: '#888' }}>{q.n}</td>
+                      <td style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 800, color: BRAND.purple }}>{q.correcta}</td>
+                      {LETTERS.map(l => (
+                        <td key={l} style={{ padding: '4px 5px', textAlign: 'center',
+                          background: q.correcta === l ? BRAND.greenSoft : 'transparent',
+                          fontWeight: q.correcta === l ? 800 : 400 }}>{q[l.toLowerCase()]}</td>
+                      ))}
+                      <td style={{ padding: '4px 5px', textAlign: 'center' }}>{st.aciertos ?? '—'}</td>
+                      {/* Mismo semáforo de la pantalla, pero en hex fijos: el
+                          documento no debe seguir el tema de la app. */}
+                      <td style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 800,
+                        color: st.pep == null ? BRAND.gray
+                          : st.pep >= 69 ? BRAND.green : st.pep >= 34 ? '#B45309' : '#B91C1C' }}>
+                        {st.pep == null ? '—' : `${st.pep.toFixed(1)}%`}
+                      </td>
+                      <td style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 700 }}>{st.valor}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ borderTop: `2px solid ${BRAND.purple}`, background: BRAND.purpleSoft }}>
+                    <td colSpan={7} style={{ padding: '6px 5px', fontWeight: 800, color: BRAND.purple }}>
+                      Efectividad de grupo · Efectividad máxima por estudiante
+                    </td>
+                    <td style={{ padding: '6px 5px', textAlign: 'center', fontWeight: 900 }}>
+                      {fmtPct(result[key].efectividadGrupo)}
+                    </td>
+                    <td style={{ padding: '6px 5px', textAlign: 'center', fontWeight: 900 }}>
+                      {result[key].efectividadMaxima}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              {result[key].inconsistencias > 0 && (
+                <p style={{ fontSize: 10.5, color: '#B91C1C', marginTop: 6 }}>
+                  ⚠️ {result[key].inconsistencias} pregunta(s) con conteos que no suman el total de estudiantes.
+                </p>
               )}
             </div>
           ))}
-          <div style={{ flex: 1, border: '2px solid #1a1a2e', borderRadius: 8, padding: '10px 8px' }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .8, color: '#666', fontWeight: 700 }}>
-              Efectividad de la sesión
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4 }}>{fmtPct(result.efectividadSesion)}</div>
-          </div>
-        </div>
-
-        {SECTIONS.filter(({ key }) => result[key].tieneDatos).map(({ key, label }) => (
-          <div key={key} style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1,
-              color: '#666', marginBottom: 6 }}>{label}</div>
-            <table style={{ width: '100%', fontSize: 11.5, borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #1a1a2e' }}>
-                  <th style={{ textAlign: 'left', padding: '5px 4px', width: 34 }}>#</th>
-                  <th style={{ textAlign: 'center', padding: '5px 4px', width: 66 }}>Correcta</th>
-                  {LETTERS.map(l => <th key={l} style={{ textAlign: 'center', padding: '5px 4px', width: 40 }}>{l}</th>)}
-                  <th style={{ textAlign: 'center', padding: '5px 4px', width: 60 }}>Aciertos</th>
-                  <th style={{ textAlign: 'center', padding: '5px 4px', width: 66 }}>P.E.P.</th>
-                  <th style={{ textAlign: 'center', padding: '5px 4px', width: 54 }}>VALOR</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result[key].rows.filter(r => r.q.aplicada !== false).map(({ q, st }, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #e5e5e5' }}>
-                    <td style={{ padding: '4px', color: '#888' }}>{q.n}</td>
-                    <td style={{ padding: '4px', textAlign: 'center', fontWeight: 700 }}>{q.correcta}</td>
-                    {LETTERS.map(l => (
-                      <td key={l} style={{ padding: '4px', textAlign: 'center',
-                        fontWeight: q.correcta === l ? 700 : 400 }}>{q[l.toLowerCase()]}</td>
-                    ))}
-                    <td style={{ padding: '4px', textAlign: 'center' }}>{st.aciertos ?? '—'}</td>
-                    <td style={{ padding: '4px', textAlign: 'center', fontWeight: 700 }}>
-                      {st.pep == null ? '—' : `${st.pep.toFixed(1)}%`}
-                    </td>
-                    <td style={{ padding: '4px', textAlign: 'center', fontWeight: 700 }}>{st.valor}</td>
-                  </tr>
-                ))}
-                <tr style={{ borderTop: '2px solid #1a1a2e' }}>
-                  <td colSpan={7} style={{ padding: '6px 4px', fontWeight: 700 }}>
-                    Efectividad de grupo · Efectividad máxima por estudiante
-                  </td>
-                  <td style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 900 }}>
-                    {fmtPct(result[key].efectividadGrupo)}
-                  </td>
-                  <td style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 900 }}>
-                    {result[key].efectividadMaxima}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            {result[key].inconsistencias > 0 && (
-              <p style={{ fontSize: 10.5, color: '#B91C1C', marginTop: 6 }}>
-                ⚠️ {result[key].inconsistencias} pregunta(s) con conteos que no suman el total de estudiantes.
-              </p>
-            )}
-          </div>
-        ))}
+        </PrintSection>
 
         {/* ── 3 y 4. Recomendaciones y tareas ── */}
         {/* El umbral de las dos listas es la efectividad de la SESIÓN. Sin ella
@@ -913,36 +925,48 @@ const CloneEffectivenessPage = () => {
               </p>
             )}
 
-            <ModuloFichas
-              titulo="Recomendaciones"
-              intro={`Preguntas por debajo de la efectividad de la sesión (${fmtPct(result.efectividadSesion)}). Refuerza estos aprendizajes antes de avanzar.`}
-              items={informe.recomendaciones}
-              color="#B91C1C"
-              vacio="Ninguna pregunta quedó por debajo de la efectividad de la sesión."
-            />
+            <PrintSection n={3} title="Recomendaciones" color={BRAND.orange} tint={BRAND.orangeSoft}
+              note={`Por debajo de ${fmtPct(result.efectividadSesion)} · refuerza antes de avanzar`}>
+              <ModuloFichas
+                items={informe.recomendaciones}
+                color={BRAND.orange}
+                tint={BRAND.orangeSoft}
+                vacio="Ninguna pregunta quedó por debajo de la efectividad de la sesión."
+              />
+            </PrintSection>
 
-            <ModuloFichas
-              titulo="Tareas"
-              intro={`Preguntas por encima de la efectividad de la sesión (${fmtPct(result.efectividadSesion)}). El grupo ya las domina: se dejan como trabajo autónomo.`}
-              items={informe.tareas}
-              color="#0D9488"
-              vacio="Ninguna pregunta quedó por encima de la efectividad de la sesión."
-            />
+            <PrintSection n={4} title="Tareas" color={BRAND.green} tint={BRAND.greenSoft}
+              note={`Por encima de ${fmtPct(result.efectividadSesion)} · trabajo autónomo`}>
+              <ModuloFichas
+                items={informe.tareas}
+                color={BRAND.green}
+                tint={BRAND.greenSoft}
+                vacio="Ninguna pregunta quedó por encima de la efectividad de la sesión."
+              />
+            </PrintSection>
           </>
         )}
 
-        <div style={{ display: 'flex', gap: 40, marginTop: 46 }}>
+        <div style={{ display: 'flex', gap: 40, marginTop: 46, pageBreakInside: 'avoid' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ borderTop: '1px solid #1a1a2e', paddingTop: 5, fontSize: 11 }}>
-              {user?.name || ''}<br /><span style={{ color: '#666' }}>Docente</span>
+            <div style={{ borderTop: `1.5px solid ${BRAND.purple}`, paddingTop: 5, fontSize: 11 }}>
+              {user?.name || ''}<br />
+              <span style={{ color: BRAND.purple, fontWeight: 700, textTransform: 'uppercase',
+                fontSize: 9.5, letterSpacing: .7 }}>Docente</span>
             </div>
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ borderTop: '1px solid #1a1a2e', paddingTop: 5, fontSize: 11 }}>
-              <br /><span style={{ color: '#666' }}>Tutor</span>
+            <div style={{ borderTop: `1.5px solid ${BRAND.purple}`, paddingTop: 5, fontSize: 11 }}>
+              <br />
+              <span style={{ color: BRAND.purple, fontWeight: 700, textTransform: 'uppercase',
+                fontSize: 9.5, letterSpacing: .7 }}>Tutor</span>
             </div>
           </div>
         </div>
+
+        <PrintDocFooter nota={record?.finalized_at
+          ? `Informe cerrado el ${new Date(record.finalized_at).toLocaleString('es-CO')}`
+          : null} />
       </div>
     </div>
   )

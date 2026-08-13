@@ -549,6 +549,18 @@ termine.
   - **Peso:** el JSON (~60 KB) va en su propio chunk por `import()` dinámico y
     está excluido del precaché (`globIgnores` en `vite.config.js`), igual que
     los chunks del avatar.
+  - **Marca CEINFES en el documento.** Logo, filete tricolor, título y fichas de
+    contexto los pone `PrintDocHeader`; cada bloque lleva su color de marca con
+    `PrintSection` (1 asistencia = Azul Pensamiento · 2 efectividad = Morado
+    Formación · 3 recomendaciones = Naranja Evolución · 4 tareas = Verde
+    Transformación) y el pie es `PrintDocFooter` — los tres en `cloneShared.jsx`,
+    reutilizables por los otros documentos del piloto.
+    - ⚠️ **Los colores del documento son hex LITERALES (`BRAND`), no variables
+      CSS.** `--purple` cambia con `data-accent` y toda la paleta cambia en modo
+      oscuro; un informe impreso no puede depender de eso. Por la misma razón el
+      logo va sin la clase `logo-img` (que lo invierte a blanco en modo oscuro).
+    - ⚠️ **`print-color-adjust: exact` en `PRINT_CSS` es obligatorio**: sin él
+      los navegadores descartan fondos y filetes y el informe sale en gris.
 - ⚠️ **Todo el cálculo vive en `src/lib/effectiveness.js`** (funciones puras, sin
   React ni Supabase). Las páginas solo capturan y pintan — **no reimplementar
   fórmulas en la UI**. `clone_effectiveness.sections` = lo capturado;

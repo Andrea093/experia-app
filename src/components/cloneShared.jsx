@@ -161,14 +161,112 @@ export const VIZ_SLOTS = [
 ]
 export const vizColor = (slot) => `var(--viz-${Math.min(8, Math.max(1, slot || 1))})`
 
+// ── Marca CEINFES en los documentos impresos ────────────────────────────────
+// ⚠️ Hex LITERALES, no variables CSS, a propósito: los documentos del piloto se
+// imprimen sobre papel blanco y no deben seguir ni el modo oscuro ni el acento
+// alternativo que el usuario tenga activo (`--purple` cambia con
+// `data-accent`). Los valores son los del brandbook — Naranja Evolución, Morado
+// Formación, Azul Pensamiento y Verde Transformación — y coinciden con los de
+// `:root` en styles.css.
+export const BRAND = {
+  orange: '#EC671A', orangeSoft: '#FEF0E6',
+  purple: '#5E4F9C', purpleSoft: '#F0EDF7',
+  blue:   '#3A5BA7', blueSoft:   '#EEF2FA',
+  green:  '#024B4E', greenSoft:  '#E8F1F0',
+  dark:   '#1A1A2E', gray: '#5A5A6E', line: '#E5E7EB',
+}
+
+// Cabecera de marca de un documento impreso: logo, filete tricolor, título y
+// los datos de contexto como fichas.
+// ⚠️ El logo va SIN la clase `logo-img`: esa clase lo invierte a blanco en modo
+// oscuro (styles.css) y aquí el fondo es siempre la hoja blanca.
+export const PrintDocHeader = ({ title, subtitle, meta = [] }) => (
+  <div style={{ marginBottom: 22 }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+      <img src="/logo-ceinfes.png" alt="CEINFES" style={{ height: 30, width: 'auto' }} />
+      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.3, textTransform: 'uppercase',
+        color: BRAND.purple, textAlign: 'right', lineHeight: 1.5 }}>
+        Experia<br />
+        <span style={{ color: BRAND.gray, letterSpacing: .9 }}>Formación docente en DCE</span>
+      </div>
+    </div>
+
+    {/* Filete tricolor de marca: Naranja Evolución · Morado Formación · Verde
+        Transformación, en ese orden de peso. */}
+    <div style={{ display: 'flex', height: 4, borderRadius: 2, overflow: 'hidden', marginTop: 10 }}>
+      <div style={{ flex: 6, background: BRAND.orange }} />
+      <div style={{ flex: 2, background: BRAND.purple }} />
+      <div style={{ flex: 1, background: BRAND.green }} />
+    </div>
+
+    <h1 style={{ fontSize: 19, fontWeight: 900, letterSpacing: .3, color: BRAND.dark,
+      margin: '16px 0 3px', textAlign: 'center' }}>{title}</h1>
+    {subtitle && (
+      <div style={{ fontSize: 12.5, color: BRAND.gray, textAlign: 'center' }}>{subtitle}</div>
+    )}
+
+    {meta.length > 0 && (
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', marginTop: 10 }}>
+        {meta.filter(m => m?.value).map((m, i) => (
+          <span key={i} style={{ fontSize: 10.5, padding: '3px 9px', borderRadius: 20,
+            background: BRAND.orangeSoft, color: BRAND.dark, border: `1px solid ${BRAND.orange}33` }}>
+            <span style={{ color: BRAND.orange, fontWeight: 800, textTransform: 'uppercase',
+              letterSpacing: .5, fontSize: 9 }}>{m.label}</span>{' '}{m.value}
+          </span>
+        ))}
+      </div>
+    )}
+  </div>
+)
+
+// Título de bloque numerado, con el color de marca de ese bloque.
+export const PrintSection = ({ n, title, color, tint, note, children }) => (
+  <div style={{ marginBottom: 26 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
+      background: tint, borderLeft: `4px solid ${color}`, padding: '7px 11px',
+      borderRadius: '0 8px 8px 0', pageBreakAfter: 'avoid' }}>
+      <span style={{ width: 17, height: 17, borderRadius: '50%', background: color, color: '#fff',
+        fontSize: 10, fontWeight: 900, display: 'inline-flex', alignItems: 'center',
+        justifyContent: 'center', flexShrink: 0 }}>{n}</span>
+      <span style={{ fontSize: 12.5, fontWeight: 900, textTransform: 'uppercase',
+        letterSpacing: .8, color }}>{title}</span>
+      {note && (
+        <span style={{ marginLeft: 'auto', fontSize: 10, color: BRAND.gray, textAlign: 'right' }}>{note}</span>
+      )}
+    </div>
+    {children}
+  </div>
+)
+
+// Pie de marca del documento.
+export const PrintDocFooter = ({ nota }) => (
+  <div style={{ marginTop: 26, borderTop: `2px solid ${BRAND.orange}`, paddingTop: 8,
+    display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+    <img src="/logo-ceinfes.png" alt="CEINFES" style={{ height: 18, width: 'auto', opacity: .9 }} />
+    <span style={{ fontSize: 8.5, color: BRAND.gray, textAlign: 'right', lineHeight: 1.5 }}>
+      Experia by CEINFES · Formación docente en Diseño Centrado en Experiencias
+      {nota && <><br />{nota}</>}
+    </span>
+  </div>
+)
+
 // CSS de impresión compartido: en el piloto solo debe salir el documento.
+// ⚠️ `print-color-adjust: exact` es obligatorio: sin él los navegadores quitan
+// los fondos y los filetes de color y el documento sale en blanco y negro.
 export const PRINT_CSS = `
   @media print {
     body * { visibility: hidden !important; }
     #clone-print, #clone-print * { visibility: visible !important; }
-    #clone-print { position: absolute; left: 0; top: 0; width: 100%; padding: 0 24px; }
+    #clone-print {
+      position: absolute; left: 0; top: 0; width: 100%; padding: 0 24px;
+      -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+    }
+    #clone-print * {
+      -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+    }
     .no-print { display: none !important; }
     #clone-print table { page-break-inside: auto; }
     #clone-print tr { page-break-inside: avoid; page-break-after: auto; }
+    #clone-print thead { display: table-header-group; }
   }
 `
