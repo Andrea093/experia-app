@@ -539,7 +539,11 @@ termine.
     libro se versiona en `scripts/data/`). El cruce es por
     **unidad + momento + número de pregunta**, y la lógica pura vive en
     `src/lib/tareasRecomendaciones.js`. Cada ficha imprime, además del texto,
-    su **componente**, su eje articulador, su categoría y su dificultad.
+    su **componente**, su categoría y su dificultad. El **eje articulador de la
+    rejilla se quitó del informe** (agosto 2026) por pedido del piloto: sigue
+    en los datos (`it.eje`), solo no se pinta. No confundirlo con los *ejes
+    articuladores de la unidad*, que vienen del plan del tutor y sí salen en el
+    recuadro de la unidad.
     ⚠️ Los textos largos y repetidos (recomendación, eje, componente) van
     **deduplicados** en el JSON: las filas apuntan por índice a los arrays
     `recomendaciones` / `ejes` / `componentes`. Al agregar una columna de ese

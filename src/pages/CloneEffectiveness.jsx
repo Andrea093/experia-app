@@ -91,14 +91,11 @@ const ModuloFichas = ({ items, color, tint, vacio }) => (
         </div>
       )}
 
-      {(it.componente || it.eje) && (
+      {/* Solo el componente: el eje articulador de la rejilla se quitó del
+          informe (sigue disponible en `it.eje` si hiciera falta volver). */}
+      {it.componente && (
         <div style={{ fontSize: 11, color: BRAND.gray, marginBottom: 5, lineHeight: 1.45 }}>
-          {it.componente && (
-            <div><strong style={{ color: BRAND.purple }}>Componente:</strong> {it.componente}</div>
-          )}
-          {it.eje && (
-            <div><strong style={{ color: BRAND.purple }}>Eje articulador:</strong> {it.eje}</div>
-          )}
+          <strong style={{ color: BRAND.purple }}>Componente:</strong> {it.componente}
         </div>
       )}
 
@@ -370,9 +367,9 @@ const CloneEffectivenessPage = () => {
 
     const fichasAoa = (items, col) => [
       ['Momento', 'Pregunta', 'P.E.P.', 'Aciertos', 'Total', 'VALOR',
-        'Componente', 'Eje articulador', 'Categoría', 'Dificultad', col],
+        'Componente', 'Categoría', 'Dificultad', col],
       ...items.map(it => [it.momentoLabel, it.n, Number(it.pep.toFixed(2)),
-        it.aciertos, it.total, it.valor, it.componente, it.eje, it.categoria,
+        it.aciertos, it.total, it.valor, it.componente, it.categoria,
         it.dificultad, it.texto]),
     ]
     XLSX.utils.book_append_sheet(wb,
