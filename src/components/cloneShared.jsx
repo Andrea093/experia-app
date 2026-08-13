@@ -176,14 +176,32 @@ export const BRAND = {
   dark:   '#1A1A2E', gray: '#5A5A6E', line: '#E5E7EB',
 }
 
+// Logo CEINFES para los documentos impresos.
+// ⚠️ `logo-ceinfes.png` es un lienzo CUADRADO (4500×4500) donde el wordmark
+// ocupa apenas ~15 % del alto y va centrado; el resto es transparente. Darle un
+// `height` lo deja diminuto —el error obvio— así que se dimensiona por ANCHO,
+// como en el resto de la app, y se recorta el vacío con un contenedor de alto
+// `w * CROP` y overflow hidden. Sin ese recorte el logo se lleva 190 px de
+// altura en blanco.
+// ⚠️ Va SIN la clase `logo-img`: esa clase lo invierte a blanco en modo oscuro
+// (styles.css) y aquí el fondo es siempre la hoja blanca.
+const LOGO_CROP = 0.22
+
+export const BrandLogo = ({ w = 190 }) => (
+  <div style={{ width: w, height: Math.round(w * LOGO_CROP), position: 'relative',
+    overflow: 'hidden', flexShrink: 0 }}>
+    <img src="/logo-ceinfes.png" alt="CEINFES"
+      style={{ width: w, height: 'auto', position: 'absolute', left: 0, top: '50%',
+        transform: 'translateY(-50%)' }} />
+  </div>
+)
+
 // Cabecera de marca de un documento impreso: logo, filete tricolor, título y
 // los datos de contexto como fichas.
-// ⚠️ El logo va SIN la clase `logo-img`: esa clase lo invierte a blanco en modo
-// oscuro (styles.css) y aquí el fondo es siempre la hoja blanca.
 export const PrintDocHeader = ({ title, subtitle, meta = [] }) => (
   <div style={{ marginBottom: 22 }}>
     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
-      <img src="/logo-ceinfes.png" alt="CEINFES" style={{ height: 30, width: 'auto' }} />
+      <BrandLogo w={190} />
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1.3, textTransform: 'uppercase',
         color: BRAND.purple, textAlign: 'right', lineHeight: 1.5 }}>
         Experia<br />
@@ -242,7 +260,7 @@ export const PrintSection = ({ n, title, color, tint, note, children }) => (
 export const PrintDocFooter = ({ nota }) => (
   <div style={{ marginTop: 26, borderTop: `2px solid ${BRAND.orange}`, paddingTop: 8,
     display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
-    <img src="/logo-ceinfes.png" alt="CEINFES" style={{ height: 18, width: 'auto', opacity: .9 }} />
+    <BrandLogo w={110} />
     <span style={{ fontSize: 8.5, color: BRAND.gray, textAlign: 'right', lineHeight: 1.5 }}>
       Experia by CEINFES · Formación docente en Diseño Centrado en Experiencias
       {nota && <><br />{nota}</>}

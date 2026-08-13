@@ -91,9 +91,14 @@ const ModuloFichas = ({ items, color, tint, vacio }) => (
         </div>
       )}
 
-      {it.eje && (
+      {(it.componente || it.eje) && (
         <div style={{ fontSize: 11, color: BRAND.gray, marginBottom: 5, lineHeight: 1.45 }}>
-          <strong style={{ color: BRAND.purple }}>Eje articulador:</strong> {it.eje}
+          {it.componente && (
+            <div><strong style={{ color: BRAND.purple }}>Componente:</strong> {it.componente}</div>
+          )}
+          {it.eje && (
+            <div><strong style={{ color: BRAND.purple }}>Eje articulador:</strong> {it.eje}</div>
+          )}
         </div>
       )}
 
@@ -365,14 +370,17 @@ const CloneEffectivenessPage = () => {
 
     const fichasAoa = (items, col) => [
       ['Momento', 'Pregunta', 'P.E.P.', 'Aciertos', 'Total', 'VALOR',
-        'Eje articulador', 'Categoría', 'Dificultad', col],
+        'Componente', 'Eje articulador', 'Categoría', 'Dificultad', col],
       ...items.map(it => [it.momentoLabel, it.n, Number(it.pep.toFixed(2)),
-        it.aciertos, it.total, it.valor, it.eje, it.categoria, it.dificultad, it.texto]),
+        it.aciertos, it.total, it.valor, it.componente, it.eje, it.categoria,
+        it.dificultad, it.texto]),
     ]
     XLSX.utils.book_append_sheet(wb,
       XLSX.utils.aoa_to_sheet(fichasAoa(informe.recomendaciones, 'Recomendación')), 'Recomendaciones')
+    // El nombre de hoja no admite '?', así que va sin los signos; el
+    // encabezado de la columna sí lleva el título completo.
     XLSX.utils.book_append_sheet(wb,
-      XLSX.utils.aoa_to_sheet(fichasAoa(informe.tareas, 'Tarea')), 'Tareas')
+      XLSX.utils.aoa_to_sheet(fichasAoa(informe.tareas, '¿Qué evalúa?')), 'Qué evalúa')
 
     XLSX.writeFile(wb, `informe_final_${group?.name || 'grupo'}_${sessionDate}.xlsx`)
   }
@@ -935,8 +943,10 @@ const CloneEffectivenessPage = () => {
               />
             </PrintSection>
 
-            <PrintSection n={4} title="Tareas" color={BRAND.green} tint={BRAND.greenSoft}
-              note={`Por encima de ${fmtPct(result.efectividadSesion)} · trabajo autónomo`}>
+            {/* El módulo se titula "¿Qué evalúa?" en el documento; en el código
+                y en la rejilla la columna sigue llamándose `tarea`. */}
+            <PrintSection n={4} title="¿Qué evalúa?" color={BRAND.green} tint={BRAND.greenSoft}
+              note={`Por encima de ${fmtPct(result.efectividadSesion)} · lo que el grupo ya domina`}>
               <ModuloFichas
                 items={informe.tareas}
                 color={BRAND.green}

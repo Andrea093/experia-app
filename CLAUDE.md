@@ -527,6 +527,9 @@ termine.
     reciente, que podía ser de otro día).
   - **Recomendaciones = preguntas por DEBAJO de la efectividad de la sesión;
     tareas = las que quedaron por encima** (un empate exacto cuenta como tarea).
+    El segundo módulo se titula **"¿Qué evalúa?"** en el documento y en el xlsx
+    (la hoja va como `Qué evalúa`: Excel no admite `?` en el nombre); en el
+    código y en la rejilla la columna sigue siendo `tarea` / `t`.
     ⚠️ El umbral es la efectividad de la **sesión**, no la del momento: las dos
     listas tienen que medirse con la misma vara. Las preguntas con
     `aplicada:false` no entran en ninguna de las dos.
@@ -535,7 +538,13 @@ termine.
     recomendaciones* con `node scripts/build-rejilla.mjs` (la copia fuente del
     libro se versiona en `scripts/data/`). El cruce es por
     **unidad + momento + número de pregunta**, y la lógica pura vive en
-    `src/lib/tareasRecomendaciones.js`.
+    `src/lib/tareasRecomendaciones.js`. Cada ficha imprime, además del texto,
+    su **componente**, su eje articulador, su categoría y su dificultad.
+    ⚠️ Los textos largos y repetidos (recomendación, eje, componente) van
+    **deduplicados** en el JSON: las filas apuntan por índice a los arrays
+    `recomendaciones` / `ejes` / `componentes`. Al agregar una columna de ese
+    tipo, seguir el mismo patrón. Un `0` suelto en una celda de la rejilla es
+    una casilla sin diligenciar, no un valor: el script lo guarda vacío.
   - ⚠️ **La unidad se cruza por NÚMERO, no por texto**: el título del plan es
     libre ("Unidad 3. Estequiometría") y nunca coincide letra a letra con el de
     la rejilla ("UNIDAD 3"). Si el tutor no numeró el título, se cae a la

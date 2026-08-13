@@ -9,11 +9,11 @@
 //
 // Columnas esperadas (la primera hoja del libro):
 //   Unidad | Sesión | # Nro Pregunta | Código Materia | EJE ARTICULADOR |
-//   Categoría de Tarea | Dificultad | Recomendación | Tarea
+//   Categoría de Tarea | Dificultad | Componente | Recomendación | Tarea
 //
 // El JSON sale DEDUPLICADO: los textos de recomendación se repiten mucho entre
 // preguntas (77 distintos para 166 filas), así que se guardan una sola vez y las
-// filas apuntan por índice. Igual con los ejes articuladores.
+// filas apuntan por índice. Igual con los ejes articuladores y los componentes.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -48,6 +48,7 @@ const wb   = XLSX.readFile(src)
 const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' })
 
 const ejes = []
+const comps = []
 const recs = []
 const idx  = (arr, value) => {
   if (!value) return -1
@@ -68,13 +69,16 @@ rows.forEach((r, i) => {
     descartadas.push(i + 2)
     return
   }
+  // Un 0 suelto en Dificultad o Componente es una celda sin diligenciar, no un
+  // valor: se guarda vacío para que el informe no imprima "0".
+  const cero = (v) => (txt(v) === '0' ? '' : txt(v))
+
   filas.push({
     u, s, n,
     e: idx(ejes, txt(r['EJE ARTICULADOR'])),
+    m: idx(comps, cero(r['Componente'])),
     c: txt(r['Categoría de Tarea']),
-    // Un 0 suelto en la columna Dificultad es una celda sin diligenciar, no un
-    // nivel: se guarda vacío para que el informe no imprima "0".
-    d: txt(r['Dificultad']) === '0' ? '' : txt(r['Dificultad']).toUpperCase(),
+    d: cero(r['Dificultad']).toUpperCase(),
     r: idx(recs, rec),
     t: tar,
   })
@@ -85,6 +89,7 @@ const data = {
   _generado: new Date().toISOString().slice(0, 10),
   materia: txt(rows[0]?.['Código Materia']),
   ejes,
+  componentes: comps,
   recomendaciones: recs,
   filas,
 }
@@ -94,6 +99,6 @@ fs.writeFileSync(out, JSON.stringify(data, null, 0) + '\n', 'utf8')
 const porUnidad = {}
 filas.forEach(f => { porUnidad[`U${f.u} ${f.s}`] = (porUnidad[`U${f.u} ${f.s}`] || 0) + 1 })
 console.log(`✔ ${filas.length} filas → ${path.relative(process.cwd(), out)}`)
-console.log(`  ${ejes.length} ejes · ${recs.length} recomendaciones distintas · ${(fs.statSync(out).size / 1024).toFixed(1)} KB`)
+console.log(`  ${ejes.length} ejes · ${comps.length} componentes · ${recs.length} recomendaciones distintas · ${(fs.statSync(out).size / 1024).toFixed(1)} KB`)
 console.log('  ' + Object.entries(porUnidad).map(([k, v]) => `${k}:${v}`).join(' '))
 if (descartadas.length) console.warn(`⚠ filas descartadas (sin unidad/sesión/pregunta): ${descartadas.join(', ')}`)

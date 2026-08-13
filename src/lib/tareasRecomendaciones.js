@@ -52,6 +52,7 @@ function indexar(rejilla, unidad) {
     if (f.u !== unidad) return
     map.set(`${f.s}|${f.n}`, {
       eje: rejilla.ejes?.[f.e] || '',
+      componente: rejilla.componentes?.[f.m] || '',
       categoria: f.c || '',
       dificultad: f.d || '',
       recomendacion: rejilla.recomendaciones?.[f.r] || '',
@@ -94,6 +95,7 @@ export function buildRecomendacionesYTareas(rejilla, result, unidad) {
         aciertos: st.aciertos,
         total: sec.total,
         eje: ficha?.eje || '',
+        componente: ficha?.componente || '',
         categoria: ficha?.categoria || '',
         dificultad: ficha?.dificultad || '',
         texto: '',
