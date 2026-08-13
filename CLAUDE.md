@@ -513,6 +513,42 @@ termine.
     recargar el plan — un índice apuntaría a otra unidad tras un reordenamiento, y
     releer los datos al imprimir haría que un informe cerrado mostrara unos ejes
     distintos de los que se trabajaron. Mismo criterio que `entries` en las actas.
+- **Informe final descargable (ago 2026).** Lo que imprime `CloneEffectiveness`
+  (`#clone-print`, botón "🖨️ Descargar informe final") ya no es solo la tabla:
+  es un documento de cuatro bloques — **asistencia · tabla de efectividad ·
+  recomendaciones · tareas**. El xlsx (`⬇ Exportar Excel`) lleva lo mismo en
+  hojas aparte. No hay tabla nueva en la BD ni migración: el informe se arma en
+  el navegador con lo que ya está guardado.
+  - **Asistencia:** se trae del acta de `clone_attendance`, no se vuelve a
+    capturar. Se resuelve en este orden: la vinculada (`attendance_id`) → la del
+    mismo `session_date` → la más reciente. El informe siempre imprime **la
+    fecha del acta**, para que no se confunda con la de la sesión. ⚠️ Al guardar,
+    `attendance_id` se vincula a **esa misma** acta (antes era siempre la más
+    reciente, que podía ser de otro día).
+  - **Recomendaciones = preguntas por DEBAJO de la efectividad de la sesión;
+    tareas = las que quedaron por encima** (un empate exacto cuenta como tarea).
+    ⚠️ El umbral es la efectividad de la **sesión**, no la del momento: las dos
+    listas tienen que medirse con la misma vara. Las preguntas con
+    `aplicada:false` no entran en ninguna de las dos.
+  - **El texto de cada ficha sale de la rejilla académica**
+    (`src/lib/rejillaTareas.json`), generada del Excel *Tareas y
+    recomendaciones* con `node scripts/build-rejilla.mjs` (la copia fuente del
+    libro se versiona en `scripts/data/`). El cruce es por
+    **unidad + momento + número de pregunta**, y la lógica pura vive en
+    `src/lib/tareasRecomendaciones.js`.
+  - ⚠️ **La unidad se cruza por NÚMERO, no por texto**: el título del plan es
+    libre ("Unidad 3. Estequiometría") y nunca coincide letra a letra con el de
+    la rejilla ("UNIDAD 3"). Si el tutor no numeró el título, se cae a la
+    **posición** de la unidad en el plan. Sin unidad elegida el informe se
+    imprime igual, con las preguntas clasificadas y un aviso de que faltan los
+    textos — el docente nunca queda bloqueado.
+  - La rejilla trae también el momento **`aplico`**, que hoy no existe en la
+    tabla de efectividad (solo hay dos momentos): queda en los datos por si el
+    piloto lo agrega. Una pregunta que la rejilla no tiene (el docente agregó
+    una 16 donde el libro llega a 15) **sí se lista**, con la ficha vacía.
+  - **Peso:** el JSON (~60 KB) va en su propio chunk por `import()` dinámico y
+    está excluido del precaché (`globIgnores` en `vite.config.js`), igual que
+    los chunks del avatar.
 - ⚠️ **Todo el cálculo vive en `src/lib/effectiveness.js`** (funciones puras, sin
   React ni Supabase). Las páginas solo capturan y pintan — **no reimplementar
   fórmulas en la UI**. `clone_effectiveness.sections` = lo capturado;
@@ -605,6 +641,8 @@ src/
 ├── store/store.jsx          # Reactive store + modules
 ├── lib/
 │   ├── effectiveness.js     # Motor PURO de la Tabla de Efectividad (P.E.P., VALOR, efectividad de sesión)
+│   ├── tareasRecomendaciones.js # PURO: reparte las preguntas en recomendaciones (bajo el umbral) y tareas (sobre él)
+│   ├── rejillaTareas.json   # Rejilla académica GENERADA (scripts/build-rejilla.mjs) — no editar a mano
 │   ├── avatarKit.jsx        # Avatar del estudiante: catálogos DiceBear + <Avatar/> (retrato) + RANKS
 │   ├── avatarBody.jsx       # Cuerpo entero + armadura por rango (arte propio)
 │   ├── supabaseClient.js    # Supabase init

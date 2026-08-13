@@ -12,7 +12,7 @@ export default [
   { ignores: ['dist/**', 'node_modules/**', 'supabase/**', 'dev-dist/**'] },
   js.configs.recommended,
   {
-    files: ['src/**/*.{js,jsx}', 'scripts/**/*.js', 'vite.config.js'],
+    files: ['src/**/*.{js,jsx}', 'scripts/**/*.{js,mjs}', 'vite.config.js'],
     plugins: { react, 'react-hooks': reactHooks },
     languageOptions: {
       ecmaVersion: 2023,

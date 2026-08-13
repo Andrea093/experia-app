@@ -12,6 +12,9 @@ import {
   LETTERS, SECTIONS, emptyQuestion, emptySection, sectionStats, sessionEffectiveness,
   buildSummary, normalizeSections, fmtPct, colorEfectividad,
 } from '../lib/effectiveness.js'
+import {
+  loadRejilla, unidadDe, buildRecomendacionesYTareas,
+} from '../lib/tareasRecomendaciones.js'
 
 // ── Tabla de efectividad — MODO CLON (piloto temporal, 0051) ────────────────
 // El docente registra, por cada momento de la clase ("Exploro mis competencias"
@@ -56,6 +59,62 @@ const SectionSummary = ({ label, st }) => (
   </div>
 )
 
+// ── Un módulo del informe final (recomendaciones o tareas) ─────────────────
+// Las dos listas se pintan igual y salen impresas: cambian el título, el color
+// del filo y de dónde salió el texto (rejilla académica, `tareasRecomendaciones`).
+const ModuloFichas = ({ titulo, intro, items, color, vacio }) => (
+  <div style={{ marginBottom: 26 }}>
+    <div style={{ borderLeft: `4px solid ${color}`, paddingLeft: 10, marginBottom: 10 }}>
+      <h2 style={{ fontSize: 14, fontWeight: 900, margin: 0, textTransform: 'uppercase', letterSpacing: .6 }}>
+        {titulo}
+      </h2>
+      <p style={{ fontSize: 11, color: '#666', margin: '3px 0 0', lineHeight: 1.5 }}>{intro}</p>
+    </div>
+
+    {items.length === 0 ? (
+      <p style={{ fontSize: 11.5, color: '#888', fontStyle: 'italic', margin: 0 }}>{vacio}</p>
+    ) : items.map((it, i) => (
+      <div key={i} style={{ border: '1px solid #ddd', borderRadius: 8, padding: '10px 12px',
+        marginBottom: 8, pageBreakInside: 'avoid' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 4 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 900 }}>
+            {it.momentoLabel} · Pregunta {it.n}
+          </span>
+          <span style={{ fontSize: 11.5, fontWeight: 800, color }}>
+            P.E.P. {it.pep.toFixed(1)}%
+          </span>
+          <span style={{ fontSize: 10.5, color: '#666' }}>
+            {it.aciertos} de {it.total} acertaron · VALOR {it.valor}
+          </span>
+        </div>
+
+        {(it.categoria || it.dificultad) && (
+          <div style={{ fontSize: 10, color: '#666', marginBottom: 4 }}>
+            {[it.categoria && `Categoría: ${it.categoria}`,
+              it.dificultad && `Dificultad: ${it.dificultad}`].filter(Boolean).join(' · ')}
+          </div>
+        )}
+
+        {it.eje && (
+          <div style={{ fontSize: 11, color: '#444', marginBottom: 5, lineHeight: 1.45 }}>
+            <strong>Eje articulador:</strong> {it.eje}
+          </div>
+        )}
+
+        {it.texto ? (
+          <p style={{ fontSize: 11.5, color: '#1a1a2e', margin: 0, lineHeight: 1.6 }}>{it.texto}</p>
+        ) : (
+          // La rejilla no cubre esta pregunta (p. ej. el docente agregó una más
+          // de las que trae el libro). Se lista igual: hace parte del desempeño.
+          <p style={{ fontSize: 11, color: '#888', margin: 0, fontStyle: 'italic' }}>
+            La rejilla del libro no tiene texto para esta pregunta de la unidad.
+          </p>
+        )}
+      </div>
+    ))}
+  </div>
+)
+
 const CloneEffectivenessPage = () => {
   const user     = useStore(s => s.user)
   const isMobile = useMobile()
@@ -79,6 +138,18 @@ const CloneEffectivenessPage = () => {
   const [saving, setSaving]   = React.useState('')
   const [msg, setMsg]         = React.useState('')
   const fileRef = React.useRef(null)
+
+  // Rejilla académica del informe final (recomendaciones y tareas por pregunta).
+  // Va aparte del bundle (~60 KB) y su ausencia no rompe nada: sin ella el
+  // informe imprime la asistencia y la tabla, y avisa que faltan los textos.
+  const [rejilla, setRejilla] = React.useState(null)
+  React.useEffect(() => {
+    let alive = true
+    loadRejilla()
+      .then(r => { if (alive) setRejilla(r) })
+      .catch(e => console.error('loadRejilla:', e))
+    return () => { alive = false }
+  }, [])
 
   React.useEffect(() => {
     let alive = true
@@ -124,6 +195,19 @@ const CloneEffectivenessPage = () => {
   const result = React.useMemo(() => sessionEffectiveness(sections), [sections])
   const current = React.useMemo(() => sectionStats(sections[tab]), [sections, tab])
 
+  // ── Informe final: recomendaciones y tareas ──────────────────────────────
+  // El cruce con la rejilla del libro va por NÚMERO de unidad. Si el tutor no
+  // numeró el título, se usa la posición de la unidad en su plan (§13: el orden
+  // del array ES el orden de trabajo).
+  const unidad = React.useMemo(() => {
+    const i = planUnits.findIndex(u => u.title === unitLabel)
+    return unidadDe(unitLabel, i >= 0 ? i + 1 : null)
+  }, [unitLabel, planUnits])
+
+  const informe = React.useMemo(
+    () => buildRecomendacionesYTareas(rejilla, result, unidad),
+    [rejilla, result, unidad])
+
   // ── Edición ──────────────────────────────────────────────────────────────
   const patchSection = (key, patch) =>
     setSections(s => ({ ...s, [key]: { ...s[key], ...patch } }))
@@ -158,6 +242,20 @@ const CloneEffectivenessPage = () => {
   const ultimaActa = actas[0] || null
   const presentesUltimaActa = (ultimaActa?.entries || []).filter(e => e.present).length
   const usarAsistencia = (key) => setTotal(key, presentesUltimaActa)
+
+  // Acta de asistencia que acompaña al informe. Manda la que quedó vinculada al
+  // guardar (`attendance_id`); si no hay, la del mismo día; y como último
+  // recurso la más reciente — el informe siempre imprime la fecha del acta, así
+  // que nunca se confunde con la de la sesión.
+  const acta = React.useMemo(() => {
+    if (!actas.length) return null
+    return actas.find(a => a.id === record?.attendance_id)
+        || actas.find(a => a.session_date === sessionDate)
+        || ultimaActa
+  }, [actas, record, sessionDate, ultimaActa])
+
+  const actaEntries  = acta?.entries || []
+  const actaPresentes = actaEntries.filter(e => e.present).length
 
   // ── Importar / plantilla ─────────────────────────────────────────────────
   // Columnas: Momento | Pregunta | Correcta | A | B | C | D | Total estudiantes | Aplicada
@@ -254,7 +352,34 @@ const CloneEffectivenessPage = () => {
       result.efectividadSesion == null ? '' : Number(result.efectividadSesion.toFixed(2)), '', ''])
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Efectividad')
-    XLSX.writeFile(wb, `efectividad_${group?.name || 'grupo'}_${sessionDate}.xlsx`)
+
+    // Asistencia y los dos módulos del informe final, cada uno en su hoja: el
+    // Excel queda con lo mismo que el PDF.
+    if (acta) {
+      const asis = [
+        ['Acta de asistencia', acta.session_date],
+        ['Tema', acta.topic || ''], ['Lugar', acta.place || ''],
+        ['Asistieron', actaPresentes], ['En el listado', actaEntries.length],
+        [],
+        ['#', 'Alumno', 'Documento', 'Asistió', 'Observación'],
+        ...actaEntries.map((e, i) => [i + 1, e.name, e.document || '',
+          e.present ? 'Sí' : 'No', e.comment || '']),
+      ]
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(asis), 'Asistencia')
+    }
+
+    const fichasAoa = (items, col) => [
+      ['Momento', 'Pregunta', 'P.E.P.', 'Aciertos', 'Total', 'VALOR',
+        'Eje articulador', 'Categoría', 'Dificultad', col],
+      ...items.map(it => [it.momentoLabel, it.n, Number(it.pep.toFixed(2)),
+        it.aciertos, it.total, it.valor, it.eje, it.categoria, it.dificultad, it.texto]),
+    ]
+    XLSX.utils.book_append_sheet(wb,
+      XLSX.utils.aoa_to_sheet(fichasAoa(informe.recomendaciones, 'Recomendación')), 'Recomendaciones')
+    XLSX.utils.book_append_sheet(wb,
+      XLSX.utils.aoa_to_sheet(fichasAoa(informe.tareas, 'Tarea')), 'Tareas')
+
+    XLSX.writeFile(wb, `informe_final_${group?.name || 'grupo'}_${sessionDate}.xlsx`)
   }
 
   // ── Guardar ──────────────────────────────────────────────────────────────
@@ -273,7 +398,8 @@ const CloneEffectivenessPage = () => {
     setSaving(finalize ? 'final' : 'draft'); setMsg('')
     const { record: saved, error } = await saveCloneEffectiveness({
       id: record?.id, groupId, sessionDate, title, unitLabel, unit: unitData,
-      attendanceId: ultimaActa?.id || null,
+      // La misma acta que sale en el informe (prioriza la del día de la sesión).
+      attendanceId: acta?.id || null,
       sections,
       summary: buildSummary(sections),
     }, finalize)
@@ -322,8 +448,8 @@ const CloneEffectivenessPage = () => {
         <GroupPicker groups={groups} groupId={groupId} setGroupId={setGroupId} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {record && <Btn variant="secondary" size="sm" onClick={abrirNueva}>+ Nueva</Btn>}
-          <Btn variant="ghost" size="sm" onClick={exportar}>⬇ Exportar</Btn>
-          <Btn variant="gradient" size="sm" onClick={() => window.print()}>🖨️ Informe / PDF</Btn>
+          <Btn variant="ghost" size="sm" onClick={exportar}>⬇ Exportar Excel</Btn>
+          <Btn variant="gradient" size="sm" onClick={() => window.print()}>🖨️ Descargar informe final</Btn>
         </div>
       </CloneHead>
 
@@ -582,10 +708,13 @@ const CloneEffectivenessPage = () => {
         </div>
       )}
 
-      {/* ── El informe: lo único que sale impreso ── */}
+      {/* ── El informe final: lo único que sale impreso ── */}
+      {/* Cuatro bloques, en este orden: asistencia · tabla de efectividad ·
+          recomendaciones · tareas. Los dos últimos salen de cruzar cada
+          pregunta con la rejilla del libro (lib/tareasRecomendaciones.js). */}
       <div id="clone-print" style={{ ...card, background: '#fff', color: '#1a1a2e', padding: isMobile ? 20 : 40 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h1 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 4px' }}>TABLA DE EFECTIVIDAD</h1>
+          <h1 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 4px' }}>INFORME FINAL DE LA SESIÓN</h1>
           <div style={{ fontSize: 13, color: '#444' }}>
             {group?.name}{group?.grade ? ` · ${group.grade}` : ''}{title ? ` · ${title}` : ''}
           </div>
@@ -625,6 +754,73 @@ const CloneEffectivenessPage = () => {
           </div>
         )}
 
+        {/* ── 1. Asistencia ── */}
+        {/* Sale del acta que el docente ya diligenció en "Marcar asistencia":
+            el informe no la vuelve a capturar, solo la trae. */}
+        <div style={{ marginBottom: 26 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1,
+            color: '#666', marginBottom: 8 }}>Asistencia</div>
+
+          {!acta ? (
+            <p style={{ fontSize: 11.5, color: '#888', fontStyle: 'italic', margin: 0 }}>
+              Este grupo todavía no tiene un acta de asistencia registrada.
+            </p>
+          ) : (
+            <>
+              <table style={{ width: '100%', fontSize: 12, marginBottom: 12, borderCollapse: 'collapse' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ padding: '4px 0', width: 110, color: '#666' }}>Fecha del acta</td>
+                    <td style={{ padding: '4px 0', fontWeight: 600 }}>{fmtFecha(acta.session_date)}</td>
+                    <td style={{ padding: '4px 0', width: 90, color: '#666' }}>Lugar</td>
+                    <td style={{ padding: '4px 0', fontWeight: 600 }}>{acta.place || '—'}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '4px 0', color: '#666' }}>Asistencia</td>
+                    <td style={{ padding: '4px 0', fontWeight: 600 }}>
+                      {actaPresentes} de {actaEntries.length}
+                      {actaEntries.length > 0 &&
+                        ` (${((actaPresentes * 100) / actaEntries.length).toFixed(1)}%)`}
+                    </td>
+                    <td style={{ padding: '4px 0', color: '#666' }}>Tema</td>
+                    <td style={{ padding: '4px 0', fontWeight: 600 }}>{acta.topic || '—'}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <table style={{ width: '100%', fontSize: 11.5, borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #1a1a2e' }}>
+                    <th style={{ textAlign: 'left', padding: '5px 4px', width: 26 }}>#</th>
+                    <th style={{ textAlign: 'left', padding: '5px 4px' }}>Alumno</th>
+                    <th style={{ textAlign: 'left', padding: '5px 4px', width: 100 }}>Documento</th>
+                    <th style={{ textAlign: 'center', padding: '5px 4px', width: 60 }}>Asistió</th>
+                    <th style={{ textAlign: 'left', padding: '5px 4px' }}>Observación</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {actaEntries.map((e, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #e5e5e5' }}>
+                      <td style={{ padding: '4px', color: '#888' }}>{i + 1}</td>
+                      <td style={{ padding: '4px' }}>{e.name}</td>
+                      <td style={{ padding: '4px', color: '#555' }}>{e.document || '—'}</td>
+                      <td style={{ padding: '4px', textAlign: 'center', fontWeight: 700 }}>{e.present ? 'Sí' : 'No'}</td>
+                      <td style={{ padding: '4px', color: '#555' }}>{e.comment || ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {acta.notes && (
+                <p style={{ fontSize: 11.5, color: '#555', lineHeight: 1.6, marginTop: 8, whiteSpace: 'pre-wrap' }}>
+                  <strong>Observaciones generales:</strong> {acta.notes}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* ── 2. Tabla de efectividad ── */}
         <div style={{ display: 'flex', gap: 16, marginBottom: 24, textAlign: 'center' }}>
           {SECTIONS.map(({ key, label }) => (
             <div key={key} style={{ flex: 1, border: '1px solid #ddd', borderRadius: 8, padding: '10px 8px' }}>
@@ -698,6 +894,42 @@ const CloneEffectivenessPage = () => {
             )}
           </div>
         ))}
+
+        {/* ── 3 y 4. Recomendaciones y tareas ── */}
+        {/* El umbral de las dos listas es la efectividad de la SESIÓN. Sin ella
+            (ningún momento aplicado) no hay con qué comparar. */}
+        {result.efectividadSesion == null ? (
+          <p style={{ fontSize: 11.5, color: '#888', fontStyle: 'italic' }}>
+            Registra al menos un momento de la sesión para generar las recomendaciones y las tareas.
+          </p>
+        ) : (
+          <>
+            {!informe.hayRejilla && (
+              <p style={{ fontSize: 11, color: '#B45309', lineHeight: 1.55, marginBottom: 14 }}>
+                ⚠️ {unidad
+                  ? `La rejilla del libro no tiene preguntas cargadas para la unidad ${unidad}.`
+                  : 'Elige la unidad del libro trabajada para que el informe traiga los textos de recomendaciones y tareas.'}
+                {' '}Las preguntas se listan igual, clasificadas por su desempeño.
+              </p>
+            )}
+
+            <ModuloFichas
+              titulo="Recomendaciones"
+              intro={`Preguntas por debajo de la efectividad de la sesión (${fmtPct(result.efectividadSesion)}). Refuerza estos aprendizajes antes de avanzar.`}
+              items={informe.recomendaciones}
+              color="#B91C1C"
+              vacio="Ninguna pregunta quedó por debajo de la efectividad de la sesión."
+            />
+
+            <ModuloFichas
+              titulo="Tareas"
+              intro={`Preguntas por encima de la efectividad de la sesión (${fmtPct(result.efectividadSesion)}). El grupo ya las domina: se dejan como trabajo autónomo.`}
+              items={informe.tareas}
+              color="#0D9488"
+              vacio="Ninguna pregunta quedó por encima de la efectividad de la sesión."
+            />
+          </>
+        )}
 
         <div style={{ display: 'flex', gap: 40, marginTop: 46 }}>
           <div style={{ flex: 1 }}>

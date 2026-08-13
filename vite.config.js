@@ -43,10 +43,14 @@ export default defineConfig({
         // (DiceBear + estilo Lorelei, ~320 KB) solo los necesita quien está
         // dentro de un curso temático: se descargan bajo demanda, no en el
         // precaché de todos los usuarios.
+        // La rejilla de recomendaciones y tareas (~60 KB) va por el mismo
+        // criterio: solo la baja el docente del piloto clon al abrir su tabla
+        // de efectividad.
         globIgnores: [
           '**/tutores/**',
           '**/avatarKit-*.js', '**/avatarBody-*.js',
           '**/AvatarStudio-*.js', '**/AvatarChip-*.js', '**/LiveAvatar-*.js',
+          '**/rejillaTareas-*.js',
         ],
         navigateFallback: '/index.html',
         // Excluye las llamadas a la API de Supabase del caché
