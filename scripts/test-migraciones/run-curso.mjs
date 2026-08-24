@@ -61,7 +61,7 @@ esperar('preguntas con points', cd.questions.filter(x => x.points).length, 3);
 esperar('preguntas con difficulty', cd.questions.filter(x => x.difficulty).length, 3);
 esperar('todas con 4 opciones', cd.questions.every(x => x.options.length === 4), 'true');
 esperar('índice correcto dentro de rango', cd.questions.every(x => x.correct >= 0 && x.correct < x.options.length), 'true');
-esperar('el passage tiene párrafos', cd.passage.paragraphs.length, 3);
+esperar('sin passage (las preguntas de matemáticas son autocontenidas)', cd.passage === undefined, true);
 
 // El análisis debe estar ESTRUCTURADO: negrilla + saltos de línea + los 3 bloques
 console.log('\n=== CALIDAD DEL ANÁLISIS ===');
@@ -70,12 +70,14 @@ cd.questions.forEach((x, i) => {
   const problemas = [];
   if (!/\*\*/.test(e))                       problemas.push('sin negrilla');
   if (!e.includes('\n'))                     problemas.push('sin saltos de línea');
-  if (!/Por qué cae|Por qué caen/.test(e))   problemas.push('no analiza los distractores');
+  if (!e.includes('Cómo está construida')) problemas.push('sin anatomía de la pregunta');
+  if (!e.includes('La lógica, paso a paso')) problemas.push('sin razonamiento paso a paso');
+  if (!/Por qué caen las otras/.test(e))    problemas.push('no analiza los distractores');
   if (e.length < 500)                        problemas.push(`muy corto (${e.length})`);
-  if (e.length > 1800)                       problemas.push(`demasiado largo (${e.length})`);
+  if (e.length > 2400)                       problemas.push(`demasiado largo (${e.length})`);
   // Debe nombrar las tres opciones incorrectas
   const letras = ['A','B','C','D'].filter((_, j) => j !== x.correct);
-  const faltan = letras.filter(L => !e.includes(`**${L}**`));
+  const faltan = letras.filter(L => !e.includes(`**${L} (`));
   if (faltan.length) problemas.push(`no nombra ${faltan.join('/')}`);
   problemas.length
     ? bad(`P${i + 1}: ${problemas.join(', ')}`)

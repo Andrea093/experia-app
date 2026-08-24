@@ -1,31 +1,39 @@
 -- ============================================================
 -- 0060: Curso demo "Por qué esa es la respuesta"
 --
--- Curso de Lectura Crítica cuyo centro pedagógico NO son las preguntas sino el
--- ANÁLISIS que viene después de cada una: por qué la opción correcta lo es y,
--- sobre todo, por qué cada distractor resulta tentador y dónde exactamente se
--- cae. Es el material pensado para la demo del Modo Aula en Vivo (§8), donde
--- el ciclo es pregunta → resultados → explicación → tabla de posiciones.
+-- El estudiante responde preguntas de MATEMÁTICAS y, después de cada una,
+-- recibe un análisis con tres partes fijas:
 --
--- Estructura: 3 módulos, 1 solo reto tipo `quiz` con 3 preguntas.
---   1. Lección — el método de tres pasos (corta, es la preparación)
---   2. Quiz    — texto + 3 preguntas con análisis extenso por pregunta
---   3. Lección — cómo llevar el método al aula
+--   1. CÓMO ESTÁ CONSTRUIDA LA PREGUNTA — qué evalúa de verdad, cuál es el dato
+--      ancla y cuál es ruido. Es la anatomía del ítem.
+--   2. LA LÓGICA, PASO A PASO — el razonamiento completo hasta el resultado,
+--      más una comprobación de sentido común.
+--   3. POR QUÉ CAEN LAS OTRAS — cada distractor con el error que lo produce,
+--      dicho con nombre propio.
 --
--- Las tres preguntas llevan `explanation` con la MISMA estructura fija:
--- por qué la correcta es correcta · un ejemplo del mismo recurso · por qué cae
--- cada una de las otras tres. Esa repetición es deliberada: el estudiante
--- aprende el molde de análisis, no tres análisis sueltos.
+-- Esa estructura se repite idéntica en las tres preguntas A PROPÓSITO: el
+-- estudiante no aprende tres soluciones, aprende el molde con el que se
+-- desarma cualquier pregunta de opción múltiple.
 --
--- El texto del `passage` es original, escrito para este curso — no se
--- reproduce material de terceros.
+-- Los tres distractores de cada pregunta corresponden a errores REALES y
+-- nombrables (proporcionalidad invertida, relación aditiva por multiplicativa,
+-- paso incompleto, confusión de dimensión), no a números al azar. El módulo 3
+-- los clasifica.
+--
+-- Pensado para la demo del Modo Aula en Vivo (§8): pregunta → resultados →
+-- explicación → tabla de posiciones.
 --
 -- Requiere: 0007 (courses/course_modules), 0011 (course_modules.area_id),
 -- 0012 (theme, character_line).
 --
--- ⚠️ NO usa `courses.area_id`: esa columna NO existe en el esquema (0007 no la
--- crea y ninguna migración la agrega). Los seeds 0014/0015/0016 sí la insertan
--- y por eso fallarían tal como están escritos hoy.
+-- ⚠️ `course_modules.area_id` va en NULL. `dbRowsToCourseModules` (store.jsx)
+-- filtra los módulos por el área seleccionada del estudiante: con un área
+-- distinta de la suya, se le esconden TODOS y el mapa dice "Ruta en
+-- preparación". Los seeds 0014 y 0021 usan NULL por la misma razón.
+--
+-- ⚠️ NO usa `courses.area_id`: esa columna NO existe (0007 no la crea y ninguna
+-- migración la agrega). Los seeds 0014/0015/0016 sí la insertan, y por eso
+-- fallarían tal como están escritos hoy.
 --
 -- Idempotente: reejecutar borra y reinserta los módulos del curso.
 -- ⚠️ Ejecutar MANUALMENTE en el SQL Editor de Supabase.
@@ -41,8 +49,8 @@ BEGIN
   -- ── 1. El curso ──────────────────────────────────────────────────────────
   -- `theme` queda en NULL (tema estándar) A PROPÓSITO: el seed 0021 localiza su
   -- curso con `WHERE theme='detective' LIMIT 1`, así que ponerle un tema
-  -- inmersivo a este curso lo volvería un candidato y 0021 podría escribir sus
-  -- retos aquí por error. Para la demo se puede activar después con:
+  -- inmersivo a este lo volvería candidato y 0021 podría escribir sus retos
+  -- aquí por error. Para la demo se puede activar después con:
   --   update public.courses set theme='detective' where name='Por qué esa es la respuesta';
   -- (pero entonces no reejecutar 0021).
   SELECT id INTO v_course_id FROM public.courses
@@ -52,7 +60,7 @@ BEGIN
     INSERT INTO public.courses (name, description, color, is_active, theme)
     VALUES (
       'Por qué esa es la respuesta',
-      'Lectura crítica centrada en el análisis posterior: no basta con acertar, hay que poder sustentar por qué esa opción es la correcta y por qué las otras no.',
+      'Preguntas de matemáticas con el análisis completo detrás: cómo está construida cada pregunta, con qué lógica se resuelve y qué error produce cada opción incorrecta.',
       '#5E4F9C', true, NULL
     )
     RETURNING id INTO v_course_id;
@@ -64,58 +72,65 @@ BEGIN
   DELETE FROM public.course_modules WHERE course_id = v_course_id;
 
   -- ══════════════════════════════════════════════════════════════
-  -- MÓDULO 1 (lesson) — El método
+  -- MÓDULO 1 (lesson) — Anatomía de una pregunta
   -- ══════════════════════════════════════════════════════════════
   INSERT INTO public.course_modules
     (course_id, title, subtitle, description, type, "order", xp, is_enabled,
      area_id, character_line, content)
   VALUES (
     v_course_id,
-    'Acertar no es entender',
-    'Módulo 1 — El método de los tres pasos',
-    'Un estudiante puede marcar la opción correcta por descarte, por intuición o por azar. Este módulo enseña a sustentar la elección.',
+    'Anatomía de una pregunta',
+    'Módulo 1 — Qué hay dentro de un ítem de opción múltiple',
+    'Antes de resolver, aprende a leer cómo está construida la pregunta: qué evalúa, qué dato es el ancla, qué es ruido y por qué cada opción incorrecta está ahí.',
     'lesson', 1, 100, true, NULL,
-    'Antes de responder, aprende a mirar cómo está construida la trampa.',
+    'Una pregunta bien hecha no esconde la respuesta: esconde el razonamiento.',
     $j1$[
       {
         "type": "intro",
-        "title": "El problema de la respuesta correcta",
-        "text": "En una pregunta de cuatro opciones, marcar bien al azar tiene un 25 % de probabilidad. Por descarte, mucho más. Eso significa que la respuesta correcta, por sí sola, no prueba que el estudiante entendió nada. Lo que prueba comprensión es poder decir por qué las otras tres están mal."
+        "title": "El resultado no es la clase",
+        "text": "En una pregunta de cuatro opciones, acertar al azar tiene un 25 % de probabilidad. Por descarte, mucho más. El número correcto, por sí solo, no prueba que el estudiante entendió: prueba que llegó. Lo que enseña es el camino — y el camino se ve mejor en los errores que en el acierto."
       },
       {
-        "type": "quote",
-        "text": "Un distractor bien construido no es una mentira: es una verdad que no responde la pregunta.",
-        "author": "Principio de diseño de ítems"
+        "type": "concepts",
+        "title": "Las cuatro partes de un ítem",
+        "items": [
+          { "t": "Lo que evalúa", "d": "No es el tema. Una pregunta de proporcionalidad puede estar evaluando si distingues lo directo de lo inverso, no si sabes multiplicar." },
+          { "t": "El dato ancla", "d": "El número sin el cual el problema no se puede resolver. Encontrarlo ordena todo lo demás." },
+          { "t": "El ruido", "d": "Datos que aparecen y no se usan. No están por error: están para ver si calculas con todo lo que ves." },
+          { "t": "Los distractores", "d": "Cada opción incorrecta es un error típico, no un número al azar. Se puede predecir cuál va a elegir cada estudiante." }
+        ]
       },
       {
         "type": "steps",
-        "title": "Los tres pasos, siempre en este orden",
+        "title": "Cómo desarmar cualquier pregunta, en este orden",
         "items": [
-          { "icon": "🎯", "t": "1. ¿Qué pide exactamente?", "d": "No es lo mismo la tesis que el tema, ni la intención que el contenido. Subraya el verbo de la pregunta antes de mirar las opciones." },
-          { "icon": "📍", "t": "2. ¿Dónde lo dice el texto?", "d": "La respuesta correcta siempre se puede anclar a un fragmento concreto. Si no puedes señalarlo con el dedo, todavía no la tienes." },
-          { "icon": "🔍", "t": "3. ¿Por qué caen las otras?", "d": "Cada distractor falla por una razón distinta y nombrable: dice algo verdadero pero ajeno, exagera, invierte una relación o responde otra pregunta." }
+          { "icon": "🎯", "t": "1. ¿Qué me están preguntando?", "d": "Reescribe la pregunta con tus palabras antes de mirar las opciones. Si no puedes, todavía no la entendiste." },
+          { "icon": "⚓", "t": "2. ¿Qué dato manda y cuál sobra?", "d": "Separa el ancla del ruido. Un dato que es igual en las dos situaciones del problema casi nunca entra en la operación." },
+          { "icon": "🧮", "t": "3. Resuelve y comprueba el sentido", "d": "Antes de mirar las opciones, pregúntate si el resultado debía ser mayor o menor. Muchas opciones se caen sin calcular nada." },
+          { "icon": "🔍", "t": "4. ¿Qué error produce cada opción?", "d": "Ponle nombre: operación invertida, resta en vez de división, paso incompleto, dimensión equivocada." }
         ]
       },
       {
         "type": "compare",
-        "title": "Dos formas de responder la misma pregunta",
-        "label": "El estudiante marca lo mismo en ambos casos. Solo uno aprendió.",
-        "trad": "\"Puse la B porque las otras me sonaban raras.\" No hay anclaje al texto ni razón nombrable. Si el examen cambia la redacción, el acierto se pierde.",
-        "dce": "\"Puse la B porque el texto dice X en el tercer párrafo; la A dice algo cierto pero de otro tema, y la C invierte la relación de causa.\" Esto se sostiene en cualquier examen."
+        "title": "Dos estudiantes que marcaron lo mismo",
+        "label": "Ambos acertaron. Solo uno puede repetirlo la próxima vez.",
+        "trad": "\"Me dio 3,6 haciendo la regla de tres.\" No sabe si era directa o inversa; le funcionó. Con los mismos números en otro orden, falla.",
+        "dce": "\"Más máquinas tienen que dar menos tiempo, así que la respuesta debía ser menor que 6. Multipliqué máquinas por horas para tener el trabajo total y lo repartí entre 5.\""
       },
       {
         "type": "callout",
         "icon": "⚠️",
-        "title": "El error más común al enseñar esto",
-        "text": "Explicar solo por qué la correcta es correcta. El estudiante que falló no eligió la correcta: eligió otra, y necesita saber qué lo atrajo hacia ella. El análisis de los distractores no es un adorno del final, es la clase."
+        "title": "El error más común al explicar",
+        "text": "Explicar solo por qué la correcta es correcta. El estudiante que falló no eligió esa: eligió otra, y necesita saber qué lo llevó hasta ahí. El análisis de los distractores no es el cierre de la clase — es la clase."
       },
       {
         "type": "checklist",
-        "title": "Antes de pasar al reto, verifica que puedes",
+        "title": "Antes de pasar al reto, comprueba que puedes",
         "items": [
-          "Distinguir tesis, tema e intención en un mismo texto",
-          "Señalar el fragmento exacto que sustenta una respuesta",
-          "Nombrar el tipo de falla de un distractor, no solo decir que está mal"
+          "Decir qué evalúa una pregunta sin resolverla",
+          "Distinguir el dato ancla del ruido",
+          "Anticipar si el resultado debe ser mayor o menor que el dato inicial",
+          "Ponerle nombre al error que produce una opción incorrecta"
         ]
       }
     ]$j1$::jsonb
@@ -123,7 +138,7 @@ BEGIN
   RETURNING id INTO v_id_1;
 
   -- ══════════════════════════════════════════════════════════════
-  -- MÓDULO 2 (quiz) — 3 preguntas, análisis extenso en cada una
+  -- MÓDULO 2 (quiz) — 3 preguntas de matemáticas con análisis completo
   -- ══════════════════════════════════════════════════════════════
   -- Las explicaciones usan el markup ligero del proyecto: **negrilla** y saltos
   -- de línea reales (RichText los respeta con whiteSpace:pre-wrap, tanto en
@@ -133,69 +148,59 @@ BEGIN
      is_enabled, area_id, requirements, character_line, challenge_data)
   VALUES (
     v_course_id,
-    'El examen que nadie reprobó',
-    'Módulo 2 — Tres preguntas, tres análisis',
-    'Lee el texto y responde. Después de cada pregunta viene lo importante: el análisis de por qué esa es la respuesta.',
+    'Tres preguntas, tres razonamientos',
+    'Módulo 2 — Proporcionalidad, promedios y áreas',
+    'Responde cada pregunta y luego lee el análisis: cómo está construida, con qué lógica se resuelve y qué error produce cada opción incorrecta.',
     'challenge', 'quiz', 2, 300, true, NULL,
     ARRAY[v_id_1::text],
     'Tres preguntas. Lo que aprendes está en lo que viene después de cada una.',
     $jQ${
-      "passage": {
-        "intro": "DE ACUERDO CON EL SIGUIENTE TEXTO, RESPONDE LAS PREGUNTAS 1 A 3",
-        "title": "EL EXAMEN QUE NADIE REPROBÓ",
-        "paragraphs": [
-          "Un colegio decidió un experimento incómodo: durante un trimestre, ningún estudiante recibiría nota. Nada de números, nada de puestos, nada de cuadro de honor. Solo comentarios escritos sobre lo que cada uno había logrado y sobre lo que todavía le faltaba. Los profesores estaban aterrados. Los padres, furiosos. Los estudiantes, desconcertados.",
-          "Lo primero que llegó fue el silencio. Sin una nota que perseguir, varios estudiantes simplemente dejaron de entregar. ¿Para qué? Durante tres semanas el experimento pareció un fracaso rotundo, y el rector estuvo a punto de cancelarlo.",
-          "Pero en la cuarta semana pasó algo raro. Una estudiante preguntó, por primera vez en su vida escolar, si podía volver a entregar un trabajo. No para subir la nota —no había nota— sino porque había entendido, leyendo el comentario de su profesora, qué era exactamente lo que le faltaba. Ese trimestre no midió cuánto sabían los estudiantes. Midió algo más incómodo: cuánto de lo que llamábamos aprendizaje era, en realidad, obediencia."
-        ],
-        "source": "Texto original elaborado para este curso."
-      },
       "passingScore": 67,
       "maxAttempts": 3,
-      "passMessage": "Bien. Ahora lo que importa: revisa los tres análisis, incluso los de las preguntas que acertaste.",
-      "failMessage": "No pasa nada. Lee los análisis con calma: están escritos para que veas dónde estaba la trampa.",
+      "passMessage": "Bien. Ahora lo que importa: lee los tres análisis, incluso los de las preguntas que acertaste.",
+      "failMessage": "No pasa nada. Los análisis están escritos para que veas exactamente dónde se torció el razonamiento.",
       "questions": [
         {
-          "question": "En el segundo párrafo, la pregunta **«¿Para qué?»** cumple la función de:",
+          "question": "Tres máquinas idénticas embotellan **900 litros** de jugo en **6 horas**. ¿Cuántas horas necesitan **cinco** máquinas iguales para embotellar esos mismos 900 litros?",
           "options": [
-            "expresar la duda del propio autor sobre el experimento.",
-            "reproducir el razonamiento de los estudiantes desde su punto de vista.",
-            "cuestionar la decisión del rector de mantener el experimento.",
-            "interpelar al lector con una pregunta retórica sin respuesta."
+            "10 horas",
+            "3,6 horas",
+            "4 horas",
+            "2 horas"
           ],
           "correct": 1,
           "difficulty": "media",
-          "timeLimit": 45,
+          "timeLimit": 60,
           "points": 1000,
-          "explanation": "**Por qué la B es la correcta.**\nEsa pregunta no tiene quién la firme. No dice «los estudiantes se preguntaban para qué», ni la encierra en comillas: la voz de los estudiantes entra directo en el texto, sin aviso. Es discurso indirecto libre, y el anclaje está en la frase justo anterior —«dejaron de entregar»—: la pregunta explica esa decisión desde adentro de quien la tomó.\n\n**El mismo recurso, en otro ejemplo:**\n«Miró el reloj por tercera vez. ¿Valía la pena seguir esperando?» La pregunta no es del narrador. Es del personaje, contada por el narrador sin marcarla.\n\n**Por qué caen las otras tres:**\n**A** — atribuye la duda al autor, pero el autor no duda: en el tercer párrafo defiende el experimento y saca de él su conclusión. Es tentadora porque confunde *quién habla* con *quién escribe*.\n**C** — inventa un juicio que no existe. El texto dice que el rector «estuvo a punto de cancelarlo» y ahí se detiene, sin aprobarlo ni criticarlo. Además invierte el dato: la duda del rector era cancelar, no mantener.\n**D** — una pregunta retórica no espera respuesta. Esta sí la tiene, y el propio texto la da en la misma frase. Es el distractor más difícil: acierta en que es una pregunta que no se responde en voz alta, pero se equivoca en a quién pertenece."
+          "explanation": "**Cómo está construida la pregunta.**\nNo evalúa si sabes hacer una regla de tres: evalúa si distingues la proporcionalidad **inversa** de la directa. Y trae un ruido deliberado: los **900 litros** aparecen en el enunciado pero no entran en ningún cálculo. Es el mismo trabajo en los dos casos, así que se cancela. Regla general: **un dato que no cambia entre las dos situaciones del problema casi nunca entra en la operación.**\nEl dato ancla no son los litros, es el producto máquinas × horas.\n\n**La lógica, paso a paso.**\n1) Multiplica máquinas por horas para obtener el trabajo total: 3 × 6 = **18 máquina-hora**.\n2) Ese trabajo no cambia: son los mismos 900 litros.\n3) Repártelo entre las cinco máquinas: 18 ÷ 5 = **3,6 horas**.\n\n**La comprobación que ahorra la mitad del examen:** más máquinas tienen que dar menos tiempo. Cualquier opción **mayor que 6** está mal antes de calcular nada — eso elimina la A de un vistazo.\n\n**Por qué caen las otras.**\n**A (10 h)** — regla de tres directa: 6 × 5 ÷ 3. Es el error central que la pregunta busca: da más tiempo con más máquinas, un absurdo que el estudiante no revisa porque confía en el procedimiento.\n**C (4 h)** — resta en vez de dividir: «dos máquinas más, dos horas menos». Convierte una relación multiplicativa en aditiva.\n**D (2 h)** — divide 6 entre 3, las máquinas **iniciales**, en lugar de repartir el trabajo entre las 5 nuevas. Operación correcta, número equivocado."
         },
         {
-          "question": "¿Cuál de las siguientes afirmaciones recoge la **tesis** del texto?",
+          "question": "En un curso de **30 estudiantes**, el promedio de una prueba fue **3,0**. Se anulan las notas de los **5 estudiantes** que sacaron **1,0**. ¿Cuál es el promedio de los 25 restantes?",
           "options": [
-            "Las calificaciones numéricas deberían eliminarse de la escuela.",
-            "Los estudiantes solo se esfuerzan cuando hay una nota de por medio.",
-            "Buena parte de lo que la escuela evalúa como aprendizaje es obediencia.",
-            "La retroalimentación escrita enseña más que una calificación numérica."
+            "3,4",
+            "3,0",
+            "3,6",
+            "2,8"
+          ],
+          "correct": 0,
+          "difficulty": "alta",
+          "timeLimit": 75,
+          "points": 1200,
+          "explanation": "**Cómo está construida la pregunta.**\nEvalúa si entiendes que **un promedio no se puede arrastrar**: no es un valor que viaje con el grupo, es un cociente entre una suma y una cantidad. Para modificarlo hay que volver a la suma, cambiarla y volver a dividir.\nEl dato ancla no es el 3,0 — son los **30 estudiantes**. Sin ese número no puedes reconstruir la suma total, y sin la suma no hay problema.\n\n**La lógica, paso a paso.**\n1) Reconstruye la suma: 30 × 3,0 = **90 puntos** en total.\n2) Quita las cinco notas anuladas: 90 − (5 × 1,0) = **85**.\n3) Divide entre los que quedan: 85 ÷ 25 = **3,4**.\n\n**La comprobación:** salieron notas por debajo del promedio, así que el promedio tiene que **subir**. Todo lo que sea 3,0 o menos está mal sin calcular — eso elimina la B y la D.\n\n**Por qué caen las otras.**\n**B (3,0)** — supone que quitar estudiantes no mueve el promedio. Es el error de tratarlo como una etiqueta del curso y no como un cociente.\n**C (3,6)** — 90 ÷ 25: quitó a los estudiantes del divisor pero **olvidó quitar sus notas** de la suma.\n**D (2,8)** — 85 ÷ 30: quitó las notas de la suma pero **olvidó quitar a los estudiantes** del divisor.\nC y D son la misma operación dejada a medias, cada una por un lado distinto. Si en tu curso aparecen las dos, no hay dos errores: hay uno solo, y es que el procedimiento se aplicó sin entenderlo."
+        },
+        {
+          "question": "El lado de un cuadrado aumenta un **20 %**. ¿En qué porcentaje aumenta su **área**?",
+          "options": [
+            "20 %",
+            "40 %",
+            "44 %",
+            "4 %"
           ],
           "correct": 2,
-          "difficulty": "alta",
-          "timeLimit": 60,
-          "points": 1200,
-          "explanation": "**Por qué la C es la correcta.**\nLa tesis es lo que el texto quiere *sostener*, no lo que *cuenta*. Todo el relato —el experimento, el silencio, la estudiante de la cuarta semana— existe para llegar a la última frase: «cuánto de lo que llamábamos aprendizaje era, en realidad, obediencia». Ahí está el anclaje, literal.\n\n**Cómo reconocer una tesis:**\nSi eliminas la frase y el texto se queda sin punto, era la tesis. Si eliminas «los padres estaban furiosos», el texto sobrevive. Si eliminas la última frase, el experimento se queda sin significado.\n\n**Por qué caen las otras tres:**\n**A** — es la conclusión que el lector *podría* sacar, pero el texto nunca la propone. Ojo con este tipo de distractor: pide que confundas la tesis del autor con tu propia opinión sobre el tema.\n**B** — describe lo que pasó en las tres primeras semanas, no lo que el texto concluye. Es un hecho del relato ascendido a tesis. Y el cuarto párrafo lo desmiente: la estudiante volvió a entregar sin nota de por medio.\n**D** — verdadera, defendible y ajena. El texto no compara la eficacia de dos métodos de evaluación; usa el comentario escrito como el detonante de una escena, no como la afirmación que quiere probar. Es el distractor clásico: **algo cierto que responde otra pregunta.**"
-        },
-        {
-          "question": "La organización del texto puede describirse como:",
-          "options": [
-            "una tesis inicial seguida de tres ejemplos que la confirman.",
-            "un experimento, su fracaso aparente y un hallazgo que reinterpreta todo.",
-            "una comparación sistemática entre dos modelos de evaluación.",
-            "una cronología de los cambios en la evaluación escolar."
-          ],
-          "correct": 1,
           "difficulty": "media",
-          "timeLimit": 45,
+          "timeLimit": 60,
           "points": 1000,
-          "explanation": "**Por qué la B es la correcta.**\nHay un párrafo por movimiento, y se pueden señalar con el dedo: el primero plantea el experimento, el segundo lo muestra fracasando, el tercero gira con un «Pero» y reinterpreta lo anterior. La tesis **no** está al principio: aparece en la última línea, y solo tiene sentido gracias a lo que vino antes.\n\n**Por qué importa la estructura:**\nEs lo que distingue un texto argumentativo de uno narrativo. Aquí el autor no te dice qué pensar y luego lo demuestra: te hace recorrer el fracaso para que la conclusión te caiga encima. Si la tesis estuviera en el primer párrafo, el texto perdería toda su fuerza.\n\n**Por qué caen las otras tres:**\n**A** — invierte el orden. Es la estructura más común en un texto argumentativo escolar, y por eso es el distractor más elegido: se responde con el molde aprendido en lugar de con el texto que se tiene enfrente.\n**C** — hay dos modelos de evaluación implicados, cierto, pero el texto nunca los contrasta punto por punto. Una comparación sistemática necesita criterios paralelos; aquí hay un relato en orden cronológico.\n**D** — confunde «los hechos van en orden temporal» con «el texto es una cronología». Una cronología recorre un periodo largo con varios hitos; esto es un solo episodio de un trimestre."
+          "explanation": "**Cómo está construida la pregunta.**\nEvalúa una sola idea: **el área no crece igual que la longitud.** Si el lado se multiplica por 1,2, el área se multiplica por 1,2 × 1,2 = 1,44. Es la confusión de dimensión, y es de las que más se repiten porque el 20 % «se siente» como la respuesta.\nNo hay dato ancla numérico: la pregunta no da ninguna medida. Eso es una pista, no un problema — significa que **el resultado no depende del tamaño del cuadrado**.\n\n**La lógica, paso a paso.**\n1) Como el resultado no depende del lado, toma uno cómodo: **lado 10**, área 100.\n2) Auméntalo un 20 %: lado **12**, área 144.\n3) Compara: 144 − 100 = 44 sobre 100 → **44 %**.\nElegir el 10 no es hacer trampa: como la respuesta es un porcentaje, cualquier lado da lo mismo. Compruébalo con 5 si quieres.\n\n**Dibújalo y se ve solo.** Al cuadrado original le pegas dos franjas laterales (20 % cada una) **y una esquinita** de 0,2 × 0,2. Las dos franjas son el 40 %; la esquina es el 4 % que casi todo el mundo olvida.\n\n**Por qué caen las otras.**\n**A (20 %)** — le aplica al área el porcentaje del lado. Confunde crecimiento lineal con crecimiento en dos dimensiones.\n**B (40 %)** — suma las dos franjas y **olvida la esquina**. Es el error más avanzado de los tres: entendió que había dos dimensiones, pero descompuso mal la figura.\n**D (4 %)** — se queda **solo con la esquina** (0,2 × 0,2) y descarta las franjas. El razonamiento inverso al de B.\nB y D juntos son el mapa del error: cada uno se quedó con una mitad de la figura."
         }
       ]
     }$jQ$::jsonb
@@ -210,43 +215,43 @@ BEGIN
      area_id, requirements, character_line, content)
   VALUES (
     v_course_id,
-    'Enseñar el análisis, no la respuesta',
-    'Módulo 3 — Del método a la clase',
-    'Cómo convertir el análisis de distractores en una rutina de aula que no dependa de tener un banco de preguntas.',
+    'Enseñar el razonamiento, no el resultado',
+    'Módulo 3 — De la explicación a la rutina de clase',
+    'Cómo convertir el análisis de distractores en una rutina de aula de diez minutos que funcione con cualquier pregunta.',
     'lesson', 3, 100, true, NULL,
     ARRAY[v_id_2::text],
     'Lo que acabas de hacer tres veces es lo que tus estudiantes tienen que aprender a hacer solos.',
     $j3$[
       {
         "type": "intro",
-        "title": "El patrón que se repite",
-        "text": "Los tres análisis que acabas de leer tienen la misma forma: por qué la correcta lo es, un ejemplo del mismo recurso, y por qué falla cada distractor. Esa repetición no fue pereza de redacción: es el molde. Cuando un estudiante lo ha recorrido cinco o seis veces, empieza a aplicarlo sin que se lo pidan."
+        "title": "El molde que se repite",
+        "text": "Los tres análisis tienen la misma forma: cómo está construida la pregunta, la lógica paso a paso, y qué error produce cada opción. Esa repetición no fue pereza de redacción — es el molde. Después de cinco o seis veces, el estudiante empieza a aplicarlo sin que se lo pidan, incluso en preguntas que nadie le explicó."
       },
       {
         "type": "concepts",
-        "title": "Los cuatro tipos de distractor",
+        "title": "Los cuatro errores que producen los distractores",
         "items": [
-          { "t": "Verdadero pero ajeno", "d": "Afirma algo que el texto sostiene, pero que no responde lo que se preguntó. El más difícil de descartar." },
-          { "t": "Molde aprendido", "d": "Es la respuesta que sería correcta en la mayoría de los textos. Se elige sin leer, por costumbre." },
-          { "t": "Relación invertida", "d": "Toma los elementos correctos y voltea la causa, el orden o el sujeto." },
-          { "t": "Opinión del lector", "d": "Dice lo que el estudiante ya pensaba del tema. Se confunde la tesis del autor con la propia." }
+          { "t": "Operación invertida", "d": "Aplica proporcionalidad directa donde era inversa, o multiplica donde había que dividir. La opción A de la pregunta 1." },
+          { "t": "Aditivo por multiplicativo", "d": "Suma o resta donde la relación era de producto o cociente: «dos máquinas más, dos horas menos». La opción C de la pregunta 1." },
+          { "t": "Paso incompleto", "d": "Hace la mitad del procedimiento. Las opciones C y D de la pregunta 2 son la misma omisión por lados distintos." },
+          { "t": "Dimensión equivocada", "d": "Trata un área como si fuera una longitud, o descompone mal la figura. Las opciones A, B y D de la pregunta 3." }
         ]
       },
       {
         "type": "steps",
-        "title": "La rutina de aula, en 10 minutos",
+        "title": "La rutina de aula, en diez minutos",
         "items": [
-          { "icon": "🗳️", "t": "Voten primero, discutan después", "d": "Cada estudiante marca en silencio. Sin esto, los primeros en hablar deciden por todos." },
-          { "icon": "🙋", "t": "Que defienda quien falló", "d": "Pregunta qué hacía atractiva la opción que eligieron. Ahí aparece el tipo de distractor, dicho por ellos." },
-          { "icon": "📍", "t": "Exige el fragmento", "d": "«¿Dónde lo dice?» Sin señalar la línea, la respuesta no cuenta, aunque sea la correcta." },
-          { "icon": "🏷️", "t": "Ponle nombre a la trampa", "d": "Cierra clasificando cada distractor con uno de los cuatro tipos. Es lo que se transfiere al siguiente examen." }
+          { "icon": "🗳️", "t": "Voten primero, discutan después", "d": "Cada estudiante marca en silencio. Sin esto, los primeros en hablar deciden por todo el salón y los demás dejan de pensar." },
+          { "icon": "🙋", "t": "Que hable quien falló", "d": "Pregúntale qué hacía atractiva la opción que eligió. El nombre del error aparece dicho por ellos, que es la única forma en que se queda." },
+          { "icon": "⚖️", "t": "Comprueba el sentido antes del cálculo", "d": "«¿La respuesta tenía que ser mayor o menor?» Es el hábito que más preguntas salva y el que menos se enseña." },
+          { "icon": "🏷️", "t": "Ponle nombre al error", "d": "Cierra clasificando cada distractor con uno de los cuatro tipos. Eso es lo que se transfiere a la siguiente prueba." }
         ]
       },
       {
         "type": "callout",
         "icon": "🎯",
         "title": "En el Modo Aula en Vivo",
-        "text": "Este curso está armado para lanzarse desde Aula en Vivo: los estudiantes responden desde su celular, ven los resultados, luego el análisis en pantalla y después la tabla de posiciones. La pausa de la explicación entre el revelado y el ranking es justo el momento de la rutina de arriba — no la saltes por avanzar."
+        "text": "Este curso está armado para lanzarse desde Aula en Vivo: los estudiantes responden desde el celular, ven los resultados, luego el análisis en pantalla y después la tabla de posiciones. Esa pausa entre el revelado y el ranking es justo el momento de la rutina de arriba — no la saltes por avanzar rápido."
       },
       {
         "type": "reveal",
@@ -254,8 +259,8 @@ BEGIN
         "icon": "🏆",
         "label": "Ver la advertencia",
         "items": [
-          { "t": "El puntaje premia la rapidez", "d": "En vivo, responder rápido vale más. Es lo que hace divertido el juego, pero no es lo que quieres enseñar." },
-          { "t": "Compensa en la discusión", "d": "Reconoce en voz alta al que sustentó mejor, no solo al que lidera la tabla. Si el único premio es la velocidad, enseñas a adivinar rápido." }
+          { "t": "El puntaje premia la rapidez", "d": "En vivo, responder rápido vale más puntos. Es lo que hace divertido el juego, pero no es lo que estás enseñando." },
+          { "t": "Compensa en la discusión", "d": "Reconoce en voz alta a quien mejor sustentó, no solo a quien lidera la tabla. Si el único premio es la velocidad, enseñas a adivinar rápido." }
         ]
       }
     ]$j3$::jsonb
@@ -265,8 +270,10 @@ BEGIN
 END $$;
 
 -- ── Verificación ────────────────────────────────────────────────────────────
--- Esperado: 3 módulos, y el quiz con 3 preguntas, las 3 con explicación.
+-- Esperado: 3 módulos, el quiz con 3 preguntas, las 3 con análisis, y area_id
+-- en NULL en los tres (si no, el estudiante ve "Ruta en preparación").
 select m."order", m.title, m.type, m.challenge_type,
+       coalesce(m.area_id, 'NULL (correcto)') as area_id,
        jsonb_array_length(coalesce(m.challenge_data->'questions', '[]'::jsonb)) as preguntas,
        (select count(*) from jsonb_array_elements(coalesce(m.challenge_data->'questions', '[]'::jsonb)) q
          where q->>'explanation' is not null) as con_analisis
