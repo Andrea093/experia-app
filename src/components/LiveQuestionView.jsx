@@ -103,7 +103,11 @@ const PollBars = ({ sessionId, index, options, myAns }) => {
 // `avatar`: configuración del avatar del estudiante. Solo la pasa la Clase en
 // Vivo Guiada (ahí hay sesión iniciada); en la página pública llega undefined y
 // todo se ve exactamente como antes.
-export const LiveQuestionView = ({ participant, Wrap, avatar = null }) => {
+// `onEnded`: se dispara UNA sola vez cuando la sesión pasa a 'ended'. Solo la
+// usa la página pública del PIN, para devolver al participante a Experia — el
+// estudiante logueado ya sale solo (app.jsx llama a `guided.leave` a los 5 s y
+// la pantalla vuelve a su ruta).
+export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = null }) => {
   const Center = Wrap || (({ children }) => <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>)
   const [session, setSession]   = React.useState(null)
   const [parts, setParts]       = React.useState([])
@@ -125,6 +129,16 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null }) => {
   }, [participant.session_id])
 
   React.useEffect(() => { setFeedback(null) }, [session?.current_index, session?.phase === 'question'])
+
+  // Fin de la clase → avisar una sola vez. El ref evita que el poll de 7 s y las
+  // suscripciones realtime lo disparen en cada refresco de la sesión terminada.
+  const avisadoFin = React.useRef(false)
+  React.useEffect(() => {
+    if (session?.status === 'ended' && !avisadoFin.current) {
+      avisadoFin.current = true
+      onEnded?.()
+    }
+  }, [session?.status, onEnded])
 
   const prevPhase = React.useRef(null)
   React.useEffect(() => {

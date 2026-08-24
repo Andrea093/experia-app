@@ -47,12 +47,17 @@ DECLARE
 BEGIN
 
   -- ── 1. El curso ──────────────────────────────────────────────────────────
-  -- `theme` queda en NULL (tema estándar) A PROPÓSITO: el seed 0021 localiza su
-  -- curso con `WHERE theme='detective' LIMIT 1`, así que ponerle un tema
-  -- inmersivo a este lo volvería candidato y 0021 podría escribir sus retos
-  -- aquí por error. Para la demo se puede activar después con:
-  --   update public.courses set theme='detective' where name='Por qué esa es la respuesta';
-  -- (pero entonces no reejecutar 0021).
+  -- `theme = 'escape-room'`: es el tema visual que este proyecto ya asocia a
+  -- MATEMÁTICAS (seed 0014, "Sala de Escape - Matematicas"). Paleta verde-ámbar
+  -- sobre fondo oscuro. Al ponerlo, toda la interfaz —incluida la Clase en Vivo
+  -- Guiada— se tiñe sola: los componentes se pintan con variables CSS y el
+  -- atributo `data-course-theme` va en el <html> (app.jsx).
+  --
+  -- ⚠️ El seed 0014 localiza SU curso con `WHERE theme='escape-room' LIMIT 1`,
+  -- así que ahora hay dos candidatos. Si algún día se arregla 0014 (hoy falla:
+  -- inserta `courses.area_id`, columna que no existe) hay que cambiarle esa
+  -- búsqueda a `WHERE name = 'Sala de Escape - Matematicas'` antes de correrlo,
+  -- o podría sembrar sus 9 módulos dentro de este curso.
   SELECT id INTO v_course_id FROM public.courses
    WHERE name = 'Por qué esa es la respuesta' LIMIT 1;
 
@@ -61,7 +66,7 @@ BEGIN
     VALUES (
       'Por qué esa es la respuesta',
       'Preguntas de matemáticas con el análisis completo detrás: cómo está construida cada pregunta, con qué lógica se resuelve y qué error produce cada opción incorrecta.',
-      '#5E4F9C', true, NULL
+      '#5E4F9C', true, 'escape-room'
     )
     RETURNING id INTO v_course_id;
   END IF;

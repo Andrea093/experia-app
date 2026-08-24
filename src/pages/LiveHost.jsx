@@ -1,7 +1,7 @@
 import React from 'react'
 import { useStore, dbModToAppMod } from '../store/store.jsx'
 import { supabase } from '../lib/supabaseClient.js'
-import { Btn, Confetti } from '../components/ui.jsx'
+import { Btn, Confetti, RichText } from '../components/ui.jsx'
 import { LessonBody } from './lesson.jsx'
 import {
   createLiveSession, liveGotoModule, liveCompleteModuleForParticipants,
@@ -338,7 +338,13 @@ const Control = ({ session: initial, moduleList, onExit }) => {
             {phase === 'explanation' && (localQ?.explanation || session.current_reveal?.explanation) && (
               <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 12, background: 'var(--purple-bg)', borderLeft: '3px solid var(--purple)' }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--purple)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>💡 Explicación</div>
-                <p style={{ fontSize: 14, color: 'var(--text-sec)', lineHeight: 1.7, margin: 0 }}>{localQ?.explanation || session.current_reveal?.explanation}</p>
+                {/* RichText, igual que en `challenges.jsx` y en la vista del
+                    estudiante: respeta los saltos de línea e interpreta
+                    **negrilla** y {{#hex|color}}. Con un <p> plano, un análisis
+                    estructurado se aplastaba en un bloque corrido y los
+                    asteriscos salían literales — justo lo que el profesor
+                    proyecta en pantalla. */}
+                <RichText as="p" style={{ fontSize: 14, color: 'var(--text-sec)', lineHeight: 1.7, margin: 0 }}>{localQ?.explanation || session.current_reveal?.explanation}</RichText>
               </div>
             )}
           </div>

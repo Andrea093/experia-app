@@ -31,8 +31,8 @@ console.log('\n=== ESTRUCTURA DEL CURSO ===');
 esperar('cursos con ese nombre (no se duplica)',
   (await q(`select count(*)::int c from public.courses where name='Por qué esa es la respuesta'`))[0].c, 1);
 esperar('módulos', (await q(`select count(*)::int c from public.course_modules m join public.courses c on c.id=m.course_id where c.name='Por qué esa es la respuesta'`))[0].c, 3);
-esperar('tema visual en NULL (no colisiona con el seed 0021)',
-  (await q(`select coalesce(theme,'NULL') t from public.courses where name='Por qué esa es la respuesta'`))[0].t, 'NULL');
+esperar('tema visual = escape-room (temática de matemáticas)',
+  (await q(`select coalesce(theme,'NULL') t from public.courses where name='Por qué esa es la respuesta'`))[0].t, 'escape-room');
 
 const mods = await q(`select m."order", m.title, m.type, m.challenge_type, m.requirements, m.area_id
                         from public.course_modules m join public.courses c on c.id=m.course_id

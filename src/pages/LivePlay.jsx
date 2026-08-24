@@ -104,8 +104,13 @@ const MuteFab = () => {
   )
 }
 
+// Segundos de podio antes de devolver al participante a Experia. Suficiente
+// para leer los resultados finales sin dejarlo varado en una clase terminada.
+const SEGUNDOS_PARA_SALIR = 15
+
 const LivePlay = () => {
   const [participant, setParticipant] = React.useState(null)
+  const [cuenta, setCuenta] = React.useState(null)   // null = la clase sigue viva
 
   // Reanuda si ya se había unido (refresco de página)
   React.useEffect(() => {
@@ -118,10 +123,46 @@ const LivePlay = () => {
     } catch (_) {}
   }, [])
 
+  // Salida a Experia. Se limpia el participante guardado ANTES de navegar: si
+  // no, al volver a #/live la sesión terminada se reanudaría desde
+  // sessionStorage y el participante quedaría atrapado en el podio.
+  const salirAExperia = React.useCallback(() => {
+    try { sessionStorage.removeItem(SS_KEY) } catch (_) {}
+    // Recarga completa contra la raíz: esta página es pública y no hay sesión,
+    // así que el enrutador por hash del store no puede llevar a `landing` (solo
+    // escribe el hash de páginas públicas). Soltar el hash y recargar deja la
+    // app en un estado limpio.
+    window.location.href = window.location.pathname
+  }, [])
+
+  // Cuenta atrás al terminar la clase.
+  React.useEffect(() => {
+    if (cuenta === null) return
+    if (cuenta <= 0) { salirAExperia(); return }
+    const t = setTimeout(() => setCuenta(c => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [cuenta, salirAExperia])
+
   return (
     <>
       <MuteFab />
-      {!participant ? <JoinForm onJoined={setParticipant} /> : <LiveQuestionView participant={participant} Wrap={Center} />}
+      {!participant
+        ? <JoinForm onJoined={setParticipant} />
+        : <LiveQuestionView participant={participant} Wrap={Center}
+            onEnded={() => setCuenta(SEGUNDOS_PARA_SALIR)} />}
+
+      {cuenta !== null && (
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 4000,
+          padding: '14px 20px calc(14px + env(safe-area-inset-bottom))',
+          background: 'var(--white)', borderTop: '1px solid var(--border)',
+          boxShadow: 'var(--sh-lg)', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 14, color: 'var(--text-sec)' }}>
+            La clase terminó · vuelves a Experia en <b style={{ color: 'var(--orange)' }}>{cuenta}s</b>
+          </span>
+          <Btn size="sm" onClick={salirAExperia}>Volver ahora →</Btn>
+        </div>
+      )}
     </>
   )
 }
