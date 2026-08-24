@@ -132,10 +132,10 @@ BEGIN
         "type": "checklist",
         "title": "Antes de pasar al reto, comprueba que puedes",
         "items": [
-          "Decir qué evalúa una pregunta sin resolverla",
-          "Distinguir el dato ancla del ruido",
-          "Anticipar si el resultado debe ser mayor o menor que el dato inicial",
-          "Ponerle nombre al error que produce una opción incorrecta"
+          { "t": "Decir qué evalúa una pregunta sin resolverla" },
+          { "t": "Distinguir el dato ancla del ruido" },
+          { "t": "Anticipar si el resultado debe ser mayor o menor que el dato inicial" },
+          { "t": "Ponerle nombre al error que produce una opción incorrecta" }
         ]
       }
     ]$j1$::jsonb

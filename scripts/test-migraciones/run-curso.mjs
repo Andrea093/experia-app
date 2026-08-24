@@ -93,10 +93,16 @@ for (const o of [1, 3]) {
   malos.length ? bad(`módulo ${o}: tipos de sección inválidos → ${malos}`)
                : ok(`módulo ${o}: ${c.length} secciones (${tipos.join(', ')})`);
   // steps/concepts/reveal usan claves t/d
+  // steps/concepts/reveal exigen t + d; checklist exige SOLO t (lesson.jsx pinta
+  // item.t; con una cadena suelta sale una casilla vacía — pasó de verdad).
   const items = c.filter(s => ['steps','concepts','reveal'].includes(s.type)).flatMap(s => s.items || []);
-  const sinTD = items.filter(it => !it.t || !it.d);
-  sinTD.length ? bad(`módulo ${o}: ${sinTD.length} item(s) sin claves t/d`)
+  const sinTD = items.filter(it => !it?.t || !it?.d);
+  const checks = c.filter(s => s.type === 'checklist').flatMap(s => s.items || []);
+  const sinT = checks.filter(it => typeof it !== 'object' || !it?.t);
+  sinTD.length ? bad(`módulo ${o}: ${sinTD.length} item(s) de steps/concepts/reveal sin claves t/d`)
                : ok(`módulo ${o}: ${items.length} items con claves t/d correctas`);
+  sinT.length ? bad(`módulo ${o}: ${sinT.length} item(s) de checklist sin clave t → saldrían VACÍOS`)
+              : ok(`módulo ${o}: ${checks.length} items de checklist con clave t`);
 }
 
 console.log(`\n=== RESULTADO: ${fallos === 0 ? 'TODO OK' : fallos + ' FALLO(S)'} ===`);
