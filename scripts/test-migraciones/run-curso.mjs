@@ -40,6 +40,12 @@ const mods = await q(`select m."order", m.title, m.type, m.challenge_type, m.req
 console.log('       ' + mods.map(m => `${m.order}. ${m.title} [${m.type}${m.challenge_type ? '/' + m.challenge_type : ''}]`).join('\n       '));
 esperar('el quiz es el módulo 2', mods[1]?.challenge_type, 'quiz');
 
+// area_id DEBE ir en NULL: dbRowsToCourseModules (store.jsx) filtra los módulos
+// por el área seleccionada del estudiante, así que un area_id distinto de la
+// suya los esconde TODOS y el mapa muestra 'Ruta en preparación'.
+esperar('módulos con area_id NULL (visibles en cualquier área)',
+  (await q(`select count(*)::int c from public.course_modules m join public.courses c on c.id=m.course_id where c.name='Por qué esa es la respuesta' and m.area_id is null`))[0].c, 3);
+
 // Encadenamiento: cada módulo exige el anterior, y el UUID debe existir
 const enc = await q(`select count(*)::int c from public.course_modules m
                       where m.requirements <> '{}'

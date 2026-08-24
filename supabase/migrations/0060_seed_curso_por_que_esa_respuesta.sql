@@ -74,7 +74,7 @@ BEGIN
     'Acertar no es entender',
     'Módulo 1 — El método de los tres pasos',
     'Un estudiante puede marcar la opción correcta por descarte, por intuición o por azar. Este módulo enseña a sustentar la elección.',
-    'lesson', 1, 100, true, 'lectura',
+    'lesson', 1, 100, true, NULL,
     'Antes de responder, aprende a mirar cómo está construida la trampa.',
     $j1$[
       {
@@ -136,7 +136,7 @@ BEGIN
     'El examen que nadie reprobó',
     'Módulo 2 — Tres preguntas, tres análisis',
     'Lee el texto y responde. Después de cada pregunta viene lo importante: el análisis de por qué esa es la respuesta.',
-    'challenge', 'quiz', 2, 300, true, 'lectura',
+    'challenge', 'quiz', 2, 300, true, NULL,
     ARRAY[v_id_1::text],
     'Tres preguntas. Lo que aprendes está en lo que viene después de cada una.',
     $jQ${
@@ -213,7 +213,7 @@ BEGIN
     'Enseñar el análisis, no la respuesta',
     'Módulo 3 — Del método a la clase',
     'Cómo convertir el análisis de distractores en una rutina de aula que no dependa de tener un banco de preguntas.',
-    'lesson', 3, 100, true, 'lectura',
+    'lesson', 3, 100, true, NULL,
     ARRAY[v_id_2::text],
     'Lo que acabas de hacer tres veces es lo que tus estudiantes tienen que aprender a hacer solos.',
     $j3$[
