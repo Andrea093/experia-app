@@ -52,3 +52,21 @@ sola de ellas no probaría la otra.
   **No es una migración**; nunca se aplica al proyecto real.
 - `seed.sql` — datos sintéticos. Nunca datos reales de menores (Ley 1581).
 - `run.mjs` — aplica y verifica.
+
+---
+
+# Segunda suite: `run-efectividad.mjs` (migración 0059)
+
+```bash
+node run-efectividad.mjs
+```
+
+Prueba la regla de que los conteos A+B+C+D de una pregunta no pueden superar el
+total de estudiantes de su sección. Usa `prelude-clone.sql` (stub de
+`clone_groups` / `clone_attendance` / `clone_effectiveness` según 0051 y 0054),
+no el `prelude.sql` de la suite del corpus — son dominios distintos.
+
+Cubre los dos lados de la regla: que el exceso se bloquee (insert y update, en
+ambas secciones, nombrando la pregunta), y que lo legítimo siga pasando
+(borradores a medias, preguntas no aplicadas, secciones sin total, basura no
+numérica en el jsonb).
