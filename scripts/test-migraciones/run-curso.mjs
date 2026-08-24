@@ -19,6 +19,12 @@ const esperar = (n, real, esp) => String(real) === String(esp) ? ok(`${n} = ${re
 const db = await PGlite.create({ extensions: { pgcrypto } });
 await db.exec(read(path.join(HERE, 'prelude-curso.sql')));
 
+// Simula el caso que falló en producción: el curso YA existe, con otro tema.
+// Si el seed solo fijara `theme` dentro del INSERT, este null sobreviviría y el
+// curso se seguiría viendo sin tema por más que se reejecute el archivo.
+await db.query(`insert into public.courses (name, is_active, theme) values ($1, true, null)`,
+  ['Por qué esa es la respuesta']);
+
 console.log('\n=== APLICACIÓN ===');
 try { await db.exec(read(SEED)); ok('0060 aplica'); }
 catch (e) { bad(`0060 falló: ${e.message}`); process.exit(1); }

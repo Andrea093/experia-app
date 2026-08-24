@@ -71,6 +71,18 @@ BEGIN
     RETURNING id INTO v_course_id;
   END IF;
 
+  -- Sincroniza los atributos del curso SIEMPRE, no solo al crearlo.
+  -- ⚠️ Sin este UPDATE, reejecutar el seed reinsertaba los módulos pero dejaba
+  -- intactos `theme`, `name`, `description` y `color` del curso ya existente:
+  -- cambiar el tema en el archivo no tenía ningún efecto en la base. Pasó de
+  -- verdad al activar 'escape-room'.
+  UPDATE public.courses
+     SET description = 'Preguntas de matemáticas con el análisis completo detrás: cómo está construida cada pregunta, con qué lógica se resuelve y qué error produce cada opción incorrecta.',
+         color       = '#5E4F9C',
+         theme       = 'escape-room',
+         is_active   = true
+   WHERE id = v_course_id;
+
   RAISE NOTICE 'Curso "Por qué esa es la respuesta" ID: %', v_course_id;
 
   -- ── 2. Limpieza para reejecución ─────────────────────────────────────────
