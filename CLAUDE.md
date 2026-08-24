@@ -835,6 +835,8 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 3. **Realtime:** `route_configs` + `live_sessions`/`live_participants` (Modo Aula en Vivo) subscribed; other tables need refresh
 4. **XP migrations:** Still migrating to course_progress table
 5. **Content changes:** Require `git push` (no hot reload)
+6. **Migraciones sin aplicar:** `0058` (bucket `corpus-normativo`) y `0059` (regla de conteos en `clone_effectiveness`) están escritas y probadas, pero **no se han corrido en el SQL Editor**
+7. **CLI de Supabase inoperante:** sin `supabase/config.toml`, `db diff --linked` y `db push` fallan. Las migraciones se corren a mano; probarlas antes con `scripts/test-migraciones/`
 
 ---
 
@@ -843,6 +845,8 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 - **README.md** — Setup, content editing, load testing
 - **Experia-Technical-Reference.md** — DB schema, API
 - **Experia-Runbook-Despliegue-v12.md** — Deployment
+- **Experia-Agente-Planes-Estudio.md** — ⏸️ Agente IA de planes de estudio: EN PAUSA. Estado, pendientes y punto de retome
+- **Experia-Especificaciones-Visuales.md** — Design system: tokens, temas, componentes, accesibilidad
 - **Supabase:** https://supabase.com/docs
 - **React:** https://react.dev
 - **Vite:** https://vitejs.dev
@@ -853,5 +857,5 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 
 - **Author:** Sergio Bahamon (sergiobaha05@gmail.com)
 - **Version:** v15 (stable, multi-course)
-- **Roadmap:** migrar `InstructorStats`/`AdminAnalytics` a las RPC de 0049, informe posterior de clases en vivo (Fase 5 de `Experia-Plan-Analitica.md`), retención de datos, Sentry
+- **Roadmap:** ⏸️ retomar el agente de planes de estudio (ver `Experia-Agente-Planes-Estudio.md`), migrar `InstructorStats`/`AdminAnalytics` a las RPC de 0049, informe posterior de clases en vivo (Fase 5 de `Experia-Plan-Analitica.md`), retención de datos, Sentry
 

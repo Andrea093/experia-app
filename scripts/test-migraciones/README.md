@@ -70,3 +70,25 @@ Cubre los dos lados de la regla: que el exceso se bloquee (insert y update, en
 ambas secciones, nombrando la pregunta), y que lo legítimo siga pasando
 (borradores a medias, preguntas no aplicadas, secciones sin total, basura no
 numérica en el jsonb).
+
+---
+
+# Tercera suite: `run-curso.mjs` (seed 0060)
+
+```bash
+node run-curso.mjs
+```
+
+Prueba el seed del curso demo **"Por qué esa es la respuesta"**: que aplique,
+que sea reejecutable sin duplicar el curso, y que el contenido tenga la forma
+que el frontend realmente renderiza — tipos de sección válidos en `lesson.jsx`,
+claves `t`/`d` en `steps`/`concepts`/`reveal`, y el `challenge_data` del quiz
+con `explanation`/`timeLimit`/`points`/`difficulty` por pregunta.
+
+Incluye un chequeo de **calidad del análisis**: cada explicación debe estar
+estructurada (negrilla + saltos de línea), nombrar las tres opciones incorrectas
+y quedar entre 500 y 1800 caracteres. Es lo que impide que una explicación se
+degrade a un párrafo suelto al editarla.
+
+Usa `prelude-curso.sql` (stub de `courses` + `course_modules` según 0007, 0011
+y 0012).

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Confetti } from './ui.jsx'
+import { Confetti, RichText } from './ui.jsx'
 import {
   submitLiveAnswer, fetchSession, fetchParticipants, fetchAnswerCounts,
   subscribeSession, subscribeParticipants, unsubscribe,
@@ -204,6 +204,15 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null }) => {
     <Center><div style={cardStyle}>
       <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight: 800, color: 'var(--dark)', marginBottom: 14 }}>Tabla de posiciones</h2>
       <Ranking list={parts.slice(0, 8)} meId={participant.id} />
+      {/* Si el estudiante no entró al top 8, su fila no aparece arriba y se
+          quedaría sin saber cómo va. En un salón de 30, eso es la mayoría del
+          curso. Misma info que ya se muestra en `question` y en el podio. */}
+      {me && myRank > 8 && (
+        <div style={{ marginTop: 12, textAlign: 'center', padding: '12px', borderRadius: 12, background: 'var(--orange-bg)' }}>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Tu posición: </span>
+          <b style={{ color: 'var(--orange)' }}>#{myRank} · {me.score} pts</b>
+        </div>
+      )}
       <p style={{ textAlign: 'center', color: 'var(--subtle)', fontSize: 13, marginTop: 14 }}>Espera la siguiente pregunta…</p>
     </div></Center>
   )
@@ -249,7 +258,11 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null }) => {
         {session.phase === 'explanation' && (session.current_reveal?.explanation || session.current_reveal?.explanationImage) && (
           <div style={{ marginTop: 14, padding: '14px 16px', borderRadius: 12, background: 'var(--purple-bg)', borderLeft: '3px solid var(--purple)' }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--purple)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>💡 Explicación</div>
-            {session.current_reveal.explanation && <p style={{ fontSize: 14, color: 'var(--text-sec)', lineHeight: 1.7, margin: 0 }}>{session.current_reveal.explanation}</p>}
+            {/* RichText, igual que en `challenges.jsx`: respeta los saltos de
+                línea e interpreta **negrilla** y {{#hex|color}}. Con un <p>
+                plano, un análisis estructurado se aplastaba en un solo bloque
+                y los asteriscos salían literales. */}
+            {session.current_reveal.explanation && <RichText as="p" style={{ fontSize: 14, color: 'var(--text-sec)', lineHeight: 1.7, margin: 0 }}>{session.current_reveal.explanation}</RichText>}
             {session.current_reveal.explanationImage && <img src={session.current_reveal.explanationImage} alt="" style={{ width: '100%', maxHeight: 240, objectFit: 'contain', borderRadius: 10, marginTop: 10 }} />}
           </div>
         )}
