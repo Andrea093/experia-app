@@ -1,0 +1,22 @@
+prioridad,tipo_norma,documento,slug,storage_path,tipo_estructura,areas,grados,url_oficial,fecha_descarga,paginas,escaneado,estado
+P0,ley,Ley 115 de 1994 (Ley General de Educación),ley-115-1994,ley/ley-115-1994/ley-115-1994.pdf,articulado,todas,todos,,,,,pendiente
+P0,decreto,Decreto 1850 de 2002 (jornada e intensidad horaria),decreto-1850-2002,decreto/decreto-1850-2002/decreto-1850-2002.pdf,articulado,todas,todos,,,,,pendiente
+P0,decreto,Decreto 1075 de 2015 — Libro 2 Parte 3 (reglamentario del sector educativo),decreto-1075-2015,decreto/decreto-1075-2015/decreto-1075-2015-libro2-parte3.pdf,articulado,todas,todos,,,,,pendiente
+P1,decreto,Decreto 1290 de 2009 (evaluación y promoción),decreto-1290-2009,decreto/decreto-1290-2009/decreto-1290-2009.pdf,articulado,todas,todos,,,,,pendiente
+P1,ley,Ley 1581 de 2012 (protección de datos personales),ley-1581-2012,ley/ley-1581-2012/ley-1581-2012.pdf,articulado,ninguna,ninguno,,,,,pendiente
+P1,dba,DBA Matemáticas,dba-matematicas,dba/dba-matematicas/dba-matematicas.pdf,tabular_por_grado,Matematicas,1-11,,,,,pendiente
+P1,dba,DBA Lenguaje,dba-lenguaje,dba/dba-lenguaje/dba-lenguaje.pdf,tabular_por_grado,Lenguaje,1-11,,,,,pendiente
+P1,dba,DBA Ciencias Naturales,dba-ciencias-naturales,dba/dba-ciencias-naturales/dba-ciencias-naturales.pdf,tabular_por_grado,Ciencias Naturales,1-11,,,,,pendiente
+P1,dba,DBA Ciencias Sociales,dba-ciencias-sociales,dba/dba-ciencias-sociales/dba-ciencias-sociales.pdf,tabular_por_grado,Ciencias Sociales,1-11,,,,,pendiente
+P1,dba,DBA Inglés,dba-ingles,dba/dba-ingles/dba-ingles.pdf,tabular_por_grado,Ingles,6-11,,,,,pendiente
+P2,dba,DBA Transición,dba-transicion,dba/dba-transicion/dba-transicion.pdf,tabular_por_grado,todas,0,,,,,pendiente
+P1,ebc,Estándares Básicos de Competencias — Lenguaje,ebc-lenguaje,ebc/ebc-lenguaje/ebc-lenguaje.pdf,matriz_competencias,Lenguaje,1-11,,,,,pendiente
+P1,ebc,Estándares Básicos de Competencias — Matemáticas,ebc-matematicas,ebc/ebc-matematicas/ebc-matematicas.pdf,matriz_competencias,Matematicas,1-11,,,,,pendiente
+P1,ebc,Estándares Básicos de Competencias — Ciencias Naturales,ebc-ciencias-naturales,ebc/ebc-ciencias-naturales/ebc-ciencias-naturales.pdf,matriz_competencias,Ciencias Naturales,1-11,,,,,pendiente
+P1,ebc,Estándares Básicos de Competencias — Ciencias Sociales,ebc-ciencias-sociales,ebc/ebc-ciencias-sociales/ebc-ciencias-sociales.pdf,matriz_competencias,Ciencias Sociales,1-11,,,,,pendiente
+P2,ebc,Estándares Básicos de Competencias Ciudadanas,ebc-ciudadanas,ebc/ebc-ciudadanas/ebc-ciudadanas.pdf,matriz_competencias,Competencias Ciudadanas,1-11,,,,,pendiente
+P2,ebc,Estándares Básicos de Competencias en Lenguas Extranjeras — Inglés,ebc-ingles,ebc/ebc-ingles/ebc-ingles.pdf,matriz_competencias,Ingles,1-11,,,,,pendiente
+P2,lineamiento,Lineamientos Curriculares — Lengua Castellana,lineamientos-lengua-castellana,lineamiento/lineamientos-lengua-castellana/lineamientos-lengua-castellana.pdf,articulado,Lenguaje,1-11,,,,,pendiente
+P2,lineamiento,Lineamientos Curriculares — Matemáticas,lineamientos-matematicas,lineamiento/lineamientos-matematicas/lineamientos-matematicas.pdf,articulado,Matematicas,1-11,,,,,pendiente
+P2,lineamiento,Lineamientos Curriculares — Ciencias Naturales y Educación Ambiental,lineamientos-ciencias-naturales,lineamiento/lineamientos-ciencias-naturales/lineamientos-ciencias-naturales.pdf,articulado,Ciencias Naturales,1-11,,,,,pendiente
+P2,lineamiento,Lineamientos Curriculares — Ciencias Sociales,lineamientos-ciencias-sociales,lineamiento/lineamientos-ciencias-sociales/lineamientos-ciencias-sociales.pdf,articulado,Ciencias Sociales,1-11,,,,,pendiente
