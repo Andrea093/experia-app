@@ -822,6 +822,32 @@ export const InstructorDashboard = ({ onStudentClick }) => {
   };
 
   const currentSub = submissions.find(s => s.id === gradeModal);
+
+  // ¿El evaluador escribió algo que se perdería al cerrar? Se compara contra lo
+  // que traía la entrega al abrir el modal, no contra vacío: reabrir una
+  // evaluación ya guardada y cerrarla sin tocar nada NO debe pedir confirmación.
+  const hayCambiosSinGuardar = () => {
+    if (!currentSub) return false;
+    const base = currentSub.grade || {};
+    const notasCambiadas = Object.keys({ ...base, ...gradeValues })
+      .some(k => (base[k] ?? null) !== (gradeValues[k] ?? null));
+    return notasCambiadas
+      || feedbackText !== (currentSub.feedback || '')
+      || returnNotes.trim() !== ''
+      || !!instrRejillaFile
+      || !!instrPreguntaFile;
+  };
+
+  // Único camino de salida del modal de evaluación (el clic fuera está
+  // desactivado). "Aprobar" y "Devolver" cierran con setGradeModal(null)
+  // directo, así que no pasan por aquí ni preguntan de más.
+  const cerrarGradeModal = () => {
+    if (hayCambiosSinGuardar() && !window.confirm(
+      'Tienes una evaluación sin guardar.\n\n' +
+      'Si cierras ahora se perderán los puntajes, la retroalimentación y los archivos que hayas adjuntado.\n\n' +
+      '¿Cerrar de todos modos?')) return;
+    setGradeModal(null);
+  };
   const canReturn = currentSub && (currentSub.returnCount || 0) < 2 && currentSub.status !== 'approved';
   const rubricTotal = Object.values(gradeValues).reduce((a, b) => a + b, 0);
 
@@ -946,7 +972,8 @@ export const InstructorDashboard = ({ onStudentClick }) => {
       ) : (
         <SubTable subs={visible} onGrade={openGradeModal} onViewFile={openFile} saveFlash={saveFlash} />
       )}
-      <Modal open={!!gradeModal} onClose={() => setGradeModal(null)} title="Evaluar Entrega" width={580}>
+      <Modal open={!!gradeModal} onClose={cerrarGradeModal} closeOnBackdrop={false}
+        title="Evaluar Entrega" width={580}>
         {currentSub && (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '12px 16px', borderRadius: 10, background: 'var(--bg-alt)' }}>

@@ -193,14 +193,18 @@ const NotifManager = () => {
 };
 
 // --- Modal ---
-const Modal = ({open,onClose,title,children,width=560}) => {
+// `closeOnBackdrop`: por defecto true (comportamiento histórico). En false, el
+// clic fuera NO cierra — para formularios largos donde un clic despistado le
+// borraría el trabajo al usuario. Ahí la única salida es la X, que el llamador
+// puede interceptar en `onClose` para pedir confirmación.
+const Modal = ({open,onClose,title,children,width=560,closeOnBackdrop=true}) => {
   const isMobile = useMobile();
   React.useEffect(() => {
     if (open) { document.body.style.overflow = 'hidden'; }
     return () => { document.body.style.overflow = ''; };
   }, [open]);
   if(!open) return null;
-  return <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:5000,
+  return <div onClick={closeOnBackdrop ? onClose : undefined} style={{position:'fixed',inset:0,zIndex:5000,
     background:'rgba(15,15,30,.45)',backdropFilter:'blur(10px) saturate(1.2)',WebkitBackdropFilter:'blur(10px) saturate(1.2)',
     display:'flex',alignItems:isMobile?'flex-end':'center',justifyContent:'center',animation:'fadeIn .2s ease'}}>
     <div onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true" style={{background:'var(--white)',
