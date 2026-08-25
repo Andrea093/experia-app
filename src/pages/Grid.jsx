@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  useStore, nav, submitProduct, resubmitProduct, returnSubmission, approveSubmission,
+  useStore, nav, submitProduct, resubmitProduct, returnSubmission, updateReturnCorrection, approveSubmission,
   dismissStudentMessage, AREAS, RUBRIC_CRITERIA, getStudentModules,
   isRouteComplete, progressPct, gradeTotal, gradeMax, gradeSubmission, issueCertificate,
   isBlockedByPresence,
@@ -790,7 +790,10 @@ export const InstructorDashboard = ({ onStudentClick }) => {
     setGradeModal(sub.id);
     setGradeValues(sub.grade || {});
     setFeedbackText(sub.feedback || '');
-    setReturnNotes('');
+    // Si la entrega ya está devuelta, se precargan las indicaciones para poder
+    // corregirlas. Antes arrancaba vacío: arreglar una palabra obligaba a
+    // reescribir todo y, peor, gastaba la segunda devolución.
+    setReturnNotes(sub.status === 'returned' ? (sub.returnNotes || '') : '');
     setInstrRejillaFile(null); setInstrRejillaData(null);
     setInstrPreguntaFile(null); setInstrPreguntaData(null);
   };
@@ -802,6 +805,22 @@ export const InstructorDashboard = ({ onStudentClick }) => {
     returnSubmission(gradeModal, returnNotes.trim(),
       instrRejillaFile?.name || null, instrRejillaData || null,
       instrPreguntaFile?.name || null, instrPreguntaData || null);
+    flash(gradeModal);
+    setGradeModal(null);
+    setInstrRejillaFile(null); setInstrRejillaData(null);
+    setInstrPreguntaFile(null); setInstrPreguntaData(null);
+  };
+
+  // Corregir una devolución ya enviada, SIN gastar otra. Los archivos que no se
+  // vuelvan a adjuntar se conservan tal cual: aquí no se manda `null` como en
+  // `handleReturn`, o editar una coma borraría la rejilla corregida.
+  const handleUpdateReturn = () => {
+    if (!gradeModal || !returnNotes.trim()) return;
+    updateReturnCorrection(gradeModal, returnNotes.trim(),
+      instrRejillaFile?.name  || currentSub?.instrRejillaName  || null,
+      instrRejillaData        || currentSub?.instrRejillaData  || null,
+      instrPreguntaFile?.name || currentSub?.instrPreguntaName || null,
+      instrPreguntaData       || currentSub?.instrPreguntaData || null);
     flash(gradeModal);
     setGradeModal(null);
     setInstrRejillaFile(null); setInstrRejillaData(null);
@@ -849,6 +868,12 @@ export const InstructorDashboard = ({ onStudentClick }) => {
     setGradeModal(null);
   };
   const canReturn = currentSub && (currentSub.returnCount || 0) < 2 && currentSub.status !== 'approved';
+  // Ya devuelta y el estudiante todavía no reenvía: lo que el tutor haga aquí
+  // es corregir SU propia devolución, no pedir una nueva corrección.
+  const editandoDevolucion = currentSub?.status === 'returned';
+  // El bloque amarillo también se muestra con las 2 devoluciones gastadas: si no,
+  // el tutor que agotó el tope no podría ni arreglar una errata en sus notas.
+  const mostrarBloqueDevolucion = canReturn || editandoDevolucion;
   const rubricTotal = Object.values(gradeValues).reduce((a, b) => a + b, 0);
 
   return (
@@ -1020,9 +1045,13 @@ export const InstructorDashboard = ({ onStudentClick }) => {
               <textarea value={feedbackText} onChange={e => setFeedbackText(e.target.value)} placeholder="Escribe retroalimentación para el estudiante..." rows={3}
                 style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 14, resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
             </div>
-            {canReturn && (
+            {mostrarBloqueDevolucion && (
               <div style={{ padding: '16px', borderRadius: 12, background: '#FFFBEB', border: '1.5px solid #FCD34D', marginBottom: 20 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 8 }}>↩️ Devolver para corrección ({currentSub.returnCount || 0}/2 devoluciones usadas)</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 8 }}>
+                  {editandoDevolucion
+                    ? `✏️ Editar la devolución (${currentSub.returnCount || 0}/2 usadas · editar no gasta otra)`
+                    : `↩️ Devolver para corrección (${currentSub.returnCount || 0}/2 devoluciones usadas)`}
+                </div>
                 <textarea value={returnNotes} onChange={e => setReturnNotes(e.target.value)} placeholder="Ej: Revisar la formulación de la pregunta..." rows={3}
                   style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #FCD34D', fontFamily: 'var(--font)', fontSize: 13, resize: 'vertical', outline: 'none', background: 'white', color: '#1A1A2E', boxSizing: 'border-box' }} />
                 <div style={{ marginTop: 12 }}>
@@ -1030,12 +1059,16 @@ export const InstructorDashboard = ({ onStudentClick }) => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div>
                       <div style={{ fontSize: 11, color: '#92400E', marginBottom: 4 }}>Rejilla corregida</div>
-                      <FileDrop label="Rejilla (corregida)" fileName={instrRejillaFile?.name} accept=".doc,.docx,.xls,.xlsx"
+                      {/* Al editar se muestra el archivo YA adjunto; si no se
+                          sube otro, se conserva (ver handleUpdateReturn). */}
+                      <FileDrop label="Rejilla (corregida)" accept=".doc,.docx,.xls,.xlsx"
+                        fileName={instrRejillaFile?.name || (editandoDevolucion ? currentSub.instrRejillaName : null)}
                         onFile={async (f) => { if (!isValidFile(f)) return; setInstrRejillaFile(f); setInstrRejillaData(await readFileAsDataURL(f)); }} />
                     </div>
                     <div>
                       <div style={{ fontSize: 11, color: '#92400E', marginBottom: 4 }}>Pregunta corregida</div>
-                      <FileDrop label="Pregunta (corregida)" fileName={instrPreguntaFile?.name} accept=".doc,.docx,.xls,.xlsx"
+                      <FileDrop label="Pregunta (corregida)" accept=".doc,.docx,.xls,.xlsx"
+                        fileName={instrPreguntaFile?.name || (editandoDevolucion ? currentSub.instrPreguntaName : null)}
                         onFile={async (f) => { if (!isValidFile(f)) return; setInstrPreguntaFile(f); setInstrPreguntaData(await readFileAsDataURL(f)); }} />
                     </div>
                   </div>
@@ -1045,11 +1078,12 @@ export const InstructorDashboard = ({ onStudentClick }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)' }}>Total: {rubricTotal}/{gradeMax()}</span>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Btn variant="secondary" size="sm" onClick={() => setGradeModal(null)}>Cancelar</Btn>
-                {canReturn && (
-                  <button onClick={handleReturn} disabled={!returnNotes.trim()}
+                <Btn variant="secondary" size="sm" onClick={cerrarGradeModal}>Cancelar</Btn>
+                {mostrarBloqueDevolucion && (
+                  <button onClick={editandoDevolucion ? handleUpdateReturn : handleReturn} disabled={!returnNotes.trim()}
+                    title={editandoDevolucion ? 'Actualiza tus indicaciones y archivos sin gastar otra devolución' : undefined}
                     style={{ padding: '8px 16px', borderRadius: 10, border: '1.5px solid #FCD34D', background: returnNotes.trim() ? '#FFFBEB' : 'var(--bg-alt)', color: returnNotes.trim() ? '#92400E' : 'var(--subtle)', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600, cursor: returnNotes.trim() ? 'pointer' : 'not-allowed' }}>
-                    ↩️ Devolver para corrección
+                    {editandoDevolucion ? '💾 Guardar cambios de la devolución' : '↩️ Devolver para corrección'}
                   </button>
                 )}
                 <Btn variant="gradient" size="sm" onClick={handleApprove}>✅ Aprobar proyecto</Btn>

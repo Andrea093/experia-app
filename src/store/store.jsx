@@ -1132,6 +1132,33 @@ const returnSubmission = (subId, returnNotes, instrRejillaName, instrRejillaData
   }).eq('id', subId).then(({ error }) => { if (error) console.error('returnSubmission:', error); });
 };
 
+// Corregir una devolución YA hecha: cambia las notas y los archivos adjuntos
+// sin gastar una devolución. Solo tiene sentido mientras `status === 'returned'`
+// (el estudiante aún no ha reenviado; al reenviar vuelve a 'pending').
+//
+// La diferencia con `returnSubmission` es lo que NO toca: ni `return_count`, ni
+// `status`. El tope de 2 devoluciones existe para acotar cuántas veces se le
+// pide al estudiante que rehaga el trabajo — no para castigar al tutor que
+// escribió mal una indicación o adjuntó el archivo equivocado.
+const updateReturnCorrection = (subId, returnNotes, instrRejillaName, instrRejillaData, instrPreguntaName, instrPreguntaData) => {
+  XS.set(s => ({
+    submissions: s.submissions.map(su => su.id === subId ? {
+      ...su, returnNotes,
+      instrRejillaName: instrRejillaName || null, instrRejillaData: instrRejillaData || null,
+      instrPreguntaName: instrPreguntaName || null, instrPreguntaData: instrPreguntaData || null,
+    } : su),
+    // El aviso en pantalla del tutor se actualiza en vez de duplicarse: dos
+    // mensajes de devolución para la misma entrega se contradirían.
+    studentMessages: (s.studentMessages || []).map(m =>
+      m.submissionId === subId && m.type === 'return' ? { ...m, returnNotes } : m),
+  }));
+  supabase.from('submissions').update({
+    return_notes: returnNotes,
+    instr_rejilla_name: instrRejillaName || null, instr_rejilla_data: instrRejillaData || null,
+    instr_pregunta_name: instrPreguntaName || null, instr_pregunta_data: instrPreguntaData || null,
+  }).eq('id', subId).then(({ error }) => { if (error) console.error('updateReturnCorrection:', error); });
+};
+
 const approveSubmission = (subId, grade, feedback) => {
   XS.set(s => {
     const sub = s.submissions.find(su => su.id === subId);
@@ -2438,7 +2465,7 @@ export {
   loadCloneAttendance, saveCloneAttendance,
   loadCloneEffectiveness, saveCloneEffectiveness, deleteCloneEffectiveness,
   loadCloneUnitPlan, saveCloneUnitPlan,
-  submitProduct, resubmitProduct, gradeSubmission, returnSubmission, approveSubmission,
+  submitProduct, resubmitProduct, gradeSubmission, returnSubmission, updateReturnCorrection, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
   saveAvatarConfig, selectAvatarConfig, selectHasThemedCourse, selectThemedCourses,
   loadRouteConfigs, saveRouteConfig, getRouteModules, findModuleInConfig, routeKey,
