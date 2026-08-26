@@ -2365,6 +2365,8 @@ const issueCertificate = async (submissionId, studentName, areaId, score, maxSco
 // calificada), este se emite solo con completar el 100% de los módulos
 // habilitados de la ruta — necesario porque no todo curso personalizado tiene
 // Entrega Final (ej. MOOCs por video). Ver 0037_course_certificates.sql.
+// Copia deliberada de DEFAULT_ACHIEVEMENT_TEXT (components/CertificateCard.jsx):
+// el store no debe importar de un componente. Si cambia allá, cambiar aquí.
 const DEFAULT_CERT_ACHIEVEMENT_TEXT = 'Por haber concluido de manera satisfactoria el';
 
 // Título mostrado por defecto si el tutor no puso uno propio: el nombre del

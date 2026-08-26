@@ -5,105 +5,200 @@ import { LogoImg } from './ui.jsx'
 // Compartida por CourseCertificatePage, la página pública de verificación y la
 // vista previa del editor, para que todo se vea idéntico.
 //
-// Props: title, achievementText, hours (número|null), studentName, dateStr,
-// certUuid (opcional), isMobile, idAttr.
-const SERIF = "'Georgia', 'Times New Roman', serif"
+// Props obligatorias: title, achievementText, hours, studentName, dateStr.
+// Opcionales (si faltan, la línea NO se pinta — nunca se imprime un
+// marcador de posición en un documento que la gente firma y archiva):
+//   documentId  → "C.C. 1.020.304.050"
+//   area, grade → píldora "ÁREA · GRADO · INTENSIDAD"
+//   city        → "Expedido en Bogotá, D. C., el …"
+//   description → párrafo de cierre bajo el nombre del curso
+//   certUuid    → código de verificación al pie
+//
+// ⚠️ PALETA FIJA, no tokens del tema. Un certificado es un documento
+// imprimible: tiene que verse igual en claro, en oscuro y en papel. Con
+// `var(--dark)` el nombre salía en texto claro sobre el fondo crema en modo
+// oscuro, porque estos ids (course-certificate / cert-public / cert-preview) no
+// están cubiertos por la regla `#certificate` de styles.css.
+// Texto de logro por defecto: GENÉRICO a propósito. Cada curso puede poner el
+// suyo desde el editor de Ruta (courses.certificate_achievement_text) — ahí es
+// donde va la redacción específica de un programa.
+export const DEFAULT_ACHIEVEMENT_TEXT = 'Por haber concluido de manera satisfactoria el'
 
-// Esquinas ornamentales (marcos en L) del marco interior.
-const Corner = ({ v, h }) => (
-  <div style={{
-    position: 'absolute', [v]: 26, [h]: 26, width: 26, height: 26, pointerEvents: 'none',
-    borderTop: v === 'top' ? '2px solid var(--orange)' : 'none',
-    borderBottom: v === 'bottom' ? '2px solid var(--orange)' : 'none',
-    borderLeft: h === 'left' ? '2px solid var(--orange)' : 'none',
-    borderRight: h === 'right' ? '2px solid var(--orange)' : 'none',
-    borderTopLeftRadius: v === 'top' && h === 'left' ? 8 : 0,
-    borderTopRightRadius: v === 'top' && h === 'right' ? 8 : 0,
-    borderBottomLeftRadius: v === 'bottom' && h === 'left' ? 8 : 0,
-    borderBottomRightRadius: v === 'bottom' && h === 'right' ? 8 : 0,
-  }} />
+// ── Ficha CEINFES: área, grado, ciudad y párrafo de cierre ──────────────────
+// El REDISEÑO visual aplica a todos los cursos (es la identidad de la marca),
+// pero estos DATOS no: son propios de un programa concreto. Un certificado que
+// dijera "Ciencias Naturales · Grado 11" en un curso de Matemáticas sería un
+// dato falso en un documento que la gente archiva y presenta.
+//
+// Por eso van en una lista explícita por curso. Lo que no esté aquí sale sin
+// píldora y sin ciudad, y el componente omite ambas cosas limpiamente.
+//
+// ⚠️ TEMPORAL. En cuanto haya un segundo programa con su propia ficha, esto
+// debe pasar a columnas del curso (certificate_area / certificate_grade /
+// certificate_city / certificate_description) editables desde el editor de
+// Ruta, y esta constante desaparece.
+const FICHAS_POR_CURSO = {
+  // "Formación Docente - GenIA Construye" (fork del colegio Ceinfes).
+  // Si el mismo programa se publica en la versión de otro colegio, agrega aquí
+  // el id de ESE fork — la ficha es del programa, no del curso base.
+  'a0d38833-f43f-499b-9396-bb6596f9e5b9': {
+    area: 'Ciencias Naturales',
+    grade: '11',
+    city: 'Bogotá, D. C.',
+    description: 'Durante este proceso fortaleció sus capacidades para interpretar resultados, priorizar aprendizajes y desarrollar en el aula la secuencia didáctica propuesta.',
+  },
+}
+
+// Devuelve las props extra del certificado para un curso, o {} si no tiene
+// ficha propia. Pensado para hacer spread sobre <CertificateCard {...} />.
+export const fichaCertificado = (courseId) => FICHAS_POR_CURSO[courseId] || {}
+
+const SERIF = "'Georgia', 'Times New Roman', serif"
+const C = {
+  papel:  '#FBF7F2',
+  marco:  '#E8732C',
+  naranja:'#E8732C',
+  navy:   '#14284A',
+  texto:  '#43516B',
+  suave:  '#7C8AA0',
+  linea:  'rgba(232,115,44,.30)',
+}
+
+// Círculos y arcos decorativos del fondo, como en el arte de referencia.
+const Ornamento = () => (
+  <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+    <div style={{ position: 'absolute', top: '14%', left: '4%', width: 92, height: 92, borderRadius: '50%', background: 'rgba(232,115,44,.05)' }} />
+    <div style={{ position: 'absolute', top: '46%', left: '1%', width: 54, height: 54, borderRadius: '50%', border: '9px solid rgba(232,115,44,.07)' }} />
+    <div style={{ position: 'absolute', bottom: '10%', left: '9%', width: 34, height: 34, borderRadius: '50%', background: 'rgba(232,115,44,.06)' }} />
+    <div style={{ position: 'absolute', top: '30%', right: '5%', width: 70, height: 70, borderRadius: '50%', border: '10px solid rgba(232,115,44,.06)' }} />
+    <div style={{ position: 'absolute', bottom: '16%', right: '11%', width: 44, height: 44, borderRadius: '50%', background: 'rgba(232,115,44,.05)' }} />
+    {/* Arcos suaves, guiños al trazo del arte original */}
+    <svg viewBox="0 0 400 300" preserveAspectRatio="none"
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: .5 }}>
+      <path d="M -10 250 C 60 210, 90 120, 165 96" fill="none" stroke="rgba(232,115,44,.16)" strokeWidth="1.2" strokeDasharray="5 6" />
+      <path d="M 410 70 C 350 96, 330 170, 262 205" fill="none" stroke="rgba(232,115,44,.16)" strokeWidth="1.2" strokeDasharray="5 6" />
+    </svg>
+  </div>
+)
+
+// Rombo entre dos filetes, el separador del arte de referencia.
+const Filete = ({ w = 120 }) => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+    <span style={{ width: w, height: 1, background: `linear-gradient(90deg, transparent, ${C.linea})` }} />
+    <span style={{ color: C.naranja, fontSize: 9 }}>◆</span>
+    <span style={{ width: w, height: 1, background: `linear-gradient(90deg, ${C.linea}, transparent)` }} />
+  </div>
 )
 
 const CertificateCard = ({
-  isMobile, title, achievementText, hours, studentName, dateStr, certUuid, idAttr = 'course-certificate',
+  isMobile, title, achievementText, hours, studentName, dateStr, certUuid,
+  documentId, area, grade, city, description, idAttr = 'course-certificate',
 }) => {
   const hoursNum = Number(hours)
-  const ach = achievementText || 'Por haber concluido de manera satisfactoria el'
+  const ach = achievementText || DEFAULT_ACHIEVEMENT_TEXT
+  const S = (m, d) => (isMobile ? m : d)
+
+  // La píldora solo aparece si hay al menos un dato que poner dentro.
+  const datos = [
+    area          ? { k: 'ÁREA',       v: area }               : null,
+    grade         ? { k: 'GRADO',      v: grade }              : null,
+    hoursNum > 0  ? { k: 'INTENSIDAD', v: `${hoursNum} HORAS` } : null,
+  ].filter(Boolean)
+
   return (
     <div id={idAttr} style={{
       position: 'relative', overflow: 'hidden', textAlign: 'center',
-      border: isMobile ? '5px solid var(--orange)' : '9px double var(--orange)',
-      borderRadius: isMobile ? 16 : 18,
-      padding: isMobile ? '26px 20px' : '3.5% 7%',
+      background: C.papel,
+      border: `2px solid ${C.marco}`,
+      borderRadius: S(14, 10),
       boxShadow: '0 24px 60px rgba(232,115,44,.18)',
-      background: 'linear-gradient(135deg, #FFFDFA 0%, #FFF6EC 55%, #FEEFE0 100%)',
+      padding: S('24px 18px', '3.2% 6%'),
       ...(isMobile ? {} : { aspectRatio: '297 / 210', display: 'flex', flexDirection: 'column', justifyContent: 'center' }),
     }}>
-      {/* Resplandor sutil detrás del contenido */}
-      <div style={{ position: 'absolute', top: '-30%', left: '50%', transform: 'translateX(-50%)',
-        width: '70%', height: '70%', borderRadius: '50%',
-        background: 'radial-gradient(closest-side, rgba(240,152,72,.12), transparent)', pointerEvents: 'none' }} />
-      {/* Marco interior fino */}
-      <div style={{ position: 'absolute', inset: isMobile ? 10 : 16, border: '1.5px solid rgba(232,115,44,.35)',
-        borderRadius: 12, pointerEvents: 'none' }} />
-      {/* Esquinas ornamentales */}
-      {!isMobile && [['top', 'left'], ['top', 'right'], ['bottom', 'left'], ['bottom', 'right']].map(([v, h]) => (
-        <Corner key={v + h} v={v} h={h} />
-      ))}
+      <Ornamento />
+      {/* Filete interior, a un par de milímetros del borde */}
+      <div style={{ position: 'absolute', inset: S(7, 9), border: `1px solid ${C.linea}`,
+        borderRadius: S(10, 7), pointerEvents: 'none' }} />
 
       <div style={{ position: 'relative' }}>
-        {/* Logos: CEINFES (izquierda) · Grupo de Investigación (derecha).
-            LogoImg usa `h` como factor (ancho = h×5), no como altura. */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: isMobile ? 12 : 18 }}>
-          <LogoImg h={isMobile ? 26 : 34} />
+        {/* Logo CEINFES · sello del grupo de investigación */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: S(10, 4) }}>
+          <LogoImg h={S(24, 32)} />
           <img src="/sello-grupo-investigacion.png" alt="CEINFES — Grupo de Investigación reconocido por Minciencias"
-            style={{ height: isMobile ? 58 : 82, width: 'auto' }} />
+            style={{ height: S(52, 76), width: 'auto' }} />
         </div>
 
-        {/* CERTIFICADO con líneas laterales */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: isMobile ? 8 : 12 }}>
-          <span style={{ width: isMobile ? 26 : 48, height: 2, background: 'linear-gradient(90deg, transparent, var(--orange))' }} />
-          <span style={{ fontFamily: SERIF, fontSize: isMobile ? 12 : 15, fontWeight: 700, letterSpacing: isMobile ? 5 : 9, color: 'var(--orange)', textTransform: 'uppercase' }}>Certificado</span>
-          <span style={{ width: isMobile ? 26 : 48, height: 2, background: 'linear-gradient(90deg, var(--orange), transparent)' }} />
+        {/* CERTIFICADO DE APROBACIÓN */}
+        <div style={{ marginBottom: S(10, 8) }}>
+          <Filete w={S(28, 70)} />
+          <div style={{ fontSize: S(12, 16), fontWeight: 800, letterSpacing: S(2.5, 4.5),
+            color: C.naranja, textTransform: 'uppercase', margin: S('8px 0', '7px 0') }}>
+            Certificado de aprobación
+          </div>
+          <Filete w={S(28, 70)} />
         </div>
 
-        <div style={{ fontSize: isMobile ? 12 : 14, color: 'var(--muted)', marginBottom: isMobile ? 6 : 10 }}>Se otorga el presente certificado a</div>
+        <div style={{ fontSize: S(12, 15), color: C.texto, marginBottom: S(4, 4) }}>Ceinfes certifica que</div>
 
-        {/* Nombre del estudiante */}
-        <div style={{ fontFamily: SERIF, fontSize: isMobile ? 26 : 44, fontWeight: 700, color: 'var(--dark)', lineHeight: 1.1, letterSpacing: .5, padding: '0 8px' }}>
+        {/* Nombre del docente */}
+        <div style={{ fontFamily: SERIF, fontSize: S(24, 40), fontWeight: 700, color: C.navy,
+          lineHeight: 1.12, letterSpacing: .3, padding: '0 6px' }}>
           {studentName}
         </div>
 
-        {/* Divisor ornamental */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, margin: isMobile ? '12px auto 16px' : '16px auto 22px' }}>
-          <span style={{ width: isMobile ? 50 : 80, height: 1, background: 'linear-gradient(90deg, transparent, var(--orange-pale))' }} />
-          <span style={{ color: 'var(--orange)', fontSize: 13 }}>◆</span>
-          <span style={{ width: isMobile ? 50 : 80, height: 1, background: 'linear-gradient(90deg, var(--orange-pale), transparent)' }} />
+        {documentId && (
+          <div style={{ fontSize: S(12, 15), color: C.texto, marginTop: 3, letterSpacing: .4 }}>
+            C.C. {documentId}
+          </div>
+        )}
+
+        {/* Logro + nombre del curso */}
+        <div style={{ fontSize: S(12.5, 15), color: C.texto, lineHeight: 1.5,
+          margin: S('10px auto 0', '11px auto 0'), maxWidth: 760, whiteSpace: 'pre-line' }}>
+          {ach}
+        </div>
+        <div style={{ fontSize: S(17, 25), fontWeight: 800, color: C.naranja,
+          lineHeight: 1.2, margin: S('3px 0 0', '2px 0 0'), padding: '0 6px' }}>
+          {title}
         </div>
 
-        {/* Texto de reconocimiento */}
-        <p style={{ fontSize: isMobile ? 13.5 : 16.5, color: 'var(--text-sec)', lineHeight: 1.7, maxWidth: 780, margin: '0 auto', marginBottom: isMobile ? 22 : 34 }}>
-          {ach} <strong style={{ color: 'var(--dark)' }}>{title}</strong>
-          {hoursNum > 0 ? <> con una intensidad de <strong style={{ color: 'var(--dark)' }}>{hoursNum} horas</strong></> : null}.
-        </p>
+        {description && (
+          <p style={{ fontSize: S(11.5, 13.5), color: C.texto, lineHeight: 1.55,
+            maxWidth: 700, margin: S('9px auto 0', '10px auto 0') }}>
+            {description}
+          </p>
+        )}
 
-        {/* Fecha (izquierda) · Firma = logo CEINFES (derecha) */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', gap: 24, flexWrap: 'wrap' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: SERIF, fontSize: 15, color: 'var(--dark)', fontWeight: 600, marginBottom: 8 }}>{dateStr}</div>
-            <div style={{ width: 200, height: 1.5, background: 'var(--orange-pale)', margin: '0 auto 7px' }} />
-            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Fecha de expedición</div>
+        {/* Píldora ÁREA · GRADO · INTENSIDAD */}
+        {datos.length > 0 && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap',
+            justifyContent: 'center', gap: S(10, 18),
+            margin: S('14px auto 0', '16px auto 0'),
+            padding: S('8px 16px', '9px 26px'),
+            borderRadius: 999, background: 'rgba(232,115,44,.09)', border: `1px solid ${C.linea}` }}>
+            {datos.map((d, i) => (
+              <React.Fragment key={d.k}>
+                {i > 0 && <span style={{ color: C.naranja, fontSize: 9 }}>●</span>}
+                <span style={{ fontSize: S(10.5, 12.5), letterSpacing: .3 }}>
+                  <b style={{ color: C.naranja, fontWeight: 800 }}>{d.k}:</b>{' '}
+                  <span style={{ color: C.navy, fontWeight: 600 }}>{d.v}</span>
+                </span>
+              </React.Fragment>
+            ))}
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ marginBottom: 9 }}><LogoImg h={17} /></div>
-            <div style={{ width: 200, height: 1.5, background: 'var(--orange-pale)', margin: '0 auto 7px' }} />
-            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Firma CEINFES</div>
-          </div>
+        )}
+
+        {/* Expedición */}
+        <div style={{ fontSize: S(11.5, 13.5), color: C.texto, margin: S('16px 0 0', '20px 0 0') }}>
+          {city ? `Expedido en ${city}, el ${dateStr}.` : `Expedido el ${dateStr}.`}
         </div>
+
+        <div style={{ marginTop: S(10, 12) }}><Filete w={S(40, 90)} /></div>
 
         {certUuid && (
-          <div style={{ marginTop: isMobile ? 16 : 22, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 10, color: 'var(--subtle)', fontFamily: 'monospace', wordBreak: 'break-all' }}>Verificación: {certUuid}</span>
+          <div style={{ marginTop: S(8, 9), fontSize: S(8.5, 9.5), color: C.suave,
+            fontFamily: 'monospace', wordBreak: 'break-all' }}>
+            Verificación: {certUuid}
           </div>
         )}
       </div>

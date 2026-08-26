@@ -2,7 +2,7 @@ import React from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useStore } from '../store/store.jsx'
 import { useMobile, LogoImg, CheckIc, Skeleton } from '../components/ui.jsx'
-import CertificateCard from '../components/CertificateCard.jsx'
+import CertificateCard, { fichaCertificado } from '../components/CertificateCard.jsx'
 // =============================================
 // EXPERIA — Página pública de verificación de certificado
 // Accesible sin autenticación: /#/cert/<cert_uuid>
@@ -127,6 +127,7 @@ const CertPage = () => {
             studentName={cert.student_name}
             dateStr={dateStr}
             certUuid={cert.cert_uuid}
+            {...fichaCertificado(cert.course_id)}
           />
         ) : (
         /* Certificado legacy por área (score/logro/DCE) */

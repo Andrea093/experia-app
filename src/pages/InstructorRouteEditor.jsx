@@ -6,7 +6,7 @@ import {
   getCourseDisplayName, generatePresenceCode,
 } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, GripIc, LockIc, Btn, Modal } from '../components/ui.jsx'
-import CertificateCard from '../components/CertificateCard.jsx'
+import CertificateCard, { DEFAULT_ACHIEVEMENT_TEXT as DEFAULT_CERT_ACHIEVEMENT_TEXT, fichaCertificado } from '../components/CertificateCard.jsx'
 import {
   TYPE_LABELS, TYPE_COLORS, TYPE_BG,
   ChallengeEditorModal, QuizCreatorModal, CustomModuleModal,
@@ -159,7 +159,6 @@ const AvailabilityForm = ({ mod, onSave, onCancel }) => {
 }
 
 // ─── Modo Curso: edita los módulos reales de la copia del tutor ───────────────
-const DEFAULT_CERT_ACHIEVEMENT_TEXT = 'Por haber concluido de manera satisfactoria el'
 const EMPTY_CERT_CONFIG = { enabled: false, title: '', achievementText: '', signatoryName: '', signatoryRole: '', hours: '' }
 
 const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) => {
@@ -667,6 +666,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
           hours={certConfig.hours}
           studentName="Nombre del Estudiante"
           dateStr={new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
+          {...fichaCertificado(courseId)}
         />
       </Modal>
       <Modal open={!!codeModalMod} onClose={() => setCodeModalMod(null)}

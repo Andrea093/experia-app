@@ -95,7 +95,7 @@ select base.name            as curso_base,
 select m."order", m.title, m.type, m.is_enabled,
        coalesce(m.area_id, 'NULL → visible en todas las áreas') as area_id
   from public.course_modules m
- where m.course_id = 'PEGA_AQUI_EL_FORK_ID'
+ where m.course_id = 'c2fdd9e3-b2ca-4cb2-9796-7c69bd43ab64'
  order by m."order";
 
 -- Resumen del filtro por área en ese curso:
@@ -103,7 +103,7 @@ select coalesce(area_id, 'NULL (visible siempre)') as area_id,
        count(*) as modulos,
        count(*) filter (where is_enabled) as habilitados
   from public.course_modules
- where course_id = 'PEGA_AQUI_EL_FORK_ID'
+ where course_id = 'c2fdd9e3-b2ca-4cb2-9796-7c69bd43ab64'
  group by area_id
  order by 1;
 

@@ -3,7 +3,7 @@ import {
   useStore, nav, isRouteComplete, issueCourseCertificate, getCourseCertConfig,
 } from '../store/store.jsx'
 import { useMobile, Btn } from '../components/ui.jsx'
-import CertificateCard from '../components/CertificateCard.jsx'
+import CertificateCard, { DEFAULT_ACHIEVEMENT_TEXT, fichaCertificado } from '../components/CertificateCard.jsx'
 // =============================================
 // EXPERIA — Certificado de curso personalizado
 // A diferencia del certificado DCE (Grid.jsx), no depende de una Entrega
@@ -14,7 +14,6 @@ import CertificateCard from '../components/CertificateCard.jsx'
 
 const PROD_BASE = 'https://experia-app.pages.dev'
 
-const DEFAULT_ACHIEVEMENT_TEXT = 'Por haber concluido de manera satisfactoria el'
 const DEFAULT_SIGNATORY_ROLE = 'CEINFES'
 
 const CourseCertificatePage = () => {
@@ -119,6 +118,7 @@ const CourseCertificatePage = () => {
           studentName={user?.name}
           dateStr={dateStr}
           certUuid={cert?.cert_uuid}
+          {...fichaCertificado(courseId)}
         />
       </div>
     </div>
