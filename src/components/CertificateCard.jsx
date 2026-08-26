@@ -37,16 +37,24 @@ export const DEFAULT_ACHIEVEMENT_TEXT = 'Por haber concluido de manera satisfact
 // debe pasar a columnas del curso (certificate_area / certificate_grade /
 // certificate_city / certificate_description) editables desde el editor de
 // Ruta, y esta constante desaparece.
+// ⚠️ La ficha se registra POR CURSO, y cada colegio tiene su propia copia
+// (fork) del mismo programa. Si el certificado sale sin píldora, casi siempre
+// es porque falta el id de ESA copia aquí — no porque el código no funcione.
+// Para saber en cuál estás:
+//   select id, name, institution_id from public.courses
+//    where name ilike '%Producto Sustituto%' or name ilike '%GenIA%';
+const FICHA_GENIA_CONSTRUYE = {
+  area: 'Ciencias Naturales',
+  grade: '11',
+  city: 'Bogotá, D. C.',
+  description: 'Durante este proceso fortaleció sus capacidades para interpretar resultados, priorizar aprendizajes y desarrollar en el aula la secuencia didáctica propuesta.',
+}
+
 const FICHAS_POR_CURSO = {
-  // "Formación Docente - GenIA Construye" (fork del colegio Ceinfes).
-  // Si el mismo programa se publica en la versión de otro colegio, agrega aquí
-  // el id de ESE fork — la ficha es del programa, no del curso base.
-  'a0d38833-f43f-499b-9396-bb6596f9e5b9': {
-    area: 'Ciencias Naturales',
-    grade: '11',
-    city: 'Bogotá, D. C.',
-    description: 'Durante este proceso fortaleció sus capacidades para interpretar resultados, priorizar aprendizajes y desarrollar en el aula la secuencia didáctica propuesta.',
-  },
+  // Las dos versiones del programa "Formación Docente · Producto Sustituto".
+  // Misma ficha porque es el mismo programa dictado en dos colegios.
+  'a0d38833-f43f-499b-9396-bb6596f9e5b9': FICHA_GENIA_CONSTRUYE, // "GenIA Construye" — colegio Ceinfes
+  'c2fdd9e3-b2ca-4cb2-9796-7c69bd43ab64': FICHA_GENIA_CONSTRUYE, // "— mi versión"    — colegio 47661484…
 }
 
 // Devuelve las props extra del certificado para un curso, o {} si no tiene
