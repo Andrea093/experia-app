@@ -8,11 +8,6 @@
 
 Experia es una plataforma de formación docente gamificada (XP, niveles, insignias, mapa de ruta, retos interactivos, entregas con rúbrica, certificados) con 3 roles (estudiante/instructor/admin), multi-institución y cohortes, sobre React + Vite + Supabase.
 
-**Fortalezas actuales frente al mercado** (no perderlas):
-- Mapa de ruta visual e interactivo — pocos LMS lo tienen; es el diferenciador visual de Experia.
-- Retos interactivos propios (drag & drop, mapa de empatía, quiz) en vez de solo video + quiz.
-- Editor de rutas para el instructor con actualización en tiempo real (Supabase Realtime).
-- Calificación con rúbrica estructurada y devolución de entregas.
 
 ---
 
