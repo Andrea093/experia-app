@@ -43,8 +43,11 @@ const TransversalChart = ({ title, bars }) => (
       {bars.map((b, i) => (
         <div key={i} title={`${b.label} — ${fmtVal(b.value)} de 100`}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+            {/* El nombre se parte en varias líneas en vez de cortarse: los ejes
+                son frases completas y un "…" escondía justo la parte que las
+                distingue. */}
             <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-sec)', flex: 1,
-              minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              minWidth: 0, lineHeight: 1.35 }}>
               {b.label}
             </span>
             <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--dark)',

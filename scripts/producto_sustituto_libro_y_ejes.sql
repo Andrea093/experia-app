@@ -83,12 +83,12 @@ with cursos as (
   select jsonb_build_object(
     'title', 'Desempeño por área CEINFES — Química',
     'bars', jsonb_build_array(
-      jsonb_build_object('label', 'Conexión entre las reglas de la',    'value', 25, 'color', 1),
-      jsonb_build_object('label', 'Propiedades y clasificación de la',  'value', 45, 'color', 2),
-      jsonb_build_object('label', 'Diseño de experimentos para',        'value', 50, 'color', 3),
-      jsonb_build_object('label', 'Explicaciones y respuestas a',       'value', 50, 'color', 4),
-      jsonb_build_object('label', 'Ideas y evidencias en la',           'value', 20, 'color', 5),
-      jsonb_build_object('label', 'Relación entre los cambios de la',   'value', 35, 'color', 6)
+      jsonb_build_object('label', 'Conexión entre las reglas de la física, la química y el universo.', 'value', 25, 'color', 1),
+      jsonb_build_object('label', 'Propiedades y clasificación de la materia.', 'value', 45, 'color', 2),
+      jsonb_build_object('label', 'Diseño de experimentos para obtener resultados y conclusiones.', 'value', 50, 'color', 3),
+      jsonb_build_object('label', 'Explicaciones y respuestas a preguntas con modelos científicos.', 'value', 50, 'color', 4),
+      jsonb_build_object('label', 'Ideas y evidencias en la comunicación científica.', 'value', 20, 'color', 5),
+      jsonb_build_object('label', 'Relación entre los cambios de la materia y tu día a día.', 'value', 35, 'color', 6)
     )) as chart
 )
 insert into public.clone_unit_plans (group_id, chart)
