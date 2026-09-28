@@ -1,7 +1,8 @@
 import React from 'react'
-import { useStore, nav, completeNode, loadCloneUnitPlan } from '../store/store.jsx'
+import { useStore, nav, completeNode, loadCloneUnitPlan, findModule } from '../store/store.jsx'
 import { useMobile, Btn, Skeleton } from '../components/ui.jsx'
 import { useMyCloneGroups, GroupPicker, card, PRINT_CSS, fmtPct1, vizColor } from '../components/cloneShared.jsx'
+import { LessonSection } from './lesson.jsx'
 
 // ── Tablero de unidades del libro (módulo `clone_dashboard`, 0052) ───────────
 // Último paso de la ruta del docente clon: le muestra, de solo lectura, el orden
@@ -112,6 +113,16 @@ const CloneUnitDashboard = () => {
     if (moduleId && !completed.includes(moduleId)) completeNode(moduleId)
   }, [moduleId, completed])
 
+  // Material del libro: vive en el `content` del PROPIO módulo (se edita en el
+  // editor de ruta como cualquier lección), porque es el mismo para todos los
+  // grupos del curso — a diferencia del plan, que es por grupo. Se muestra
+  // aunque el tutor aún no haya cargado el plan: el docente necesita el libro
+  // desde el primer día.
+  const courseModules = useStore(s => s.courseModules)
+  const bookSections = React.useMemo(
+    () => (findModule(moduleId)?.content || []).filter(s => s && s.type !== 'pagebreak'),
+    [moduleId, courseModules])
+
   const units = plan?.units || []
   // Catálogo de ejes en orden de aparición: fija el color de cada eje.
   const ejeIndex = React.useMemo(() => {
@@ -157,7 +168,7 @@ const CloneUnitDashboard = () => {
           </p>
         </div>
         <GroupPicker groups={groups} groupId={groupId} setGroupId={setGroupId} />
-        {units.length > 0 && (
+        {(units.length > 0 || chartBars.length > 0) && (
           <Btn variant="secondary" size="sm" onClick={() => window.print()}>🖨 Imprimir</Btn>
         )}
       </div>
@@ -177,7 +188,7 @@ const CloneUnitDashboard = () => {
             Tu tutor crea el grupo y define ahí el plan de unidades. Apenas lo haga, lo verás en esta pantalla.
           </p>
         </div>
-      ) : units.length === 0 ? (
+      ) : units.length === 0 && chartBars.length === 0 ? (
         <div style={{ ...card, padding: '20px 24px', maxWidth: 620 }}>
           <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', margin: '0 0 6px' }}>
             Tu tutor aún no ha publicado el plan
@@ -207,7 +218,7 @@ const CloneUnitDashboard = () => {
               que sí tenía ejes transversales cargados — un cero que se leía
               como "no hay nada" justo al lado de la gráfica que los mostraba. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-            <Stat value={units.length} label="Unidades" />
+            {units.length > 0 && <Stat value={units.length} label="Unidades" />}
             {chartBars.length > 0 && <Stat value={chartBars.length} label="Ejes transversales" />}
             {ejeIndex.size > 0 && <Stat value={ejeIndex.size} label="Ejes articuladores" />}
           </div>
@@ -235,7 +246,7 @@ const CloneUnitDashboard = () => {
               </div>
             )}
 
-            <div>
+            {units.length > 0 && <div>
               <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--dark)', margin: '0 0 10px' }}>
                 Orden de trabajo
               </h3>
@@ -281,7 +292,7 @@ const CloneUnitDashboard = () => {
               </div>
             ))}
               </div>
-            </div>
+            </div>}
           </div>
 
           {plan?.updated_at && (
@@ -289,6 +300,18 @@ const CloneUnitDashboard = () => {
               Última actualización de tu tutor: {new Date(plan.updated_at).toLocaleDateString('es-CO')}
             </p>
           )}
+        </div>
+      )}
+
+      {/* El libro, en la misma ventana que los ejes y el orden de trabajo: el
+          docente lo consulta mientras cruza ambas cosas. Fuera de #clone-print
+          a propósito — un PDF incrustado no se imprime. */}
+      {bookSections.length > 0 && (
+        <div className="no-print" style={{ maxWidth: twoCols ? 1180 : 860, marginTop: 28 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--dark)', margin: '0 0 4px' }}>
+            📕 Libro
+          </h3>
+          {bookSections.map((sec, i) => <LessonSection key={i} section={sec} index={i} />)}
         </div>
       )}
     </div>

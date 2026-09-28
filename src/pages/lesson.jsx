@@ -263,7 +263,7 @@ const ChecklistSection = ({ section, delay }) => {
   );
 };
 
-const LessonSection = React.memo(({ section, index }) => {
+export const LessonSection = React.memo(({ section, index }) => {
   const delay = index * 60;
   const isMobile = useMobile();
 
