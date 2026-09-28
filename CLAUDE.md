@@ -631,12 +631,17 @@ termine.
     `--viz-N` (`styles.css`), que tiene su propio paso para modo oscuro. Guardar
     el hex congelaría el color claro en modo oscuro y obligaría a reescribir los
     planes al recalibrar la paleta.
-  - **Dos tipos de eje, dos contadores.** Las tarjetas del tablero cuentan por
-    separado *ejes transversales* (barras de la gráfica) y *ejes articuladores*
-    (los de cada unidad), y cada una aparece solo si hay de ese tipo. ⚠️ No
-    volver a una sola tarjeta "Ejes": contaba los articuladores y marcaba **0**
-    en planes que sí tenían transversales, justo al lado de la gráfica que los
-    mostraba.
+  - **"Ejes articuladores" = las barras de la gráfica (sep 2026).** A pedido del
+    piloto, el tablero solo muestra esos ejes (tarjeta contadora + gráfica). Los
+    `ejes` por unidad (0052) siguen en los datos y en el modal del tutor, pero
+    **no se pintan** en el tablero: dos cosas distintas con el mismo nombre
+    confundían. (El informe de efectividad sí sigue imprimiendo los ejes de la
+    unidad.) Cada tarjeta aparece solo si hay de qué contar — nunca un **0**.
+  - **El libro va en el propio módulo.** El tablero pinta al final (bajo
+    "📕 Libro") el `content` del módulo `clone_dashboard`, editable desde el
+    editor de ruta como cualquier lección — es el mismo para todos los grupos
+    del curso, a diferencia del plan. Se muestra aunque no haya plan y no se
+    imprime.
   - **Gráfica y orden de trabajo van lado a lado** (`twoCols`) cuando hay ambos y
     la pantalla es ancha; la gráfica queda `sticky` para cruzarla con la lista sin
     devolverse. En móvil se apilan: bajo ~380 px por columna los nombres de ejes
