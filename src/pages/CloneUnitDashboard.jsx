@@ -6,31 +6,20 @@ import { LessonSection } from './lesson.jsx'
 
 // ── Tablero de unidades del libro (módulo `clone_dashboard`, 0052) ───────────
 // Último paso de la ruta del docente clon: le muestra, de solo lectura, el orden
-// en que debe trabajar las unidades del libro FÍSICO con sus alumnos y los ejes
-// articuladores que aplican a cada una. Lo define su TUTOR por grupo desde
-// "Grupos y listados" (CloneGroups.jsx) — aquí nada se edita.
+// en que debe trabajar las unidades del libro FÍSICO con sus alumnos y la gráfica
+// de ejes articuladores. Lo define su TUTOR por grupo desde "Grupos y listados"
+// (CloneGroups.jsx) — aquí nada se edita.
+//
+// ⚠️ "Ejes articuladores" = las barras de la gráfica (`plan.chart`, 0053). Los
+// `ejes` por unidad (0052) siguen en los datos pero NO se pintan aquí (sep 2026,
+// a pedido del piloto): dos cosas distintas con el mismo nombre confundían.
 //
 // El plan cuelga del GRUPO, no del módulo: si el docente tiene más de un grupo,
 // elige cuál mirar. El nodo de la ruta se completa al abrirlo (haya plan o no):
 // si dependiera de que el tutor ya lo hubiera cargado, un tutor despistado
 // dejaría la ruta trabada, que es justo el problema del acta de cierre (§12).
 
-// Paleta rotativa para los ejes: el mismo eje conserva su color en todas las
-// unidades (el índice sale del catálogo derivado del plan, no de la posición
-// dentro de la unidad), así se reconocen de un vistazo al bajar por la lista.
-const EJE_COLORS = [
-  { bg: '#FEF3C7', fg: '#B45309' }, { bg: 'var(--purple-bg)', fg: 'var(--purple)' },
-  { bg: '#CCFBF1', fg: '#0D9488' }, { bg: '#DBEAFE', fg: '#1D4ED8' },
-  { bg: 'var(--orange-bg)', fg: 'var(--orange)' }, { bg: '#FCE7F3', fg: '#BE185D' },
-  { bg: '#DCFCE7', fg: '#15803D' }, { bg: '#E0E7FF', fg: '#4338CA' },
-]
-
-const Chip = ({ text, color }) => (
-  <span style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
-    background: color.bg, color: color.fg, whiteSpace: 'nowrap' }}>{text}</span>
-)
-
-// ── Gráfica de ejes transversales ───────────────────────────────────────────
+// ── Gráfica de ejes articuladores ───────────────────────────────────────────
 // Barras horizontales parametrizadas por el TUTOR: él escribe el texto de cada
 // eje, su valor y su color. Aquí no se calcula ni se ordena nada — se pinta lo
 // que él cargó, en el orden en que lo dejó.
@@ -48,7 +37,7 @@ const fmtVal = (n) => Number.isFinite(n) ? String(Math.round(n * 10) / 10).repla
 const TransversalChart = ({ title, bars }) => (
   <div style={{ ...card, padding: '16px 18px' }}>
     <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--dark)', margin: '0 0 14px' }}>
-      {title || 'Ejes transversales'}
+      {title || 'Ejes articuladores'}
     </h3>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {bars.map((b, i) => (
@@ -124,16 +113,9 @@ const CloneUnitDashboard = () => {
     [moduleId, courseModules])
 
   const units = plan?.units || []
-  // Catálogo de ejes en orden de aparición: fija el color de cada eje.
-  const ejeIndex = React.useMemo(() => {
-    const m = new Map()
-    units.forEach(u => (u.ejes || []).forEach(e => { if (!m.has(e)) m.set(e, m.size) }))
-    return m
-  }, [units])
-  const colorFor = (eje) => EJE_COLORS[(ejeIndex.get(eje) ?? 0) % EJE_COLORS.length]
 
   // La gráfica solo aparece si el tutor cargó barras; un plan sin ellas sigue
-  // siendo un plan válido (orden + ejes articuladores).
+  // siendo un plan válido (solo el orden de trabajo).
   const chartBars = React.useMemo(
     () => (plan?.chart?.bars || []).filter(b => b && b.label), [plan])
 
@@ -164,7 +146,7 @@ const CloneUnitDashboard = () => {
             Plan de unidades del libro
           </h2>
           <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '3px 0 0' }}>
-            El orden en que debes trabajar las unidades con tus alumnos y los ejes articuladores de cada una.
+            El orden en que debes trabajar las unidades con tus alumnos y los ejes articuladores.
           </p>
         </div>
         <GroupPicker groups={groups} groupId={groupId} setGroupId={setGroupId} />
@@ -195,7 +177,7 @@ const CloneUnitDashboard = () => {
           </p>
           <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0, lineHeight: 1.6 }}>
             Cuando cargue el orden de las unidades del libro para <strong>{group.name}</strong>,
-            aparecerá aquí con sus ejes articuladores. Ya puedes seguir con el resto de tu ruta.
+            aparecerá aquí junto con los ejes articuladores. Ya puedes seguir con el resto de tu ruta.
           </p>
         </div>
       ) : (
@@ -212,15 +194,11 @@ const CloneUnitDashboard = () => {
             )}
           </div>
 
-          {/* Los dos tipos de eje se cuentan por separado y cada tarjeta solo
-              aparece si hay de ese tipo. Antes había una sola tarjeta "Ejes"
-              que contaba los ARTICULADORES por unidad, y marcaba 0 en un plan
-              que sí tenía ejes transversales cargados — un cero que se leía
-              como "no hay nada" justo al lado de la gráfica que los mostraba. */}
+          {/* Cada tarjeta solo aparece si hay de qué contar: un cero se lee como
+              "no hay nada" justo al lado de lo que sí está cargado. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
             {units.length > 0 && <Stat value={units.length} label="Unidades" />}
-            {chartBars.length > 0 && <Stat value={chartBars.length} label="Ejes transversales" />}
-            {ejeIndex.size > 0 && <Stat value={ejeIndex.size} label="Ejes articuladores" />}
+            {chartBars.length > 0 && <Stat value={chartBars.length} label="Ejes articuladores" />}
           </div>
 
           {plan?.intro && (
@@ -277,11 +255,6 @@ const CloneUnitDashboard = () => {
                         </span>
                       )}
                       {u.level && <span>Nivel <strong style={{ color: 'var(--text-sec)' }}>{u.level}</strong></span>}
-                    </div>
-                  )}
-                  {(u.ejes || []).length > 0 && (
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                      {u.ejes.map((e, j) => <Chip key={j} text={e} color={colorFor(e)} />)}
                     </div>
                   )}
                   {u.notes && (

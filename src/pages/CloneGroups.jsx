@@ -271,10 +271,8 @@ const UnitPlanModal = ({ group, onSaved }) => {
   return (
     <div>
       <p style={{ fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.6, marginBottom: 14 }}>
-        Orden en que <strong>{group.name}</strong> debe trabajar las unidades del libro físico y los
-        ejes articuladores de cada una. El docente lo ve de solo lectura en el último módulo de su ruta.
-        Si cargas <strong>cobertura</strong> y <strong>prioridad</strong>, verá además la gráfica de
-        barras con las unidades más prioritarias.
+        Orden en que <strong>{group.name}</strong> debe trabajar las unidades del libro físico y la
+        gráfica de ejes articuladores. El docente lo ve de solo lectura en el último módulo de su ruta.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 14 }}>
@@ -333,7 +331,7 @@ const UnitPlanModal = ({ group, onSaved }) => {
                 placeholder="Nivel" title="Nivel de prioridad: Alta, Media, Baja…" style={rowInp} />
             </div>
             <input value={(u.ejes || []).join(', ')} onChange={e => setUnit(i, 'ejes', splitEjes(e.target.value))}
-              placeholder="Ejes articuladores, separados por coma" style={{ ...rowInp, marginBottom: 6 }} />
+              placeholder="Ejes de la unidad, separados por coma (no se muestran en el tablero)" style={{ ...rowInp, marginBottom: 6 }} />
             <input value={u.notes} onChange={e => setUnit(i, 'notes', e.target.value)}
               placeholder="Notas para el docente (opcional)" style={rowInp} />
           </div>
@@ -344,7 +342,7 @@ const UnitPlanModal = ({ group, onSaved }) => {
 
       {/* ── Gráfica de ejes transversales (0053) ── */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginBottom: 12 }}>
-        <label style={lbl}>Gráfica de ejes transversales</label>
+        <label style={lbl}>Gráfica de ejes articuladores</label>
         <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, margin: '0 0 10px' }}>
           Cada fila es una barra: el texto que escribas, un valor de 0 a 100 (barra llena = 100)
           y su color. Si la dejas vacía, el docente no ve ninguna gráfica.
@@ -357,7 +355,7 @@ const UnitPlanModal = ({ group, onSaved }) => {
             <div key={i} style={{ ...card, padding: '10px 12px', borderRadius: 10 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                 <input value={b.label} onChange={e => setBar(i, 'label', e.target.value)}
-                  placeholder="Eje transversal" style={{ ...rowInp, flex: 1 }} />
+                  placeholder="Eje articulador" style={{ ...rowInp, flex: 1 }} />
                 <input type="number" min="0" max="100" step="1" value={b.value}
                   onChange={e => setBar(i, 'value', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                   title="Valor de 0 a 100 — es el largo de la barra"
@@ -385,7 +383,7 @@ const UnitPlanModal = ({ group, onSaved }) => {
           ))}
         </div>
 
-        <Btn variant="secondary" size="sm" onClick={addBar} style={{ marginTop: 10 }}>+ Agregar eje transversal</Btn>
+        <Btn variant="secondary" size="sm" onClick={addBar} style={{ marginTop: 10 }}>+ Agregar eje articulador</Btn>
       </div>
 
       {msg && (
