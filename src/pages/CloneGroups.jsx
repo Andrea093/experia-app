@@ -5,7 +5,7 @@ import {
   loadCloneAttendance, loadCloneEffectiveness,
   loadCloneUnitPlan, saveCloneUnitPlan,
 } from '../store/store.jsx'
-import { useMobile, Btn, Modal, Skeleton } from '../components/ui.jsx'
+import { useMobile, Btn, Modal, Skeleton, FileUploader } from '../components/ui.jsx'
 import { PageHead, EmptyState, Pill, RowMenu } from '../components/adminUI.jsx'
 import { inp, lbl, card, fmtFecha, readSheet, parsePct, VIZ_SLOTS, vizColor } from '../components/cloneShared.jsx'
 import { fmtPct, colorEfectividad } from '../lib/effectiveness.js'
@@ -161,6 +161,8 @@ const ColorPicker = ({ value, onChange }) => (
 
 const UnitPlanModal = ({ group, onSaved }) => {
   const [bookTitle, setBookTitle] = React.useState('')
+  const [bookUrl, setBookUrl]     = React.useState('')
+  const [hadBookUrl, setHadBookUrl] = React.useState(false)
   const [intro, setIntro]         = React.useState('')
   const [units, setUnits]         = React.useState([])
   const [chartTitle, setChartTitle] = React.useState('')
@@ -175,6 +177,7 @@ const UnitPlanModal = ({ group, onSaved }) => {
     loadCloneUnitPlan(group.id).then(({ plan }) => {
       if (!alive) return
       setBookTitle(plan?.book_title || '')
+      setBookUrl(plan?.book_url || ''); setHadBookUrl(!!plan?.book_url)
       setIntro(plan?.intro || '')
       setUnits((plan?.units || []).map(u => ({
         title: u.title || '', ejes: u.ejes || [], notes: u.notes || '',
@@ -250,12 +253,12 @@ const UnitPlanModal = ({ group, onSaved }) => {
   const guardar = async () => {
     setSaving(true); setMsg('')
     const { error, count } = await saveCloneUnitPlan({
-      groupId: group.id, bookTitle, intro, units, chart: { title: chartTitle, bars },
+      groupId: group.id, bookTitle, bookUrl, hadBookUrl, intro, units, chart: { title: chartTitle, bars },
     })
     setSaving(false)
     if (error) {
-      setMsg('⚠️ ' + error + (/clone_unit_plans|chart/.test(error)
-        ? ' — si dice que la tabla o la columna no existe, faltan las migraciones 0052/0053 en Supabase.' : ''))
+      setMsg('⚠️ ' + error + (/clone_unit_plans|chart|book_url/.test(error)
+        ? ' — si dice que la tabla o la columna no existe, faltan las migraciones 0052/0053/0068 en Supabase.' : ''))
       return
     }
     setMsg(`✅ Plan guardado (${count} unidades). Tu docente ya lo ve en su ruta.`)
@@ -280,6 +283,19 @@ const UnitPlanModal = ({ group, onSaved }) => {
           <label style={lbl}>Libro</label>
           <input value={bookTitle} onChange={e => setBookTitle(e.target.value)}
             placeholder="Ej. Matemáticas 9 — Serie Evolución" style={inp} />
+          {/* PDF de la unidad priorizada de ESTE grupo (0068): cada docente
+              puede tener una unidad distinta. Sin PDF, el tablero muestra el
+              libro que traiga el módulo de la ruta. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+            <FileUploader label={bookUrl ? 'Reemplazar PDF del libro' : 'Subir PDF del libro'} compact
+              accept="application/pdf" maxSizeMB={50} onUploaded={({ url }) => setBookUrl(url)} />
+            {bookUrl && (<>
+              <a href={bookUrl} target="_blank" rel="noreferrer"
+                style={{ fontSize: 12, color: 'var(--muted)', textDecoration: 'underline' }}>📎 Ver PDF</a>
+              <button onClick={() => setBookUrl('')} style={{ background: 'none', border: 'none',
+                cursor: 'pointer', fontSize: 12, color: 'var(--error)', fontFamily: 'var(--font)' }}>Quitar</button>
+            </>)}
+          </div>
         </div>
         <div>
           <label style={lbl}>Indicaciones generales</label>

@@ -7,3 +7,8 @@ dist
 .DS_Store
 Thumbs.db
 .claude/
+
+# Datos de alumnos (menores): nombres y documentos. NO versionar.
+scripts/data/grupos_jm.mjs
+scripts/grupos_jm.sql
+scripts/out/

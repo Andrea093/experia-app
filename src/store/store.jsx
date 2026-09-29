@@ -1040,6 +1040,12 @@ const saveCloneUnitPlan = async (plan) => {
     chart,
     updated_by: s.user?.id || null,
   };
+  // PDF del libro de ESTE grupo (0068). Solo se envía si el plan ya tenía uno
+  // o el tutor subió uno: así un plan sin libro se sigue pudiendo guardar
+  // aunque la migración 0068 aún no esté corrida.
+  if (plan.bookUrl !== undefined && (plan.bookUrl || plan.hadBookUrl)) {
+    payload.book_url = plan.bookUrl?.trim() || null;
+  }
   const { data, error } = await supabase.from('clone_unit_plans')
     .upsert(payload, { onConflict: 'group_id' }).select().single();
   if (error) { console.error('saveCloneUnitPlan:', error); return { error: error.message }; }

@@ -110,10 +110,13 @@ const CloneUnitDashboard = () => {
   // grupos del curso — a diferencia del plan, que es por grupo. Se muestra
   // aunque el tutor aún no haya cargado el plan: el docente necesita el libro
   // desde el primer día.
+  // El PDF propio del GRUPO (`plan.book_url`, 0068) tiene prioridad: cada
+  // docente puede trabajar una unidad priorizada distinta.
   const courseModules = useStore(s => s.courseModules)
-  const bookSections = React.useMemo(
-    () => (findModule(moduleId)?.content || []).filter(s => s && s.type !== 'pagebreak'),
-    [moduleId, courseModules])
+  const bookSections = React.useMemo(() => {
+    if (plan?.book_url) return [{ type: 'pdf', title: plan.book_title || 'Libro', url: plan.book_url }]
+    return (findModule(moduleId)?.content || []).filter(s => s && s.type !== 'pagebreak')
+  }, [moduleId, courseModules, plan])
 
   const units = plan?.units || []
 
