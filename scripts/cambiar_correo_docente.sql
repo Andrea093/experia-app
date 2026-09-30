@@ -6,60 +6,45 @@
 -- todo listo. No hay que volver a correr grupos_jm.sql.
 --
 -- Uso: llenar la lista de abajo (una fila por docente) y correr todo.
--- La contraseña sigue siendo la temporal (Ceinfes2026*); el docente puede
--- cambiarla desde su perfil, o un admin desde Admin → Usuarios.
+-- La contraseña sigue siendo la temporal; el docente puede cambiarla desde su
+-- perfil, o un admin desde Admin → Usuarios.
 -- ⚠️ Si Supabase muestra el aviso de RLS, "Run and enable RLS" es seguro.
+-- (Todo va en un solo bloque: el SQL Editor no conserva tablas temporales.)
 -- ============================================================
-begin;
-
-create temp table _cambios (actual text, nuevo text, nombre text) on commit drop;
-insert into _cambios (actual, nuevo, nombre) values
-  -- ('correo provisional',                       'correo real',            'Nombre completo real'),
-  ('pendiente.docente10a.jm@ceinfes.com',        'REEMPLAZAR@correo.com',  'Nombre Docente Décimo A');
-  -- ('pendiente.docente10b.jm@ceinfes.com',     '...', '...'),
-  -- ('pendiente.docente10c.jm@ceinfes.com',     '...', '...'),
-  -- ('pendiente.docente10d.jm@ceinfes.com',     '...', '...'),
-  -- ('pendiente.docentetarde1.jm@ceinfes.com',  '...', '...'),
-  -- ('pendiente.docentetarde2.jm@ceinfes.com',  '...', '...'),
-  -- ('pendiente.docentetarde3.jm@ceinfes.com',  '...', '...'),
-  -- ('pendiente.docentetarde4.jm@ceinfes.com',  '...', '...');
-
 do $$
-declare r record;
+declare r record; v_id uuid;
 begin
-  for r in select * from _cambios loop
+  for r in select * from (values
+    -- ('correo provisional',                       'correo real',            'Nombre completo real'),
+    ('pendiente.docente10a.jm@ceinfes.com',         'REEMPLAZAR@correo.com',  'Nombre Docente Décimo A')
+    -- , ('pendiente.docente10b.jm@ceinfes.com',     '...', '...')
+    -- , ('pendiente.docente10c.jm@ceinfes.com',     '...', '...')
+    -- , ('pendiente.docente10d.jm@ceinfes.com',     '...', '...')
+    -- , ('pendiente.docentetarde1.jm@ceinfes.com',  '...', '...')
+    -- , ('pendiente.docentetarde2.jm@ceinfes.com',  '...', '...')
+    -- , ('pendiente.docentetarde3.jm@ceinfes.com',  '...', '...')
+    -- , ('pendiente.docentetarde4.jm@ceinfes.com',  '...', '...')
+  ) as t(actual, nuevo, nombre) loop
     if r.nuevo ilike 'REEMPLAZAR%' then
       raise exception 'Falta poner el correo real de %', r.actual;
     end if;
-    if not exists (select 1 from auth.users where lower(email) = lower(r.actual)) then
+    select id into v_id from auth.users where lower(email) = lower(r.actual);
+    if v_id is null then
       raise exception 'No existe la cuenta %', r.actual;
     end if;
     if exists (select 1 from auth.users where lower(email) = lower(r.nuevo)) then
       raise exception 'El correo % ya lo usa otra cuenta', r.nuevo;
     end if;
+
+    update auth.users
+       set email = lower(r.nuevo),
+           raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('name', r.nombre)
+     where id = v_id;
+    update auth.identities
+       set identity_data = identity_data || jsonb_build_object('email', lower(r.nuevo))
+     where user_id = v_id and provider = 'email';
+    update public.profiles set email = lower(r.nuevo), name = r.nombre where id = v_id;
+
+    raise notice '% → % (%)', r.actual, lower(r.nuevo), r.nombre;
   end loop;
 end $$;
-
-update auth.users u
-   set email = lower(c.nuevo),
-       raw_user_meta_data = coalesce(u.raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('name', c.nombre)
-  from _cambios c
- where lower(u.email) = lower(c.actual);
-
-update auth.identities i
-   set identity_data = i.identity_data || jsonb_build_object('email', lower(c.nuevo))
-  from _cambios c, auth.users u
- where lower(u.email) = lower(c.nuevo) and i.user_id = u.id and i.provider = 'email';
-
-update public.profiles p
-   set email = lower(c.nuevo), name = c.nombre
-  from _cambios c
- where lower(p.email) = lower(c.actual);
-
--- Verificación
-select p.email, p.name, g.name as grupo
-  from public.profiles p
-  left join public.clone_groups g on g.teacher_id = p.id
- where lower(p.email) in (select lower(nuevo) from _cambios);
-
-commit;
