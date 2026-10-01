@@ -10,11 +10,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import XLSX from 'xlsx'
-import { EJES, DOCENTES, GRUPOS } from './data/grupos_jm.mjs'
+import { EJES, DOCENTES, GRUPOS, COLEGIO, LIBRO_DEFAULT } from './data/grupos_jm.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const q = (s) => (s == null ? 'null' : `'${String(s).replace(/'/g, "''")}'`)
-const PASS_TEMPORAL = 'Ceinfes2026*'
+// Contraseña temporal de las cuentas nuevas: se pasa por entorno, nunca en el repo.
+//   PowerShell: $env:PASS_TEMPORAL='...'; node scripts/build-grupos-jm.mjs
+const PASS_TEMPORAL = process.env.PASS_TEMPORAL
+if (!PASS_TEMPORAL) throw new Error('Falta la variable de entorno PASS_TEMPORAL')
 
 // ── Validaciones ────────────────────────────────────────────────────────────
 for (const g of GRUPOS) {
@@ -44,13 +47,15 @@ out.push(`-- ============================================================
 -- GENERADO por scripts/build-grupos-jm.mjs — no editar a mano.
 -- Grupos del Colegio Molinos y Marrueco JM (piloto clon, producto sustituto).
 --
--- ⚠️ ANTES: crear las cuentas de docentes (scripts/out/docentes_jm.xlsx en
---    Admin → Usuarios → carga masiva). Este script falla si falta alguna.
--- ⚠️ Correr también 0068_clone_plan_book_url.sql antes (usa plan.book_url).
+-- Crea también las cuentas de los docentes si no existen. No hace falta
+-- la carga masiva de Excel.
+-- Requiere 0068_clone_plan_book_url.sql ya corrida.
 --
 -- Qué hace (idempotente: se puede volver a correr tras cambiar los datos):
+--   0. Crea el colegio nuevo (si no existe) y le habilita los cursos del modelo.
 --   1. Toma como MODELO al docente del grupo "ONCE": los docentes nuevos
---      quedan con su misma institución, modo clon y acceso a los mismos cursos.
+--      quedan con acceso a sus mismos cursos. Colegio y modo clon se asignan
+--      después en Admin → Usuarios (la base solo deja cambiarlos a un admin).
 --   2. Crea/actualiza un grupo por docente y REEMPLAZA su listado de alumnos.
 --   3. Plan de cada grupo: copia unidades, libro e indicaciones del plan de
 --      ONCE (solo si el grupo aún no tiene plan propio) y SIEMPRE pone la
@@ -59,17 +64,55 @@ out.push(`-- ============================================================
 -- ============================================================
 begin;
 
-create temp table _modelo on commit drop as
-select g.teacher_id, g.institution_id, g.course_id, g.id as group_id
-  from public.clone_groups g
- where g.name ilike 'once' and g.is_active
- order by g.created_at limit 1;
-
 do $$ begin
   if not exists (select 1 from _modelo) then
     raise exception 'No se encontró el grupo modelo "ONCE".';
   end if;
 end $$;
+`)
+
+// 0. Cuentas (auth). Mismo resultado que la carga masiva de AdminUsers: el
+// trigger handle_new_user crea el perfil. Idempotente: si el correo ya existe,
+// no se toca. Los tokens van como '' (no NULL): GoTrue falla al iniciar sesión
+// si están en NULL.
+out.push(`-- ── 0. Cuentas de los docentes (se omiten las que ya existen) ──`)
+out.push(`do $$
+declare r record; v_id uuid;
+begin
+  for r in select * from (values
+${DOCENTES.map(d => `    (${q(d.email.toLowerCase())}, ${q(d.nombre)})`).join(',\n')}
+  ) as t(email, nombre) loop
+    if exists (select 1 from auth.users where lower(email) = r.email) then continue; end if;
+    v_id := gen_random_uuid();
+    insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+                            raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                            confirmation_token, email_change, email_change_token_new, recovery_token)
+    values ('00000000-0000-0000-0000-000000000000', v_id, 'authenticated', 'authenticated', r.email,
+            extensions.crypt(${q(PASS_TEMPORAL)}, extensions.gen_salt('bf')), now(),
+            '{"provider":"email","providers":["email"]}'::jsonb,
+            jsonb_build_object('name', r.nombre, 'role', 'student', 'area', 'ciencias'),
+            now(), now(), '', '', '', '');
+    insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (gen_random_uuid(), v_id, v_id::text,
+            jsonb_build_object('sub', v_id::text, 'email', r.email, 'email_verified', true),
+            'email', now(), now(), now());
+  end loop;
+end $$;
+`)
+
+// C. Colegio nuevo + los mismos cursos habilitados que tiene el docente modelo.
+const COLEGIO_ID = `(select id from public.institutions where name = ${q(COLEGIO)})`
+out.push(`-- ── C. Colegio nuevo (${COLEGIO}) y sus cursos habilitados ──
+insert into public.institutions (name)
+select ${q(COLEGIO)}
+ where not exists (select 1 from public.institutions where name = ${q(COLEGIO)});
+
+insert into public.institution_courses (institution_id, course_id, is_active)
+select ${COLEGIO_ID}, uc.course_id, true
+  from public.user_courses uc
+ where uc.user_id = (select teacher_id from _modelo) and uc.is_active
+   and not exists (select 1 from public.institution_courses ic
+                    where ic.institution_id = ${COLEGIO_ID} and ic.course_id = uc.course_id);
 `)
 
 // 1. Docentes
@@ -82,14 +125,13 @@ begin
     from unnest(array[${emails}]) e
    where not exists (select 1 from public.profiles p where lower(p.email) = lower(e));
   if v_faltan is not null then
-    raise exception 'Faltan cuentas: %. Créalas primero con la carga masiva.', v_faltan;
+    raise exception 'No se pudieron crear las cuentas: %', v_faltan;
   end if;
 end $$;
 
-update public.profiles p
-   set ui_variant = 'clone',
-       institution_id = coalesce((select institution_id from public.profiles where id = (select teacher_id from _modelo)), p.institution_id)
- where lower(p.email) in (${DOCENTES.map(d => q(d.email.toLowerCase())).join(', ')});
+-- ⚠️ El MODO CLON no se activa aquí: ui_variant e institution_id de un perfil
+-- existente solo los cambia un admin con sesión (guard de 0029/0051). Se activa
+-- en Admin → Usuarios → menú de cada docente → "Activar modo clon".
 
 insert into public.user_courses (user_id, course_id, is_active)
 select p.id, uc.course_id, true
@@ -120,24 +162,34 @@ on conflict (user_id, course_id) do nothing;
 // 2 y 3. Grupos
 for (const g of GRUPOS) {
   const d = DOCENTES.find(x => x.key === g.key)
-  const vals = promedios(g.ejes)
+  // Si el grupo trae su informe oficial (`grafica`), manda ese: su cálculo es
+  // por respuestas ponderadas, no el promedio simple de estudiantes.
+  const vals = g.grafica || promedios(g.ejes)
   const bars = EJES.map((label, i) => `jsonb_build_object('label', ${q(label)}, 'value', ${vals[i]}, 'color', ${i + 1})`)
+  // Unidades priorizadas del informe del grupo (si las hay) → reemplazan las del plan.
+  const unitsSql = g.unidades && `jsonb_build_array(\n${g.unidades.map(u =>
+    `      jsonb_build_object('title', ${q(u.title)}, 'ejes', '[]'::jsonb, 'notes', ${q(u.notes)}, 'coverage', null, 'priority', ${u.priority}, 'level', null)`
+  ).join(',\n')})`
   out.push(`-- ── ${g.nombre} (${g.alumnos.length} alumnos, ${g.ejes.length} presentaron) ──
--- Gráfica: ${vals.join(' · ')}
+-- Gráfica (${g.grafica ? 'informe oficial' : 'PROVISIONAL: promedio simple'}): ${vals.join(' · ')}
+-- Unidades: ${g.unidades ? g.unidades.map(u => u.title.split(':')[0]).join(' → ') : 'copiadas de ONCE (provisional)'}
 do $$
 declare v_teacher uuid; v_group uuid;
 begin
   select id into v_teacher from public.profiles where lower(email) = ${q(d.email.toLowerCase())};
 
+  -- Se busca por nombre + docente (no por colegio): así, al mover los grupos
+  -- al colegio nuevo, el grupo creado antes se reutiliza en vez de duplicarse.
   select id into v_group from public.clone_groups
-   where name = ${q(g.nombre)} and institution_id is not distinct from (select institution_id from _modelo);
+   where name = ${q(g.nombre)} and teacher_id = v_teacher;
   if v_group is null then
     insert into public.clone_groups (name, grade, teacher_id, institution_id, course_id, is_active)
     values (${q(g.nombre)}, ${q(g.grado)}, v_teacher,
-            (select institution_id from _modelo), (select course_id from _modelo), true)
+            ${COLEGIO_ID}, (select course_id from _modelo), true)
     returning id into v_group;
   else
-    update public.clone_groups set teacher_id = v_teacher, grade = ${q(g.grado)}, is_active = true
+    update public.clone_groups set grade = ${q(g.grado)}, is_active = true,
+           institution_id = ${COLEGIO_ID}
      where id = v_group;
   end if;
 
@@ -156,14 +208,23 @@ ${g.alumnos.map((a, i) => `    (v_group, ${q(a[1])}, ${q(a[0])}, ${i})`).join(',
   update public.clone_unit_plans set chart = jsonb_build_object(
     'title', 'Desempeño por eje articulador — ${g.nombre.replace(/'/g, "''")}',
     'bars', jsonb_build_array(
-      ${bars.join(',\n      ')}))
+      ${bars.join(',\n      ')}))${unitsSql ? `,
+       units = ${unitsSql}` : ''},
+       -- Libro del grupo (0068). Con \`libro\` propio en los datos se impone;
+       -- con el de por defecto solo se pone si el tutor no subió otro.
+       book_title = ${g.libro ? q(g.libro.title) : `case when book_url is null then ${q(LIBRO_DEFAULT.title)} else book_title end`},
+       book_url   = ${g.libro ? q(g.libro.url) : `coalesce(book_url, ${q(LIBRO_DEFAULT.url)})`}
    where group_id = v_group;
 end $$;
 `)
 }
 
 out.push(`-- Verificación
+-- Las dos últimas columnas dicen qué falta hacer en Admin → Usuarios.
 select g.name as grupo, p.email as docente, g.grade,
+       case when p.institution_id is not distinct from ${COLEGIO_ID}
+            then 'ok' else ${q('FALTA: asignar ' + COLEGIO)} end as colegio,
+       case when p.ui_variant = 'clone' then 'ok' else 'FALTA: activar modo clon' end as modo_clon,
        (select count(*) from public.clone_group_students s where s.group_id = g.id) as alumnos,
        jsonb_array_length(coalesce(u.units, '[]'::jsonb)) as unidades,
        jsonb_array_length(coalesce(u.chart->'bars', '[]'::jsonb)) as ejes
@@ -176,6 +237,12 @@ select g.name as grupo, p.email as docente, g.grade,
 commit;
 `)
 
-fs.writeFileSync(path.join(here, 'grupos_jm.sql'), out.join('\n'))
-for (const g of GRUPOS) console.log(g.nombre.padEnd(16), promedios(g.ejes).join(' · '))
+// El grupo modelo ("ONCE") va como subconsulta en cada uso y no como tabla
+// temporal: el SQL Editor de Supabase no conserva una temp table entre
+// sentencias ("relation _modelo does not exist").
+const MODELO = `(select g.teacher_id, g.institution_id, g.course_id, g.id as group_id
+    from public.clone_groups g where g.name ilike 'once' and g.is_active
+    order by g.created_at limit 1) _modelo`
+fs.writeFileSync(path.join(here, 'grupos_jm.sql'), out.join('\n').replace(/from _modelo\b/g, `from ${MODELO}`))
+for (const g of GRUPOS) console.log(g.nombre.padEnd(16), (g.grafica || promedios(g.ejes)).join(' · '), g.grafica ? '(oficial)' : '(provisional)')
 console.log('\n→ scripts/grupos_jm.sql\n→ scripts/out/docentes_jm.xlsx')
