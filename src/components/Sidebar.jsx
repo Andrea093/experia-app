@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, nav, doLogout, AREAS, isCloneUser } from '../store/store.jsx'
+import { useStore, nav, doLogout, AREAS, ALL_AREAS, isCloneUser } from '../store/store.jsx'
 import {
   useMobile, LogoImg, MapIc, GameIc, FileIc, UserIc, BookIc,
   SchoolIc, BarIc, ClockIc, UsersIc, LogOutIc, XIc, MsgIc, ChevRIc, TargetIc, CheckIc
@@ -27,7 +27,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   const isCollapsed = collapsed && !isMobile;
 
   const role = user.role;
-  const area = AREAS.find(a => a.id === selectedArea);
+  const area = ALL_AREAS.find(a => a.id === selectedArea);
 
   const studentItems = [
     { key: 'map', label: 'Mi formación', icon: <MapIc s={19} />, active: ['map','lesson','challenge','grid'] },

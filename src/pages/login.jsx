@@ -86,7 +86,9 @@ const LoginPage = () => {
                 // Avatar de los cursos temáticos (0046); null si aún no lo creó.
                 avatarConfig: profile.avatar_config || null,
                 // Modo clon: variante de interfaz del piloto temporal (0051).
-                uiVariant: profile.ui_variant || null },
+                uiVariant: profile.ui_variant || null,
+                // Actividad del banco elegida por módulo (0069).
+                activityPrefs: profile.activity_prefs || {} },
         page,
         xp, completed, badges,
         enrolledCourseId, effectiveCourseId, courseModules,

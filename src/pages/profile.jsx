@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  useStore, nav, changeArea, updateAvatar, AREAS, BADGES, LEVELS,
+  useStore, nav, changeArea, updateAvatar, AREAS, ALL_AREAS, BADGES, LEVELS,
   calcLevel, xpForNext, xpProgress, progressPct, isRouteComplete,
   getStudentModules, findModule, nodeStatus, gradeTotal, gradeMax,
   selectActiveCourseTheme, selectHasThemedCourse, selectAvatarConfig,
@@ -201,7 +201,7 @@ const ProfilePage = () => {
   const xpProg = xpProgress(xp);
   const nextLvl = xpForNext(xp);
   const prevLvl = LEVELS[level - 1] || 0;
-  const area = AREAS.find(a => a.id === selectedArea);
+  const area = ALL_AREAS.find(a => a.id === selectedArea);
   const allBadgeIds = Object.keys(BADGES);
   const isStudent = user?.role === 'student';
 

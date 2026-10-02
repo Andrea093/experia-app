@@ -27,13 +27,18 @@ const useStore = (sel) => {
 
 
 // --- Areas --- (colores alineados con CEINFES Brandbook)
-const AREAS = [
+// ALL_AREAS conserva las áreas retiradas (`retired`) para resolver datos
+// históricos (usuarios, entregas, intentos con esa área). AREAS es lo que se
+// OFRECE y se pinta en filtros, selectores y tableros. Inglés se retiró en
+// oct 2026: la asignatura no se aborda.
+const ALL_AREAS = [
   { id:'lectura',      name:'Lectura Crítica',           icon:'📖', color:'#EC671A', bg:'#FEF0E6' }, // Naranja Evolución
   { id:'ciudadanas',   name:'Competencias Ciudadanas',   icon:'🏛️', color:'#5E4F9C', bg:'#EDEAF7' }, // Morado Formación
-  { id:'ingles',       name:'Inglés',                    icon:'🌎', color:'#3A5BA7', bg:'#EBF0FA' }, // Azul Pensamiento
+  { id:'ingles',       name:'Inglés',                    icon:'🌎', color:'#3A5BA7', bg:'#EBF0FA', retired:true }, // Azul Pensamiento
   { id:'matematicas',  name:'Matemáticas',               icon:'📐', color:'#2D9070', bg:'#E8F6F1' }, // Verde Desarrollo (oscurecido para legibilidad)
   { id:'ciencias',     name:'Ciencias Naturales',        icon:'🔬', color:'#024B4E', bg:'#E0EEED' }, // Verde Transformación
 ];
+const AREAS = ALL_AREAS.filter(a => !a.retired);
 
 const BADGES = {
   explorer:{id:'explorer',name:'Explorador DCE',icon:'🧭',desc:'Completaste la introducción'},
@@ -262,7 +267,7 @@ const AREA_CONTENT = {
 // --- Generate area-specific modules ---
 const makeAreaModules = (areaId) => {
   const ac = AREA_CONTENT[areaId]; if(!ac) return [];
-  const area = AREAS.find(a => a.id === areaId);
+  const area = ALL_AREAS.find(a => a.id === areaId);
   return [
     { id:`mod3_${areaId}`, type:'lesson', area:areaId, title:ac.m3.title, subtitle:'Módulo 3',
       desc:ac.m3.desc, xp:140, badge:'designer', req:['ch2'],
@@ -294,7 +299,7 @@ const makeAreaModules = (areaId) => {
 
 // Build full module list
 const ALL_MODULES = [...SHARED_MODULES];
-AREAS.forEach(a => ALL_MODULES.push(...makeAreaModules(a.id)));
+ALL_AREAS.forEach(a => ALL_MODULES.push(...makeAreaModules(a.id)));
 const MODULE_MAP = new Map(ALL_MODULES.map(m => [m.id, m]));
 
 const getStudentModules = (areaId) => ALL_MODULES.filter(m => !m.area || m.area === areaId);
@@ -1441,6 +1446,23 @@ const saveAvatarConfig = (cfg) => {
     });
 };
 
+// --- Banco de actividades: la elección del profesor (migración 0069) ----------
+// El profesor elige en la Clase en Vivo qué rompehielos / pausa activa usar en
+// cada módulo con sección `activity`. Se recuerda en SU perfil
+// (profiles.activity_prefs = { <moduleId>: <activityId> }) para que la próxima
+// clase arranque con la misma; la ruta conserva su actividad por defecto.
+const saveActivityPref = (moduleId, activityId) => {
+  const { user } = XS.get();
+  if (!user?.id || !moduleId) return Promise.resolve({ error: null });
+  const prefs = { ...(user.activityPrefs || {}), [moduleId]: activityId };
+  XS.set(s => ({ user: s.user ? { ...s.user, activityPrefs: prefs } : null }));
+  return supabase.from('profiles').update({ activity_prefs: prefs }).eq('id', user.id)
+    .then(({ error }) => {
+      if (error) console.error('saveActivityPref:', error);
+      return { error };
+    });
+};
+
 const dismissNotif = id => XS.set(s=>({notifications:s.notifications.filter(n=>n.id!==id)}));
 const dismissStudentMessage = (msgId) => XS.set(s=>({studentMessages:(s.studentMessages||[]).map(m=>m.id===msgId?{...m,read:true}:m)}));
 
@@ -2496,7 +2518,7 @@ const reactCharacter = (context, line) => {
 };
 
 export {
-  useStore, AREAS, BADGES, LEVELS, RUBRIC_CRITERIA, ALL_MODULES, AREA_CONTENT,
+  useStore, AREAS, ALL_AREAS, BADGES, LEVELS, RUBRIC_CRITERIA, ALL_MODULES, AREA_CONTENT,
   INITIAL_INSTITUTIONS,
   getStudentModules, getTransversalModules, getAreaOnlyModules, getScopeModules, TRANSVERSAL_AREA, findModule,
   calcLevel, xpForNext, xpProgress, nodeStatus, isBlockedByPresence, progressPct, isRouteComplete, gradeTotal, gradeMax,
@@ -2514,7 +2536,7 @@ export {
   loadCloneUnitPlan, saveCloneUnitPlan,
   submitProduct, resubmitProduct, gradeSubmission, returnSubmission, updateReturnCorrection, approveSubmission,
   dismissNotif, dismissStudentMessage, updateAvatar, resetStudentProgress,
-  saveAvatarConfig, selectAvatarConfig, selectHasThemedCourse, selectThemedCourses,
+  saveAvatarConfig, saveActivityPref, selectAvatarConfig, selectHasThemedCourse, selectThemedCourses,
   loadRouteConfigs, saveRouteConfig, getRouteModules, findModuleInConfig, routeKey,
   loadInstructorInstitutions, assignInstructorInstitution, removeInstructorInstitution,
   assignRouteToInstitution,

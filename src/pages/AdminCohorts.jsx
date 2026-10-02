@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, AREAS } from '../store/store.jsx'
+import { useStore, AREAS, ALL_AREAS } from '../store/store.jsx'
 import { useMobile, Btn, Modal, PlusIc, EditIc, TrashIc, ClockIc, UsersIc } from '../components/ui.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { XS } from '../store/store.jsx'
@@ -215,7 +215,7 @@ const AssignModal = ({ cohort, onClose }) => {
       <div style={{ maxHeight:320, overflow:'auto', display:'flex', flexDirection:'column', gap:6 }}>
         {filtered.map(st => {
           const assigned = cohortStudents.includes(st.email)
-          const stArea   = AREAS.find(a => a.id === st.area)
+          const stArea   = ALL_AREAS.find(a => a.id === st.area)
           const isLoading = toggling === st.email
           return (
             <div key={st.email} onClick={() => !isLoading && toggle(st)}

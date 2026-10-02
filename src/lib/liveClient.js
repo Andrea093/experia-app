@@ -44,6 +44,17 @@ export const saveLiveClosingNotes = async (sessionId, notes) => {
   return data
 }
 
+// Actividad del banco (rompehielos / pausa activa) elegida por el profesor
+// para un módulo de esta sesión: live_sessions.activity_choices (0069).
+// Igual que closing_notes, es un update directo (policy ls_host_all).
+export const saveLiveActivityChoice = async (session, moduleId, activityId) => {
+  const choices = { ...(session.activity_choices || {}), [moduleId]: activityId }
+  const { data, error } = await supabase.from('live_sessions')
+    .update({ activity_choices: choices }).eq('id', session.id).select().single()
+  if (error) throw error
+  return data
+}
+
 // --- Estudiante ---
 export const joinLiveSession = async ({ code, nombre, apellido, correo, salon }) => {
   const { data, error } = await supabase.rpc('join_live_session', {

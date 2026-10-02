@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  useStore, INITIAL_INSTITUTIONS, AREAS,
+  useStore, INITIAL_INSTITUTIONS, AREAS, ALL_AREAS,
   createInstitution, updateInstitution, deleteInstitution, setInstitutionActive,
   toggleCourseForInstitution, setInstitutionCourseExpiry,
   assignInstructorInstitution, removeInstructorInstitution, loadInstructorInstitutions,
@@ -207,7 +207,7 @@ const TeachersTab = ({ inst }) => {
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {paged.map(acc => {
-              const area = AREAS.find(a => a.id === acc.area)
+              const area = ALL_AREAS.find(a => a.id === acc.area)
               const isActive = acc.is_active !== false
               return (
                 <div key={acc.email} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',

@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, AREAS, findModule, gradeTotal, gradeMax } from '../store/store.jsx'
+import { useStore, AREAS, ALL_AREAS, findModule, gradeTotal, gradeMax } from '../store/store.jsx'
 import { useMobile, UsersIc, CheckIc, ClockIc, ZapIc, ChevRIc, BarIc } from '../components/ui.jsx'
 
 const InstructorStatsPage = () => {
@@ -104,7 +104,7 @@ const InstructorStatsPage = () => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {hardestQuestions.map((q, i) => {
-              const area = AREAS.find(a => a.id === q.area);
+              const area = ALL_AREAS.find(a => a.id === q.area);
               const barColor = q.pct >= 75 ? 'var(--success)' : q.pct >= 50 ? 'var(--warn)' : 'var(--error)';
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

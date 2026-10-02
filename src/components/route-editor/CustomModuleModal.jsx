@@ -1,6 +1,8 @@
 import React from 'react'
 import { PlusIc, XIc, Btn, Modal, ImageUploader, FileUploader } from '../ui.jsx'
 import { SECTION_TYPES } from './constants.js'
+import { ActivityPicker } from '../ActivityCard.jsx'
+import { resolveActivity } from '../../lib/activityBank.js'
 
 // Ancho y alto de imágenes y del visor de PDF. Ambos son OPCIONALES y se
 // guardan como número de píxeles (el ancho admite además '%'), porque así viajan
@@ -54,6 +56,7 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
       pdf:     { type: 'pdf',     title: '', url: '', filename: '', caption: '', height: '', width: '', allowDownload: true },
       checklist: { type: 'checklist', title: '', desc: '', items: [{ t: '' }] },
       download: { type: 'download', title: '', desc: '', url: '', filename: '', filesize: '' },
+      activity: { type: 'activity', title: '', bank: 'ambas', activityId: 'rom-01' },
     }
     setSections(s => [...s, { ...defaults[type], _id: Date.now() }])
   }
@@ -249,6 +252,24 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                         updateSection(idx, 'filename', name)
                         updateSection(idx, 'filesize', size)
                       }} />
+                  </>
+                )}
+                {sec.type === 'activity' && (
+                  <>
+                    <select value={sec.bank || 'ambas'} onChange={e => updateSection(idx, 'bank', e.target.value)}
+                      style={{ ...inp, marginBottom: 8 }}>
+                      <option value="ambas">Físicas o rompehielos (apertura)</option>
+                      <option value="fisicas">Solo pausas activas físicas</option>
+                      <option value="rompehielos">Solo rompehielos</option>
+                    </select>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>
+                      Actividad por defecto: <strong>{resolveActivity(sec)?.title}</strong>
+                    </div>
+                    <ActivityPicker compact scope={sec.bank || 'ambas'} value={resolveActivity(sec)?.id}
+                      onChange={id => updateSection(idx, 'activityId', id)} />
+                    <p style={{ fontSize: 11, color: 'var(--subtle)', lineHeight: 1.5, margin: '8px 0 0' }}>
+                      En la Clase en Vivo puedes cambiarla por otra del banco; tus estudiantes verán la que elijas.
+                    </p>
                   </>
                 )}
                 {sec.type === 'checklist' && (

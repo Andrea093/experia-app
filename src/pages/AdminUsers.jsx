@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  useStore, INITIAL_INSTITUTIONS, AREAS,
+  useStore, INITIAL_INSTITUTIONS, AREAS, ALL_AREAS,
   createAccount, deleteAccount, changeAccountArea, changeAccountInstitution, resetStudentProgress, setAccountActive,
   assignInstructorInstitution, removeInstructorInstitution, assignRouteToInstitution,
   bulkCreateAccounts, setUserCourseAccess, setUserCourseAccessBulk, isBaseCourse,
@@ -132,7 +132,7 @@ const BulkUploadModal = ({ open, onClose }) => {
               ))}
             </div>
             <p style={{ fontSize:12, color:'var(--subtle)', lineHeight:1.5 }}>
-              <strong>Rol:</strong> student · instructor &nbsp;|&nbsp; <strong>Área:</strong> lectura · ciudadanas · ingles · matematicas · ciencias
+              <strong>Rol:</strong> student · instructor &nbsp;|&nbsp; <strong>Área:</strong> lectura · ciudadanas · matematicas · ciencias
             </p>
           </div>
           <button onClick={downloadTemplate}
@@ -192,7 +192,7 @@ const BulkUploadModal = ({ open, onClose }) => {
               </thead>
               <tbody>
                 {rows.map(row => {
-                  const area = AREAS.find(a => a.id === row._area);
+                  const area = ALL_AREAS.find(a => a.id === row._area);
                   return (
                     <tr key={row._i} style={{ borderBottom:'1px solid var(--border)', background: row._valid ? 'transparent' : '#FFF5F5' }}>
                       <td style={{ padding:'7px 10px', color:'var(--subtle)' }}>{row._i}</td>
@@ -357,7 +357,7 @@ const InstructorAssignmentPanel = () => {
           <h4 style={{ fontSize:14, fontWeight:700, color:'var(--dark)', marginBottom:12 }}>📚 Rutas de formación guardadas</h4>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {namedRoutes.map(route => {
-              const area = AREAS.find(a => a.id === route.area);
+              const area = ALL_AREAS.find(a => a.id === route.area);
               const inst = institutions.find(i => i.id === route.institution_id);
               return (
                 <div key={route.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 16px', borderRadius:10, background:'var(--bg-alt)', border:'1px solid var(--border)' }}>
@@ -804,7 +804,7 @@ const AdminPage = () => {
               </td></tr>
             )}
             {pagedAccounts.map(acc => {
-              const area = AREAS.find(a => a.id === acc.area);
+              const area = ALL_AREAS.find(a => a.id === acc.area);
               const isAdmin = acc.role === 'admin';
               const isStudent = acc.role === 'student';
               const isActive = acc.is_active !== false;

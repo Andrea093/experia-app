@@ -48,6 +48,9 @@ export default defineConfig({
         // de efectividad.
         globIgnores: [
           '**/tutores/**',
+          // Banco de actividades (rompehielos / pausas activas, ~4.6 MB): se
+          // descarga solo al abrir el módulo que muestra la actividad.
+          '**/actividades/**',
           '**/avatarKit-*.js', '**/avatarBody-*.js',
           '**/AvatarStudio-*.js', '**/AvatarChip-*.js', '**/LiveAvatar-*.js',
           '**/rejillaTareas-*.js',

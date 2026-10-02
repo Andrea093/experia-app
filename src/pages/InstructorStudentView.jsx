@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  useStore, AREAS, BADGES, ALL_MODULES, RUBRIC_CRITERIA, getStudentModules,
+  useStore, AREAS, ALL_AREAS, BADGES, ALL_MODULES, RUBRIC_CRITERIA, getStudentModules,
   gradeTotal, gradeMax, calcLevel, xpForNext, nav,
   setWorkshopAccess, setWorkshopAccessBulk, isBaseCourse, resetQuizAttempts,
 } from '../store/store.jsx'
@@ -83,7 +83,7 @@ export function ActiveStudents() {
       </div>
       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
         {Object.entries(byArea).map(([areaKey, students]) => {
-          const area = AREAS.find(a => a.id === areaKey)
+          const area = ALL_AREAS.find(a => a.id === areaKey)
           return (
             <div key={areaKey}>
               <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:1,
@@ -162,7 +162,7 @@ export function StudentProgressModal({ student, onClose }) {
 
   if (!student) return null
 
-  const area       = AREAS.find(a => a.id === student.area)
+  const area       = ALL_AREAS.find(a => a.id === student.area)
   const mySubs     = submissions.filter(s => s.studentEmail === student.email)
   const myAttempts = attempts.filter(a => a.studentEmail === student.email)
   const latestSub  = mySubs[0]
@@ -481,7 +481,7 @@ const InstructorHistorial = ({ onStudentClick }) => {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map(sub => {
-            const area  = AREAS.find(a => a.id === sub.area)
+            const area  = ALL_AREAS.find(a => a.id === sub.area)
             const total = gradeTotal(sub.grade)
             const max   = gradeMax()
             const pct   = max > 0 ? Math.round((total / max) * 100) : 0
@@ -524,7 +524,7 @@ const InstructorHistorial = ({ onStudentClick }) => {
       {/* Detail modal */}
       <Modal open={!!detailSub} onClose={() => setDetailSub(null)} title={detailSub?.studentName || ''} width={560}>
         {detailSub && (() => {
-          const area  = AREAS.find(a => a.id === detailSub.area)
+          const area  = ALL_AREAS.find(a => a.id === detailSub.area)
           const total = gradeTotal(detailSub.grade)
           const max   = gradeMax()
           const pct   = max > 0 ? Math.round((total / max) * 100) : 0

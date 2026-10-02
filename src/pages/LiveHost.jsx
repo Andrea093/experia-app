@@ -1,11 +1,13 @@
 import React from 'react'
-import { useStore, dbModToAppMod, resolveCourseForStudent } from '../store/store.jsx'
+import { useStore, dbModToAppMod, resolveCourseForStudent, saveActivityPref } from '../store/store.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { Btn, Confetti, RichText } from '../components/ui.jsx'
 import { LessonBody } from './lesson.jsx'
+import { ActivityPicker } from '../components/ActivityCard.jsx'
+import { resolveActivity, ACTIVITY_BANKS } from '../lib/activityBank.js'
 import {
   createLiveSession, liveGotoModule, liveCompleteModuleForParticipants,
-  liveSetPhase, liveGoto, liveEnd, saveLiveClosingNotes,
+  liveSetPhase, liveGoto, liveEnd, saveLiveClosingNotes, saveLiveActivityChoice,
   fetchSession, fetchParticipants, fetchAnswerCounts,
   subscribeSession, subscribeParticipants, unsubscribe,
 } from '../lib/liveClient.js'
@@ -150,6 +152,71 @@ const ClosingReport = ({ session, parts, onSaved }) => {
           {savedAt && <span style={{ fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>Guardado ✓</span>}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ---------- Actividad del banco (rompehielos / pausa activa) ----------
+// En los módulos con sección `activity` (apertura = físicas o rompehielos;
+// pausa activa = solo físicas) el profesor elige cuál hacer en ESTA clase.
+// La elección va a live_sessions.activity_choices (los estudiantes la ven al
+// instante por realtime) y se recuerda en su perfil para la próxima clase.
+const ActivityChooser = ({ session, module, onSession }) => {
+  const prefs   = useStore(s => s.user?.activityPrefs)
+  const section = (module.content || []).find(s => s.type === 'activity')
+  const choice  = session.activity_choices?.[module.id]
+  const current = section ? resolveActivity(section, choice) : null
+  const [open, setOpen]   = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+  const [err, setErr]     = React.useState('')
+
+  const choose = async (id, remember = true) => {
+    setSaving(true); setErr('')
+    try {
+      onSession(await saveLiveActivityChoice(session, module.id, id))
+      if (remember) saveActivityPref(module.id, id)
+      setOpen(false)
+    } catch (e) {
+      setErr(/activity_choices/.test(e?.message || '')
+        ? 'Falta aplicar la migración 0069 en Supabase para poder cambiar la actividad.'
+        : 'No se pudo guardar: ' + (e?.message || e))
+    } finally { setSaving(false) }
+  }
+
+  // Al llegar al módulo: si el profesor ya había elegido otra en una clase
+  // anterior, se aplica sola (sin volver a guardarla en el perfil).
+  const pref = prefs?.[module.id]
+  React.useEffect(() => {
+    if (section && !choice && pref && pref !== resolveActivity(section).id) choose(pref, false)
+  }, [module.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!section || !current) return null
+  return (
+    <div style={{ padding: '14px 18px', borderRadius: 14, background: 'var(--white)', border: '1.5px solid var(--orange)', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1 }}>
+            🎲 Actividad para esta clase
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', marginTop: 2 }}>
+            {ACTIVITY_BANKS[current.bank]?.icon} {current.title}
+            {!choice && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}> · por defecto</span>}
+          </div>
+        </div>
+        <Btn variant="secondary" size="sm" disabled={saving} onClick={() => setOpen(o => !o)}>
+          {open ? 'Cerrar' : 'Cambiar actividad'}
+        </Btn>
+      </div>
+      {open && (
+        <div style={{ marginTop: 12 }}>
+          <ActivityPicker scope={section.bank} value={current.id} onChange={id => choose(id)} />
+          <p style={{ fontSize: 11.5, color: 'var(--subtle)', margin: '8px 0 0' }}>
+            Tus estudiantes ven al instante la actividad que elijas. Se recordará para tu próxima clase.
+          </p>
+        </div>
+      )}
+      {saving && <p style={{ fontSize: 12, color: 'var(--muted)', margin: '8px 0 0' }}>Guardando…</p>}
+      {err && <p style={{ fontSize: 12, color: 'var(--error)', fontWeight: 600, margin: '8px 0 0' }}>{err}</p>}
     </div>
   )
 }
@@ -440,13 +507,16 @@ const Control = ({ session: initial, moduleList, onExit }) => {
         {/* Módulo no sincrónico: lección (contenido real, igual al del estudiante) u otro reto */}
         {!showPodium && !isInteractive && (
           currentModule?.type === 'lesson' ? (
+            <>
+            <ActivityChooser key={currentModule.id} session={session} module={currentModule} onSession={setSession} />
             <div style={{ padding: '20px 24px', borderRadius: 18, background: 'var(--white)', border: '1px solid var(--border)', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, padding: '8px 12px', borderRadius: 10,
                 background: 'var(--orange-bg)', color: 'var(--orange)', fontSize: 12, fontWeight: 700 }}>
                 📖 Vista previa — esto es lo que están leyendo tus estudiantes ahora mismo
               </div>
-              <LessonBody mod={dbModToAppMod(currentModule)} />
+              <LessonBody mod={dbModToAppMod(currentModule)} activityChoice={session.activity_choices?.[currentModule.id]} />
             </div>
+            </>
           ) : (
             <div style={{ padding: '20px 24px', borderRadius: 18, background: 'var(--white)', border: '1px solid var(--border)', marginBottom: 20, textAlign: 'center' }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>⏭️</div>

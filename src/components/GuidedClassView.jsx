@@ -69,7 +69,7 @@ const GuidedClassViewInner = ({ guided }) => {
     return (
       <Shell>
         <LiveBadge />
-        <LessonBody mod={currentMod} />
+        <LessonBody mod={currentMod} activityChoice={session.activity_choices?.[currentMod.id]} />
       </Shell>
     );
   }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, setInstitutionCourseExpiry, loadCourseModules, loadCourseRoster, saveCourseRoster } from '../store/store.jsx'
+import { useStore, AREAS, ALL_AREAS, loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, setInstitutionCourseExpiry, loadCourseModules, loadCourseRoster, saveCourseRoster } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, CheckIc, XIc, Btn, Modal, ChecklistDropdown, ImageUploader, FileUploader } from '../components/ui.jsx'
 import { StatsRow, SearchInput, Pill, EmptyState, RowMenu } from '../components/adminUI.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -257,7 +257,7 @@ const CourseForm = ({ initial, onSave, onCancel }) => {
 }
 
 // ── Alcance de un módulo: transversal (todas las áreas) o área específica ──
-const areaById = (id) => AREAS.find(a => a.id === id)
+const areaById = (id) => ALL_AREAS.find(a => a.id === id)
 const scopeLabel = (areaId) => {
   if (!areaId) return '🌐 Transversal'
   const a = areaById(areaId)

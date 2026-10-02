@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, nav, selectArea, AREAS } from '../store/store.jsx'
+import { useStore, nav, selectArea, AREAS, ALL_AREAS } from '../store/store.jsx'
 import { useMobile, Btn, Modal } from '../components/ui.jsx'
 
 const AreaSelection = () => {
@@ -8,7 +8,7 @@ const AreaSelection = () => {
   const [pendingArea, setPendingArea] = React.useState(null);
   const isMobile = useMobile();
   if (selectedArea) { nav('map'); return null; }
-  const pending = AREAS.find(a => a.id === pendingArea);
+  const pending = ALL_AREAS.find(a => a.id === pendingArea);
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',

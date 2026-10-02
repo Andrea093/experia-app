@@ -4,6 +4,8 @@ import {
   getStudentModules, nodeStatus, isBlockedByPresence, calcLevel, getActiveCourseTheme, reactCharacter, isRouteComplete,
 } from '../store/store.jsx'
 import ThemeCelebration from '../components/ThemeCelebration.jsx'
+import { ActivityCard } from '../components/ActivityCard.jsx'
+import { resolveActivity } from '../lib/activityBank.js'
 import {
   useMobile, LogoImg,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc,
@@ -263,7 +265,9 @@ const ChecklistSection = ({ section, delay }) => {
   );
 };
 
-export const LessonSection = React.memo(({ section, index }) => {
+// `activityChoice` solo aplica a secciones `activity`: la actividad que el
+// profesor eligió para la Clase en Vivo (si no, la por defecto de la ruta).
+export const LessonSection = React.memo(({ section, index, activityChoice }) => {
   const delay = index * 60;
   const isMobile = useMobile();
 
@@ -408,6 +412,18 @@ export const LessonSection = React.memo(({ section, index }) => {
 
   if (section.type === 'pdf') return <PdfSection section={section} delay={delay} />;
 
+  // Banco de actividades (rompehielos / pausas activas): ver src/lib/activityBank.js.
+  if (section.type === 'activity') {
+    return (
+      <>
+        {section.title && (
+          <h3 style={{ fontSize: 19, fontWeight: 700, color: 'var(--dark)', margin: '32px 0 0' }}>{section.title}</h3>
+        )}
+        <ActivityCard activity={resolveActivity(section, activityChoice)} delay={delay} />
+      </>
+    );
+  }
+
   if (section.type === 'download') {
     const sizeLabel = section.filesize
       ? section.filesize < 1024 * 1024
@@ -528,7 +544,7 @@ export const LessonSection = React.memo(({ section, index }) => {
 // `splitContentPages`), y solo se pinta la página activa. Hero/tarea van
 // únicamente en la primera página y los extras del instructor en la última,
 // para no repetirlos en cada pantalla.
-export const LessonBody = ({ mod, page }) => {
+export const LessonBody = ({ mod, page, activityChoice }) => {
   const pages = splitContentPages(mod.content);
   const paginated = page !== undefined && pages.length > 1;
   const sections = paginated ? (pages[page] || []) : (mod.content || []).filter(s => s.type !== 'pagebreak');
@@ -562,7 +578,7 @@ export const LessonBody = ({ mod, page }) => {
     )}
 
     {/* Sections */}
-    {sections.map((sec, i) => <LessonSection key={i} section={sec} index={i} />)}
+    {sections.map((sec, i) => <LessonSection key={i} section={sec} index={i} activityChoice={activityChoice} />)}
 
     {/* Extras added by instructor */}
     {showExtras && mod.extras?.length > 0 && (

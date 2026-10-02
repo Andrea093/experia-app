@@ -152,7 +152,9 @@ async function restoreSession() {
             avatarConfig: profile.avatar_config || null,
             // Modo clon: variante de interfaz del piloto temporal (0051). Sin la
             // migración queda null y todo se ve exactamente como antes.
-            uiVariant: profile.ui_variant || null },
+            uiVariant: profile.ui_variant || null,
+            // Actividad del banco que el profesor dejó elegida por módulo (0069).
+            activityPrefs: profile.activity_prefs || {} },
     page, xp, completed, badges, notifications: [],
     selectedArea: profile.area || null, nodeId: null,
     institutions: institutionsRes.data || [],

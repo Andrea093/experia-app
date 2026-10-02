@@ -35,4 +35,6 @@ export const SECTION_TYPES = [
   { id: 'pdf',     label: '📕 Documento PDF (visor)', icon: '📕' },
   { id: 'checklist', label: '✅ Checklist',     icon: '✅' },
   { id: 'download', label: '📄 Material descargable', icon: '📄' },
+  // Banco de rompehielos / pausas activas físicas (src/lib/activityBank.js).
+  { id: 'activity', label: '🎲 Actividad del banco', icon: '🎲' },
 ]

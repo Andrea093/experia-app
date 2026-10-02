@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   useStore, nav, submitProduct, resubmitProduct, returnSubmission, updateReturnCorrection, approveSubmission,
-  dismissStudentMessage, AREAS, RUBRIC_CRITERIA, getStudentModules,
+  dismissStudentMessage, AREAS, ALL_AREAS, RUBRIC_CRITERIA, getStudentModules,
   isRouteComplete, progressPct, gradeTotal, gradeMax, gradeSubmission, issueCertificate,
   isBlockedByPresence,
 } from '../store/store.jsx'
@@ -232,7 +232,7 @@ const SubTable = ({ subs, onGrade, onViewFile, saveFlash, onStudentClick }) => (
       </thead>
       <tbody>
         {subs.map(sub => {
-          const area = AREAS.find(a => a.id === sub.area);
+          const area = ALL_AREAS.find(a => a.id === sub.area);
           const justSaved = saveFlash === sub.id;
           const isApproved = sub.status === 'approved';
           return (
@@ -318,7 +318,7 @@ const StudentProductUpload = () => {
   const [rejillaError, setRejillaError] = React.useState('');
   const [preguntaError, setPreguntaError] = React.useState('');
 
-  const area = AREAS.find(a => a.id === selectedArea);
+  const area = ALL_AREAS.find(a => a.id === selectedArea);
 
   // Módulos reales de la ruta: los del curso si está inscrito (no los legacy del
   // área). Sin esto la comprobación comparaba contra ids que no existían en su
