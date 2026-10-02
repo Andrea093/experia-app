@@ -244,10 +244,10 @@ Para usar en clase: el profesor lanza un reto **Quiz** en vivo y los estudiantes
 
 Las rutas de **Matemáticas, Lenguaje, Ciencias Sociales y Ciencias Naturales** tienen
 **7 módulos** cada una (sin retos extra intercalados). **Ciencias Naturales son tres rutas
-separadas** (paneles aparte, mismo tema de laboratorio): *Ciencias Naturales — Biología*
-(el curso original, con su progreso), *— Física* y *— Química* (copias de la ruta original
-para ajustar cada materia; mismos colegios, docentes y estudiantes, progreso desde cero).
-Migración `0073`.
+separadas** (paneles aparte, mismo tema de laboratorio): *Laboratorio de Ciencias
+Naturales — Biología* (el curso original, con su progreso), *— Física* y *— Química* (copias
+de la ruta original para ajustar cada materia; mismos colegios, docentes y estudiantes,
+progreso desde cero). Migraciones `0073` (separación) y `0074` (nombre).
 
 | # | Módulo | Qué lleva |
 |---|--------|-----------|
