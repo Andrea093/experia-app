@@ -106,6 +106,18 @@ const SlidesSection = ({ section, delay }) => {
   );
 };
 
+// ¿La sección es guía SOLO para el docente? `tutorOnly` explícito manda (la
+// casilla del editor); si no está definido, las secciones de guía de clase
+// se reconocen por su título — así quedan ocultas al estudiante en TODOS los
+// cursos, también en los copiados o creados después, sin depender de que una
+// migración las haya marcado.
+const TUTOR_GUIDE_TITLES = new Set(['qué es este bloque', 'cómo ejecutarlo']);
+export const isTutorOnlySection = (sec) => {
+  if (!sec) return false;
+  if (typeof sec.tutorOnly === 'boolean') return sec.tutorOnly;
+  return TUTOR_GUIDE_TITLES.has(String(sec.title || '').normalize('NFC').trim().toLowerCase());
+};
+
 // Divide `content` en páginas usando las secciones `{type:'pagebreak'}` como
 // separador. Sin ningún salto (el caso de casi todas las lecciones publicadas
 // hasta ahora) devuelve un único grupo con todo el contenido — pagination
@@ -627,7 +639,7 @@ export const LessonBody = ({ mod, page, activityChoice }) => {
   // Secciones `tutorOnly` (guía para el docente: "Qué es este bloque", "Cómo
   // ejecutarlo"…) NO las ve el estudiante; instructor/admin sí, marcadas.
   const isStudent = useStore(s => s.user?.role) === 'student';
-  const content = isStudent ? (mod.content || []).filter(s => !s.tutorOnly) : mod.content;
+  const content = isStudent ? (mod.content || []).filter(s => !isTutorOnlySection(s)) : mod.content;
   const pages = splitContentPages(content);
   const paginated = page !== undefined && pages.length > 1;
   const sections = paginated ? (pages[page] || []) : (content || []).filter(s => s.type !== 'pagebreak');
@@ -661,7 +673,7 @@ export const LessonBody = ({ mod, page, activityChoice }) => {
     )}
 
     {/* Sections */}
-    {sections.map((sec, i) => sec.tutorOnly ? (
+    {sections.map((sec, i) => isTutorOnlySection(sec) ? (
       <div key={i} style={{ position: 'relative', padding: '2px 16px', margin: '18px 0', borderRadius: 14,
         border: '1.5px dashed var(--border)', background: 'var(--bg-alt)' }}>
         <span style={{ position: 'absolute', top: -10, left: 14, padding: '1px 8px', borderRadius: 10, fontSize: 10.5, fontWeight: 800,

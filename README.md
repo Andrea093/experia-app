@@ -313,9 +313,12 @@ Las secciones **"Qué es este bloque"** y **"Cómo ejecutarlo"** son instruccion
 docente: el estudiante **no las ve**. El docente sí, dentro de un recuadro punteado con la
 marca **👩‍🏫 Solo docente** (editor, vista previa y Aula en Vivo).
 
+La plataforma las reconoce **por su título**, así que quedan ocultas en todas las
+asignaturas y también en cualquier curso que se copie o se cree después, sin migraciones.
+
 Cualquier otra sección se puede ocultar igual: al editar un módulo, cada sección tiene la
-casilla **"Solo visible para el docente"** (se guarda como `tutorOnly: true`). La migración
-`0071` (ya aplicada) marcó esos dos títulos en todos los cursos.
+casilla **"Solo visible para el docente"** (se guarda como `tutorOnly`). Desmarcarla en una
+de esas dos secciones la vuelve visible para el estudiante.
 
 ---
 

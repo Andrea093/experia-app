@@ -3,6 +3,7 @@ import { PlusIc, XIc, Btn, Modal, ImageUploader, FileUploader } from '../ui.jsx'
 import { SECTION_TYPES } from './constants.js'
 import { ActivityPicker, ActivityCard } from '../ActivityCard.jsx'
 import { resolveActivity, ACTIVITY_BANKS } from '../../lib/activityBank.js'
+import { isTutorOnlySection } from '../../pages/lesson.jsx'
 
 // Ancho y alto de imágenes y del visor de PDF. Ambos son OPCIONALES y se
 // guardan como número de píxeles (el ancho admite además '%'), porque así viajan
@@ -327,7 +328,7 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                 )}
                 {sec.type !== 'activity' && (
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, cursor: 'pointer', fontSize: 12, color: 'var(--text-sec)' }}>
-                    <input type="checkbox" checked={!!sec.tutorOnly} onChange={e => updateSection(idx, 'tutorOnly', e.target.checked)} />
+                    <input type="checkbox" checked={isTutorOnlySection(sec)} onChange={e => updateSection(idx, 'tutorOnly', e.target.checked)} />
                     👩‍🏫 Solo visible para el docente <span style={{ color: 'var(--subtle)' }}>(guía de la clase; el estudiante no la ve)</span>
                   </label>
                 )}
