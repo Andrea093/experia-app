@@ -545,9 +545,13 @@ export const LessonSection = React.memo(({ section, index, activityChoice }) => 
 // únicamente en la primera página y los extras del instructor en la última,
 // para no repetirlos en cada pantalla.
 export const LessonBody = ({ mod, page, activityChoice }) => {
-  const pages = splitContentPages(mod.content);
+  // Secciones `tutorOnly` (guía para el docente: "Qué es este bloque", "Cómo
+  // ejecutarlo"…) NO las ve el estudiante; instructor/admin sí, marcadas.
+  const isStudent = useStore(s => s.user?.role) === 'student';
+  const content = isStudent ? (mod.content || []).filter(s => !s.tutorOnly) : mod.content;
+  const pages = splitContentPages(content);
   const paginated = page !== undefined && pages.length > 1;
-  const sections = paginated ? (pages[page] || []) : (mod.content || []).filter(s => s.type !== 'pagebreak');
+  const sections = paginated ? (pages[page] || []) : (content || []).filter(s => s.type !== 'pagebreak');
   const showIntro = !paginated || page === 0;
   const showExtras = !paginated || page === pages.length - 1;
 
@@ -578,7 +582,14 @@ export const LessonBody = ({ mod, page, activityChoice }) => {
     )}
 
     {/* Sections */}
-    {sections.map((sec, i) => <LessonSection key={i} section={sec} index={i} activityChoice={activityChoice} />)}
+    {sections.map((sec, i) => sec.tutorOnly ? (
+      <div key={i} style={{ position: 'relative', padding: '2px 16px', margin: '18px 0', borderRadius: 14,
+        border: '1.5px dashed var(--border)', background: 'var(--bg-alt)' }}>
+        <span style={{ position: 'absolute', top: -10, left: 14, padding: '1px 8px', borderRadius: 10, fontSize: 10.5, fontWeight: 800,
+          background: 'var(--dark)', color: 'var(--white)' }}>👩‍🏫 Solo docente</span>
+        <LessonSection section={sec} index={i} activityChoice={activityChoice} />
+      </div>
+    ) : <LessonSection key={i} section={sec} index={i} activityChoice={activityChoice} />)}
 
     {/* Extras added by instructor */}
     {showExtras && mod.extras?.length > 0 && (

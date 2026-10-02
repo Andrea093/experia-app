@@ -6,6 +6,7 @@ import {
   getCourseDisplayName, generatePresenceCode,
 } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, GripIc, LockIc, Btn, Modal } from '../components/ui.jsx'
+import { resolveActivity, ACTIVITY_BANKS } from '../lib/activityBank.js'
 import CertificateCard, { DEFAULT_ACHIEVEMENT_TEXT as DEFAULT_CERT_ACHIEVEMENT_TEXT, fichaCertificado } from '../components/CertificateCard.jsx'
 import {
   TYPE_LABELS, TYPE_COLORS, TYPE_BG,
@@ -19,6 +20,10 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
   onEdit, onDuplicate, onToggle, onDelete, showDelete,
   onTogglePresence, onGenerateCode, onSetAvailability, onOpenActa, onOpenPlan }) => {
   const isOver = overIdx === idx
+  // Módulo con banco de actividades (apertura / pausa activa): la actividad
+  // elegida se ve en la fila y un clic abre el editor con el banco completo.
+  const actSec = (mod.content || []).find(s => s.type === 'activity')
+  const act = actSec ? resolveActivity(actSec) : null
   return (
     <div draggable
       onDragStart={onDragStart} onDragOver={e => { e.preventDefault(); onDragOver() }}
@@ -46,6 +51,15 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
               background: 'var(--orange-bg)', color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8 }}>EDITADO</span>
           )}
         </div>
+        {act && (
+          <button onClick={onEdit} title="Ver el banco y elegir la actividad"
+            style={{ background: 'var(--orange-bg)', border: '1px solid var(--orange)', cursor: 'pointer', color: 'var(--orange)',
+              height: 26, padding: '0 9px', borderRadius: 7, display: 'flex', alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0,
+              fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? 120 : 230,
+              fontFamily: 'var(--font)' }}>
+            {ACTIVITY_BANKS[act.bank]?.icon} {act.title}
+          </button>
+        )}
         <button onClick={onEdit} title="Editar contenido"
           style={{ background: mod.override ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
             width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

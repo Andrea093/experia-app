@@ -1,8 +1,8 @@
 import React from 'react'
 import { PlusIc, XIc, Btn, Modal, ImageUploader, FileUploader } from '../ui.jsx'
 import { SECTION_TYPES } from './constants.js'
-import { ActivityPicker } from '../ActivityCard.jsx'
-import { resolveActivity } from '../../lib/activityBank.js'
+import { ActivityPicker, ActivityCard } from '../ActivityCard.jsx'
+import { resolveActivity, ACTIVITY_BANKS } from '../../lib/activityBank.js'
 
 // Ancho y alto de imágenes y del visor de PDF. Ambos son OPCIONALES y se
 // guardan como número de píxeles (el ancho admite además '%'), porque así viajan
@@ -22,6 +22,37 @@ const SizeFields = ({ sec, idx, update, inp, hint }) => (
     )}
   </>
 )
+
+// Recuadro destacado para elegir la actividad del banco de este módulo.
+const ActivityPanel = ({ sec, onPick }) => {
+  const current = resolveActivity(sec)
+  const [preview, setPreview] = React.useState(false)
+  return (
+    <div style={{ padding: '14px 16px', borderRadius: 14, border: '2px solid var(--orange)', background: 'var(--orange-bg)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1 }}>
+            🎲 Actividad de este módulo
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', marginTop: 2 }}>
+            {ACTIVITY_BANKS[current?.bank]?.icon} {current?.title}
+          </div>
+        </div>
+        <button type="button" onClick={() => setPreview(p => !p)}
+          style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--orange)', background: 'var(--white)', color: 'var(--orange)',
+            cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700 }}>
+          {preview ? 'Ocultar detalle' : '👁️ Ver detalle'}
+        </button>
+      </div>
+      {preview && <div style={{ marginTop: -20 }}><ActivityCard activity={current} /></div>}
+      <div style={{ fontSize: 12, color: 'var(--text-sec)', marginBottom: 8 }}>
+        Elige la que mejor se adapte a tu grupo{sec.bank === 'fisicas' ? ' (solo pausas activas físicas)' : ' — físicas o rompehielos'}.
+        Es la que verán tus estudiantes; en la Clase en Vivo aún puedes cambiarla.
+      </div>
+      <ActivityPicker scope={sec.bank || 'ambas'} value={current?.id} onChange={onPick} />
+    </div>
+  )
+}
 
 const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => {
   const [title, setTitle]     = React.useState('')
@@ -112,6 +143,13 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
           <input value={task} onChange={e => setTask(e.target.value)}
             placeholder="Ej: Lee todo el contenido y completa la lección" style={inp} />
         </div>
+
+        {/* Banco de actividades: si el módulo tiene una sección `activity`
+            (apertura / pausa activa), el profesor la elige aquí arriba viendo
+            todo el banco, sin buscarla entre las secciones. */}
+        {sections.map((sec, idx) => sec.type !== 'activity' ? null : (
+          <ActivityPanel key={'act' + (sec._id || idx)} sec={sec} onPick={id => updateSection(idx, 'activityId', id)} />
+        ))}
 
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 10 }}>Contenido del módulo</label>
@@ -254,6 +292,12 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                       }} />
                   </>
                 )}
+                {sec.type !== 'activity' && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, cursor: 'pointer', fontSize: 12, color: 'var(--text-sec)' }}>
+                    <input type="checkbox" checked={!!sec.tutorOnly} onChange={e => updateSection(idx, 'tutorOnly', e.target.checked)} />
+                    👩‍🏫 Solo visible para el docente <span style={{ color: 'var(--subtle)' }}>(guía de la clase; el estudiante no la ve)</span>
+                  </label>
+                )}
                 {sec.type === 'activity' && (
                   <>
                     <select value={sec.bank || 'ambas'} onChange={e => updateSection(idx, 'bank', e.target.value)}
@@ -262,14 +306,9 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                       <option value="fisicas">Solo pausas activas físicas</option>
                       <option value="rompehielos">Solo rompehielos</option>
                     </select>
-                    <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>
-                      Actividad por defecto: <strong>{resolveActivity(sec)?.title}</strong>
+                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      Actividad: <strong>{resolveActivity(sec)?.title}</strong> — se elige en el recuadro 🎲 de arriba.
                     </div>
-                    <ActivityPicker compact scope={sec.bank || 'ambas'} value={resolveActivity(sec)?.id}
-                      onChange={id => updateSection(idx, 'activityId', id)} />
-                    <p style={{ fontSize: 11, color: 'var(--subtle)', lineHeight: 1.5, margin: '8px 0 0' }}>
-                      En la Clase en Vivo puedes cambiarla por otra del banco; tus estudiantes verán la que elijas.
-                    </p>
                   </>
                 )}
                 {sec.type === 'checklist' && (
