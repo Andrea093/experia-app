@@ -207,9 +207,12 @@ Después de cualquier cambio de dominio, actualizar en Supabase → **Authentica
 |----|--------|
 | `lectura` | Lectura Crítica |
 | `ciudadanas` | Competencias Ciudadanas |
-| `ingles` | Inglés |
 | `matematicas` | Matemáticas |
 | `ciencias` | Ciencias Naturales |
+
+> **Inglés se retiró (oct 2026):** la asignatura no se aborda y ya no aparece en filtros,
+> selectores ni tableros. El área sigue existiendo en el código (`ALL_AREAS`) solo para
+> mostrar bien los usuarios o entregas antiguas que la tengan.
 
 ---
 
@@ -234,6 +237,81 @@ Para usar en clase: el profesor lanza un reto **Quiz** en vivo y los estudiantes
 - **Estudiantes:** entran a `…/#/live` (sin login), escriben el PIN y sus datos (nombre, apellido, correo, salón), o escanean el QR.
 - **Flujo por pregunta:** pregunta (con cuenta regresiva) → resultados → explicación → ranking → siguiente; al final, **podio**.
 - El contenido sale de los retos `quiz` del curso. Edita preguntas, explicaciones, tiempo y puntos en **Ruta → reto Quiz** (incluye subida de imágenes y un texto/imágenes de apoyo "passage").
+
+---
+
+## Banco de actividades: rompehielos y pausas activas
+
+Las rutas de **Matemáticas, Lenguaje, Ciencias Sociales y Ciencias Naturales** tienen
+**7 módulos** cada una (sin retos extra intercalados):
+
+| # | Módulo | Qué lleva |
+|---|--------|-----------|
+| 1 | Apertura | Actividad del banco — **física o rompehielos** |
+| 2 | Estructura de la Prueba Saber | **Diapositivas oficiales del área** (imágenes grandes) |
+| 3 | Bitácora | Contenido del área |
+| 4 | Primera ronda | Preguntas (las sube el equipo académico) |
+| 5 | Pausa activa | Actividad del banco — **solo físicas** |
+| 6 | Ronda final | Preguntas (las sube el equipo académico) |
+| 7 | Cierre | Contenido del área |
+
+El banco tiene **30 actividades de 10 minutos** (15 pausas activas físicas + 15 rompehielos),
+tomadas de las guías visuales de CEINFES. Cada una trae imagen, formato (individual /
+parejas / grupal), objetivo, paso a paso por minutos y, en los rompehielos, el resultado
+esperado.
+
+**Cómo la elige el docente**
+
+- **Desde la ruta:** menú lateral → **Ruta**. Los módulos 1 y 5 muestran un botón naranja con
+  la actividad actual (ej. *🎲 Dos verdades y un mito flash*). Clic → se abre el módulo con el
+  recuadro **🎲 Actividad de este módulo** arriba: banco completo con miniaturas (pestañas
+  *Físicas* / *Rompehielos* en el módulo 1), botón **👁️ Ver detalle** para ver la tarjeta
+  completa antes de decidir. Se elige, se guarda y es la que ven los estudiantes.
+- **En la Clase en Vivo:** al llegar al módulo 1 o 5, el recuadro **🎲 Actividad para esta
+  clase** → **Cambiar actividad**. Los estudiantes conectados ven el cambio **al instante**, y
+  la plataforma recuerda la elección del docente para su próxima clase.
+- **Por defecto:** si nadie elige, el módulo 1 muestra *Dos verdades y un mito flash* y el
+  módulo 5 *Estiramiento cérvico-especial*.
+
+**Qué ve el estudiante:** solo la tarjeta de la actividad (imagen —ampliable con un clic— y la
+información para ejecutarla).
+
+**Para el equipo técnico**
+
+- Datos del banco: `src/lib/activityBank.js`. Imágenes: `public/actividades/*.jpg` (excluidas
+  del precaché del service worker). Componentes: `src/components/ActivityCard.jsx`.
+- Es una sección de lección más: `{ "type": "activity", "bank": "ambas" | "fisicas", "activityId": "rom-01" }`.
+  Se puede agregar a cualquier módulo desde el editor (*🎲 Actividad del banco*).
+- Migraciones (ya aplicadas): `0065`–`0067` (contenido de apertura, estructura Saber y pausa
+  activa), `0070` (quitó de Matemáticas las dos "Pregunta en Vivo"), `0069` (columnas
+  `live_sessions.activity_choices` y `profiles.activity_prefs` + banco nuevo en las rutas).
+
+### Módulo 2: diapositivas de la estructura de la Prueba Saber
+
+El módulo 2 muestra las diapositivas oficiales de cada área (estructura y número de
+preguntas, competencias y componentes evaluados): 2 en Matemáticas, Lectura Crítica y
+Ciencias Sociales, y 3 en Ciencias Naturales (física, química y biología se evalúan
+integradas; la tercera es la distribución de preguntas por componente).
+
+- **Se ven grandes:** a ancho completo y sin recorte, en la ruta y en la Clase en Vivo (la
+  pantalla se ensancha en ese módulo). Botón **⛶ Pantalla completa** para proyectar, con
+  flechas ‹ › (o las del teclado) para pasar y **Esc** para salir.
+- **El docente las prepara antes de clase:** menú **Ruta** → botón **👁️** en la fila del
+  módulo → vista previa del módulo tal como lo verá el estudiante.
+- **Editarlas:** lápiz del módulo → sección *🎞️ Diapositivas*: agregar, reordenar, quitar.
+  Sirve para cualquier módulo que necesite imágenes fijas grandes.
+- Archivos: `public/estructura-saber/*.jpg` (excluidos del precaché). Sección
+  `{ "type": "slides", "title", "desc", "images": [{ "url", "caption" }] }`. Migración `0072`.
+
+### Guía de clase solo para el docente
+
+Las secciones **"Qué es este bloque"** y **"Cómo ejecutarlo"** son instrucciones para el
+docente: el estudiante **no las ve**. El docente sí, dentro de un recuadro punteado con la
+marca **👩‍🏫 Solo docente** (editor, vista previa y Aula en Vivo).
+
+Cualquier otra sección se puede ocultar igual: al editar un módulo, cada sección tiene la
+casilla **"Solo visible para el docente"** (se guarda como `tutorOnly: true`). La migración
+`0071` (ya aplicada) marcó esos dos títulos en todos los cursos.
 
 ---
 
@@ -559,6 +637,7 @@ git push           # Deploy automático a Cloudflare Pages
 
 ## Pendientes / Roadmap
 
+- [ ] Subir las preguntas de los módulos 4 (primera ronda) y 6 (ronda final) de Lenguaje, Ciencias Sociales y Ciencias Naturales (hoy dicen "Pendiente") y reemplazar las de Matemáticas
 - [ ] Ejecutar `0049_analytics_rpcs.sql` en Supabase (sin esto la pantalla de análisis de ítems abre vacía)
 - [ ] Migrar `InstructorStats` y `AdminAnalytics` a las RPC de `0049` — hoy calculan en el navegador sobre 300 filas de toda la plataforma
 - [ ] Informe posterior a la clase en vivo: `live_answers` es la mejor muestra para discriminación (30 personas, misma pregunta) y hoy se descarta al terminar

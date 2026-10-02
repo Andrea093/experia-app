@@ -88,6 +88,7 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
       checklist: { type: 'checklist', title: '', desc: '', items: [{ t: '' }] },
       download: { type: 'download', title: '', desc: '', url: '', filename: '', filesize: '' },
       activity: { type: 'activity', title: '', bank: 'ambas', activityId: 'rom-01' },
+      slides:   { type: 'slides', title: '', desc: '', images: [] },
     }
     setSections(s => [...s, { ...defaults[type], _id: Date.now() }])
   }
@@ -290,6 +291,38 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                         updateSection(idx, 'filename', name)
                         updateSection(idx, 'filesize', size)
                       }} />
+                  </>
+                )}
+                {sec.type === 'slides' && (
+                  <>
+                    <input value={sec.desc || ''} onChange={e => updateSection(idx, 'desc', e.target.value)}
+                      placeholder="Descripción (opcional)" style={{ ...inp, marginBottom: 8 }} />
+                    {(sec.images || []).map((im, ii) => {
+                      const imgs = sec.images || []
+                      const setImgs = (next) => updateSection(idx, 'images', next)
+                      const move = (d) => { const n = [...imgs]; const t = ii + d; if (t < 0 || t >= n.length) return; [n[ii], n[t]] = [n[t], n[ii]]; setImgs(n) }
+                      return (
+                        <div key={ii} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                          <a href={im.url} target="_blank" rel="noreferrer" title="Abrir en grande">
+                            <img src={im.url} alt="" style={{ width: 120, height: 68, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)', display: 'block' }} />
+                          </a>
+                          <input value={im.caption || ''} placeholder={`Pie de la diapositiva ${ii + 1} (opcional)`}
+                            onChange={e => setImgs(imgs.map((x, j) => j === ii ? { ...x, caption: e.target.value } : x))}
+                            style={{ ...inp, flex: 1 }} />
+                          <button type="button" onClick={() => move(-1)} disabled={ii === 0}
+                            style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: 'pointer', background: 'var(--bg-alt)', opacity: ii === 0 ? .3 : 1 }}>↑</button>
+                          <button type="button" onClick={() => move(1)} disabled={ii === imgs.length - 1}
+                            style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: 'pointer', background: 'var(--bg-alt)', opacity: ii === imgs.length - 1 ? .3 : 1 }}>↓</button>
+                          <button type="button" onClick={() => setImgs(imgs.filter((_, j) => j !== ii))}
+                            style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: 'pointer', background: '#FEE2E2' }}><XIc s={11} c="var(--error)" /></button>
+                        </div>
+                      )
+                    })}
+                    <ImageUploader label="Agregar diapositiva" compact
+                      onUploaded={url => updateSection(idx, 'images', [...(sec.images || []), { url, caption: '' }])} />
+                    <p style={{ fontSize: 11, color: 'var(--subtle)', lineHeight: 1.5, margin: '6px 0 0' }}>
+                      Se muestran a ancho completo y sin recorte, con botón de pantalla completa para proyectarlas en la Clase en Vivo.
+                    </p>
                   </>
                 )}
                 {sec.type !== 'activity' && (

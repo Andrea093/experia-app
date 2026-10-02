@@ -51,6 +51,8 @@ export default defineConfig({
           // Banco de actividades (rompehielos / pausas activas, ~4.6 MB): se
           // descarga solo al abrir el módulo que muestra la actividad.
           '**/actividades/**',
+          // Diapositivas de la estructura de la Prueba Saber (~4.6 MB, módulo 2).
+          '**/estructura-saber/**',
           '**/avatarKit-*.js', '**/avatarBody-*.js',
           '**/AvatarStudio-*.js', '**/AvatarChip-*.js', '**/LiveAvatar-*.js',
           '**/rejillaTareas-*.js',

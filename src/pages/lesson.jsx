@@ -29,6 +29,83 @@ const cssSize = (v) => {
   return /^\d+(\.\d+)?$/.test(s) ? `${s}px` : s;
 };
 
+// Diapositivas: imágenes fijas que deben verse GRANDES (ej. la estructura de
+// la Prueba Saber del módulo 2). A ancho completo y sin recorte, y con un
+// visor a pantalla completa (flechas / teclado / Escape) para proyectarlas
+// en la Clase en Vivo. zIndex 6000 = sobre los modales de ui.jsx, igual que
+// el visor de PDF.
+const SlidesSection = ({ section, delay }) => {
+  const images = (section.images || []).filter(im => im?.url);
+  const [open, setOpen] = React.useState(null); // índice abierto o null
+  const n = images.length;
+
+  React.useEffect(() => {
+    if (open === null) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(null);
+      else if (e.key === 'ArrowRight') setOpen(i => (i + 1) % n);
+      else if (e.key === 'ArrowLeft') setOpen(i => (i - 1 + n) % n);
+    };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [open, n]);
+
+  if (!n) return null;
+  const navBtn = { position: 'absolute', top: '50%', transform: 'translateY(-50%)', width: 52, height: 52, borderRadius: '50%',
+    border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 26, fontWeight: 700 };
+
+  return (
+    <div style={{ margin: '32px 0', animation: `fadeUp .45s ${delay}ms ease both` }}>
+      {section.title && (
+        <h3 style={{ fontSize: 19, fontWeight: 700, color: 'var(--dark)', marginBottom: 6 }}>{section.title}</h3>
+      )}
+      {section.desc && <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.6 }}>{section.desc}</p>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {images.map((im, i) => (
+          <figure key={i} style={{ margin: 0 }}>
+            <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--sh-lg)', background: '#111' }}>
+              <img src={im.url} alt={im.caption || `${section.title || 'Diapositiva'} ${i + 1}`} loading="lazy"
+                onClick={() => setOpen(i)}
+                style={{ display: 'block', width: '100%', height: 'auto', cursor: 'zoom-in' }} />
+              <button onClick={() => setOpen(i)} title="Ver en pantalla completa"
+                style={{ position: 'absolute', top: 10, right: 10, padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                  background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--font)' }}>
+                ⛶ Pantalla completa
+              </button>
+              {n > 1 && (
+                <span style={{ position: 'absolute', bottom: 10, right: 10, padding: '3px 9px', borderRadius: 8,
+                  background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 11.5, fontWeight: 700 }}>{i + 1} / {n}</span>
+              )}
+            </div>
+            {im.caption && <figcaption style={{ fontSize: 13, color: 'var(--muted)', marginTop: 6, textAlign: 'center' }}>{im.caption}</figcaption>}
+          </figure>
+        ))}
+      </div>
+
+      {open !== null && (
+        <div role="dialog" aria-label="Diapositivas" onClick={() => setOpen(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 6000, background: 'rgba(0,0,0,.94)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 12px 40px' }}>
+          <img src={images[open].url} alt={images[open].caption || ''} onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 6 }} />
+          <button onClick={() => setOpen(null)} title="Cerrar (Esc)"
+            style={{ position: 'absolute', top: 10, right: 14, padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 14, fontWeight: 700, fontFamily: 'var(--font)' }}>✕ Cerrar</button>
+          {n > 1 && <>
+            <button onClick={e => { e.stopPropagation(); setOpen((open - 1 + n) % n); }} title="Anterior" style={{ ...navBtn, left: 12 }}>‹</button>
+            <button onClick={e => { e.stopPropagation(); setOpen((open + 1) % n); }} title="Siguiente" style={{ ...navBtn, right: 12 }}>›</button>
+            <span style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', color: '#fff', fontSize: 13, fontWeight: 700 }}>
+              {open + 1} / {n}
+            </span>
+          </>}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Divide `content` en páginas usando las secciones `{type:'pagebreak'}` como
 // separador. Sin ningún salto (el caso de casi todas las lecciones publicadas
 // hasta ahora) devuelve un único grupo con todo el contenido — pagination
@@ -412,6 +489,8 @@ export const LessonSection = React.memo(({ section, index, activityChoice }) => 
 
   if (section.type === 'pdf') return <PdfSection section={section} delay={delay} />;
 
+  if (section.type === 'slides') return <SlidesSection section={section} delay={delay} />;
+
   // Banco de actividades (rompehielos / pausas activas): ver src/lib/activityBank.js.
   if (section.type === 'activity') {
     return (
@@ -791,7 +870,7 @@ const LessonView = () => {
 
       {/* Content */}
       <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: isMobile ? '20px 16px' : '32px 28px' }}>
-        <div style={{ maxWidth: 680, margin: '0 auto' }}>
+        <div style={{ maxWidth: (mod.content || []).some(s => s.type === 'slides') ? 1100 : 680, margin: '0 auto' }}>
           <LessonBody mod={mod} page={isPaginated ? pageIdx : undefined} />
 
           {/* Navegación entre páginas */}

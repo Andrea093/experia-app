@@ -29,6 +29,9 @@ export const SECTION_TYPES = [
   { id: 'video',   label: '🎬 Video YouTube',  icon: '🎬' },
   { id: 'embed',   label: '🧩 Embed (Genially, etc.)', icon: '🧩' },
   { id: 'image',   label: '🖼️ Imagen',         icon: '🖼️' },
+  // Diapositivas: imágenes fijas a ancho completo + pantalla completa para
+  // proyectar (estructura de la Prueba Saber, módulo 2).
+  { id: 'slides',  label: '🎞️ Diapositivas (imágenes grandes)', icon: '🎞️' },
   // pdf = se LEE dentro de la lección (visor incrustado); download = se BAJA.
   // Para un documento largo, el visor evita tener que subirlo como una imagen
   // gigante que descuadra la página.

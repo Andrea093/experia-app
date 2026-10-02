@@ -17,7 +17,7 @@ import {
 // ─── Módulo individual en la lista ───────────────────────────────────────────
 const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
   onDragStart, onDragOver, onDrop, onDragEnd,
-  onEdit, onDuplicate, onToggle, onDelete, showDelete,
+  onEdit, onPreview, onDuplicate, onToggle, onDelete, showDelete,
   onTogglePresence, onGenerateCode, onSetAvailability, onOpenActa, onOpenPlan }) => {
   const isOver = overIdx === idx
   // Módulo con banco de actividades (apertura / pausa activa): la actividad
@@ -59,6 +59,11 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
               fontFamily: 'var(--font)' }}>
             {ACTIVITY_BANKS[act.bank]?.icon} {act.title}
           </button>
+        )}
+        {mod.type === 'lesson' && onPreview && (
+          <button onClick={onPreview} title="Ver el módulo como lo verá el estudiante (para preparar la clase)"
+            style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer',
+              width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13 }}>👁️</button>
         )}
         <button onClick={onEdit} title="Editar contenido"
           style={{ background: mod.override ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
@@ -199,6 +204,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
   const [showNewChallenge, setShowNewChallenge] = React.useState(false)
   const [showAddModule, setShowAddModule]       = React.useState(false)
   const [showPreview, setShowPreview]           = React.useState(false)
+  const [previewModule, setPreviewModule]       = React.useState(null)
   const [showCertPreview, setShowCertPreview]   = React.useState(false)
   const [availModalMod, setAvailModalMod]       = React.useState(null)
   const [codeModalMod, setCodeModalMod]         = React.useState(null)
@@ -562,6 +568,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
                   nav('closing-record', mod.id)
                 }}
                 onOpenPlan={() => nav('clone-groups')}
+                onPreview={() => { setPreviewModule(mod); setShowPreview(true) }}
                 onEdit={() => {
                   if (mod.type === 'lesson' || mod.type === 'final_delivery' || mod.type === 'closing_record'
                       || mod.type === 'clone_dashboard') setEditingModule(mod)
@@ -652,8 +659,8 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
       <CustomModuleModal open={showAddModule}
         onClose={() => setShowAddModule(false)}
         onSave={mod => { addCustomModule(mod); setShowAddModule(false) }} />
-      <RoutePreviewModal open={showPreview} onClose={() => setShowPreview(false)}
-        area={null} moduleList={moduleList} customModules={[]} theme={courseTheme} />
+      <RoutePreviewModal open={showPreview} onClose={() => { setShowPreview(false); setPreviewModule(null) }}
+        area={null} moduleList={moduleList} customModules={[]} theme={courseTheme} initialModule={previewModule} />
       <Modal open={!!availModalMod} onClose={() => setAvailModalMod(null)} title="Disponibilidad de la entrega" width={420}>
         {availModalMod && (
           <AvailabilityForm

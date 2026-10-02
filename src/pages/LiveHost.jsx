@@ -462,7 +462,7 @@ const Control = ({ session: initial, moduleList, onExit }) => {
   return (
     <div style={{ height: '100%', overflow: 'auto', background: 'var(--bg)' }}>
       {showPodium && <Confetti />}
-      <div style={{ maxWidth: 820, margin: '0 auto', padding: '24px 20px 60px' }}>
+      <div style={{ maxWidth: (currentModule?.content || []).some(s => s.type === 'slides') ? 1180 : 820, margin: '0 auto', padding: '24px 20px 60px' }}>
         {/* Cabecera: PIN + QR + participantes */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between',
           padding: '18px 22px', borderRadius: 18, background: 'var(--gradient)', color: '#fff', marginBottom: 14 }}>

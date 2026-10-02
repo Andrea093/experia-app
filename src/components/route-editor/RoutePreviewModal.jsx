@@ -46,11 +46,13 @@ const FinalDeliveryNote = ({ mod }) => (
 )
 
 // ── Route Preview Modal (list + drill-down que renderiza la vista real del estudiante) ──
-const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules, theme }) => {
+// `initialModule` (opcional): abre directo la vista previa de ese módulo —
+// botón 👁️ de cada fila del editor, para que el docente prepare su clase.
+const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules, theme, initialModule }) => {
   const [viewing, setViewing] = React.useState(null)
   const themed = React.useMemo(() => themePalette(theme), [theme])
 
-  React.useEffect(() => { if (!open) setViewing(null) }, [open])
+  React.useEffect(() => { setViewing(open && initialModule ? initialModule : null) }, [open, initialModule])
 
   // Mientras se explora un módulo/reto en vista previa, ningún intento del reto
   // se registra ni afecta el progreso real (recordAttempt queda en no-op).
@@ -77,12 +79,14 @@ const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules, the
     // mostraba una rejilla que el estudiante nunca verá ahí.
     const isExternal = viewing.type === 'closing_record' || viewing.type === 'clone_dashboard'
     const studentMod = toStudentMod(viewing)
+    // Diapositivas (estructura de la Prueba Saber): vista previa ancha.
+    const wide = isLesson && (studentMod.content || []).some(s => s.type === 'slides')
     const Comp = (!isLesson && !isFinal && !isExternal)
       ? (CHALLENGE_COMPONENTS[studentMod.ctype] || CHALLENGE_COMPONENTS.designlab)
       : null
 
     return (
-      <Modal open={open} onClose={onClose} title={viewing.title} width={760}>
+      <Modal open={open} onClose={onClose} title={viewing.title} width={wide ? 1120 : 760}>
         <div style={{ maxHeight: '80vh', overflow: 'auto', paddingRight: 4 }}>
           {/* Barra de vista previa */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -111,7 +115,7 @@ const RoutePreviewModal = ({ open, onClose, area, moduleList, customModules, the
           {/* Pantalla real del estudiante */}
           <div style={{ background: 'var(--bg)', borderRadius: 14, border: '1px solid var(--border)',
             padding: '28px 20px' }}>
-            <div style={{ maxWidth: 680, margin: '0 auto' }}>
+            <div style={{ maxWidth: wide ? 1040 : 680, margin: '0 auto' }}>
               {isLesson && <LessonBody mod={studentMod} />}
               {isFinal && <FinalDeliveryNote mod={studentMod} />}
               {isExternal && (

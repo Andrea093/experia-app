@@ -14,9 +14,11 @@ const CharacterFloat = React.lazy(() => import('./CharacterBubble.jsx'))
 // que en styles.css tiene height:100% + overflow:hidden), así que la altura
 // debe ser fija (100vh, NO minHeight) para que overflowY:auto scrollee aquí
 // en vez de que el contenido se recorte contra #root sin poder bajar.
-const Shell = ({ children }) => (
+// `wide`: módulos con diapositivas (estructura de la Prueba Saber) se ven
+// a casi todo el ancho para que el texto de las imágenes se lea en clase.
+const Shell = ({ children, wide }) => (
   <div style={{ height: '100vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: 'var(--bg)' }}>
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 20px 60px' }}>{children}</div>
+    <div style={{ maxWidth: wide ? 1180 : 720, margin: '0 auto', padding: '28px 20px 60px' }}>{children}</div>
   </div>
 )
 
@@ -67,7 +69,7 @@ const GuidedClassViewInner = ({ guided }) => {
   // Lección de lectura: mismo contenido que ve el profesor, en modo solo-lectura.
   if (currentMod?.type === 'lesson') {
     return (
-      <Shell>
+      <Shell wide={(currentMod.content || []).some(s => s.type === 'slides')}>
         <LiveBadge />
         <LessonBody mod={currentMod} activityChoice={session.activity_choices?.[currentMod.id]} />
       </Shell>
