@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 import {
   useStore, nav, completeNode, AREAS, BADGES, LEVELS,
   getStudentModules, getRouteModules, findModule,
@@ -302,8 +303,12 @@ const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
 });
 
 // --- Course Selector (shown when student has multiple enrollments) ---
+// Va en un portal a <body>: el mapa vive dentro de contenedores con animación
+// (transform) o desenfoque (filter), y eso convierte el `position: fixed` en
+// relativo a ESE contenedor —tan alto como todo el mapa—, así que la caja
+// quedaba centrada fuera de la pantalla y cortada arriba y abajo.
 const CourseSelector = ({ enrollments, courses, currentId, onSelect, switching = false }) => {
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
       background: 'rgba(0,0,0,.45)', display: 'flex',
@@ -360,7 +365,8 @@ const CourseSelector = ({ enrollments, courses, currentId, onSelect, switching =
           })}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
