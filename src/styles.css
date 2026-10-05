@@ -726,7 +726,11 @@ table { min-width: 560px; }
 [data-course-theme="detective"] #root {
   position: relative;
 }
-[data-course-theme="detective"] #root > div {
+/* :not(.xch-root): en la Clase en Vivo Guiada el tutor de cuerpo entero queda
+   como hijo DIRECTO de #root, y esta regla (más específica que .xch-root) le
+   quitaba el position:fixed — la figura se iba debajo de la pantalla y solo
+   quedaba visible la insignia con la cara. */
+[data-course-theme="detective"] #root > div:not(.xch-root) {
   position: relative;
   z-index: 1;
 }
