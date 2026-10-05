@@ -1,5 +1,6 @@
 import React from 'react'
-import { PlusIc, XIc, CheckIc, ChevRIc, ArrowLIc, ArrowRIc, Btn, Modal, ImageUploader, RichInput } from '../ui.jsx'
+import { createPortal } from 'react-dom'
+import { PlusIc, XIc, CheckIc, ChevRIc, Btn, ImageUploader, RichInput, RichText, useMobile } from '../ui.jsx'
 import { BANK_AREAS, ROUND_LABELS, DIFFICULTY, loadQuestionBank, bankToModuleQuestion } from '../../lib/questionBankMeta.js'
 import QuestionBankPicker from './QuestionBankPicker.jsx'
 
@@ -36,13 +37,30 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
   // --- Banco de preguntas (rondas en vivo, módulos 4 y 6) ---
   const [bankArea, setBankArea]   = React.useState('')
   const [bankRound, setBankRound] = React.useState(null)
-  const [picking, setPicking]     = React.useState(false)
+  // Pantalla completa: en celular, pestaña visible (preguntas de la ronda | banco)
+  const [tab, setTab]             = React.useState('round')
+  const [settingsOpen, setSettingsOpen] = React.useState(true)
+  const [openQ, setOpenQ]         = React.useState(() => new Set()) // preguntas desplegadas para editar
+  const isMobile = useMobile(900)
+  const toggleOpenQ = (id) => setOpenQ(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  // Escape cierra la pantalla, como cerraba el modal.
+  React.useEffect(() => {
+    if (!open) return
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
 
   React.useEffect(() => {
     if (open) {
       setBankArea(initial?.bank || '')
       setBankRound(initial?.bankRound || null)
-      setPicking(false)
+      setTab('round')
+      // En una ronda del banco lo importante son las preguntas: los ajustes
+      // generales (descripción, mensajes, resultado) arrancan plegados.
+      setSettingsOpen(!initial?.bank)
+      setOpenQ(new Set((initial?.questions || []).filter(isBlank).map(q => q.id)))
       setTitle(initial?.title || '')
       setDesc(initial?.desc || '')
       setTask(initial?.task || '')
@@ -110,7 +128,11 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
   }
   const diffCounts = Object.keys(DIFFICULTY).map(k => [k, questions.filter(q => q.difficulty === k).length]).filter(([, n]) => n)
 
-  const addQ = () => setQs(q => [...q, newQuestion(isPoll)])
+  const addQ = () => {
+    const nq = newQuestion(isPoll)
+    setQs(q => [...q, nq])
+    setOpenQ(s => new Set(s).add(nq.id))
+  }
   const removeQ = (id) => setQs(q => q.filter(x => x.id !== id))
   const updateQ = (id, key, val) => setQs(q => q.map(x => x.id === id ? { ...x, [key]: val } : x))
   const dupQ = (id) => setQs(q => {
@@ -181,17 +203,53 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
   const inp = { padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }
   const advLbl = { fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 4 }
 
-  return (
-    <Modal open={open} onClose={onClose}
-      title={isPoll ? (initial ? 'Editar encuesta en vivo' : 'Crear encuesta en vivo')
-        : bankArea ? `${ROUND_LABELS[bankRound] || 'Ronda de preguntas'} — preguntas en vivo`
-        : (initial ? 'Editar reto Quiz' : 'Crear reto Quiz')}
-      width={picking ? 680 : 600}>
-      <div style={{ maxHeight: '72vh', overflow: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {picking ? (
-          <QuestionBankPicker area={bankArea} selectedIds={new Set(questions.map(q => q.id))}
-            usedElsewhere={usedElsewhere} onToggle={toggleBankQ} onClose={() => setPicking(false)} />
-        ) : (<>
+  if (!open) return null
+
+  const screenTitle = isPoll ? (initial ? 'Editar encuesta en vivo' : 'Crear encuesta en vivo')
+    : bankArea ? `${ROUND_LABELS[bankRound] || 'Ronda de preguntas'} — ${BANK_AREAS[bankArea]?.icon || ''} ${BANK_AREAS[bankArea]?.label || ''}`
+    : (initial ? 'Editar reto Quiz' : 'Crear reto Quiz')
+  const showBank = !isPoll && !!bankArea
+  const realCount = questions.filter(q => !isBlank(q)).length
+  const showLeft  = !isMobile || !showBank || tab === 'round'
+  const showRight = showBank && (!isMobile || tab === 'bank')
+  const tabBtn = (active) => ({ flex: 1, padding: '10px', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 800,
+    background: 'transparent', color: active ? 'var(--orange)' : 'var(--muted)', borderBottom: `3px solid ${active ? 'var(--orange)' : 'transparent'}` })
+
+  // Pantalla completa (antes un modal de 600 px): a la izquierda las preguntas
+  // del módulo, a la derecha el banco SIEMPRE visible para ir agregando sin
+  // cambiar de vista. En celular, dos pestañas.
+  return createPortal(
+    <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, zIndex: 5000, background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: isMobile ? '10px 14px' : '12px 24px', background: 'var(--white)',
+        borderBottom: '1px solid var(--border)', flexShrink: 0, flexWrap: 'wrap' }}>
+        <button onClick={onClose} title="Cerrar sin guardar (Esc)"
+          style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--border)', background: 'var(--white)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <XIc s={16} c="var(--muted)" />
+        </button>
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--dark)' }}>{screenTitle}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+            {title || 'Sin título'} · <b style={{ color: 'var(--orange)' }}>{realCount} pregunta{realCount !== 1 ? 's' : ''}</b>
+            {diffCounts.length > 0 && <> · {diffCounts.map(([k, n]) => `${n} ${DIFFICULTY[k].label.toLowerCase()}`).join(' · ')}</>}
+          </div>
+        </div>
+        {err && <span style={{ fontSize: 12, color: 'var(--error)', fontWeight: 600 }}>{err}</span>}
+        <Btn variant="secondary" size="sm" onClick={onClose}>Cancelar</Btn>
+        <Btn variant="gradient" size="sm" onClick={handleSave}>{initial ? '💾 Guardar cambios' : 'Crear reto'}</Btn>
+      </div>
+
+      {isMobile && showBank && (
+        <div style={{ display: 'flex', background: 'var(--white)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <button style={tabBtn(tab === 'round')} onClick={() => setTab('round')}>📝 Preguntas del módulo ({realCount})</button>
+          <button style={tabBtn(tab === 'bank')} onClick={() => setTab('bank')}>📚 Banco</button>
+        </div>
+      )}
+
+      <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+      {showLeft && (
+      <div style={{ flex: showBank ? '1 1 55%' : 1, minWidth: 0, overflowY: 'auto', padding: isMobile ? '16px 14px 40px' : '22px 26px 60px' }}>
+      <div style={{ maxWidth: showBank ? 'none' : 820, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* ── Banco de preguntas: lo primero que ve el tutor en una ronda ── */}
         {!isPoll && (
           <div style={{ padding: 14, borderRadius: 12, background: 'var(--orange-bg)', border: '1.5px solid var(--orange)' }}>
@@ -214,12 +272,13 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
             {bankArea ? (
               <>
                 <p style={{ fontSize: 12.5, color: 'var(--text-sec)', margin: '10px 0', lineHeight: 1.55 }}>
-                  Este módulo tiene <b>{questions.filter(q => !isBlank(q)).length} preguntas</b>
-                  {diffCounts.length > 0 && <> ({diffCounts.map(([k, n]) => `${n} ${DIFFICULTY[k].label.toLowerCase()}`).join(' · ')})</>}.
+                  {isMobile
+                    ? <>Abre la pestaña <b>📚 Banco</b> para revisar todas las preguntas de la asignatura y agregar las que prefieras.</>
+                    : <>A la derecha está <b>todo el banco</b> de la asignatura: revisa las preguntas y usa <b>+ Agregar</b> en las que te gusten; para sacar una del módulo, <b>✓ En el módulo</b> o 🗑 aquí abajo.</>}
                   {' '}En la clase en vivo aparecen una a una cuando avanzas, y el tutor del curso da la pista de cada una.
                 </p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <Btn variant="gradient" size="sm" onClick={() => setPicking(true)}>📚 Elegir del banco</Btn>
+                  {isMobile && <Btn variant="gradient" size="sm" onClick={() => setTab('bank')}>📚 Ver el banco</Btn>}
                   {bankRound && <Btn variant="secondary" size="sm" onClick={restoreDefaults}>↺ Volver a las predeterminadas</Btn>}
                 </div>
               </>
@@ -241,6 +300,15 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
             <input type="number" value={xp} onChange={e => setXp(e.target.value)} min={0} style={inp} />
           </div>
         </div>
+        <button onClick={() => setSettingsOpen(o => !o)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer',
+            fontFamily: 'var(--font)', fontSize: 12.5, fontWeight: 700, color: 'var(--purple)', alignSelf: 'flex-start' }}>
+          <span style={{ display: 'inline-block', transform: settingsOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>
+            <ChevRIc s={13} c="var(--purple)" />
+          </span>
+          ⚙️ {settingsOpen ? 'Ocultar' : 'Más'} ajustes (descripción, instrucción, mensajes{!isPoll ? ', resultado final' : ''})
+        </button>
+        {settingsOpen && (<>
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 6 }}>Descripción breve</label>
           <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Resumen para el mapa de aprendizaje" style={inp} />
@@ -337,16 +405,20 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
             </div>
           )}
         </div>}
+        </>)}
 
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 12 }}>
-            Preguntas ({questions.length})
+            Preguntas del módulo ({realCount}){bankArea ? ' — en este orden salen en la clase en vivo' : ''}
           </label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {questions.map((q, qi) => (
-              <div key={q.id} style={{ padding: '14px', borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {questions.map((q, qi) => {
+              const isOpenQ = openQ.has(q.id)
+              return (
+              <div key={q.id} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--white)',
+                border: `1.5px solid ${isOpenQ ? 'var(--purple)' : 'var(--border)'}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: isOpenQ ? 10 : 6 }}>
+                  <span onClick={() => toggleOpenQ(q.id)} style={{ fontSize: 13, fontWeight: 700, color: 'var(--dark)', cursor: 'pointer', flex: 1, minWidth: 0 }}>
                     Pregunta {qi + 1}
                     {q.difficulty && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                       background: q.difficulty === 'dificil' ? '#FEE2E2' : q.difficulty === 'facil' ? '#DCFCE7' : '#FEF3C7',
@@ -355,7 +427,13 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
                     {q.passage && <span title={q.passage.intro} style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                       background: 'var(--purple-bg)', color: 'var(--purple)' }}>📖 {q.passage.title || 'Texto de lectura'}</span>}
                   </span>
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <button onClick={() => toggleOpenQ(q.id)} title={isOpenQ ? 'Plegar' : 'Editar esta pregunta'}
+                      style={{ height: 26, padding: '0 9px', borderRadius: 7, border: '1px solid var(--purple)', cursor: 'pointer',
+                        background: isOpenQ ? 'var(--purple)' : 'var(--white)', color: isOpenQ ? '#fff' : 'var(--purple)',
+                        fontFamily: 'var(--font)', fontSize: 11.5, fontWeight: 700 }}>
+                      {isOpenQ ? 'Listo' : '✏️ Editar'}
+                    </button>
                     {[['up', -1, '↑'], ['down', 1, '↓']].map(([k, dir, sym]) => (
                       <button key={k} onClick={() => moveQ(q.id, dir)} disabled={dir < 0 ? qi === 0 : qi === questions.length - 1} title={dir < 0 ? 'Subir' : 'Bajar'}
                         style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--white)',
@@ -373,6 +451,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
                     </button>
                   </div>
                 </div>
+                {isOpenQ ? (<>
                 <div style={{ marginBottom: 10 }}>
                   <RichInput multiline rows={2} value={q.question} onChange={v => updateQ(q.id, 'question', v)}
                     placeholder="Escribe la pregunta aquí… (párrafos largos; usa la barra para negrilla y color)" />
@@ -529,8 +608,26 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
                     <p style={{ fontSize: 10, color: 'var(--subtle)', margin: 0 }}>⏱️ Tiempo{!isPoll && ' y puntos'} se usará{!isPoll && 'n'} en el Modo Aula en Vivo (contra reloj).</p>
                   </div>
                 )}
+                </>) : (
+                  // Resumen plegado: enunciado, opciones con la correcta marcada y pista.
+                  <div onClick={() => toggleOpenQ(q.id)} style={{ cursor: 'pointer' }}>
+                    <RichText as="p" style={{ fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.45, margin: 0,
+                      display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {q.question || 'Pregunta sin texto — toca ✏️ Editar'}
+                    </RichText>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 12px', marginTop: 6 }}>
+                      {(q.options || []).map((o, oi) => (
+                        <span key={oi} style={{ fontSize: 11.5, color: !isPoll && q.correct === oi ? 'var(--success)' : 'var(--muted)', fontWeight: !isPoll && q.correct === oi ? 700 : 500 }}>
+                          {String.fromCharCode(65 + oi)}) {(o || '').replace(/\*\*|\{\{#[0-9a-fA-F]{3,8}\||\}\}/g, '').slice(0, 60)}{(o || '').length > 60 ? '…' : ''}{!isPoll && q.correct === oi ? ' ✓' : ''}
+                        </span>
+                      ))}
+                    </div>
+                    {q.hint && <div style={{ fontSize: 11.5, color: 'var(--orange)', marginTop: 5 }}>💡 {q.hint}</div>}
+                  </div>
+                )}
               </div>
-            ))}
+              )
+            })}
           </div>
           <button onClick={addQ}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 10, marginTop: 12,
@@ -541,14 +638,20 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
         </div>
 
         {err && <p style={{ fontSize: 12, color: 'var(--error)', margin: 0 }}>{err}</p>}
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <Btn variant="secondary" full onClick={onClose}>Cancelar</Btn>
-          <Btn variant="gradient" full onClick={handleSave}>{initial ? 'Guardar cambios' : 'Crear reto'}</Btn>
-        </div>
-        </>)}
       </div>
-    </Modal>
+      </div>
+      )}
+
+      {showRight && (
+        <div style={{ flex: '1 1 45%', minWidth: 0, overflowY: 'auto', padding: isMobile ? '16px 14px 40px' : '22px 26px 60px',
+          background: 'var(--bg-alt)', borderLeft: isMobile ? 'none' : '1px solid var(--border)' }}>
+          <QuestionBankPicker embedded area={bankArea} selectedIds={new Set(questions.map(q => q.id))}
+            usedElsewhere={usedElsewhere} onToggle={toggleBankQ} />
+        </div>
+      )}
+      </div>
+    </div>,
+    document.body
   )
 }
 
