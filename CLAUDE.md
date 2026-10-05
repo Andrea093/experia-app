@@ -1,4 +1,4 @@
-﻿# CLAUDE.md
+# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -711,6 +711,28 @@ módulos son rondas de preguntas que la Clase en Vivo muestra **una a una**
   también los cursos con **borrador sin publicar**: publicarlo devolvería los
   módulos 4 y 6 anteriores.
 
+### 15. Bitácora: resultados Saber del colegio (módulo 3)
+
+Sección de lección `{type:'saber-results', …}` (`src/components/SaberResults.jsx`)
+que muestra cómo le va al colegio en la Prueba Saber de la asignatura: fila de
+indicadores (puntaje vs. país, % en niveles 3–4, competencia a reforzar), barras
+por **competencia** y por **componente** (colegio = barra, promedio nacional =
+marca) y los 4 **niveles de desempeño** como barra 100 % apilada; "Ver como
+tabla" y "¿Qué nos dicen los datos?". Backend: `0076_bitacora_resultados_saber.sql`
+(GENERADA por `scripts/build-bitacora.mjs`; probada con
+`scripts/test-migraciones/run-bitacora.mjs`), que AGREGA la sección al final del
+módulo 3 de las seis rutas (incluye Ciencias Sociales) sin tocar lo demás.
+
+- ⚠️ **Los datos son SINTÉTICOS** (`synthetic: true` → la tarjeta dice "Datos de
+  ejemplo"). Con resultados reales del colegio, se cambian los números en el
+  script (o en la sección del módulo) y se quita `synthetic`.
+- Cursos de Biología/Física/Química: `focus` resalta su componente; los demás van
+  en el tono tenue de la misma rampa.
+- **Colores:** la barra es `--viz-1`; los niveles usan la rampa ordinal
+  `--lvl-1..4` (+ `--lvl-ink-*` para las cifras), validada con el validador de la
+  guía dataviz. ⚠️ Los temas de curso son fondos oscuros aunque la app esté en
+  claro: por eso `[data-course-theme]` usa la variante oscura de la rampa.
+
 ---
 
 ## File Structure
@@ -893,7 +915,8 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 4. **XP migrations:** Still migrating to course_progress table
 5. **Content changes:** Require `git push` (no hot reload)
 6. **Migraciones sin aplicar:** `0058` (bucket `corpus-normativo`), `0059` (regla de conteos en `clone_effectiveness`), `0061` (`live_sessions.closing_notes`, informe de cierre de la clase en vivo, §8), `0068` (`clone_unit_plans.book_url`, PDF del libro por grupo), `0063` (`courses.requires_live_to_start` + RPC `has_completed_live_session`, candado de ruta hasta la primera Clase en Vivo — **deshabilitado a propósito** en Matemáticas por ahora, ver `scripts/deshabilitar_candado_matematicas.sql`) están escritas, pero **no se han corrido en el SQL Editor**. Ya aplicadas (oct 2026): `0062`/`0064` (Matemáticas), `0065`/`0066`/`0067` (Lenguaje, Sociales, Ciencias: apertura, estructura Saber y pausa activa — los módulos 4 y 6 siguen "Pendiente" hasta que el equipo académico suba sus preguntas), `0070` (retiró de Matemáticas las 2 "Pregunta en Vivo" de 0062) y `0069` (banco de actividades, §8). También `0071` (oculta al estudiante "Qué es este bloque"/"Cómo ejecutarlo"). Aplicada `0072` (diapositivas de la estructura Saber en el módulo 2). Aplicada `0073` (separa Ciencias Naturales en tres cursos: el actual pasa a "Ciencias Naturales — Biología" conservando id/progreso; "— Física" y "— Química" se crean como copia del curso base y de cada copia por colegio, con módulos/requirements remapeados y los mismos accesos —institution_courses, user_courses, course_enrollments— más course_progress vacío). Tras 0073, las migraciones que apuntan al fork `4d2af3cd…` siguen tocando solo Biología. Aplicada `0074`: devolvió el nombre original → "Laboratorio de Ciencias Naturales — Biología/Física/Química" (y sus copias por colegio); solo nombres.
-   - **Sin aplicar: `0075`** (rondas de preguntas del banco en los módulos 4 y 6, §14). Generada y probada con `scripts/test-migraciones/run-rondas.mjs`.
+   - Aplicada `0075` (rondas de preguntas del banco en los módulos 4 y 6, §14).
+   - Aplicada `0076` (resultados Saber del colegio en el módulo 3, datos sintéticos, §15).
    - ⚠️ **Rutas de las 4 asignaturas = SOLO sus 7 módulos** (oct 2026): 1 apertura (rompehielos/físicas) · 2 estructura Saber · 3 bitácora · 4 primera ronda · 5 pausa activa (solo físicas) · 6 ronda final · 7 cierre. No agregar retos "Pregunta en Vivo" por migración: las preguntas de la clase en vivo las sube el equipo académico desde el editor de ruta.
 7. **CLI de Supabase inoperante:** sin `supabase/config.toml`, `db diff --linked` y `db push` fallan. Las migraciones se corren a mano; probarlas antes con `scripts/test-migraciones/`
 

@@ -5,6 +5,7 @@ import {
 } from '../store/store.jsx'
 import ThemeCelebration from '../components/ThemeCelebration.jsx'
 import { ActivityCard } from '../components/ActivityCard.jsx'
+import SaberResults from '../components/SaberResults.jsx'
 import { resolveActivity } from '../lib/activityBank.js'
 import {
   useMobile, LogoImg,
@@ -507,6 +508,9 @@ export const LessonSection = React.memo(({ section, index, activityChoice }) => 
   if (section.type === 'pdf') return <PdfSection section={section} delay={delay} />;
 
   if (section.type === 'slides') return <SlidesSection section={section} delay={delay} />;
+
+  // Resultados Saber del colegio por competencia y componente (módulo 3, 0076).
+  if (section.type === 'saber-results') return <SaberResults section={section} />;
 
   // Banco de actividades (rompehielos / pausas activas): ver src/lib/activityBank.js.
   if (section.type === 'activity') {

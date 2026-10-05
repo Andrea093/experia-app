@@ -345,6 +345,12 @@ const CustomModuleModal = ({ open, initial, onClose, onSave, extraActions }) => 
                     </div>
                   </>
                 )}
+                {sec.type === 'saber-results' && (
+                  <div style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>
+                    📊 <strong>Resultados Saber del colegio — {sec.area}</strong>: gráficas por competencia, por componente y
+                    niveles de desempeño{sec.synthetic ? ' (hoy con datos de ejemplo, sintéticos)' : ''}. Usa <strong>👁️ Vista previa</strong> para verlas.
+                  </div>
+                )}
                 {sec.type === 'checklist' && (
                   <>
                     <input value={sec.title} onChange={e => updateSection(idx, 'title', e.target.value)}
