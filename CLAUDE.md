@@ -924,7 +924,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...
    - Aplicada `0075` (rondas de preguntas del banco en los módulos 4 y 6, §14).
    - Aplicada `0076` (resultados Saber del colegio en el módulo 3, datos sintéticos, §15) y su refuerzo `0077` (familia completa de cada curso + diagnóstico por colegio).
    - Aplicada `0078` (rondas de Ciencias Sociales en los módulos 4 y 6, §14).
-   - **Sin aplicar: `0079`** (la sección de resultados Saber va siempre en el módulo 3; 0077 la dejó en el 7 de Sociales, §15). Probada con `scripts/test-migraciones/run-bitacora-0079.mjs`.
+   - Aplicada `0079` (la sección de resultados Saber va siempre en el módulo 3; 0077 la dejó en el 7 de Sociales, §15).
    - ⚠️ **Rutas de las 4 asignaturas = SOLO sus 7 módulos** (oct 2026): 1 apertura (rompehielos/físicas) · 2 estructura Saber · 3 bitácora · 4 primera ronda · 5 pausa activa (solo físicas) · 6 ronda final · 7 cierre. No agregar retos "Pregunta en Vivo" por migración: las preguntas de la clase en vivo las sube el equipo académico desde el editor de ruta.
 7. **CLI de Supabase inoperante:** sin `supabase/config.toml`, `db diff --linked` y `db push` fallan. Las migraciones se corren a mano; probarlas antes con `scripts/test-migraciones/`
 
