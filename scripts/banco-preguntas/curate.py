@@ -14,6 +14,7 @@ AREAS = {
     'biologia':    {'label': 'Biología', 'icon': '🧬'},
     'quimica':     {'label': 'Química', 'icon': '⚗️'},
     'fisica':      {'label': 'Física', 'icon': '🧲'},
+    'sociales':    {'label': 'Ciencias Sociales', 'icon': '🌎'},
 }
 
 # ── Imágenes: (carpeta docx, imagen) → nombre publicado ─────────────────────
@@ -39,6 +40,7 @@ IMGS = {
     ('lec', 'image7'): 'lectura/tetra-pak-anuncio',
     ('lec', 'image8'): 'lectura/mafalda-burocracia',
     ('lec', 'image9'): 'lectura/colmena-anuncio',
+    ('soc', 'image1'): 'sociales/caricaturas-la-violencia',
 }
 used_imgs = set()
 
@@ -88,7 +90,12 @@ def chem(t):
     return t
 
 
+TYPOS = {'proble máticas': 'problemáticas', 'funda mentales': 'fundamentales', 'más afin ': 'más afín ', 'Jordanía': 'Jordania'}
+
+
 def tidy(t):
+    for a, b in TYPOS.items():
+        t = t.replace(a, b)
     t = re.sub(r'\(\s+', '(', t)
     t = re.sub(r'\s+([.,;:?)])', r'\1', t)
     return re.sub(r'[ \t]+', ' ', t).strip()
@@ -270,6 +277,56 @@ HINTS = {
     'lec-73': 'Para Hobbes, el miedo a ser dominado lleva a buscar…',
     'lec-74': 'Hobbes dice que dominar resulta “mejor” que asociarse para obtener comodidades.',
     'lec-75': 'El anuncio es de un banco, no de una agencia de citas: ¿qué ofrece realmente?',
+
+    'soc-01': 'Fíjate en el NO: busca la afirmación que describe MAL lo que defiende cada persona.',
+    'soc-02': 'Un argumento válido ataca el razonamiento: ¿que una zona sea insegura prueba quién comete allí los delitos?',
+    'soc-03': 'Un prejuicio da por hecho algo sin fundamento sobre un grupo. ¿Qué frase supone que se “contagia” una orientación?',
+    'soc-04': 'Ubica cada magnicidio en su década: Uribe Uribe a inicios de siglo, Gaitán en 1948, Galán en 1989…',
+    'soc-05': 'Lee con calma las DOS posturas: ¿alguna de ellas está a favor de legalizar?',
+    'soc-06': 'Que se vote no significa que todos queden bien: ¿quién sigue afectado por el ruido?',
+    'soc-07': 'Pregúntate quién gana de verdad: la constructora sigue construyendo… ¿y el humedal?',
+    'soc-08': 'Las tres propuestas atacan el mismo problema: ¿cuál es el costo de la expansión urbana?',
+    'soc-09': 'De los mecanismos de participación, solo uno permite aprobar reformas a la Constitución por voto popular.',
+    'soc-10': 'La iniciativa popular necesita un respaldo mínimo de firmas del censo electoral, no de una sola persona.',
+    'soc-11': '¿Cuál de los mecanismos de participación permite reformar la Constitución?',
+    'soc-12': 'Los denunciantes señalan que el alcalde compró tierras y luego las valorizó con obras públicas.',
+    'soc-13': 'En condiciones normales, ¿qué rama del poder es la que ordena la captura de una persona?',
+    'soc-14': '¿Qué rama cita a los ministros a debate y puede separarlos del cargo con una moción de censura?',
+    'soc-15': 'Se trata de anular una norma de la Constitución: ¿qué mecanismo permite derogar normas por voto popular?',
+    'soc-16': 'Lee los rótulos de las caricaturas: “violencia conservadora”, “víctimas liberales”, “violencia liberal”…',
+    'soc-17': 'Busca la opción que explica para qué se hizo el acuerdo entre los dos partidos tradicionales.',
+    'soc-18': 'Fíjate en quién habla: dice que la guerrilla los “obligó a responder”.',
+    'soc-19': 'El neoliberalismo busca que el Estado intervenga menos en la economía.',
+    'soc-20': 'Eliminar trabas y simplificar trámites para que funcione el mercado: ¿qué modelo propone eso?',
+    'soc-21': 'Criticar al neoliberalismo es defender que el Estado intervenga para garantizar la equidad.',
+    'soc-22': 'Los aranceles protegen lo que el país ya produce. ¿Cuándo tiene sentido protegerlo?',
+    'soc-23': 'Si las disputas son por territorios estratégicos, ¿qué revela el desplazamiento sobre los actores armados?',
+    'soc-24': 'Ubica cada revolución en el tiempo: México 1910, Rusia 1917, Cuba 1959, Nicaragua 1979.',
+    'soc-25': 'Piensa en la historia del campo colombiano: ¿la tierra está bien repartida? ¿La violencia fue partidista?',
+    'soc-26': 'La tutela protege derechos fundamentales cuando están en riesgo inmediato.',
+    'soc-27': 'Quienes se van tienen ingresos medios y altos: no buscan vivienda barata, buscan…',
+    'soc-28': 'Hacerse visibles sirve para reclamar derechos y denunciar la exclusión.',
+    'soc-29': 'Si la producción pasa a las fábricas de la ciudad, ¿a dónde se va la gente del campo?',
+    'soc-30': 'Si es la “ley de leyes”, ¿qué hace con todas las demás normas y con el poder del Estado?',
+    'soc-31': 'Si se buscan “justificaciones” para las agresiones, ¿qué pasa con la gravedad de la violencia?',
+    'soc-32': 'Cada organización defiende algo distinto: ¿qué está dispuesta a sacrificar cada una?',
+    'soc-33': 'Sustituir importaciones es producir aquí lo que antes se compraba afuera.',
+    'soc-34': 'Cobrar más a quien tiene más: ¿qué impuestos recaen sobre el patrimonio y la renta?',
+    'soc-35': 'El socialismo busca que los medios de producción sean de todos.',
+    'soc-36': 'Riohacha, Leticia, Arauca y Florencia no son Bogotá: ¿lo que se necesita allí será igual?',
+    'soc-37': 'Para ser un Estado se necesita un territorio reconocido, con fronteras definidas.',
+    'soc-38': 'Nombrar en vez de elegir: ¿qué derecho de los estudiantes se salta?',
+    'soc-39': 'Hubo consulta y un largo proceso de conciliación con la comunidad antes de decidir.',
+    'soc-40': 'Tratar distinto a hombres y mujeres sin una razón válida, ¿qué principio de la Constitución rompe?',
+    'soc-41': 'La Constitución reconoce y protege la diversidad de los pueblos que forman la nación.',
+    'soc-42': 'Antes de juzgar por los titulares, mira los datos: ¿cambió la criminalidad desde que llegó el alcalde?',
+    'soc-43': 'Un argumento a favor de legalizar diría que prohibir ha causado más daño que beneficio.',
+    'soc-44': 'Si la culpa se pone en la ropa de la víctima, ¿a quién se está justificando?',
+    'soc-45': 'Cerrar barrios afecta a los residentes… y también a quienes ya no podrán pasar por ahí.',
+    'soc-46': 'Si se respeta su objeción de conciencia, ¿puede seguir en el Ejército?',
+    'soc-47': 'Compara cuántas clases pierden los niños en cada opción.',
+    'soc-48': 'Reducir la industria pesada choca con el crecimiento económico: ¿qué dimensiones se enfrentan?',
+    'soc-49': 'Piensa en las personas que vivían de esas ventas.',
 }
 
 # Explicaciones de Ciencias (parte 1): el Word solo traía la temática.
@@ -373,10 +430,15 @@ FIX = {
                                        'Las palabras resaltadas en negrilla (**pero** y **ya que**) indican respectivamente']},
     'lec-69': lambda q: {**q, 'stem': ['Según el texto anterior, ¿cuál de las siguientes expresiones sería el antónimo más adecuado para la expresión “mutua benevolencia”?']},
     'lec-75': lambda q: {**q, 'passage': None},
+    # soc-16: en el Word la pregunta venía en un solo párrafo, con las opciones
+    # pegadas y el texto repetido dos veces.
+    'soc-16': lambda q: {**q, 'stem': ['Las siguientes son dos caricaturas publicadas en la prensa colombiana.',
+                                       '¿Qué periodo de la historia política colombiana se representa en estas caricaturas?'],
+                         'options': ['La Violencia política.', 'El Frente Nacional.', 'La Patria Boba.', 'El gobierno de Rojas Pinilla.']},
 }
 
 # ── Ids estables por asignatura ──────────────────────────────────────────────
-AREA_OF = {'mat': 'matematicas', 'lec': 'lectura', 'bio': 'biologia', 'qui': 'quimica', 'fis': 'fisica'}
+AREA_OF = {'mat': 'matematicas', 'lec': 'lectura', 'bio': 'biologia', 'qui': 'quimica', 'fis': 'fisica', 'soc': 'sociales'}
 seq = {}
 out_q = []
 for it in d['items']:
@@ -429,6 +491,11 @@ for p in d['passages']:
 
 
 def time_limit(q, area, passage):
+    if area == 'sociales':
+        # Enunciados largos (casos, fragmentos de textos): según lo que hay que leer.
+        chars = sum(len(x) for x in q['stem']) + sum(len(o) for o in q['options'])
+        t = 30 + chars / 12 + (15 if q.get('images') else 0)
+        return int(min(150, max(60, round(t / 15) * 15)))
     if area == 'lectura':
         chars = sum(len(x) for x in (passage or {}).get('paragraphs', [])) if passage else 0
         t = 45 + chars / 15
@@ -448,7 +515,7 @@ for it in out_q:
     opts = [chem(tidy(o)) if area in ('quimica', 'fisica', 'biologia') else tidy(o) for o in it['options']]
     passage_id = f"lp-{it['passage'] + 1:02d}" if it.get('passage') is not None else None
     q = {'id': it['id'], 'area': area, 'question': '\n'.join(stem), 'options': opts, 'correct': it['correct']}
-    imgs = [pub(it['src'] if it['src'] in ('mat', 'lec') else 'cie', im) for im in it.get('images', [])]
+    imgs = [pub(it['src'] if it['src'] in ('mat', 'lec', 'soc') else 'cie', im) for im in it.get('images', [])]
     imgs = [x for x in imgs if x]
     if imgs:
         q['image'] = imgs[0]
@@ -456,10 +523,18 @@ for it in out_q:
     exp = EXPLAIN.get(it['id']) or it.get('explanation') or ''
     if area == 'lectura' and it.get('topic'):
         exp = f"Competencia que evalúa: {it['topic'][0].lower() + it['topic'][1:]}"
+    if area == 'sociales':
+        exp = f"Competencia: {it['topic']}. Afirmación: {tidy(it['afirmacion']).rstrip('.')}."
     if exp:
         q['explanation'] = chem(exp) if area in ('quimica', 'fisica') else exp
     q['hint'] = HINTS[it['id']]
-    q['difficulty'] = rng.choice(DIFFS)
+    # Sociales trae la dificultad REAL en el documento. Las demás asignaturas,
+    # al azar con semilla fija; Sociales no consume el generador, así que
+    # agregarla no cambia la dificultad ya asignada a las otras.
+    if area == 'sociales':
+        q['difficulty'] = {'baja': 'facil', 'media': 'media', 'alta': 'dificil'}[it['dificultad'].strip().lower()]
+    else:
+        q['difficulty'] = rng.choice(DIFFS)
     if it.get('topic') and area != 'lectura':
         q['topic'] = it['topic'].split(' - ', 1)[-1]
     if area == 'lectura' and it.get('topic'):
@@ -469,7 +544,8 @@ for it in out_q:
     q['timeLimit'] = time_limit(it, area, pass_out.get(passage_id))
     if it['id'] in REVIEW:
         q['review'] = REVIEW[it['id']]
-    q['source'] = {'mat': 'Prueba de Matemáticas', 'lec': f"Lectura crítica — parte {it['set']}"}.get(it['src'], f"Ciencias Naturales — parte {it['set']}")
+    q['source'] = {'mat': 'Prueba de Matemáticas', 'lec': f"Lectura crítica — parte {it['set']}",
+                   'soc': 'Sociales y competencias ciudadanas'}.get(it['src'], f"Ciencias Naturales — parte {it['set']}")
     questions.append(q)
 
 missing = [q['id'] for q in questions if not q.get('hint')]
@@ -488,6 +564,10 @@ for area, qs in byarea.items():
         r2_p = ['lp-17', 'lp-08', 'lp-09', 'lp-11']                    # Giges, Gran Hermano, fotografía, Quino
         r1 = [q['id'] for q in ok if q.get('passageId') in r1_p]
         r2 = [q['id'] for q in ok if q.get('passageId') in r2_p]
+    elif area == 'sociales':
+        # Con dificultad real: primera ronda = baja y media; ronda final = alta.
+        r1 = [q['id'] for q in ok if q['difficulty'] in ('facil', 'media')][:10]
+        r2 = [q['id'] for q in ok if q['difficulty'] == 'dificil'][:10]
     else:
         # Primera ronda: las primeras del documento (las más directas);
         # ronda final: las del segundo bloque, que piden más elaboración.

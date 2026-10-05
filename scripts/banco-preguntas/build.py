@@ -16,6 +16,7 @@ DOCS = {  # docx → (texto volcado, carpeta de imágenes)
     'matematicas.docx': ('mate.txt', 'mat'),
     'lectura-critica.docx': ('lectura.txt', 'lec'),
     'ciencias-naturales.docx': ('ciencias.txt', 'cie'),
+    'sociales.docx': ('sociales.txt', 'soc'),
 }
 
 work = tempfile.mkdtemp(prefix='banco-preguntas-')

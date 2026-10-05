@@ -177,3 +177,142 @@ select asignatura, estado, detalle from _0076_estado order by asignatura, estado
 const out = path.join(ROOT, 'supabase/migrations/0076_bitacora_resultados_saber.sql')
 fs.writeFileSync(out, sql)
 console.log('Escrito', path.relative(ROOT, out), `(${(sql.length / 1024).toFixed(1)} KB)`)
+
+// ── 0077: refuerzo — toda la familia de cada curso + diagnóstico por colegio ──
+// 0076 solo alcanzó el curso base y sus copias DIRECTAS, y solo el módulo de
+// "order" 3: los estudiantes cuyo colegio carga una copia de copia, o cuya
+// Bitácora no está en la posición 3, no veían las gráficas.
+const sql77 = `-- ============================================================
+-- 0077_bitacora_resultados_saber_todas_las_copias.sql
+-- GENERADO por scripts/build-bitacora.mjs — no editar a mano.
+--
+-- Refuerzo de 0076 (resultados Saber en el módulo 3 "Bitácora"). 0076 solo
+-- alcanzaba el curso base y sus copias directas, y solo el módulo de
+-- "order" 3. Aquí:
+--   · se recorre la familia COMPLETA de cada asignatura (copias de copias);
+--   · el módulo se busca por título ("Bitácora…") y, si no hay, por "order" 3;
+--   · si ya tiene la sección, no se duplica (idempotente);
+--   · si 0076 la había puesto en otro módulo (copia con otro orden), se
+--     retira de ahí para que quede solo en la Bitácora.
+-- Al final muestra DOS tablas de resultado:
+--   1) qué se cambió, curso por curso;
+--   2) por colegio: qué curso cargan sus estudiantes y si ya ve la sección.
+--      Si una fila dice "NO" ahí, ese es el colegio que no ve las gráficas.
+-- EJECUTAR en Supabase SQL Editor.
+-- ============================================================
+
+drop table if exists _0077_estado;
+create temp table _0077_estado (asignatura text, estado text, curso text, modulo text);
+drop table if exists _0077_familia;
+create temp table _0077_familia (asignatura text, base_id uuid, course_id uuid);
+
+do $$
+declare
+  f record; c record; m record;
+begin
+  for f in
+    select * from (values
+${familias}
+    ) as t(label, base_id, sec)
+  loop
+    if f.base_id is null then
+      insert into _0077_estado values (f.label, 'CURSO NO ENCONTRADO', '—', 'No existe en esta base de datos.');
+      continue;
+    end if;
+
+    insert into _0077_familia
+      with recursive fam as (
+        select id from public.courses where id = f.base_id
+        union
+        select ch.id from public.courses ch join fam on ch.parent_course_id = fam.id
+      )
+      select f.label, f.base_id, id from fam;
+
+    for c in
+      select co.id, co.name from public.courses co
+       where co.id in (select course_id from _0077_familia where base_id = f.base_id)
+       order by co.parent_course_id nulls first, co.name
+    loop
+      select * into m from public.course_modules
+       where course_id = c.id and type = 'lesson' and title ilike '%bit_cora%'
+       order by "order" limit 1;
+      if m.id is null then
+        select * into m from public.course_modules where course_id = c.id and "order" = 3;
+      end if;
+
+      if m.id is null then
+        insert into _0077_estado values (f.label, 'SIN MÓDULO 3', c.name, '—');
+      elsif m.type <> 'lesson' then
+        insert into _0077_estado values (f.label, 'NO TOCADO', c.name, format('%s (no es una lección: %s)', m.title, m.type));
+      elsif m.content @> '[{"type":"saber-results"}]'::jsonb then
+        insert into _0077_estado values (f.label, 'YA LA TENÍA', c.name, m.title);
+      else
+        update public.course_modules
+           set content = coalesce((
+                 select jsonb_agg(e order by i)
+                   from jsonb_array_elements(coalesce(m.content, '[]'::jsonb)) with ordinality as t(e, i)
+                  where coalesce(e->>'title', '') <> 'Pendiente'
+               ), '[]'::jsonb) || jsonb_build_array(f.sec),
+               updated_at = now()
+         where id = m.id;
+        insert into _0077_estado values (f.label, 'AGREGADA AHORA', c.name, m.title);
+      end if;
+
+      -- Si 0076 la puso en otro módulo de este curso (la Bitácora no estaba en
+      -- el orden 3), se retira de ahí: queda solo en la Bitácora.
+      if m.id is not null and m.type = 'lesson' then
+        with fuera as (
+          update public.course_modules cm
+             set content = coalesce((
+                   select jsonb_agg(e order by i)
+                     from jsonb_array_elements(cm.content) with ordinality as t(e, i)
+                    where e->>'type' is distinct from 'saber-results'
+                 ), '[]'::jsonb),
+                 updated_at = now()
+           where cm.course_id = c.id and cm.id <> m.id
+             and cm.content @> '[{"type":"saber-results"}]'::jsonb
+          returning cm.title
+        )
+        insert into _0077_estado select f.label, 'RETIRADA DE OTRO MÓDULO', c.name, title from fuera;
+      end if;
+    end loop;
+  end loop;
+end $$;
+
+-- 1) Qué se cambió
+select asignatura, estado, curso, modulo from _0077_estado order by asignatura, estado, curso;
+
+-- 2) Qué ve cada colegio. Mismo criterio que la app (loadStudentSession):
+--    el estudiante matriculado en un curso carga la copia ACTIVA de ese curso
+--    para su colegio si existe; si no, el curso mismo.
+--    ⚠️ course_enrollments usa student_id (no user_id).
+with matriculas as (
+  select fa.asignatura, ce.course_id, p.institution_id, ce.student_id
+    from public.course_enrollments ce
+    join public.profiles p on p.id = ce.student_id and p.role = 'student'
+    join _0077_familia fa on fa.course_id = ce.course_id
+), efectivo as (
+  select mt.*, coalesce((
+           select k.id from public.courses k
+            where k.parent_course_id = mt.course_id and k.institution_id = mt.institution_id and k.is_active
+            order by k.created_at limit 1), mt.course_id) as curso_efectivo
+    from matriculas mt
+)
+select ef.asignatura,
+       coalesce(i.name, '(sin colegio)')                              as colegio,
+       co.name                                                        as curso_que_carga,
+       count(distinct ef.student_id)                                  as estudiantes,
+       case when exists (
+         select 1 from public.course_modules cm
+          where cm.course_id = ef.curso_efectivo and cm.is_enabled
+            and cm.content @> '[{"type":"saber-results"}]'::jsonb
+       ) then 'SÍ' else 'NO' end                                      as ve_la_seccion
+  from efectivo ef
+  join public.courses co on co.id = ef.curso_efectivo
+  left join public.institutions i on i.id = ef.institution_id
+ group by ef.asignatura, i.name, co.name, ef.curso_efectivo
+ order by ve_la_seccion, ef.asignatura, colegio;
+`
+const out77 = path.join(ROOT, 'supabase/migrations/0077_bitacora_resultados_saber_todas_las_copias.sql')
+fs.writeFileSync(out77, sql77)
+console.log('Escrito', path.relative(ROOT, out77), `(${(sql77.length / 1024).toFixed(1)} KB)`)

@@ -43,6 +43,9 @@ dos partes). Las claves salen de las tablas de respuestas de cada documento.
   agregar las preguntas nuevas al final.
 - **Lectura**: cada pregunta lleva su texto copiado (`passage`), porque en el
   módulo las preguntas se eligen sueltas.
-- **Ciencias Sociales** no tiene documento todavía: al llegar, agregarlo a
-  `build.py` (`DOCS`), a `parse.py` y a `AREAS`/`HINTS` en `curate.py`, y la
-  familia en `scripts/build-rondas.mjs`.
+- **Ciencias Sociales** (`sociales.docx`, 49 preguntas) trae la **dificultad
+  real**, la competencia y la afirmación de cada pregunta en su tabla final:
+  se usan tal cual (no consume el azar, así que agregarla no cambió la
+  dificultad de las otras asignaturas). La pregunta 16 venía en un solo
+  párrafo y se reescribe en `FIX`. Sus rondas van en `0078_rondas_sociales.sql`
+  (`node scripts/build-rondas.mjs` la genera junto con 0075).
