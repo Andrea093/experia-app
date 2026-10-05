@@ -1,7 +1,7 @@
 import React from 'react'
 import { useStore, dbModToAppMod, resolveCourseForStudent, saveActivityPref } from '../store/store.jsx'
 import { supabase } from '../lib/supabaseClient.js'
-import { Btn, Confetti, RichText } from '../components/ui.jsx'
+import { Btn, Confetti, RichText, QuestionText } from '../components/ui.jsx'
 import { LessonBody } from './lesson.jsx'
 import { ActivityPicker } from '../components/ActivityCard.jsx'
 import { resolveActivity, ACTIVITY_BANKS } from '../lib/activityBank.js'
@@ -587,7 +587,7 @@ const Control = ({ session: initial, moduleList, onExit }) => {
             </div>
             <LivePassage passage={localQ?.passage || snapQ.passage} maxHeight="50vh" />
             {(localQ?.image || snapQ.image) && <img src={localQ?.image || snapQ.image} alt="" style={{ width: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 12, marginBottom: 12, background: '#fff' }} />}
-            <RichText as="h2" style={{ fontSize: 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 16, lineHeight: 1.35 }}>{localQ?.question || snapQ.question}</RichText>
+            <QuestionText as="h2" style={{ fontSize: 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 16, lineHeight: 1.35 }}>{localQ?.question || snapQ.question}</QuestionText>
             {(localQ?.questionAfter || snapQ.questionAfter) && <RichText as="h2" style={{ fontSize: 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 16, lineHeight: 1.35 }}>{localQ?.questionAfter || snapQ.questionAfter}</RichText>}
             {phase === 'question' && (
               <HostHint hint={localQ?.hint || snapQ.hint} startedAt={session.question_started_at}

@@ -1,5 +1,5 @@
 import React from 'react'
-import { RichText } from '../ui.jsx'
+import { RichText, QuestionText } from '../ui.jsx'
 import { BANK_AREAS, DIFFICULTY, loadQuestionBank } from '../../lib/questionBankMeta.js'
 
 // =============================================
@@ -42,10 +42,14 @@ const BankCard = ({ q, n, passage, inModule, usedIn, onToggle }) => {
               📖 {passage.title || (passage.images?.length ? 'Texto con imagen' : 'Texto de lectura')}
             </div>
           )}
-          <RichText as="p" style={{ fontSize: 13, color: 'var(--dark)', lineHeight: 1.45, margin: 0,
-            ...(open ? {} : { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }) }}>
-            {q.question}
-          </RichText>
+          {open ? (
+            <QuestionText as="p" style={{ fontSize: 13, color: 'var(--dark)', lineHeight: 1.45, margin: 0 }}>{q.question}</QuestionText>
+          ) : (
+            <RichText as="p" style={{ fontSize: 13, color: 'var(--dark)', lineHeight: 1.45, margin: 0,
+              display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {q.question}
+            </RichText>
+          )}
           {open && (
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {q.image && <img src={q.image} alt="" style={{ maxWidth: '100%', maxHeight: 200, objectFit: 'contain', borderRadius: 8, border: '1px solid var(--border)', background: '#fff' }} />}

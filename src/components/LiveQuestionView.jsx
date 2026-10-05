@@ -1,5 +1,5 @@
 import React from 'react'
-import { Confetti, RichText } from './ui.jsx'
+import { Confetti, RichText, QuestionText } from './ui.jsx'
 import {
   submitLiveAnswer, fetchSession, fetchParticipants, fetchAnswerCounts,
   subscribeSession, subscribeParticipants, unsubscribe,
@@ -332,7 +332,7 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
     return (
       <Center><div style={cardStyle}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Pregunta {idx + 1}</div>
-        <RichText as="h3" style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 14, lineHeight: 1.4 }}>{q.question}</RichText>
+        <QuestionText as="h3" style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 14, lineHeight: 1.4 }}>{q.question}</QuestionText>
         {isPoll ? (
           <PollBars sessionId={session.id} index={idx} options={options} myAns={myAns} />
         ) : (
@@ -401,7 +401,7 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
       )}
       {/* RichText: respeta los saltos de línea (tablas, pasos, ecuaciones) y la
           **negrilla** con que algunas preguntas resaltan palabras del texto. */}
-      <RichText as="h3" style={{ fontSize: 17, fontWeight: 700, color: 'var(--dark)', marginBottom: q.questionAfter ? 8 : 16, lineHeight: 1.4 }}>{q.question}</RichText>
+      <QuestionText as="h3" style={{ fontSize: 17, fontWeight: 700, color: 'var(--dark)', marginBottom: q.questionAfter ? 8 : 16, lineHeight: 1.4 }}>{q.question}</QuestionText>
       {q.questionAfter && <RichText as="h3" style={{ fontSize: 17, fontWeight: 700, color: 'var(--dark)', marginBottom: 16, lineHeight: 1.4 }}>{q.questionAfter}</RichText>}
       {/* La pista la DICE el tutor del curso: el personaje se despliega desde
           su insignia (abajo a la derecha) con la pista en su globo. Solo sin
