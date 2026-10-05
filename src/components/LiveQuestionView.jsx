@@ -103,6 +103,27 @@ export const LivePassage = ({ passage, maxHeight = '42vh' }) => {
 // Compartido con el panel del profesor.
 export const hintDelayMs = (limitS) => Math.min(10, Math.max(5, Math.round((limitS || 20) * 0.15))) * 1000
 
+// Lo que dice el tutor al revelar cada pregunta. Varias versiones para que no
+// suene siempre igual; {n} = nombre del estudiante.
+const CHEERS = [
+  '¡Excelente, {n}! Diste en el blanco. 🎯',
+  '¡Muy bien, {n}! Esa era la respuesta.',
+  '¡Correcto, {n}! Vas con todo, sigue así.',
+  '¡Eso es, {n}! Leíste muy bien la pregunta.',
+]
+const ENCOURAGE = [
+  'Casi, {n}. Cada error es una pista para la próxima. 💪',
+  'No pasa nada, {n}: mira la explicación y vamos por la siguiente.',
+  '¡Ánimo, {n}! La siguiente es tuya.',
+  'Tranquila/o, {n}: equivocarse aquí es practicar. ¡Sigue intentándolo!',
+]
+const TIMEOUT = [
+  '¡Se acabó el tiempo, {n}! En la siguiente, confía en tu primera idea. ⏱️',
+  'Uy, {n}, el reloj nos ganó. ¡Vamos con toda en la siguiente!',
+]
+const pick = (list, n) => list[Math.floor(Math.random() * list.length)].replace('{n}', n || 'colega')
+const REVEAL_HOLD_MS = 12000
+
 // Pista escrita: SOLO para la página pública del PIN, que no tiene tutor. En
 // la Clase en Vivo Guiada la pista la dice el personaje del curso (ver el
 // efecto de `hintKey`), no va como texto en la tarjeta.
@@ -227,13 +248,17 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
       if (session.phase === 'reveal') {
         const correct = session.current_reveal?.correct
         const mine = myAnswers[session.current_index]
+        const nombre = (participant.nombre || '').split(' ')[0]
         if (correct !== null && correct !== undefined && mine !== undefined) {
           const ok = mine === correct
           ok ? sCorrect() : sWrong()
-          // El tutor del curso reacciona igual que en la ruta normal. En la
-          // página pública del PIN no hay curso activo y reactCharacter no hace
-          // nada, así que esto solo se nota en la Clase en Vivo Guiada.
-          reactCharacter(ok ? 'correct' : 'wrong')
+          // El tutor del curso sale de cuerpo completo a felicitar o a dar
+          // ánimo, y se queda ~12 s (antes ~5 s: se retiraba antes de que el
+          // estudiante lo viera). En la página pública del PIN no hay curso
+          // activo y reactCharacter no hace nada.
+          reactCharacter(ok ? 'correct' : 'wrong', pick(ok ? CHEERS : ENCOURAGE, nombre), REVEAL_HOLD_MS)
+        } else if (correct !== null && correct !== undefined) {
+          reactCharacter('wrong', pick(TIMEOUT, nombre), REVEAL_HOLD_MS)
         }
       } else if (session.phase === 'explanation') {
         // El tutor lee en voz (globo) la explicación de la pregunta — el texto

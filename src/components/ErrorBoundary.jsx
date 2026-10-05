@@ -1,10 +1,33 @@
 import React from 'react'
 
+// Tras publicar una versión nueva, una pestaña que ya estaba abierta pide los
+// archivos de la versión ANTERIOR al entrar a otra pantalla (las páginas se
+// cargan por partes) y esos archivos ya no existen: el navegador falla con
+// "Failed to fetch dynamically imported module". No es un error de la app:
+// basta recargar para traer la versión nueva. Se recarga solo UNA vez por
+// minuto, para no entrar en un bucle si el problema fuera otro.
+const CHUNK_ERROR = /dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk .* failed|Unable to preload CSS/i
+const RELOAD_KEY = 'experia:chunk-reload-at'
+const tryAutoReload = (error) => {
+  if (!CHUNK_ERROR.test(String(error?.message || error))) return false
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_KEY)) || 0
+    if (Date.now() - last < 60_000) return false
+    sessionStorage.setItem(RELOAD_KEY, String(Date.now()))
+  } catch (_) { /* modo incógnito estricto: recarga igual */ }
+  window.location.reload()
+  return true
+}
+
 export default class ErrorBoundary extends React.Component {
-  state = { error: null }
+  state = { error: null, showDetail: false }
 
   static getDerivedStateFromError(error) {
     return { error }
+  }
+
+  componentDidCatch(error) {
+    tryAutoReload(error)
   }
 
   // Resetear el error al cambiar de página (resetKey prop)
@@ -31,10 +54,20 @@ export default class ErrorBoundary extends React.Component {
             fontFamily:"'Inter', sans-serif" }}>
           Recargar página
         </button>
-        {import.meta.env.DEV && (
+        {/* Detalle técnico (plegado): permite copiar el error exacto para
+            reportarlo, también en producción. */}
+        <button onClick={() => this.setState(s => ({ showDetail: !s.showDetail }))}
+          style={{ background:'none', border:'none', cursor:'pointer', fontSize:12, color:'var(--muted, #6B7280)',
+            fontFamily:"'Inter', sans-serif", textDecoration:'underline' }}>
+          {this.state.showDetail ? 'Ocultar detalle técnico' : 'Ver detalle técnico'}
+        </button>
+        {(this.state.showDetail || import.meta.env.DEV) && (
           <pre style={{ fontSize:11, color:'#EF4444', background:'var(--error-bg, #FEF2F2)', padding:16,
-            borderRadius:8, maxWidth:600, overflow:'auto', textAlign:'left' }}>
+            borderRadius:8, maxWidth:600, overflow:'auto', textAlign:'left', whiteSpace:'pre-wrap', userSelect:'text' }}>
             {this.state.error?.toString()}
+            {'\n'}
+            {(this.state.error?.stack || '').split('\n').slice(1, 6).join('\n')}
+            {'\n'}Página: {window.location.hash || '/'}
           </pre>
         )}
       </div>

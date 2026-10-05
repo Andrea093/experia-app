@@ -130,7 +130,7 @@ export const CharacterFloat = () => {
   }, [])
 
   // --- Monólogo ---
-  const speak = React.useCallback((context, forced) => {
+  const speak = React.useCallback((context, forced, hold) => {
     const text = forced || getCharacterLine(theme, context)
     if (!text) return
     clearTimers()
@@ -148,7 +148,10 @@ export const CharacterFloat = () => {
     // terminar de escribirse antes de que el globo se retire solo, incluso
     // en la explicación más larga.
     const cap = forced ? 45000 : 12000
-    later(dismiss, Math.min(cap, Math.max(5200, 2600 + text.length * 55)))
+    // Pista de la clase en vivo ("💡 …"): se queda ~25 s para que alcancen a
+    // leerla mientras piensan la respuesta (antes se iba a los 6–8 s).
+    const isHint = !!forced && forced.startsWith('💡')
+    later(dismiss, hold || (isHint ? 25000 : Math.min(cap, Math.max(5200, 2600 + text.length * 55))))
   }, [theme, dismiss, enter])
 
   // --- Conversación por turnos ---
@@ -229,10 +232,15 @@ export const CharacterFloat = () => {
     }
   }, [rank, courseId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Última pista dicha (clase en vivo / "Pedir una pista"): un clic en la
+  // insignia la repite, en vez de una frase genérica.
+  const lastHint = React.useRef(null) // { text, ts }
+
   // Reacción a un evento del estudiante (correct/wrong/moduleComplete/…).
   React.useEffect(() => {
     if (!char?.art || !reaction) return
     const ctx = reaction.context
+    if (reaction.line?.startsWith('💡')) lastHint.current = { text: reaction.line, ts: Date.now() }
 
     // Racha de errores: dos seguidos en el mismo reto → conversación de ánimo.
     if (ctx === 'wrong') wrongStreak.current += 1
@@ -250,7 +258,7 @@ export const CharacterFloat = () => {
       if (ctx === 'moduleComplete' && completedCount > 0
         && completedCount % MILESTONE_EVERY === 0 && converse('milestone')) return
     }
-    speak(ctx, reaction.line)
+    speak(ctx, reaction.line, reaction.hold)
   }, [reaction?.ts]) // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => clearTimers, [])
@@ -383,8 +391,13 @@ export const CharacterFloat = () => {
       <button
         className="xch-badge" style={{ ...vars, opacity: onStage ? 0 : 1, pointerEvents: onStage ? 'none' : 'auto' }}
         data-side={side}
-        onClick={() => speak('idle')}
-        title={`${char.name} — clic para escuchar`}
+        onClick={() => {
+          // Pista reciente (últimos 3 min, o sea la pregunta en curso): se repite.
+          const h = lastHint.current
+          if (h && Date.now() - h.ts < 180000) speak('idle', h.text)
+          else speak('idle')
+        }}
+        title={`${char.name} — clic para escuchar${lastHint.current ? ' (repite la pista)' : ''}`}
         aria-label={`${char.name} — clic para escuchar`}
       >
         <img src={art.src} alt="" draggable="false" style={cropStyle(art.head)} />
