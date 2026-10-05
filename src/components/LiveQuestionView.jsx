@@ -97,9 +97,10 @@ export const LivePassage = ({ passage, maxHeight = '42vh' }) => {
   )
 }
 
-// Momento en que el tutor da la pista: a un tercio del tiempo (mínimo 8 s), para
-// que primero intenten solos. Compartido con el panel del profesor.
-export const hintDelayMs = (limitS) => Math.max(8, Math.round((limitS || 20) * 0.35)) * 1000
+// Momento en que el tutor da la pista: a un cuarto del tiempo, entre 8 y 20 s
+// (antes era un tercio y en las lecturas de 2–3 min tardaba casi un minuto en
+// llegar). Primero intentan solos. Compartido con el panel del profesor.
+export const hintDelayMs = (limitS) => Math.min(20, Math.max(8, Math.round((limitS || 20) * 0.25))) * 1000
 
 // Barras de distribución en vivo (encuestas, sin respuesta correcta).
 const PollBars = ({ sessionId, index, options, myAns }) => {
@@ -140,7 +141,11 @@ const PollBars = ({ sessionId, index, options, myAns }) => {
 // usa la página pública del PIN, para devolver al participante a Experia — el
 // estudiante logueado ya sale solo (app.jsx llama a `guided.leave` a los 5 s y
 // la pantalla vuelve a su ruta).
-export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = null }) => {
+// `moduleQuestions`: preguntas del módulo tal como las tiene el estudiante en su
+// ruta (solo la Clase en Vivo Guiada lo pasa). Si el snapshot de la sesión no
+// trae el texto de lectura o la pista (sesión creada antes de 0075, o snapshot
+// incompleto), se completan desde aquí — misma posición, mismo orden.
+export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = null, moduleQuestions = null }) => {
   const Center = Wrap || (({ children }) => <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>)
   const [session, setSession]   = React.useState(null)
   const [parts, setParts]       = React.useState([])
@@ -168,7 +173,13 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
   // calcula contra question_started_at (hora del servidor), así un estudiante
   // que entra tarde o recarga la ve en el mismo momento que los demás.
   const [hintShown, setHintShown] = React.useState(false)
-  const qNow = (session?.questions || [])[session?.current_index] || {}
+  const withModuleData = (snap, i) => {
+    const mq = moduleQuestions?.[i]
+    if (!mq) return snap
+    return { ...snap, passage: snap.passage || mq.passage, hint: snap.hint || mq.hint,
+      questionAfter: snap.questionAfter || mq.questionAfter }
+  }
+  const qNow = withModuleData((session?.questions || [])[session?.current_index] || {}, session?.current_index)
   const hintKey = session?.phase === 'question' ? `${session.current_index}|${session.question_started_at}` : null
   React.useEffect(() => {
     setHintShown(false)
@@ -228,7 +239,7 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
   if (!session) return <Center><p style={{ textAlign: 'center', color: 'var(--muted)' }}>Conectando…</p></Center>
 
   const idx = session.current_index
-  const q = (session.questions || [])[idx] || {}
+  const q = withModuleData((session.questions || [])[idx] || {}, idx)
   const options = q.options || []
   const myAns = myAnswers[idx]
   const me = parts.find(p => p.id === participant.id)

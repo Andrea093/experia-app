@@ -63,7 +63,7 @@ const GuidedClassViewInner = ({ guided }) => {
 
   // Módulo interactivo (quiz o encuesta en vivo): reusa el ciclo ya construido.
   if (currentMod?.type === 'challenge' && (currentMod.ctype === 'quiz' || currentMod.ctype === 'poll')) {
-    return <LiveQuestionView participant={participant} Wrap={Shell} avatar={avatar} />
+    return <LiveQuestionView participant={participant} Wrap={Shell} avatar={avatar} moduleQuestions={currentMod.questions} />
   }
 
   // Lección de lectura: mismo contenido que ve el profesor, en modo solo-lectura.
