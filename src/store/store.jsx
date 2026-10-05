@@ -2517,9 +2517,12 @@ const getActiveCourseTheme = () => selectActiveCourseTheme(XS.get());
 // El contexto debe ser uno de CHARACTER_CONTEXTS: 'correct' | 'wrong' |
 // 'moduleComplete' | 'lessonIntro' | 'routeComplete' | 'idle'.
 // CharacterFloat escucha `charReaction` y muestra la frase correspondiente.
-const reactCharacter = (context, line) => {
+// `hold` (ms, opcional): cuánto se queda el personaje en escena con esa frase.
+// Lo usa la clase en vivo para que la felicitación/ánimo del revelado no se
+// retire a los 5 s, antes de que el estudiante alcance a verla.
+const reactCharacter = (context, line, hold) => {
   if (!getActiveCourseTheme()) return;
-  XS.set({ charReaction: { context, line: line || null, ts: Date.now() } });
+  XS.set({ charReaction: { context, line: line || null, hold: hold || null, ts: Date.now() } });
 };
 
 export {
