@@ -447,6 +447,68 @@ const RichText = ({ children, as = 'span', style, ...rest }) => {
   return <Tag style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...style }} {...rest}>{parseRich(children)}</Tag>;
 };
 
+// Enunciado de pregunta con TABLAS: dos o más líneas seguidas con columnas
+// separadas por "|" (p. ej. "Tamaño | Diámetro | Altura") se dibujan como
+// tabla real, con la primera fila como encabezado. El resto del texto va con
+// RichText. Así una tabla del banco (o escrita por el tutor) se ve bien en la
+// ruta, en la clase en vivo y en el panel del profesor, sin cambiar el
+// formato guardado (sigue siendo texto plano dentro de `question`).
+const tableCells = (line) => {
+  // El "|" del markup de color {{#hex|texto}} no cuenta como columna.
+  const plain = line.replace(/\{\{#[0-9a-fA-F]{3,8}\|[\s\S]*?\}\}/g, 'x');
+  if (!plain.includes('|')) return null;
+  const cells = line.split(/\s*\|\s*(?![^{]*\}\})/).map(c => c.trim());
+  return cells.length >= 2 ? cells : null;
+};
+const splitTables = (text) => {
+  const blocks = [];
+  let buf = [], rows = [];
+  const flushText = () => { if (buf.length) { blocks.push({ text: buf.join('\n') }); buf = []; } };
+  const flushRows = () => {
+    if (rows.length >= 2) { flushText(); blocks.push({ rows }); }
+    else if (rows.length) buf.push(...rows.map(r => r.raw));
+    rows = [];
+  };
+  String(text || '').split('\n').forEach(line => {
+    const cells = tableCells(line);
+    if (cells) rows.push({ cells, raw: line });
+    else { flushRows(); buf.push(line); }
+  });
+  flushRows(); flushText();
+  return blocks;
+};
+const QuestionText = ({ children, as = 'div', style, ...rest }) => {
+  const blocks = splitTables(children);
+  if (!blocks.some(b => b.rows)) return <RichText as={as} style={style} {...rest}>{children}</RichText>;
+  const cell = { padding: '7px 12px', border: '1px solid var(--border)', textAlign: 'left', verticalAlign: 'top' };
+  return (
+    <div {...rest} style={{ marginBottom: style?.marginBottom }}>
+      {blocks.map((b, i) => b.rows ? (
+        <div key={i} style={{ overflowX: 'auto', margin: '10px 0 12px' }}>
+          <table style={{ borderCollapse: 'collapse', minWidth: 0, fontSize: 14, color: 'var(--dark)', background: 'var(--white)' }}>
+            <thead>
+              <tr>{b.rows[0].cells.map((c, j) => (
+                // Tinte translúcido (no var(--bg-alt)): en los temas oscuros
+                // --bg-alt es claro y el texto del encabezado no se leía.
+                <th key={j} style={{ ...cell, background: 'rgba(127,127,127,.18)', color: 'var(--dark)', fontWeight: 800 }}><RichText>{c}</RichText></th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {b.rows.slice(1).map((r, k) => (
+                <tr key={k}>{r.cells.map((c, j) => (
+                  <td key={j} style={{ ...cell, fontWeight: j === 0 ? 700 : 500 }}><RichText>{c}</RichText></td>
+                ))}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <RichText key={i} as={as === 'div' ? 'div' : as} style={{ ...style, marginBottom: 0 }}>{b.text}</RichText>
+      ))}
+    </div>
+  );
+};
+
 // Campo de edición con mini-barra de formato (Negrilla + colores). Envuelve la
 // selección con el markup correspondiente. `multiline` usa <textarea>. La barra
 // aparece al enfocar. Los botones usan onMouseDown+preventDefault para no perder
@@ -616,7 +678,7 @@ const PresenceGate = ({ mod, nodeId }) => {
 };
 
 export {
-  useMobile, LogoImg, ChecklistDropdown, ImageUploader, FileUploader, RichText, RichInput,
+  useMobile, LogoImg, ChecklistDropdown, ImageUploader, FileUploader, RichText, QuestionText, RichInput,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc, ArrowRIc, ArrowLIc,
   ChevRIc, StarIc, TrophyIc, ZapIc, AwardIc, BellIc, LogOutIc, ClockIc, XIc, PlusIc,
   TrashIc, EditIc, MenuIc, TargetIc, SettingsIc, BarIc, UsersIc, GripIc, MapIc,

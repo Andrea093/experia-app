@@ -12,7 +12,7 @@ import {
   LogOutIc, ClockIc, XIc, PlusIc, TrashIc, EditIc, MenuIc, TargetIc,
   SettingsIc, BarIc, UsersIc, GripIc, MapIc, SchoolIc, UploadIc,
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
-  Modal, BadgeCard, StatChip, Stagger, PresenceGate, RichText,
+  Modal, BadgeCard, StatChip, Stagger, PresenceGate, RichText, QuestionText,
 } from '../components/ui.jsx'
 // =============================================
 // EXPERIA — Interactive Challenges (v2 — area-aware + attempt tracking)
@@ -759,7 +759,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
             const ok = answers[i] === q.correct;
             return (
               <div key={i} style={{padding:'12px 16px',borderRadius:12,background:ok?'#F0FDFA':'#FEF2F2',border:`1px solid ${ok?'#99F6E4':'#FECACA'}`}}>
-                <RichText as="p" style={{fontSize:13,fontWeight:600,color:'var(--dark)',marginBottom:4}}>{q.question}</RichText>
+                <QuestionText as="p" style={{fontSize:13,fontWeight:600,color:'var(--dark)',marginBottom:4}}>{q.question}</QuestionText>
                 <p style={{fontSize:12,color:ok?'var(--success)':'var(--error)',fontWeight:500,margin:0}}>
                   {ok?'✓ ':'✗ '}<RichText>{q.options[answers[i]]}</RichText>
                   {!ok&&<span style={{color:'var(--success)',marginLeft:8}}>→ Correcta: <RichText>{q.options[q.correct]}</RichText></span>}
@@ -818,7 +818,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
       {q.passage && <QuizPassage key={'p' + current} passage={q.passage} />}
       <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
         <QuestionImage q={q} slot="before" />
-        <RichText as="h4" style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:(q.imagePosition==='between'||q.questionAfter)?12:20}}>{q.question}</RichText>
+        <QuestionText as="h4" style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:(q.imagePosition==='between'||q.questionAfter)?12:20}}>{q.question}</QuestionText>
         <QuestionImage q={q} slot="between" />
         {q.questionAfter && <RichText as="h4" style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.questionAfter}</RichText>}
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
@@ -923,7 +923,7 @@ const PollChallenge = ({ mod, onComplete }) => {
         <div style={{textAlign:'left',display:'flex',flexDirection:'column',gap:8}}>
           {questions.map((q,i) => (
             <div key={i} style={{padding:'12px 16px',borderRadius:12,background:'var(--bg)',border:'1px solid var(--border)'}}>
-              <RichText as="p" style={{fontSize:13,fontWeight:600,color:'var(--dark)',marginBottom:4}}>{q.question}</RichText>
+              <QuestionText as="p" style={{fontSize:13,fontWeight:600,color:'var(--dark)',marginBottom:4}}>{q.question}</QuestionText>
               <p style={{fontSize:12,color:'var(--muted)',margin:0}}>Tu respuesta: <RichText>{q.options[answers[i]]}</RichText></p>
             </div>
           ))}
@@ -942,7 +942,7 @@ const PollChallenge = ({ mod, onComplete }) => {
       </div>
       <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
         <QuestionImage q={q} slot="before" />
-        <RichText as="h4" style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:(q.imagePosition==='between'||q.questionAfter)?12:20}}>{q.question}</RichText>
+        <QuestionText as="h4" style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:(q.imagePosition==='between'||q.questionAfter)?12:20}}>{q.question}</QuestionText>
         <QuestionImage q={q} slot="between" />
         {q.questionAfter && <RichText as="h4" style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:20}}>{q.questionAfter}</RichText>}
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
