@@ -16,6 +16,7 @@ export const BANK_AREAS = {
   biologia:    { label: 'Biología',        icon: '🧬' },
   quimica:     { label: 'Química',         icon: '⚗️' },
   fisica:      { label: 'Física',          icon: '🧲' },
+  sociales:    { label: 'Ciencias Sociales', icon: '🌎' },
 }
 
 export const ROUND_LABELS = { 1: 'Primera ronda', 2: 'Ronda final' }

@@ -196,3 +196,89 @@ select asignatura, estado, detalle from _0075_estado order by paso, asignatura, 
 const out = path.join(ROOT, 'supabase/migrations/0075_rondas_banco_preguntas.sql')
 fs.writeFileSync(out, sql)
 console.log('Escrito', path.relative(ROOT, out), `(${(sql.length / 1024).toFixed(0)} KB)`)
+
+// ── 0078: rondas de Ciencias Sociales (llegaron después de aplicar 0075) ──────
+// Mismas reglas que 0075, pero recorriendo la familia COMPLETA del curso
+// (copias de copias): 0076 enseñó que no basta con base + copias directas.
+const soc = { label: 'Ciencias Sociales', ref: "'9e6ddb8b-bcf1-42c0-926b-cc8037cb70b3'::uuid" }
+const sql78 = `-- ============================================================
+-- 0078_rondas_sociales.sql
+-- GENERADO por scripts/build-rondas.mjs — no editar a mano.
+--
+-- Ciencias Sociales y Competencias Ciudadanas: módulos 4 (primera ronda) y 6
+-- (ronda final) pasan a ser rondas de preguntas del banco (igual que 0075 en
+-- las otras asignaturas, ver §14 de CLAUDE.md). 49 preguntas en el banco, con
+-- DIFICULTAD REAL del documento del equipo académico:
+--   primera ronda: ${bank.defaults.sociales.r1.length} preguntas de dificultad baja y media
+--   ronda final:   ${bank.defaults.sociales.r2.length} preguntas de dificultad alta
+-- Recorre la familia COMPLETA del curso (base, copias por colegio y copias de
+-- copias). Solo convierte módulos que siguen "Pendiente" (o con el banco viejo
+-- en texto); lo editado a mano se respeta y se informa.
+-- Requiere 0075 (snapshot con texto de lectura y pista). Idempotente.
+-- EJECUTAR en Supabase SQL Editor.
+-- ============================================================
+
+drop table if exists _0078_estado;
+create temp table _0078_estado (estado text, curso text, detalle text);
+
+do $$
+declare
+  v_base uuid := (select coalesce(parent_course_id, id) from public.courses where id = ${soc.ref});
+  v_r1 jsonb := ${dollar('soc1', ronda('sociales', 1))};
+  v_r2 jsonb := ${dollar('soc2', ronda('sociales', 2))};
+  c record; m record; v_ronda int; v_cd jsonb; v_nombre text;
+begin
+  if v_base is null then
+    insert into _0078_estado values ('CURSO NO ENCONTRADO', '—', 'No existe el curso de Ciencias Sociales en esta base de datos.');
+    return;
+  end if;
+
+  for c in
+    with recursive fam as (
+      select id from public.courses where id = v_base
+      union
+      select ch.id from public.courses ch join fam on ch.parent_course_id = fam.id
+    )
+    select co.id, co.name, co.draft_modules is not null as has_draft
+      from public.courses co join fam on fam.id = co.id
+     order by co.parent_course_id nulls first, co.name
+  loop
+    if c.has_draft then
+      insert into _0078_estado values ('BORRADOR PENDIENTE', c.name,
+        'Tiene un borrador sin publicar en el editor de ruta: descartarlo antes de publicar, o volverán los módulos 4 y 6 anteriores.');
+    end if;
+    foreach v_ronda in array array[4, 6] loop
+      v_cd := case when v_ronda = 4 then v_r1 else v_r2 end;
+      v_nombre := case when v_ronda = 4 then 'primera ronda' else 'ronda final' end;
+      select * into m from public.course_modules where course_id = c.id and "order" = v_ronda;
+      if m.id is null then
+        insert into _0078_estado values ('SIN MÓDULO ' || v_ronda, c.name, 'La ruta no tiene módulo en esa posición.');
+      elsif m.type = 'challenge' and m.challenge_data ? 'bank' then
+        insert into _0078_estado values ('YA APLICADA', c.name, m.title || ' (' || v_nombre || ')');
+      elsif m.type = 'lesson'
+        and (m.content @> '[{"title":"Pendiente"}]'::jsonb or m.content::text like '%Banco de preguntas%') then
+        update public.course_modules
+           set type = 'challenge', challenge_type = 'quiz', challenge_data = v_cd,
+               content = coalesce((
+                 select jsonb_agg(e order by i)
+                   from jsonb_array_elements(m.content) with ordinality as t(e, i)
+                  where coalesce(e->>'title', '') <> 'Pendiente'
+                    and coalesce(e->>'title', '') not like 'Banco de preguntas%'
+               ), '[]'::jsonb),
+               updated_at = now()
+         where id = m.id;
+        insert into _0078_estado values ('APLICADA', c.name,
+          format('%s (%s): %s preguntas.', m.title, v_nombre, jsonb_array_length(v_cd->'questions')));
+      else
+        insert into _0078_estado values ('NO TOCADO', c.name,
+          format('%s (%s): ya tiene contenido propio (%s). Cárgale preguntas desde el editor de ruta.', m.title, v_nombre, m.type));
+      end if;
+    end loop;
+  end loop;
+end $$;
+
+select estado, curso, detalle from _0078_estado order by estado, curso;
+`
+const out78 = path.join(ROOT, 'supabase/migrations/0078_rondas_sociales.sql')
+fs.writeFileSync(out78, sql78)
+console.log('Escrito', path.relative(ROOT, out78), `(${(sql78.length / 1024).toFixed(0)} KB)`)

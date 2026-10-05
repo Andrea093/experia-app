@@ -249,6 +249,50 @@ for b in blocks:
                       correct='ABCD'.index(letter), explanation='', topic=comp, images=imgs,
                       passage=b['passage']))
 
+# ───────────── SOCIALES Y COMPETENCIAS CIUDADANAS ─────────────
+# Preguntas "N. …" seguidas; la tabla final trae competencia, afirmación,
+# DIFICULTAD real y clave. Cuidados: listas numeradas internas ("1. Asesinato
+# de…") solo cuentan como pregunta si el número es el SIGUIENTE esperado; la
+# pregunta 19 viene sin número (empieza tras las opciones de la 18); la 16
+# llega en un solo párrafo y se reescribe en curate.py.
+if os.path.exists(os.path.join(S, 'sociales.txt')):
+    sl = lines('sociales.txt')
+    tab_i = next(i for i, l in enumerate(sl) if l.strip() == '<<TABLE>>')
+    blocks, cur = [], None
+    for raw in sl[:tab_i]:
+        s = raw.strip()
+        if not s or s.lower().startswith('sociales y competencias') or s.startswith('Información de cada'):
+            continue
+        expected = (cur['num'] + 1) if cur else 1
+        m = re.match(r'^(\d+)\.\s*(.*)$', s)
+        is_opt = bool(OPT.match(clean(s)))
+        if m and int(m.group(1)) == expected:
+            if cur: blocks.append(cur)
+            cur = dict(num=expected, lines=[m.group(2)] if m.group(2) else [])
+        elif cur and not is_opt and len([x for x in cur['lines'] if OPT.match(clean(x))]) >= 3 and not m:
+            # pregunta sin número (la 19): empieza tras las opciones de la anterior
+            blocks.append(cur)
+            cur = dict(num=expected, lines=[raw])
+        elif cur:
+            cur['lines'].append(raw)
+    if cur: blocks.append(cur)
+    meta = {}
+    for row in table_after(sl, tab_i):
+        cells = [re.sub(r'^[/\s]+|[/\s]+$', '', c) for c in row]
+        if len(cells) >= 5 and cells[0].isdigit():
+            meta[int(cells[0])] = dict(comp=cells[1], afirm=cells[2], dif=cells[3], key=cells[4][:1])
+    for b in blocks:
+        stem, opts, imgs = split_q(b['lines'])
+        info = meta[b['num']]
+        # Opciones con letra: la 25 trae solo A–C (split_q espera 4)
+        if len(opts) == 4 and b['num'] == 25:
+            letters = [(clean(x)) for x in b['lines'] if OPT.match(clean(x))]
+            opts = [OPT.match(x).group(2) for x in letters]
+            stem = [clean(x) for x in b['lines'] if not OPT.match(clean(x))]
+        items.append(dict(src='soc', set=1, num=b['num'], stem=stem_text(stem), options=opts,
+                          correct='ABCD'.index(info['key']), explanation='', topic=info['comp'],
+                          afirmacion=info['afirm'], dificultad=info['dif'], images=imgs))
+
 pjson = []
 for p in passages:
     imgs = []

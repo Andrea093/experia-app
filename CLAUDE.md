@@ -682,9 +682,10 @@ módulos son rondas de preguntas que la Clase en Vivo muestra **una a una**
   `isQuestionRound`/`displayType` de `src/lib/questionBankMeta.js`.
   `passingScore: 0`: una ronda nunca frena la ruta.
 - **Banco** (`src/lib/questionBank.json`, ~200 KB, chunk lazy fuera del
-  precaché): 170 preguntas — Matemáticas 20, Lectura crítica 75, Biología 25,
-  Química 25, Física 25. **Sociales aún no tiene** (sus módulos 4 y 6 no se
-  tocan). GENERADO desde los Word por `scripts/banco-preguntas/build.py` — ver su
+  precaché): 219 preguntas — Matemáticas 20, Lectura crítica 75, Biología 25,
+  Química 25, Física 25 y Ciencias Sociales 49. Las rondas de Sociales las carga
+  `0078_rondas_sociales.sql` (recorre la familia completa del curso, copias de
+  copias incluidas). GENERADO desde los Word por `scripts/banco-preguntas/build.py` — ver su
   README. No editar a mano.
 - **El tutor elige del banco** en el editor de ruta: ✏️ en la ronda (o el chip
   "🎮 Primera ronda · N preguntas") → "📚 Elegir del banco" (`QuestionBankPicker`):
@@ -692,7 +693,8 @@ módulos son rondas de preguntas que la Clase en Vivo muestra **una a una**
   ronda, "↺ Volver a las predeterminadas". Agregar **copia** la pregunta al
   módulo; editarla allí no toca el banco.
 - ⚠️ **Dificultad provisional, asignada al azar** (semilla fija) mientras el
-  equipo académico la define. Cinco preguntas se **corrigieron** respecto al Word
+  equipo académico la define — salvo **Sociales**, cuyo documento trae la
+  dificultad real (primera ronda = baja y media; ronda final = alta). Cinco preguntas se **corrigieron** respecto al Word
   (clave o datos que no cuadraban) — ver README del banco. Una pregunta con
   `review` queda fuera de las predeterminadas (hoy no hay ninguna).
 - **Texto de lectura por pregunta** (`question.passage`): viaja copiado en cada
@@ -916,7 +918,8 @@ VITE_SUPABASE_ANON_KEY=eyJ...
 5. **Content changes:** Require `git push` (no hot reload)
 6. **Migraciones sin aplicar:** `0058` (bucket `corpus-normativo`), `0059` (regla de conteos en `clone_effectiveness`), `0061` (`live_sessions.closing_notes`, informe de cierre de la clase en vivo, §8), `0068` (`clone_unit_plans.book_url`, PDF del libro por grupo), `0063` (`courses.requires_live_to_start` + RPC `has_completed_live_session`, candado de ruta hasta la primera Clase en Vivo — **deshabilitado a propósito** en Matemáticas por ahora, ver `scripts/deshabilitar_candado_matematicas.sql`) están escritas, pero **no se han corrido en el SQL Editor**. Ya aplicadas (oct 2026): `0062`/`0064` (Matemáticas), `0065`/`0066`/`0067` (Lenguaje, Sociales, Ciencias: apertura, estructura Saber y pausa activa — los módulos 4 y 6 siguen "Pendiente" hasta que el equipo académico suba sus preguntas), `0070` (retiró de Matemáticas las 2 "Pregunta en Vivo" de 0062) y `0069` (banco de actividades, §8). También `0071` (oculta al estudiante "Qué es este bloque"/"Cómo ejecutarlo"). Aplicada `0072` (diapositivas de la estructura Saber en el módulo 2). Aplicada `0073` (separa Ciencias Naturales en tres cursos: el actual pasa a "Ciencias Naturales — Biología" conservando id/progreso; "— Física" y "— Química" se crean como copia del curso base y de cada copia por colegio, con módulos/requirements remapeados y los mismos accesos —institution_courses, user_courses, course_enrollments— más course_progress vacío). Tras 0073, las migraciones que apuntan al fork `4d2af3cd…` siguen tocando solo Biología. Aplicada `0074`: devolvió el nombre original → "Laboratorio de Ciencias Naturales — Biología/Física/Química" (y sus copias por colegio); solo nombres.
    - Aplicada `0075` (rondas de preguntas del banco en los módulos 4 y 6, §14).
-   - Aplicada `0076` (resultados Saber del colegio en el módulo 3, datos sintéticos, §15).
+   - Aplicada `0076` (resultados Saber del colegio en el módulo 3, datos sintéticos, §15) y su refuerzo `0077` (familia completa de cada curso + diagnóstico por colegio).
+   - Aplicada `0078` (rondas de Ciencias Sociales en los módulos 4 y 6, §14).
    - ⚠️ **Rutas de las 4 asignaturas = SOLO sus 7 módulos** (oct 2026): 1 apertura (rompehielos/físicas) · 2 estructura Saber · 3 bitácora · 4 primera ronda · 5 pausa activa (solo físicas) · 6 ronda final · 7 cierre. No agregar retos "Pregunta en Vivo" por migración: las preguntas de la clase en vivo las sube el equipo académico desde el editor de ruta.
 7. **CLI de Supabase inoperante:** sin `supabase/config.toml`, `db diff --linked` y `db push` fallan. Las migraciones se corren a mano; probarlas antes con `scripts/test-migraciones/`
 
