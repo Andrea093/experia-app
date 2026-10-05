@@ -26,6 +26,7 @@ import {
   Modal, BadgeCard, StatChip, Stagger,
 } from '../components/ui.jsx'
 import { FirstStepsCard } from '../components/Onboarding.jsx'
+import { displayType } from '../lib/questionBankMeta.js'
 // =============================================
 // EXPERIA — Learning Map (responsive + optimized)
 // =============================================
@@ -171,7 +172,7 @@ const MapNode = React.memo(({ mod, status, index, onClick, courseTheme }) => {
         }}>
         {status === 'locked'
           ? <LockIc s={isDoor ? 22 : 26} c={isDoor ? 'rgba(240,165,0,.4)' : '#fff'} />
-          : (NODE_ICONS[mod.type] || NODE_ICONS.lesson)(status)}
+          : (NODE_ICONS[displayType(mod)] || NODE_ICONS.lesson)(status)}
       </div>
       {/* Marco de puerta decorativo */}
       {isDoor && (
@@ -214,10 +215,10 @@ const MapCard = React.memo(({ mod, status, onClick }) => {
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{
-          fontSize: 10, fontWeight: 800, color: TYPE_COLORS[mod.type],
-          background: mod.type === 'certificate' ? '#FDF6E3' : mod.type === 'lesson' ? 'var(--orange-bg)' : 'var(--purple-bg)',
+          fontSize: 10, fontWeight: 800, color: TYPE_COLORS[displayType(mod)],
+          background: mod.type === 'certificate' ? '#FDF6E3' : displayType(mod) === 'lesson' ? 'var(--orange-bg)' : 'var(--purple-bg)',
           padding: '3px 8px', borderRadius: 4, letterSpacing: .8,
-        }}>{TYPE_LABELS[mod.type] || 'MÓDULO'}</span>
+        }}>{TYPE_LABELS[displayType(mod)] || 'MÓDULO'}</span>
         {status === 'completed' && mod.type !== 'certificate' && <CheckIc s={14} c="var(--success)" />}
       </div>
       <h4 style={{ fontSize: 15, fontWeight: 700, color: 'var(--dark)', marginBottom: 4, lineHeight: 1.3,
@@ -283,11 +284,11 @@ const MobileModuleRow = React.memo(({ mod, status, onClick }) => {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         boxShadow: colors.shadow,
       }}>
-        {status === 'locked' ? <LockIc s={20} c="#fff" /> : NODE_ICONS[mod.type](status)}
+        {status === 'locked' ? <LockIc s={20} c="#fff" /> : (NODE_ICONS[displayType(mod)] || NODE_ICONS.lesson)(status)}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 10, fontWeight: 800, color: TYPE_COLORS[mod.type],
-          textTransform: 'uppercase', letterSpacing: .8, marginBottom: 2 }}>{TYPE_LABELS[mod.type]}</div>
+        <div style={{ fontSize: 10, fontWeight: 800, color: TYPE_COLORS[displayType(mod)],
+          textTransform: 'uppercase', letterSpacing: .8, marginBottom: 2 }}>{TYPE_LABELS[displayType(mod)]}</div>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', lineHeight: 1.3 }}>{mod.title}</div>
         {!isCert && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>+{mod.xp} XP</div>}
         {isCert && status === 'completed' && <div style={{ fontSize: 11, color: '#9A7B1E', marginTop: 2, fontWeight: 600 }}>Disponible</div>}
@@ -308,10 +309,13 @@ const CourseSelector = ({ enrollments, courses, currentId, onSelect, switching =
       background: 'rgba(0,0,0,.45)', display: 'flex',
       alignItems: 'center', justifyContent: 'center', padding: 24,
     }}>
+      {/* Alto máximo = la pantalla: con muchos cursos la lista se desplaza
+          por dentro (antes se salía y había que alejar el zoom para verla). */}
       <div style={{
         background: 'var(--white)', borderRadius: 20, padding: 32,
         width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,.18)',
         animation: 'fadeUp .3s ease',
+        maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column',
       }}>
         <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>
           Selecciona tu curso
@@ -319,7 +323,8 @@ const CourseSelector = ({ enrollments, courses, currentId, onSelect, switching =
         <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24 }}>
           Tienes inscripción en varios cursos. ¿Cuál quieres continuar?
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', minHeight: 0,
+          margin: '0 -8px', padding: '2px 8px', WebkitOverflowScrolling: 'touch' }}>
           {enrollments.map(courseId => {
             const course = courses.find(c => c.id === courseId);
             const isActive = courseId === currentId;

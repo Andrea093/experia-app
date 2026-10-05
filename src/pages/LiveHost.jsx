@@ -5,6 +5,8 @@ import { Btn, Confetti, RichText } from '../components/ui.jsx'
 import { LessonBody } from './lesson.jsx'
 import { ActivityPicker } from '../components/ActivityCard.jsx'
 import { resolveActivity, ACTIVITY_BANKS } from '../lib/activityBank.js'
+import { isQuestionRound, BANK_AREAS, ROUND_LABELS } from '../lib/questionBankMeta.js'
+import { LivePassage, hintDelayMs } from '../components/LiveQuestionView.jsx'
 import {
   createLiveSession, liveGotoModule, liveCompleteModuleForParticipants,
   liveSetPhase, liveGoto, liveEnd, saveLiveClosingNotes, saveLiveActivityChoice,
@@ -22,6 +24,56 @@ const PROD_BASE = 'https://experia-app.pages.dev'
 const OPT_COLORS = ['#E8732C', '#3B82F6', '#10B981', '#A855F7', '#F59E0B', '#EF4444']
 const HOST_KEY = 'experia:live-host'
 const TYPE_LABEL = { lesson: '📖 Lección', challenge: '🎯 Reto', evaluation: '🎯 Evaluación', final_delivery: '🏁 Entrega final' }
+// Las rondas del banco (módulos 4 y 6) son un quiz por dentro, pero en la ruta
+// siguen siendo un módulo: se rotulan aparte para no llamarlas "reto".
+const typeLabel = (m) => (isQuestionRound(m) ? '🎮 Ronda de preguntas' : (TYPE_LABEL[m?.type] || '📄'))
+
+// Resumen de la ronda en el lobby: cuántas preguntas, de qué asignatura y la
+// frase de apertura del bloque (la guía del módulo se conservó en `content`).
+const RoundIntro = ({ module }) => {
+  const cd = module.challenge_data || {}
+  const qs = cd.questions || []
+  const area = BANK_AREAS[cd.bank]
+  const frase = (module.content || []).find(s => s.title === 'Frase de apertura')?.text
+  const mins = Math.round(qs.reduce((s, q) => s + (Number(q.timeLimit) || 20) + 60, 0) / 60)
+  return (
+    <div style={{ padding: '20px 24px', borderRadius: 18, background: 'var(--white)', border: '1px solid var(--border)', marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
+        🎮 {ROUND_LABELS[cd.bankRound] || 'Ronda de preguntas'} · {area ? `${area.icon} ${area.label}` : ''}
+      </div>
+      <div style={{ fontSize: 15, color: 'var(--dark)', fontWeight: 700, marginBottom: 6 }}>
+        {qs.length} pregunta{qs.length !== 1 ? 's' : ''} · cerca de {mins} min con la retroalimentación
+      </div>
+      {frase && <p style={{ fontSize: 14, color: 'var(--text-sec)', fontStyle: 'italic', margin: '0 0 10px' }}>{frase}</p>}
+      <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: 0, lineHeight: 1.6 }}>
+        Las preguntas aparecen una a una en la pantalla de tus estudiantes cada vez que avanzas. A un tercio del tiempo
+        el tutor del curso les da una pista. Para cambiar las preguntas: Editor de Ruta → ✏️ en este módulo → Banco de preguntas.
+      </p>
+    </div>
+  )
+}
+
+// Pista de la pregunta abierta, tal como la dará el tutor a los estudiantes.
+const HostHint = ({ hint, startedAt, limit, open }) => {
+  const [given, setGiven] = React.useState(false)
+  React.useEffect(() => {
+    setGiven(false)
+    if (!open || !startedAt) return
+    const wait = new Date(startedAt).getTime() + hintDelayMs(limit) - Date.now()
+    if (wait <= 0) { setGiven(true); return }
+    const t = setTimeout(() => setGiven(true), wait)
+    return () => clearTimeout(t)
+  }, [startedAt, limit, open])
+  if (!hint) return null
+  return (
+    <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, background: 'var(--orange-bg)', borderLeft: '3px solid var(--orange)' }}>
+      <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>
+        💡 Pista del tutor {open && (given ? '· ya la recibieron' : `· llega a los ${hintDelayMs(limit) / 1000} s`)}
+      </div>
+      <RichText as="p" style={{ fontSize: 14, color: 'var(--text-sec)', lineHeight: 1.55, margin: 0 }}>{hint}</RichText>
+    </div>
+  )
+}
 
 // Impresión del informe de cierre: igual patrón que el acta de cierre y la
 // tabla de efectividad (§12/§13 de CLAUDE.md) — solo el documento sale en
@@ -306,7 +358,7 @@ const Launcher = ({ onStarted }) => {
             {moduleList.map((m, i) => (
               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--dark)' }}>
                 <span style={{ width: 20, textAlign: 'center', color: 'var(--subtle)', fontWeight: 700 }}>{i + 1}</span>
-                <span>{TYPE_LABEL[m.type] || '📄'}</span>
+                <span>{typeLabel(m)}</span>
                 <span style={{ flex: 1 }}>{m.title}</span>
               </div>
             ))}
@@ -435,7 +487,7 @@ const Control = ({ session: initial, moduleList, onExit }) => {
         ? <Big disabled={busy} onClick={finishSession}>Finalizar clase en vivo 🏁</Big>
         : <Big disabled={busy} onClick={() => gotoModuleIdx(currentIdx + 1)}>Siguiente módulo →</Big>
     }
-    if (phase === 'lobby') return <Big disabled={total === 0} onClick={() => run(liveGoto(session.id, 0))}>Comenzar {isPoll ? 'encuesta' : 'quiz'} ▶</Big>
+    if (phase === 'lobby') return <Big disabled={total === 0} onClick={() => run(liveGoto(session.id, 0))}>Comenzar {isPoll ? 'encuesta' : isQuestionRound(currentModule) ? 'ronda' : 'quiz'} ▶</Big>
     if (phase === 'question') return <Big onClick={() => run(liveSetPhase(session.id, 'reveal'))}>Mostrar resultados ({answeredCount}/{parts.length})</Big>
     // Sin tabla de posiciones intermedia (ranking solo al final, en el podio):
     // de revelado/explicación se avanza directo a la siguiente pregunta o,
@@ -494,7 +546,7 @@ const Control = ({ session: initial, moduleList, onExit }) => {
                 cursor: currentIdx <= 0 ? 'default' : 'pointer', opacity: currentIdx <= 0 ? .4 : 1, fontSize: 15 }}>←</button>
             <div style={{ flex: 1, textAlign: 'center' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>
-                Módulo {currentIdx + 1} de {moduleList.length} · {TYPE_LABEL[currentModule?.type] || ''}
+                Módulo {currentIdx + 1} de {moduleList.length} · {currentModule ? typeLabel(currentModule) : ''}
               </div>
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--dark)' }}>{currentModule?.title}</div>
             </div>
@@ -525,14 +577,22 @@ const Control = ({ session: initial, moduleList, onExit }) => {
           )
         )}
 
+        {!showPodium && isInteractive && phase === 'lobby' && isQuestionRound(currentModule) && <RoundIntro module={currentModule} />}
+
         {/* Pregunta actual (vista del profe) */}
         {showQuestion && (
           <div style={{ padding: '20px 24px', borderRadius: 18, background: 'var(--white)', border: '1px solid var(--border)', marginBottom: 20 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
               Pregunta {idx + 1} de {total} {phase !== 'question' && '· Resultados'}
             </div>
-            {(localQ?.image || snapQ.image) && <img src={localQ?.image || snapQ.image} alt="" style={{ width: '100%', maxHeight: 240, objectFit: 'contain', borderRadius: 12, marginBottom: 12 }} />}
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 16, lineHeight: 1.35 }}>{localQ?.question || snapQ.question}</h2>
+            <LivePassage passage={localQ?.passage || snapQ.passage} maxHeight="50vh" />
+            {(localQ?.image || snapQ.image) && <img src={localQ?.image || snapQ.image} alt="" style={{ width: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 12, marginBottom: 12, background: '#fff' }} />}
+            <RichText as="h2" style={{ fontSize: 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 16, lineHeight: 1.35 }}>{localQ?.question || snapQ.question}</RichText>
+            {(localQ?.questionAfter || snapQ.questionAfter) && <RichText as="h2" style={{ fontSize: 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 16, lineHeight: 1.35 }}>{localQ?.questionAfter || snapQ.questionAfter}</RichText>}
+            {phase === 'question' && (
+              <HostHint hint={localQ?.hint || snapQ.hint} startedAt={session.question_started_at}
+                limit={snapQ.time_limit_s || Number(localQ?.timeLimit) || 20} open />
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {options.map((opt, i) => {
                 const isCorrect = correct === i
@@ -545,7 +605,7 @@ const Control = ({ session: initial, moduleList, onExit }) => {
                     background: 'var(--white)', display: 'flex', alignItems: 'center', gap: 12 }}>
                     {reveal && <div style={{ position: 'absolute', inset: 0, width: pct + '%', background: isCorrect ? '#DCFCE7' : 'var(--bg-alt)', transition: 'width .4s', zIndex: 0 }} />}
                     <span style={{ position: 'relative', zIndex: 1, width: 26, height: 26, borderRadius: 7, background: OPT_COLORS[i % OPT_COLORS.length], color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{String.fromCharCode(65 + i)}</span>
-                    <span style={{ position: 'relative', zIndex: 1, flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--dark)' }}>{opt}{reveal && isCorrect && ' ✓'}</span>
+                    <span style={{ position: 'relative', zIndex: 1, flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--dark)' }}><RichText>{opt}</RichText>{reveal && isCorrect && ' ✓'}</span>
                     {reveal && <span style={{ position: 'relative', zIndex: 1, fontSize: 13, fontWeight: 700, color: 'var(--muted)' }}>{n} · {pct}%</span>}
                   </div>
                 )

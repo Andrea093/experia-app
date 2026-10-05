@@ -56,6 +56,9 @@ export default defineConfig({
           '**/avatarKit-*.js', '**/avatarBody-*.js',
           '**/AvatarStudio-*.js', '**/AvatarChip-*.js', '**/LiveAvatar-*.js',
           '**/rejillaTareas-*.js',
+          // Banco de preguntas de las rondas en vivo (~200 KB): solo lo baja el
+          // tutor al abrir "Elegir del banco". Sus imágenes, igual.
+          '**/questionBank-*.js', '**/preguntas/**',
         ],
         navigateFallback: '/index.html',
         // Excluye las llamadas a la API de Supabase del caché

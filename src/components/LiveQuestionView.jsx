@@ -71,6 +71,36 @@ export const Ranking = ({ list, meId }) => (
   </div>
 )
 
+// Texto de lectura de la pregunta (rondas del banco, 0075). Va en una caja con
+// scroll propio para que las opciones no queden enterradas debajo de un texto
+// largo; las imágenes (infografías, caricaturas) se abren en grande con un clic.
+export const LivePassage = ({ passage, maxHeight = '42vh' }) => {
+  if (!passage) return null
+  const { intro, title, paragraphs, images, source } = passage
+  return (
+    <div style={{ maxHeight, overflowY: 'auto', marginBottom: 14, padding: '14px 16px', borderRadius: 14,
+      background: 'var(--bg)', border: '1px solid var(--border)', WebkitOverflowScrolling: 'touch' }}>
+      {intro && <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 6 }}>{intro}</div>}
+      {title && <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--dark)', marginBottom: 8 }}>{title}</div>}
+      {(paragraphs || []).map((p, i) => (
+        <p key={i} style={{ fontSize: 14, color: 'var(--text-sec)', lineHeight: 1.65, margin: '0 0 10px' }}>{p}</p>
+      ))}
+      {(images || []).map((im, i) => (
+        <a key={i} href={im.url} target="_blank" rel="noreferrer" title="Abrir la imagen en grande"
+          style={{ display: 'block', marginTop: 6 }}>
+          <img src={im.url} alt={im.caption || title || 'Imagen de apoyo'}
+            style={{ width: '100%', objectFit: 'contain', borderRadius: 10, border: '1px solid var(--border)', background: '#fff' }} />
+        </a>
+      ))}
+      {source && <p style={{ fontSize: 11.5, color: 'var(--subtle)', fontStyle: 'italic', margin: '8px 0 0' }}>{source}</p>}
+    </div>
+  )
+}
+
+// Momento en que el tutor da la pista: a un tercio del tiempo (mínimo 8 s), para
+// que primero intenten solos. Compartido con el panel del profesor.
+export const hintDelayMs = (limitS) => Math.max(8, Math.round((limitS || 20) * 0.35)) * 1000
+
 // Barras de distribución en vivo (encuestas, sin respuesta correcta).
 const PollBars = ({ sessionId, index, options, myAns }) => {
   const [counts, setCounts] = React.useState(null)
@@ -132,6 +162,27 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
   }, [participant.session_id])
 
   React.useEffect(() => { setFeedback(null) }, [session?.current_index, session?.phase === 'question'])
+
+  // Pista del tutor (rondas del banco): llega sola a un tercio del tiempo. El
+  // tutor del curso la dice en su globo y queda escrita en la tarjeta. Se
+  // calcula contra question_started_at (hora del servidor), así un estudiante
+  // que entra tarde o recarga la ve en el mismo momento que los demás.
+  const [hintShown, setHintShown] = React.useState(false)
+  const qNow = (session?.questions || [])[session?.current_index] || {}
+  const hintKey = session?.phase === 'question' ? `${session.current_index}|${session.question_started_at}` : null
+  React.useEffect(() => {
+    setHintShown(false)
+    if (!hintKey || !qNow.hint || !session?.question_started_at) return
+    const limit = qNow.time_limit_s || session.time_limit_s || 20
+    const wait = new Date(session.question_started_at).getTime() + hintDelayMs(limit) - Date.now()
+    const show = () => {
+      setHintShown(true)
+      reactCharacter('idle', '💡 Pista: ' + qNow.hint)
+    }
+    if (wait <= 0) { setHintShown(true); return }
+    const t = setTimeout(show, wait)
+    return () => clearTimeout(t)
+  }, [hintKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fin de la clase → avisar una sola vez. El ref evita que el poll de 7 s y las
   // suscripciones realtime lo disparen en cada refresco de la sesión terminada.
@@ -230,7 +281,7 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
     return (
       <Center><div style={cardStyle}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Pregunta {idx + 1}</div>
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 14, lineHeight: 1.4 }}>{q.question}</h3>
+        <RichText as="h3" style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 14, lineHeight: 1.4 }}>{q.question}</RichText>
         {isPoll ? (
           <PollBars sessionId={session.id} index={idx} options={options} myAns={myAns} />
         ) : (
@@ -250,8 +301,8 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
                   color: (isCorrect || isMine) ? '#1A1A2E' : 'var(--dark)',
                   display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ width: 22, height: 22, borderRadius: 6, background: OPT_COLORS[i % OPT_COLORS.length], color: '#fff',
-                    fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{String.fromCharCode(65 + i)}</span>
-                  {opt}{isCorrect && ' ✓'}{isMine && !isCorrect && ' ✗'}
+                    fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{String.fromCharCode(65 + i)}</span>
+                  <span style={{ flex: 1 }}><RichText>{opt}</RichText>{isCorrect && ' ✓'}{isMine && !isCorrect && ' ✗'}</span>
                 </div>
               )
             })}
@@ -291,8 +342,22 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
         Pregunta {idx + 1} de {session.total_questions}
       </div>
-      {q.image && <img src={q.image} alt="" style={{ width: '100%', maxHeight: q.imageHeight || 220, objectFit: 'contain', borderRadius: 12, marginBottom: 12, border: '1px solid var(--border)' }} />}
-      <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--dark)', marginBottom: 16, lineHeight: 1.4 }}>{q.question}</h3>
+      <LivePassage passage={q.passage} />
+      {q.image && (
+        <a href={q.image} target="_blank" rel="noreferrer" title="Abrir la imagen en grande">
+          <img src={q.image} alt="" style={{ width: '100%', maxHeight: q.imageHeight || 260, objectFit: 'contain', borderRadius: 12, marginBottom: 12, border: '1px solid var(--border)', background: '#fff' }} />
+        </a>
+      )}
+      {/* RichText: respeta los saltos de línea (tablas, pasos, ecuaciones) y la
+          **negrilla** con que algunas preguntas resaltan palabras del texto. */}
+      <RichText as="h3" style={{ fontSize: 17, fontWeight: 700, color: 'var(--dark)', marginBottom: q.questionAfter ? 8 : 16, lineHeight: 1.4 }}>{q.question}</RichText>
+      {q.questionAfter && <RichText as="h3" style={{ fontSize: 17, fontWeight: 700, color: 'var(--dark)', marginBottom: 16, lineHeight: 1.4 }}>{q.questionAfter}</RichText>}
+      {!answered && q.hint && hintShown && (
+        <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, background: 'var(--orange-bg)', borderLeft: '3px solid var(--orange)', animation: 'fadeUp .4s ease both' }}>
+          <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>💡 Pista del tutor</div>
+          <RichText as="p" style={{ fontSize: 13.5, color: 'var(--text-sec)', lineHeight: 1.55, margin: 0 }}>{q.hint}</RichText>
+        </div>
+      )}
       {answered ? (
         <div style={{ textAlign: 'center', padding: '24px 0' }}>
           {avatar
@@ -310,7 +375,7 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
                 fontFamily: 'var(--font)', fontSize: 16, fontWeight: 700, boxShadow: 'var(--sh-md)', opacity: sending ? .7 : 1 }}>
               <span style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(255,255,255,.25)', display: 'flex',
                 alignItems: 'center', justifyContent: 'center', fontWeight: 800, flexShrink: 0 }}>{String.fromCharCode(65 + i)}</span>
-              {opt}
+              <RichText style={{ lineHeight: 1.4 }}>{opt}</RichText>
             </button>
           ))}
         </div>
