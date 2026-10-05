@@ -7,6 +7,7 @@ import { supabase } from './lib/supabaseClient.js'
 import { XS, useStore, doLogout, loadInstructorInstitutions, loadSessionCatalogs, loadRouteConfigs, applyInitialHash, getAccessBlockReason } from './store/store.jsx'
 import { loadStaffData, loadStudentData } from './lib/sessionData.js'
 import { isSessionExpired, clearIdleActivity, markActivity } from './lib/idleTimeout.js'
+import './lib/updateNotice.js' // barra "Hay una versión nueva — Recargar"
 
 // Wrapper que pasa el page actual como resetKey al ErrorBoundary
 const PagedErrorBoundary = ({ children }) => {
