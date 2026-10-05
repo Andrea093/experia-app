@@ -315,7 +315,9 @@ const CourseSelector = ({ enrollments, courses, currentId, onSelect, switching =
         background: 'var(--white)', borderRadius: 20, padding: 32,
         width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,.18)',
         animation: 'fadeUp .3s ease',
-        maxHeight: 'calc(100dvh - 48px)', display: 'flex', flexDirection: 'column',
+        // vh (no dvh): dvh no lo reconocen todos los navegadores y sin él
+        // la caja volvía a salirse de la pantalla.
+        maxHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column',
       }}>
         <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>
           Selecciona tu curso
