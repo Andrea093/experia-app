@@ -70,7 +70,9 @@ const BankCard = ({ q, n, passage, inModule, usedIn, onToggle }) => {
   )
 }
 
-const QuestionBankPicker = ({ area, selectedIds, usedElsewhere = {}, onToggle, onClose }) => {
+// `embedded`: va fijo en la columna derecha del editor a pantalla completa —
+// sin botones de "Volver"/"Listo", porque no hay otra vista a la que volver.
+const QuestionBankPicker = ({ area, selectedIds, usedElsewhere = {}, onToggle, onClose, embedded = false }) => {
   const [bank, setBank]     = React.useState(null)
   const [err, setErr]       = React.useState('')
   const [diff, setDiff]     = React.useState('')
@@ -101,9 +103,9 @@ const QuestionBankPicker = ({ area, selectedIds, usedElsewhere = {}, onToggle, o
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <button onClick={onClose}
+        {!embedded && <button onClick={onClose}
           style={{ padding: '7px 12px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'var(--white)', cursor: 'pointer',
-            fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'var(--dark)' }}>← Volver al módulo</button>
+            fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'var(--dark)' }}>← Volver al módulo</button>}
         <div style={{ flex: 1, minWidth: 180 }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--dark)' }}>📚 Banco de {a?.icon} {a?.label}</div>
           <div style={{ fontSize: 12, color: 'var(--muted)' }}>{all.length} preguntas · <b style={{ color: 'var(--orange)' }}>{mine.length} en este módulo</b></div>
@@ -148,11 +150,11 @@ const QuestionBankPicker = ({ area, selectedIds, usedElsewhere = {}, onToggle, o
         })}
       </div>
 
-      <button onClick={onClose}
+      {!embedded && <button onClick={onClose}
         style={{ position: 'sticky', bottom: 0, padding: '11px', borderRadius: 11, border: 'none', cursor: 'pointer', fontFamily: 'var(--font)',
           fontSize: 14, fontWeight: 800, color: '#fff', background: 'var(--gradient)', boxShadow: 'var(--sh-md)' }}>
         Listo · {mine.length} pregunta{mine.length !== 1 ? 's' : ''} en el módulo
-      </button>
+      </button>}
     </div>
   )
 }
