@@ -725,6 +725,10 @@ tabla" y "¿Qué nos dicen los datos?". Backend: `0076_bitacora_resultados_saber
 `scripts/test-migraciones/run-bitacora.mjs`), que AGREGA la sección al final del
 módulo 3 de las seis rutas (incluye Ciencias Sociales) sin tocar lo demás.
 
+- ⚠️ **Va SIEMPRE en el módulo de `"order"` 3, sin mirar el título** (`0079`).
+  0077 la buscaba por título "Bitácora…" y en Ciencias Sociales el módulo 7
+  también se llama así: la sección quedó en el 7. No volver a elegir el módulo
+  por título.
 - ⚠️ **Los datos son SINTÉTICOS** (`synthetic: true` → la tarjeta dice "Datos de
   ejemplo"). Con resultados reales del colegio, se cambian los números en el
   script (o en la sección del módulo) y se quita `synthetic`.
@@ -920,6 +924,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...
    - Aplicada `0075` (rondas de preguntas del banco en los módulos 4 y 6, §14).
    - Aplicada `0076` (resultados Saber del colegio en el módulo 3, datos sintéticos, §15) y su refuerzo `0077` (familia completa de cada curso + diagnóstico por colegio).
    - Aplicada `0078` (rondas de Ciencias Sociales en los módulos 4 y 6, §14).
+   - **Sin aplicar: `0079`** (la sección de resultados Saber va siempre en el módulo 3; 0077 la dejó en el 7 de Sociales, §15). Probada con `scripts/test-migraciones/run-bitacora-0079.mjs`.
    - ⚠️ **Rutas de las 4 asignaturas = SOLO sus 7 módulos** (oct 2026): 1 apertura (rompehielos/físicas) · 2 estructura Saber · 3 bitácora · 4 primera ronda · 5 pausa activa (solo físicas) · 6 ronda final · 7 cierre. No agregar retos "Pregunta en Vivo" por migración: las preguntas de la clase en vivo las sube el equipo académico desde el editor de ruta.
 7. **CLI de Supabase inoperante:** sin `supabase/config.toml`, `db diff --linked` y `db push` fallan. Las migraciones se corren a mano; probarlas antes con `scripts/test-migraciones/`
 
