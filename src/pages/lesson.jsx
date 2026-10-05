@@ -111,10 +111,15 @@ const SlidesSection = ({ section, delay }) => {
 // se reconocen por su título — así quedan ocultas al estudiante en TODOS los
 // cursos, también en los copiados o creados después, sin depender de que una
 // migración las haya marcado.
-const TUTOR_GUIDE_TITLES = new Set(['qué es este bloque', 'cómo ejecutarlo']);
+// Oct 2026: también la frase de apertura, el "Antes de empezar" y la franja
+// horaria del bloque ("00:10–00:25 · 15 min"): son guion del docente. El
+// estudiante ve el título del módulo (hero) y directo la actividad/contenido.
+const TUTOR_GUIDE_TITLES = new Set(['qué es este bloque', 'cómo ejecutarlo', 'frase de apertura', 'antes de empezar']);
+const TIME_SLOT = /^\s*\d{1,2}:\d{2}\s*[–—-]\s*\d{1,2}:\d{2}/;
 export const isTutorOnlySection = (sec) => {
   if (!sec) return false;
   if (typeof sec.tutorOnly === 'boolean') return sec.tutorOnly;
+  if (sec.type === 'intro' && TIME_SLOT.test(String(sec.text || ''))) return true;
   return TUTOR_GUIDE_TITLES.has(String(sec.title || '').normalize('NFC').trim().toLowerCase());
 };
 

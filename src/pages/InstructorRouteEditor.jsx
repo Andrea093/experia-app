@@ -7,6 +7,7 @@ import {
 } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, GripIc, LockIc, Btn, Modal } from '../components/ui.jsx'
 import { resolveActivity, ACTIVITY_BANKS } from '../lib/activityBank.js'
+import { isQuestionRound, displayType, ROUND_LABELS, BANK_AREAS } from '../lib/questionBankMeta.js'
 import CertificateCard, { DEFAULT_ACHIEVEMENT_TEXT as DEFAULT_CERT_ACHIEVEMENT_TEXT, fichaCertificado } from '../components/CertificateCard.jsx'
 import {
   TYPE_LABELS, TYPE_COLORS, TYPE_BG,
@@ -24,6 +25,9 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
   // elegida se ve en la fila y un clic abre el editor con el banco completo.
   const actSec = (mod.content || []).find(s => s.type === 'activity')
   const act = actSec ? resolveActivity(actSec) : null
+  // Ronda de preguntas del banco (módulos 4 y 6): se rotula como módulo.
+  const round = isQuestionRound(mod)
+  const vType = displayType(mod)
   return (
     <div draggable
       onDragStart={onDragStart} onDragOver={e => { e.preventDefault(); onDragOver() }}
@@ -38,12 +42,12 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px' }}>
         <GripIc s={16} c="var(--subtle)" />
         <div style={{ width: 24, height: 24, borderRadius: 7, flexShrink: 0,
-          background: TYPE_BG[mod.type] || 'var(--bg-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 10, fontWeight: 800, color: TYPE_COLORS[mod.type] || 'var(--muted)' }}>{idx + 1}</div>
+          background: TYPE_BG[vType] || 'var(--bg-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 10, fontWeight: 800, color: TYPE_COLORS[vType] || 'var(--muted)' }}>{idx + 1}</div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
-            background: TYPE_BG[mod.type] || 'var(--bg-alt)', color: TYPE_COLORS[mod.type] || 'var(--muted)',
-            textTransform: 'uppercase', letterSpacing: .8 }}>{TYPE_LABELS[mod.type] || 'MÓDULO'}</span>
+            background: TYPE_BG[vType] || 'var(--bg-alt)', color: TYPE_COLORS[vType] || 'var(--muted)',
+            textTransform: 'uppercase', letterSpacing: .8 }}>{TYPE_LABELS[vType] || 'MÓDULO'}</span>
           <span style={{ fontSize: 13, fontWeight: 600, color: mod.enabled ? 'var(--dark)' : 'var(--subtle)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mod.title}</span>
           {mod.override && (
@@ -58,6 +62,15 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
               fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? 120 : 230,
               fontFamily: 'var(--font)' }}>
             {ACTIVITY_BANKS[act.bank]?.icon} {act.title}
+          </button>
+        )}
+        {round && (
+          <button onClick={onEdit} title="Ver y cambiar las preguntas de esta ronda (banco de preguntas)"
+            style={{ background: 'var(--orange-bg)', border: '1px solid var(--orange)', cursor: 'pointer', color: 'var(--orange)',
+              height: 26, padding: '0 9px', borderRadius: 7, display: 'flex', alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0,
+              fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? 120 : 260,
+              fontFamily: 'var(--font)' }}>
+            🎮 {ROUND_LABELS[mod.bankRound] || 'Ronda'} · {BANK_AREAS[mod.bank]?.icon} {(mod.questions || []).length} preguntas
           </button>
         )}
         {mod.type === 'lesson' && onPreview && (
@@ -318,6 +331,17 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
     }
     setEditingQuiz(null)
   }
+
+  // Preguntas del banco que ya están en OTRO módulo de esta ruta, para avisarlo
+  // en el selector (y no repetir sin querer la misma pregunta en las dos rondas).
+  const usedElsewhere = React.useMemo(() => {
+    const map = {}
+    moduleList.forEach(m => {
+      if (m.id === editingQuiz?.id) return
+      ;(m.questions || []).forEach(q => { if (q?.id && !map[q.id]) map[q.id] = m.title })
+    })
+    return map
+  }, [moduleList, editingQuiz])
 
   const handleNewChallenge = ({ ctype, title, desc, task, xp }) => {
     setShowNewChallenge(false)
@@ -653,7 +677,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
       <NewChallengeModal open={showNewChallenge} onClose={() => setShowNewChallenge(false)} onCreate={handleNewChallenge} />
       <ChallengeEditorModal open={!!editingChallenge} mod={editingChallenge} onClose={() => setEditingChallenge(null)} onSave={saveChallengeOverride} />
       <QuizCreatorModal open={!!editingQuiz} initial={editingQuiz?.isNew ? null : editingQuiz} onClose={() => setEditingQuiz(null)} onSave={saveQuizCustom}
-        variant={editingQuiz?.ctype === 'poll' ? 'poll' : 'quiz'} />
+        variant={editingQuiz?.ctype === 'poll' ? 'poll' : 'quiz'} usedElsewhere={usedElsewhere} />
       <CustomModuleModal open={!!editingModule} initial={editingModule}
         onClose={() => setEditingModule(null)} onSave={saveBaseModuleOverride} />
       <CustomModuleModal open={showAddModule}

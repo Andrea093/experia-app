@@ -669,6 +669,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
   const [confirmed, setConfirmed] = React.useState(false);
   const [done, setDone] = React.useState(false);
   const [attemptInfo, setAttemptInfo] = React.useState(null); // { attempts } tras registrar
+  const [hintOpen, setHintOpen] = React.useState(false); // pista del tutor (rondas del banco)
 
   // Config del tutor: puntaje mínimo para aprobar/continuar e intentos permitidos.
   const passingScore = mod.passingScore ?? 60;
@@ -680,7 +681,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
   const remaining = maxAttempts > 0 ? Math.max(0, maxAttempts - attemptsUsedNow) : null;
   const limitReached = maxAttempts > 0 && attemptsUsedNow >= maxAttempts;
 
-  const retry = () => { setCurrent(0); setAnswers([]); setSelected(null); setConfirmed(false); setDone(false); setAttemptInfo(null); };
+  const retry = () => { setCurrent(0); setAnswers([]); setSelected(null); setConfirmed(false); setDone(false); setAttemptInfo(null); setHintOpen(false); };
 
   if (!questions.length) return (
     <div style={{textAlign:'center',padding:40}}>
@@ -713,7 +714,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
 
   const handleNext = async () => {
     if (current < questions.length - 1) {
-      setCurrent(c => c + 1); setSelected(null); setConfirmed(false);
+      setCurrent(c => c + 1); setSelected(null); setConfirmed(false); setHintOpen(false);
     } else {
       const allAnswers = [...answers];
       const finalCorrect = allAnswers.filter((a,i) => a === questions[i]?.correct).length;
@@ -812,6 +813,9 @@ const QuizChallenge = ({ mod, onComplete }) => {
         <ProgressBar pct={(current/questions.length)*100} h={6} color="var(--orange)"/>
         <span style={{fontSize:12,color:'var(--muted)',whiteSpace:'nowrap',fontWeight:600}}>{current+1}/{questions.length}</span>
       </div>
+      {/* Texto de lectura propio de la pregunta (rondas del banco: cada
+          pregunta trae el suyo, porque se eligen sueltas). */}
+      {q.passage && <QuizPassage key={'p' + current} passage={q.passage} />}
       <div key={current} style={{padding:'24px 28px',borderRadius:18,background:'var(--white)',border:'1.5px solid var(--border)',boxShadow:'var(--sh-md)',marginBottom:16}}>
         <QuestionImage q={q} slot="before" />
         <RichText as="h4" style={{fontSize:17,fontWeight:700,color:'var(--dark)',lineHeight:1.5,marginBottom:(q.imagePosition==='between'||q.questionAfter)?12:20}}>{q.question}</RichText>
@@ -839,6 +843,20 @@ const QuizChallenge = ({ mod, onComplete }) => {
           })}
         </div>
         <QuestionImage q={q} slot="after" />
+        {/* Pista del tutor: la misma que da en la clase en vivo. El tutor del
+            curso la dice en su globo; aquí queda escrita para releerla. */}
+        {q.hint && !confirmed && (hintOpen ? (
+          <div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:'var(--orange-bg)',borderLeft:'3px solid var(--orange)'}}>
+            <div style={{fontSize:11,fontWeight:800,color:'var(--orange)',textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>💡 Pista del tutor</div>
+            <RichText as="p" style={{fontSize:14,color:'var(--text-sec)',lineHeight:1.6,margin:0}}>{q.hint}</RichText>
+          </div>
+        ) : (
+          <button onClick={()=>{ setHintOpen(true); reactCharacter('idle', '💡 ' + q.hint); }}
+            style={{marginTop:14,padding:'8px 14px',borderRadius:10,border:'1.5px dashed var(--orange)',background:'var(--white)',
+              color:'var(--orange)',fontFamily:'var(--font)',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+            💡 Pedir una pista
+          </button>
+        ))}
         {confirmed&&(
           <p style={{fontSize:13,fontWeight:600,marginTop:14,color:answers[answers.length-1]===q.correct?'var(--success)':'var(--error)'}}>
             {answers[answers.length-1]===q.correct

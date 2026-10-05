@@ -345,6 +345,8 @@ const dbModToAppMod = (row) => ({
   ...(row.challenge_data?.statements   ? { statements:   row.challenge_data.statements }    : {}),
   ...(row.challenge_data?.blanks       ? { blanks:       row.challenge_data.blanks }        : {}),
   ...(row.challenge_data?.passage      ? { passage:      row.challenge_data.passage }       : {}),
+  // Ronda de preguntas del banco (módulos 4 y 6, 0075): asignatura del banco + nº de ronda
+  ...(row.challenge_data?.bank         ? { bank: row.challenge_data.bank, bankRound: row.challenge_data.bankRound || null } : {}),
   ...(row.challenge_data?.correctMessage   ? { correctMessage:   row.challenge_data.correctMessage }   : {}),
   ...(row.challenge_data?.incorrectMessage ? { incorrectMessage: row.challenge_data.incorrectMessage } : {}),
   // Mensaje final del quiz según resultado (aprobó/no aprobó) — configurable por el tutor
@@ -1947,6 +1949,7 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.statements   || m.override?.statements)    challengeData.statements   = m.statements   || m.override.statements;
     if (m.blanks       || m.override?.blanks)        challengeData.blanks       = m.blanks       || m.override.blanks;
     if (m.passage      || m.override?.passage)       challengeData.passage      = m.passage      || m.override.passage;
+    if (m.bank) { challengeData.bank = m.bank; if (m.bankRound) challengeData.bankRound = m.bankRound; }
     if (m.correctMessage   || m.override?.correctMessage)   challengeData.correctMessage   = m.correctMessage   || m.override.correctMessage;
     if (m.incorrectMessage || m.override?.incorrectMessage) challengeData.incorrectMessage = m.incorrectMessage || m.override.incorrectMessage;
     if (m.passingScore != null || m.override?.passingScore != null) challengeData.passingScore = m.passingScore ?? m.override.passingScore;
@@ -1973,6 +1976,7 @@ const publishRouteToCourse = async (courseId, area, moduleList, customModules) =
     if (m.statements)   challengeData.statements   = m.statements;
     if (m.blanks)       challengeData.blanks       = m.blanks;
     if (m.passage)      challengeData.passage      = m.passage;
+    if (m.bank)         { challengeData.bank = m.bank; if (m.bankRound) challengeData.bankRound = m.bankRound; }
     if (m.correctMessage)   challengeData.correctMessage   = m.correctMessage;
     if (m.incorrectMessage) challengeData.incorrectMessage = m.incorrectMessage;
     if (m.passingScore != null) challengeData.passingScore = m.passingScore;
@@ -2259,6 +2263,7 @@ const saveCourseModules = async (courseId, moduleList, courseName, certConfig) =
         if (m.statements)   cd.statements   = m.statements;
         if (m.blanks)       cd.blanks       = m.blanks;
         if (m.passage)      cd.passage      = m.passage;
+        if (m.bank)         { cd.bank = m.bank; if (m.bankRound) cd.bankRound = m.bankRound; }
         if (m.correctMessage)   cd.correctMessage   = m.correctMessage;
         if (m.incorrectMessage) cd.incorrectMessage = m.incorrectMessage;
         if (m.passingScore != null) cd.passingScore = m.passingScore;
