@@ -316,3 +316,36 @@ select ef.asignatura,
 const out77 = path.join(ROOT, 'supabase/migrations/0077_bitacora_resultados_saber_todas_las_copias.sql')
 fs.writeFileSync(out77, sql77)
 console.log('Escrito', path.relative(ROOT, out77), `(${(sql77.length / 1024).toFixed(1)} KB)`)
+
+// ── 0079: la sección va SIEMPRE en el módulo de "order" 3 ──
+// 0077 buscaba primero por título ("Bitácora…"), y en Ciencias Sociales el
+// módulo 7 también lo lleva: la sección quedó en el 7. Decisión del equipo:
+// las gráficas van en el módulo 3, se llame como se llame. Misma lógica que
+// 0077 (familia completa, idempotente, retira la sección de cualquier otro
+// módulo), pero el módulo se elige solo por "order" = 3.
+const sql79 = sql77
+  .replace(/-- ={60}[\s\S]*?-- ={60}\n/, `-- ============================================================
+-- 0079_bitacora_siempre_modulo_3.sql
+-- GENERADO por scripts/build-bitacora.mjs — no editar a mano.
+--
+-- Corrige 0077: la sección de resultados Saber va SIEMPRE en el módulo de
+-- "order" 3, sin mirar el título. En Ciencias Sociales el módulo 7 también
+-- se llama "Bitácora…" y 0077 la había puesto ahí.
+--   · recorre la familia COMPLETA de cada asignatura (copias de copias);
+--   · agrega la sección al módulo 3 si no la tiene (idempotente);
+--   · la retira de cualquier otro módulo del curso (p. ej. el 7).
+-- Al final muestra DOS tablas: qué se cambió y, por colegio, si el módulo 3
+-- de lo que cargan sus estudiantes ya la tiene ("NO" = falta).
+-- EJECUTAR en Supabase SQL Editor.
+-- ============================================================
+`)
+  .replace(/ {6}select \* into m from public\.course_modules\n {7}where course_id = c\.id and type = 'lesson' and title ilike '%bit_cora%'\n {7}order by "order" limit 1;\n {6}if m\.id is null then\n {8}select \* into m from public\.course_modules where course_id = c\.id and "order" = 3;\n {6}end if;\n/,
+    `      select * into m from public.course_modules where course_id = c.id and "order" = 3\n       order by created_at limit 1;\n`)
+  .replace('-- Si 0076 la puso en otro módulo de este curso (la Bitácora no estaba en\n      -- el orden 3), se retira de ahí: queda solo en la Bitácora.',
+           '-- Si 0076/0077 la pusieron en otro módulo (p. ej. el 7 de Sociales),\n      -- se retira de ahí: queda solo en el módulo 3.')
+  .replace('where cm.course_id = ef.curso_efectivo and cm.is_enabled\n', 'where cm.course_id = ef.curso_efectivo and cm.is_enabled and cm."order" = 3\n')
+  .replaceAll('_0077_', '_0079_')
+if (sql79.includes("bit_cora") || !sql79.includes('cm."order" = 3')) throw new Error('0079: no se aplicaron los reemplazos')
+const out79 = path.join(ROOT, 'supabase/migrations/0079_bitacora_siempre_modulo_3.sql')
+fs.writeFileSync(out79, sql79)
+console.log('Escrito', path.relative(ROOT, out79), `(${(sql79.length / 1024).toFixed(1)} KB)`)
