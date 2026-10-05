@@ -845,7 +845,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
         <QuestionImage q={q} slot="after" />
         {/* Pista del tutor: la misma que da en la clase en vivo. El tutor del
             curso la dice en su globo; aquí queda escrita para releerla. */}
-        {q.hint && !confirmed && (hintOpen ? (
+        {q.hint && !confirmed && (hintOpen && !getActiveCourseTheme() ? (
           <div style={{marginTop:14,padding:'12px 14px',borderRadius:12,background:'var(--orange-bg)',borderLeft:'3px solid var(--orange)'}}>
             <div style={{fontSize:11,fontWeight:800,color:'var(--orange)',textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>💡 Pista del tutor</div>
             <RichText as="p" style={{fontSize:14,color:'var(--text-sec)',lineHeight:1.6,margin:0}}>{q.hint}</RichText>
@@ -854,7 +854,7 @@ const QuizChallenge = ({ mod, onComplete }) => {
           <button onClick={()=>{ setHintOpen(true); reactCharacter('idle', '💡 ' + q.hint); }}
             style={{marginTop:14,padding:'8px 14px',borderRadius:10,border:'1.5px dashed var(--orange)',background:'var(--white)',
               color:'var(--orange)',fontFamily:'var(--font)',fontSize:13,fontWeight:700,cursor:'pointer'}}>
-            💡 Pedir una pista
+            💡 {hintOpen ? 'Repetir la pista' : 'Pedir una pista'}
           </button>
         ))}
         {confirmed&&(

@@ -97,10 +97,22 @@ export const LivePassage = ({ passage, maxHeight = '42vh' }) => {
   )
 }
 
-// Momento en que el tutor da la pista: a un cuarto del tiempo, entre 8 y 20 s
-// (antes era un tercio y en las lecturas de 2–3 min tardaba casi un minuto en
-// llegar). Primero intentan solos. Compartido con el panel del profesor.
-export const hintDelayMs = (limitS) => Math.min(20, Math.max(8, Math.round((limitS || 20) * 0.25))) * 1000
+// Momento en que el tutor da la pista: entre 5 y 10 s después de abrir la
+// pregunta (15 % del tiempo). Antes llegaba a un cuarto o un tercio del tiempo
+// y en las lecturas (2–3 min) muchos ya habían respondido: la pista no se veía.
+// Compartido con el panel del profesor.
+export const hintDelayMs = (limitS) => Math.min(10, Math.max(5, Math.round((limitS || 20) * 0.15))) * 1000
+
+// Pista escrita: SOLO para la página pública del PIN, que no tiene tutor. En
+// la Clase en Vivo Guiada la pista la dice el personaje del curso (ver el
+// efecto de `hintKey`), no va como texto en la tarjeta.
+const HintCard = ({ hint }) => (
+  <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, background: 'var(--orange-bg)',
+    borderLeft: '3px solid var(--orange)', animation: 'fadeUp .4s ease both' }}>
+    <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>💡 Pista del tutor</div>
+    <RichText as="p" style={{ fontSize: 13.5, color: 'var(--text-sec)', lineHeight: 1.55, margin: 0 }}>{hint}</RichText>
+  </div>
+)
 
 // Barras de distribución en vivo (encuestas, sin respuesta correcta).
 const PollBars = ({ sessionId, index, options, myAns }) => {
@@ -145,7 +157,7 @@ const PollBars = ({ sessionId, index, options, myAns }) => {
 // ruta (solo la Clase en Vivo Guiada lo pasa). Si el snapshot de la sesión no
 // trae el texto de lectura o la pista (sesión creada antes de 0075, o snapshot
 // incompleto), se completan desde aquí — misma posición, mismo orden.
-export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = null, moduleQuestions = null }) => {
+export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = null, moduleQuestions = null, tutor = null }) => {
   const Center = Wrap || (({ children }) => <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>)
   const [session, setSession]   = React.useState(null)
   const [parts, setParts]       = React.useState([])
@@ -190,7 +202,10 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
       setHintShown(true)
       reactCharacter('idle', '💡 Pista: ' + qNow.hint)
     }
-    if (wait <= 0) { setHintShown(true); return }
+    // Ya pasó el momento (entró tarde, o su reloj va adelantado respecto al
+    // del servidor): el tutor la dice YA. Antes aquí solo se marcaba como
+    // mostrada y el personaje nunca salía a decirla.
+    if (wait <= 0) { show(); return }
     const t = setTimeout(show, wait)
     return () => clearTimeout(t)
   }, [hintKey]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -363,12 +378,10 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
           **negrilla** con que algunas preguntas resaltan palabras del texto. */}
       <RichText as="h3" style={{ fontSize: 17, fontWeight: 700, color: 'var(--dark)', marginBottom: q.questionAfter ? 8 : 16, lineHeight: 1.4 }}>{q.question}</RichText>
       {q.questionAfter && <RichText as="h3" style={{ fontSize: 17, fontWeight: 700, color: 'var(--dark)', marginBottom: 16, lineHeight: 1.4 }}>{q.questionAfter}</RichText>}
-      {!answered && q.hint && hintShown && (
-        <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, background: 'var(--orange-bg)', borderLeft: '3px solid var(--orange)', animation: 'fadeUp .4s ease both' }}>
-          <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3 }}>💡 Pista del tutor</div>
-          <RichText as="p" style={{ fontSize: 13.5, color: 'var(--text-sec)', lineHeight: 1.55, margin: 0 }}>{q.hint}</RichText>
-        </div>
-      )}
+      {/* La pista la DICE el tutor del curso: el personaje se despliega desde
+          su insignia (abajo a la derecha) con la pista en su globo. Solo sin
+          tutor (página pública del PIN) queda como tarjeta de texto. */}
+      {!tutor && q.hint && hintShown && <HintCard hint={q.hint} />}
       {answered ? (
         <div style={{ textAlign: 'center', padding: '24px 0' }}>
           {avatar

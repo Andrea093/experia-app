@@ -2,6 +2,7 @@ import React from 'react'
 import { useStore, selectActiveCourseTheme } from '../store/store.jsx'
 import { LiveQuestionView } from './LiveQuestionView.jsx'
 import { LessonBody } from '../pages/lesson.jsx'
+import { getCharacter } from '../lib/characters.jsx'
 
 // El tutor del curso temático. La vista guiada se renderiza FUERA del shell
 // normal (app.jsx retorna antes de montar <CourseAmbient/>), así que hay que
@@ -52,6 +53,11 @@ const GuidedClassViewInner = ({ guided }) => {
   // sesión: su avatar lo acompaña en el lobby, al responder, en el revelado
   // (reacciona con la expresión) y en el podio.
   const avatar = useStore(s => s.user?.avatarConfig) || null
+  // Si el curso tiene tutor, la pista la dice el personaje (no va como texto
+  // en la tarjeta). La página pública del PIN no lo pasa: allí no hay tutor.
+  const theme = useStore(selectActiveCourseTheme)
+  const ch = theme ? getCharacter(theme) : null
+  const tutor = ch?.art ? { name: ch.name } : null
 
   if (!session || !participant) return null
 
@@ -63,7 +69,7 @@ const GuidedClassViewInner = ({ guided }) => {
 
   // Módulo interactivo (quiz o encuesta en vivo): reusa el ciclo ya construido.
   if (currentMod?.type === 'challenge' && (currentMod.ctype === 'quiz' || currentMod.ctype === 'poll')) {
-    return <LiveQuestionView participant={participant} Wrap={Shell} avatar={avatar} moduleQuestions={currentMod.questions} />
+    return <LiveQuestionView participant={participant} Wrap={Shell} avatar={avatar} moduleQuestions={currentMod.questions} tutor={tutor} />
   }
 
   // Lección de lectura: mismo contenido que ve el profesor, en modo solo-lectura.

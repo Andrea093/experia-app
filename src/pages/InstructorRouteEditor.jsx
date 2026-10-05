@@ -7,7 +7,7 @@ import {
 } from '../store/store.jsx'
 import { useMobile, PlusIc, TrashIc, EditIc, GripIc, LockIc, Btn, Modal } from '../components/ui.jsx'
 import { resolveActivity, ACTIVITY_BANKS } from '../lib/activityBank.js'
-import { isQuestionRound, displayType, ROUND_LABELS, BANK_AREAS } from '../lib/questionBankMeta.js'
+import { isQuestionRound, displayType } from '../lib/questionBankMeta.js'
 import CertificateCard, { DEFAULT_ACHIEVEMENT_TEXT as DEFAULT_CERT_ACHIEVEMENT_TEXT, fichaCertificado } from '../components/CertificateCard.jsx'
 import {
   TYPE_LABELS, TYPE_COLORS, TYPE_BG,
@@ -64,21 +64,12 @@ const ModuleRow = ({ mod, idx, dragIdx, overIdx, isMobile,
             {ACTIVITY_BANKS[act.bank]?.icon} {act.title}
           </button>
         )}
-        {round && (
-          <button onClick={onEdit} title="Ver y cambiar las preguntas de esta ronda (banco de preguntas)"
-            style={{ background: 'var(--orange-bg)', border: '1px solid var(--orange)', cursor: 'pointer', color: 'var(--orange)',
-              height: 26, padding: '0 9px', borderRadius: 7, display: 'flex', alignItems: 'center', gap: 4, flexShrink: 1, minWidth: 0,
-              fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? 120 : 260,
-              fontFamily: 'var(--font)' }}>
-            🎮 {ROUND_LABELS[mod.bankRound] || 'Ronda'} · {BANK_AREAS[mod.bank]?.icon} {(mod.questions || []).length} preguntas
-          </button>
-        )}
         {mod.type === 'lesson' && onPreview && (
           <button onClick={onPreview} title="Ver el módulo como lo verá el estudiante (para preparar la clase)"
             style={{ background: 'var(--bg-alt)', border: 'none', cursor: 'pointer',
               width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13 }}>👁️</button>
         )}
-        <button onClick={onEdit} title="Editar contenido"
+        <button onClick={onEdit} title={round ? 'Editar las preguntas de esta ronda (banco de preguntas)' : 'Editar contenido'}
           style={{ background: mod.override ? 'var(--orange-bg)' : 'var(--bg-alt)', border: 'none', cursor: 'pointer',
             width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <EditIc s={13} c={mod.override ? 'var(--orange)' : 'var(--muted)'} />
