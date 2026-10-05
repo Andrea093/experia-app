@@ -21,7 +21,7 @@ if (!PASS_TEMPORAL) throw new Error('Falta la variable de entorno PASS_TEMPORAL'
 
 // ── Validaciones ────────────────────────────────────────────────────────────
 for (const g of GRUPOS) {
-  if (!DOCENTES.some(d => d.key === g.key)) throw new Error(`${g.key}: sin docente`)
+  if (!DOCENTES.some(d => d.key === (g.docente || g.key))) throw new Error(`${g.key}: sin docente`)
   const docs = new Set(g.alumnos.map(a => a[0]))
   if (docs.size !== g.alumnos.length) throw new Error(`${g.key}: documentos repetidos`)
   g.ejes.forEach((r, i) => { if (r.length !== EJES.length) throw new Error(`${g.key} fila ${i}: ${r.length} ejes`) })
@@ -161,7 +161,7 @@ on conflict (user_id, course_id) do nothing;
 
 // 2 y 3. Grupos
 for (const g of GRUPOS) {
-  const d = DOCENTES.find(x => x.key === g.key)
+  const d = DOCENTES.find(x => x.key === (g.docente || g.key))
   // Si el grupo trae su informe oficial (`grafica`), manda ese: su cálculo es
   // por respuestas ponderadas, no el promedio simple de estudiantes.
   const vals = g.grafica || promedios(g.ejes)
@@ -193,10 +193,11 @@ begin
      where id = v_group;
   end if;
 
-  delete from public.clone_group_students where group_id = v_group;
+${g.alumnos.length ? `  delete from public.clone_group_students where group_id = v_group;
   insert into public.clone_group_students (group_id, full_name, document, sort_order) values
 ${g.alumnos.map((a, i) => `    (v_group, ${q(a[1])}, ${q(a[0])}, ${i})`).join(',\n')};
-
+` : `  -- Sin listado todavía: no se tocan los alumnos que tenga el grupo.
+`}
   -- Plan: si el grupo no tiene, parte del de ONCE (unidades, libro, indicaciones).
   insert into public.clone_unit_plans (group_id, book_title, book_url, intro, units, chart)
   select v_group, m.book_title, m.book_url, m.intro, m.units, '{}'::jsonb
