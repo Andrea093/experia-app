@@ -130,6 +130,23 @@
   --viz-5: #D55181; --viz-6: #008300; --viz-7: #9085E9; --viz-8: #E66767;
 }
 
+/* RAMPA ORDINAL (--lvl-1..4) de un solo tono (el azul de --viz-1), para
+   escalas ORDENADAS: niveles de desempeño de la Prueba Saber (SaberResults).
+   Validada con el validador de la guía dataviz (--ordinal): tono único,
+   luminosidad monótona, saltos visibles y el extremo claro ≥ 2:1 contra la
+   superficie. Claro (#FFF): del tinte al tono oscuro. Oscuro y temas de curso
+   (fondos oscuros aunque la app esté en claro): del tono apagado al brillante,
+   para que "más alto" siga siendo "más visible".
+   --lvl-ink-* = tinta legible sobre cada relleno (las cifras dentro de la barra). */
+:root {
+  --lvl-1: #8DB6EC; --lvl-2: #5994E0; --lvl-3: #2A78D6; --lvl-4: #174B89;
+  --lvl-ink-1: #10233F; --lvl-ink-2: #10233F; --lvl-ink-3: #FFFFFF; --lvl-ink-4: #FFFFFF;
+}
+[data-theme="dark"], [data-course-theme] {
+  --lvl-1: #335D98; --lvl-2: #3773C0; --lvl-3: #3987E5; --lvl-4: #78ACEF;
+  --lvl-ink-1: #FFFFFF; --lvl-ink-2: #FFFFFF; --lvl-ink-3: #0B1A33; --lvl-ink-4: #0B1A33;
+}
+
 /* Los botones con acento en alto contraste llevan borde explícito */
 [data-contrast="alto"] button,
 [data-contrast="alto"] a {
