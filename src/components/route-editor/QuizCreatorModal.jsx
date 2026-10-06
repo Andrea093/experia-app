@@ -454,7 +454,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
                 {isOpenQ ? (<>
                 <div style={{ marginBottom: 10 }}>
                   <RichInput multiline rows={2} value={q.question} onChange={v => updateQ(q.id, 'question', v)}
-                    placeholder="Escribe la pregunta aquí… (párrafos largos; usa la barra para negrilla y color)" />
+                    placeholder="Escribe la pregunta aquí… (usa la barra para negrilla, color, ∑ fórmulas e 🖼️ imágenes)" />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                   {q.options.map((opt, oi) => {
@@ -547,8 +547,8 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
                     {!isPoll && (
                       <div>
                         <label style={advLbl}>Explicación (se muestra al estudiante después de responder)</label>
-                        <textarea value={q.explanation || ''} onChange={e => updateQ(q.id, 'explanation', e.target.value)} rows={3}
-                          placeholder="Explica por qué la respuesta correcta es la correcta…" style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} />
+                        <RichInput multiline rows={3} value={q.explanation || ''} onChange={v => updateQ(q.id, 'explanation', v)}
+                          placeholder="Explica por qué la respuesta correcta es la correcta… (admite fórmulas e imágenes)" />
                         <div style={{ marginTop: 6 }}>
                           {q.explanationImage && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
