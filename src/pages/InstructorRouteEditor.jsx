@@ -184,7 +184,7 @@ const AvailabilityForm = ({ mod, onSave, onCancel }) => {
 // ─── Modo Curso: edita los módulos reales de la copia del tutor ───────────────
 const EMPTY_CERT_CONFIG = { enabled: false, title: '', achievementText: '', signatoryName: '', signatoryRole: '', hours: '' }
 
-const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) => {
+const CourseEditor = ({ courseId, courseName: initialName, expiresAt, institutionName, onBack, onDirtyChange }) => {
   const isMobile = useMobile()
   const courses  = useStore(s => s.courses || [])
   const institutions = useStore(s => s.institutions || [])
@@ -219,6 +219,17 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
   const [importSourceId, setImportSourceId]     = React.useState('')
   const [importing, setImporting]               = React.useState(false)
 
+  // ¿Hay cambios sin guardar? Se compara contra una foto de lo último cargado/
+  // guardado. Lo usa el selector de colegio (y "Volver") para no perder trabajo
+  // al saltar a la versión de otro colegio.
+  const baselineRef = React.useRef(null)
+  const snapshot = (m, n, c) => JSON.stringify([m, n, c])
+  const markClean = (m, n, c) => { baselineRef.current = snapshot(m, n, c); onDirtyChange?.(false) }
+  React.useEffect(() => {
+    if (loading || baselineRef.current === null) return
+    onDirtyChange?.(snapshot(moduleList, courseName, certConfig) !== baselineRef.current)
+  }, [moduleList, courseName, certConfig, loading])
+
   // Versiones de ESTE MISMO curso hechas en OTROS colegios — se pueden traer
   // como plantilla para reemplazar la ruta actual (pedido: usar la versión que
   // otra profesora dejó lista en su colegio). Se apoya en la misma "familia":
@@ -245,8 +256,10 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
       if (error) { setLoadErr(error); setLoading(false); return }
       setModuleList(modules)
       setHasDraft(!!hasDraft)
-      if (hasDraft && draftName) setCourseName(draftName)
+      const name = hasDraft && draftName ? draftName : (initialName || '')
+      setCourseName(name)
       setCertConfig(cc || EMPTY_CERT_CONFIG)
+      markClean(modules, name, cc || EMPTY_CERT_CONFIG)
       setLoading(false)
     })
   }, [courseId])
@@ -405,6 +418,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
     setSaving(false)
     if (result.error) { setSavedMsg('⚠️ ' + result.error); return }
     setHasDraft(true)
+    markClean(moduleList, courseName, certConfig)
     setSavedMsg('💾 Borrador guardado — los estudiantes aún NO ven este cambio')
     setTimeout(() => setSavedMsg(''), 3500)
   }
@@ -419,6 +433,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
     setModuleList(modules)
     setCertConfig(cc || EMPTY_CERT_CONFIG)
     setHasDraft(false)
+    markClean(modules, courseName, cc || EMPTY_CERT_CONFIG)
     setSavedMsg('🚀 Publicado — ya es lo que ven los estudiantes')
     setTimeout(() => setSavedMsg(''), 3500)
   }
@@ -430,6 +445,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
     setModuleList(modules)
     setCertConfig(cc || EMPTY_CERT_CONFIG)
     setHasDraft(false)
+    markClean(modules, courseName, cc || EMPTY_CERT_CONFIG)
     setSaving(false)
     setSavedMsg('Borrador descartado — vuelto a lo publicado')
     setTimeout(() => setSavedMsg(''), 3000)
@@ -459,7 +475,7 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
           </button>
           <div>
             <h2 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 800, color: 'var(--dark)', marginBottom: 2 }}>Editar módulos del curso</h2>
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Versión de este colegio (la comparte contigo cualquier otro tutor asignado a él). Los estudiantes solo ven lo que publiques — puedes editar y previsualizar sin afectarlos hasta que estés conforme.</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Versión de {institutionName ? <strong style={{ color: 'var(--dark)' }}>{institutionName}</strong> : 'este colegio'} (la comparte contigo cualquier otro tutor asignado a él). Los estudiantes solo ven lo que publiques — puedes editar y previsualizar sin afectarlos hasta que estés conforme.</p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -742,6 +758,47 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, onBack }) 
   )
 }
 
+// ─── Barra de colegios sobre el editor ───────────────────────────────────────
+// Una pastilla por colegio del tutor: el actual resaltado, los que ya tienen
+// versión propia y los que aún no (al elegirlos se crea la copia). Los colegios
+// donde el curso no está habilitado salen deshabilitados: una versión allí no
+// la vería ningún estudiante.
+const SchoolSwitcher = ({ options, currentId, isMobile, onPick }) => {
+  if (!options.length) return null
+  return (
+    <div style={{ padding: isMobile ? '0 16px 12px' : '0 24px 14px' }}>
+      <div style={{ padding: '10px 14px', borderRadius: 12, background: 'var(--white)', border: '1.5px solid var(--border)',
+        display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: 1, marginRight: 4 }}>
+          🏫 Colegio
+        </span>
+        {options.map(opt => {
+          const { inst, enabled, fork } = opt
+          const current = inst.id === currentId
+          const title = current ? 'Estás editando la versión de este colegio'
+            : !enabled ? 'Este curso no está habilitado en este colegio (lo habilita un administrador)'
+            : fork ? 'Abrir la versión de este colegio'
+            : 'Este colegio aún no tiene versión: se creará una copia de la ruta'
+          return (
+            <button key={inst.id} onClick={() => onPick(opt)} disabled={!enabled && !current} title={title}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20,
+                fontFamily: 'var(--font)', fontSize: 13, fontWeight: current ? 700 : 600,
+                cursor: current ? 'default' : enabled ? 'pointer' : 'not-allowed',
+                border: `1.5px solid ${current ? 'var(--orange)' : 'var(--border)'}`,
+                background: current ? 'var(--orange)' : 'var(--bg-alt)',
+                color: current ? '#fff' : enabled ? 'var(--dark)' : 'var(--muted)',
+                opacity: !enabled && !current ? .55 : 1 }}>
+              {inst.name}
+              {!current && enabled && !fork && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)' }}>＋ crear versión</span>}
+              {!current && !enabled && <span style={{ fontSize: 11 }}>(no habilitado)</span>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── Selector: colegio → curso → crear/abrir copia ───────────────────────────
 const InstructorRouteEditor = () => {
   const institutions           = useStore(s => s.institutions)
@@ -800,8 +857,10 @@ const InstructorRouteEditor = () => {
       .filter(c => c && (allowedCourseIds.size === 0 || allowedCourseIds.has(c.id)) && !c.parent_course_id)
   }, [routeInstitution, institutionCourses, courses, allowedCourseIds])
 
-  // Autoseleccionar si solo hay un curso
+  // Autoseleccionar si solo hay un curso. Si el curso elegido también existe en
+  // el colegio nuevo (cambio de colegio desde el editor), se conserva.
   React.useEffect(() => {
+    if (selectedCourseId && linkedCourses.some(c => c.id === selectedCourseId)) return
     if (linkedCourses.length === 1) setSelectedCourseId(linkedCourses[0].id)
     else setSelectedCourseId('')
     setForkErr('')
@@ -849,6 +908,56 @@ const InstructorRouteEditor = () => {
     setActiveFork({ id: result.id, name: result.name })
   }
 
+  // ── Cambio de colegio DENTRO del editor ──
+  // Un tutor puede dar el mismo curso en varios colegios: cada colegio tiene su
+  // propia versión (fork). La barra de arriba del editor salta entre ellas y,
+  // si el colegio aún no tiene versión, la crea copiando la ruta que se elija.
+  const [editorDirty, setEditorDirty]       = React.useState(false)
+  const [switchTarget, setSwitchTarget]     = React.useState(null) // colegio sin versión aún
+  const [switchSourceId, setSwitchSourceId] = React.useState('')
+  const [switching, setSwitching]           = React.useState(false)
+  const [switchErr, setSwitchErr]           = React.useState('')
+
+  const confirmLeave = () => !editorDirty ||
+    window.confirm('Tienes cambios sin guardar en esta versión. Si continúas se perderán. ¿Continuar?')
+
+  // Colegios del tutor con el estado de este curso en cada uno.
+  const schoolOptions = React.useMemo(() => {
+    if (!selectedCourseId) return []
+    return myInstitutions.map(inst => ({
+      inst,
+      enabled: institutionCourses.some(r => r.institution_id === inst.id && r.course_id === selectedCourseId && r.is_active),
+      fork: courses.find(c => c.parent_course_id === selectedCourseId && c.institution_id === inst.id && c.is_active) || null,
+    }))
+  }, [myInstitutions, institutionCourses, courses, selectedCourseId])
+
+  const goToSchool = (opt) => {
+    if (opt.inst.id === routeInstitution || !opt.enabled) return
+    if (!confirmLeave()) return
+    if (opt.fork) {
+      setEditorDirty(false)
+      setRouteInstitution(opt.inst.id)
+      setActiveFork({ id: opt.fork.id, name: opt.fork.name })
+      return
+    }
+    // Sin versión todavía: por defecto se parte de la ruta del colegio actual.
+    setSwitchErr('')
+    setSwitchSourceId(activeFork?.id || '')
+    setSwitchTarget(opt.inst)
+  }
+
+  const handleCreateForSchool = async () => {
+    if (!switchTarget) return
+    setSwitching(true); setSwitchErr('')
+    const result = await forkCourseForInstitution(selectedCourseId, switchTarget.id, switchSourceId || undefined)
+    setSwitching(false)
+    if (result.error) { setSwitchErr(result.error); return }
+    setEditorDirty(false)
+    setRouteInstitution(switchTarget.id)
+    setActiveFork({ id: result.id, name: result.name })
+    setSwitchTarget(null)
+  }
+
   // ── Si hay un fork activo, renderiza el editor de curso ──
   if (activeFork) {
     // Vigencia informativa: la del curso ORIGINAL para este colegio (institution_courses),
@@ -856,7 +965,48 @@ const InstructorRouteEditor = () => {
     const activeForkExpiry = institutionCourses.find(
       r => r.institution_id === routeInstitution && r.course_id === selectedCourseId
     )?.expires_at || null
-    return <CourseEditor courseId={activeFork.id} courseName={activeFork.name} expiresAt={activeForkExpiry} onBack={() => setActiveFork(null)} />
+    const currentInst = institutions.find(i => i.id === routeInstitution)
+    // Orígenes posibles para la copia: la versión que se está editando, la ruta
+    // base y las de los demás colegios que ya tienen la suya.
+    const sourceOptions = [
+      { id: activeFork.id, label: `📋 La ruta de ${currentInst?.name || 'este colegio'} (la que estás editando)` },
+      { id: '', label: '🆕 La ruta base (curso original)' },
+      ...schoolOptions
+        .filter(o => o.fork && o.fork.id !== activeFork.id)
+        .map(o => ({ id: o.fork.id, label: `📋 La ruta de ${o.inst.name}` })),
+    ]
+    return (
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <SchoolSwitcher options={schoolOptions} currentId={routeInstitution} isMobile={isMobile} onPick={goToSchool} />
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <CourseEditor key={activeFork.id} courseId={activeFork.id} courseName={activeFork.name}
+            expiresAt={activeForkExpiry} institutionName={currentInst?.name}
+            onDirtyChange={setEditorDirty}
+            onBack={() => { if (confirmLeave()) { setEditorDirty(false); setActiveFork(null) } }} />
+        </div>
+
+        <Modal open={!!switchTarget} onClose={() => !switching && setSwitchTarget(null)} title={`Crear la versión para ${switchTarget?.name || ''}`} width={480}>
+          <p style={{ fontSize: 13, color: 'var(--text-sec)', lineHeight: 1.6, marginBottom: 14 }}>
+            Este colegio todavía no tiene su propia versión del curso. Se creará una <strong>copia independiente</strong>:
+            lo que cambies allí solo lo verán los estudiantes de ese colegio, y la ruta de origen queda intacta.
+          </p>
+          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 5 }}>
+            Copiar desde
+          </label>
+          <select value={switchSourceId} onChange={e => setSwitchSourceId(e.target.value)}
+            style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none', background: 'var(--white)', boxSizing: 'border-box', marginBottom: 8 }}>
+            {sourceOptions.map(o => <option key={o.id || 'base'} value={o.id}>{o.label}</option>)}
+          </select>
+          <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 16 }}>
+            Se copia la versión <strong>publicada</strong> de la ruta elegida (un borrador sin publicar no viaja).
+          </p>
+          {switchErr && <p style={{ fontSize: 12, color: 'var(--error)', fontWeight: 600, marginBottom: 10 }}>⚠️ {switchErr}</p>}
+          <Btn variant="gradient" full disabled={switching} onClick={handleCreateForSchool}>
+            {switching ? '⏳ Creando copia…' : '✨ Crear y abrir la versión del colegio'}
+          </Btn>
+        </Modal>
+      </div>
+    )
   }
 
   // ── Vista principal: selector de los cursos asignados al instructor ──
