@@ -369,6 +369,21 @@ const ChecklistDropdown = ({ label, items, stateOf, onToggle, width=260, accent=
 // --- Image uploader (sube a Supabase Storage y devuelve la URL pública) ---
 // Reutilizable: el padre recibe la URL en onUploaded(url) y la guarda donde
 // corresponda (p. ej. en el passage de un quiz o en una sección de imagen).
+// Valida y sube una imagen; devuelve la URL pública. Lanza Error con un mensaje
+// listo para mostrar. La comparten ImageUploader y el botón de imagen de RichInput.
+const uploadImageFile = async (file, { bucket = 'attachments', folder = 'passage-images' } = {}) => {
+  if (!file.type.startsWith('image/')) throw new Error('El archivo debe ser una imagen');
+  if (file.size > 10 * 1024 * 1024) throw new Error('Máximo 10 MB por imagen');
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `${folder}/${Date.now()}_${safe}`;
+  const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type });
+  if (error) {
+    console.error('uploadImageFile:', error);
+    throw new Error('No se pudo subir la imagen. Revisa el bucket de Storage.');
+  }
+  return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+};
+
 const ImageUploader = ({ value, onUploaded, label = 'Subir imagen', bucket = 'attachments', folder = 'passage-images', compact = false }) => {
   const [uploading, setUploading] = React.useState(false);
   const [err, setErr] = React.useState('');
@@ -380,19 +395,11 @@ const ImageUploader = ({ value, onUploaded, label = 'Subir imagen', bucket = 'at
     const file = e.target.files?.[0];
     e.target.value = ''; // permite re-subir el mismo archivo
     if (!file) return;
-    if (!file.type.startsWith('image/')) { setErr('El archivo debe ser una imagen'); return; }
-    if (file.size > 10 * 1024 * 1024) { setErr('Máximo 10 MB por imagen'); return; }
     setErr(''); setUploading(true);
     try {
-      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `${folder}/${Date.now()}_${safe}`;
-      const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type });
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
-      onUploaded?.(publicUrl);
+      onUploaded?.(await uploadImageFile(file, { bucket, folder }));
     } catch (e2) {
-      console.error('ImageUploader:', e2);
-      setErr('No se pudo subir la imagen. Revisa el bucket de Storage.');
+      setErr(e2.message);
     } finally {
       setUploading(false);
     }
@@ -422,19 +429,58 @@ const ImageUploader = ({ value, onUploaded, label = 'Subir imagen', bucket = 'at
 // Markup mínimo, almacenado como texto plano en challenge_data:
 //   **negrilla**            → <strong>
 //   {{#e8732c|texto}}       → color (hex 3–8 díg.)
+//   \( x^2 \)               → fórmula en línea (LaTeX, KaTeX)
+//   \[ \frac{a}{b} \]       → fórmula centrada en su propia línea
+//   ![texto alt|ancho](url) → imagen (ancho en px opcional; solo http/https)
+// Las fórmulas NO usan $…$ a propósito: el banco y las preguntas existentes
+// usan "$" para pesos ("$5.000") y se habrían convertido en fórmulas.
 // El renderizador respeta espacios y saltos de línea (whiteSpace: pre-wrap).
 const RICH_COLORS = ['#E8732C', '#DC2626', '#2563EB', '#059669', '#7C3AED', '#111827'];
 
+// KaTeX (+ su CSS y fuentes) se descarga solo la primera vez que se pinta una
+// fórmula: quien nunca ve una no paga el peso (~280 KB). Excluido del precaché.
+let katexPromise = null;
+const loadKatex = () => katexPromise ||= Promise.all([
+  import('katex'), import('katex/dist/katex.min.css'),
+]).then(([m]) => m.default || m);
+
+const MathTeX = ({ tex, display = false }) => {
+  const [html, setHtml] = React.useState(null);
+  React.useEffect(() => {
+    let alive = true;
+    loadKatex().then(k => {
+      if (!alive) return;
+      // throwOnError:false → una fórmula mal escrita se pinta en rojo, no rompe la pregunta.
+      setHtml(k.renderToString(tex, { displayMode: display, throwOnError: false, strict: 'ignore', trust: false }));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [tex, display]);
+  const base = { whiteSpace: 'normal' };
+  if (html == null) return <code style={{ ...base, fontSize: '.9em', opacity: .7 }}>{tex}</code>;
+  return display
+    ? <span style={{ ...base, display: 'block', overflowX: 'auto', overflowY: 'hidden', margin: '8px 0', textAlign: 'center' }} dangerouslySetInnerHTML={{ __html: html }} />
+    : <span style={base} dangerouslySetInnerHTML={{ __html: html }} />;
+};
+
 // Convierte el markup en nodos React (anidamiento vía recursión).
+const RICH_RE = /\*\*([\s\S]+?)\*\*|\{\{(#[0-9a-fA-F]{3,8})\|([\s\S]+?)\}\}|\\\(([\s\S]+?)\\\)|\\\[([\s\S]+?)\\\]|!\[([^\]\n]*)\]\((https?:\/\/[^\s)]+)\)/;
 const parseRich = (text) => {
   if (text == null || text === '') return null;
-  const re = /\*\*([\s\S]+?)\*\*|\{\{(#[0-9a-fA-F]{3,8})\|([\s\S]+?)\}\}/;
   const out = [];
   let rest = String(text), key = 0, m;
-  while ((m = re.exec(rest))) {
+  while ((m = RICH_RE.exec(rest))) {
     if (m.index > 0) out.push(rest.slice(0, m.index));
     if (m[1] !== undefined) out.push(<strong key={key++}>{parseRich(m[1])}</strong>);
-    else out.push(<span key={key++} style={{ color: m[2] }}>{parseRich(m[3])}</span>);
+    else if (m[2] !== undefined) out.push(<span key={key++} style={{ color: m[2] }}>{parseRich(m[3])}</span>);
+    else if (m[4] !== undefined) out.push(<MathTeX key={key++} tex={m[4].trim()} />);
+    else if (m[5] !== undefined) out.push(<MathTeX key={key++} tex={m[5].trim()} display />);
+    else {
+      const [alt, w] = m[6].split('|');
+      const width = parseInt(w, 10);
+      out.push(<img key={key++} src={m[7]} alt={alt || ''} loading="lazy"
+        style={{ display: 'block', maxWidth: '100%', width: width > 0 ? width : undefined, maxHeight: width > 0 ? undefined : 320,
+          objectFit: 'contain', borderRadius: 8, margin: '8px 0' }} />);
+    }
     rest = rest.slice(m.index + m[0].length);
   }
   if (rest) out.push(rest);
@@ -453,11 +499,15 @@ const RichText = ({ children, as = 'span', style, ...rest }) => {
 // RichText. Así una tabla del banco (o escrita por el tutor) se ve bien en la
 // ruta, en la clase en vivo y en el panel del profesor, sin cambiar el
 // formato guardado (sigue siendo texto plano dentro de `question`).
+// El "|" dentro del markup de color {{#hex|texto}}, de una fórmula (|x|,
+// \left| … \right|) o de una imagen ![alt|ancho](url) no cuenta como columna:
+// esos tramos se apartan antes de partir la línea y se devuelven después.
+const TABLE_PROTECT = /\{\{#[0-9a-fA-F]{3,8}\|[\s\S]*?\}\}|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|!\[[^\]\n]*\]\([^)\s]*\)/g;
 const tableCells = (line) => {
-  // El "|" del markup de color {{#hex|texto}} no cuenta como columna.
-  const plain = line.replace(/\{\{#[0-9a-fA-F]{3,8}\|[\s\S]*?\}\}/g, 'x');
-  if (!plain.includes('|')) return null;
-  const cells = line.split(/\s*\|\s*(?![^{]*\}\})/).map(c => c.trim());
+  const saved = [];
+  const masked = line.replace(TABLE_PROTECT, s => { saved.push(s); return `\u0000${saved.length - 1}\u0000`; });
+  if (!masked.includes('|')) return null;
+  const cells = masked.split(/\s*\|\s*/).map(c => c.replace(/\u0000(\d+)\u0000/g, (_, i) => saved[+i]).trim());
   return cells.length >= 2 ? cells : null;
 };
 const splitTables = (text) => {
@@ -513,9 +563,145 @@ const QuestionText = ({ children, as = 'div', style, ...rest }) => {
 // selección con el markup correspondiente. `multiline` usa <textarea>. La barra
 // aparece al enfocar. Los botones usan onMouseDown+preventDefault para no perder
 // la selección del campo.
+// Además: "∑ Fórmula" abre un editor de ecuaciones (LaTeX con paleta de
+// símbolos y vista previa) e inserta \( … \) / \[ … \]; "🖼️ Imagen" sube una
+// imagen y la inserta como ![imagen](url) donde está el cursor. Si el texto
+// tiene fórmulas o imágenes, debajo del campo se ve cómo quedará.
+const FORMULA_PALETTE = [
+  { group: 'Básico', items: [
+    ['a/b', '\\frac{a}{b}', 'Fracción'], ['√', '\\sqrt{x}', 'Raíz cuadrada'], ['ⁿ√', '\\sqrt[n]{x}', 'Raíz n-ésima'],
+    ['x²', '^{2}', 'Potencia'], ['x₁', '_{1}', 'Subíndice'], ['×', '\\times', 'Por'], ['÷', '\\div', 'Dividido'],
+    ['·', '\\cdot', 'Punto'], ['±', '\\pm', 'Más o menos'], ['≤', '\\leq', 'Menor o igual'], ['≥', '\\geq', 'Mayor o igual'],
+    ['≠', '\\neq', 'Diferente'], ['≈', '\\approx', 'Aproximado'], ['°', '^{\\circ}', 'Grados'], ['%', '\\%', 'Porcentaje'],
+    ['( )', '\\left( x \\right)', 'Paréntesis que se ajustan'], ['|x|', '\\left| x \\right|', 'Valor absoluto'],
+    ['{ sist.', '\\begin{cases} x + y = 5 \\\\ x - y = 1 \\end{cases}', 'Sistema de ecuaciones'],
+    ['txt', '\\text{ texto }', 'Texto normal dentro de la fórmula'],
+  ] },
+  { group: 'Griego', items: [
+    ['π', '\\pi'], ['θ', '\\theta'], ['α', '\\alpha'], ['β', '\\beta'], ['γ', '\\gamma'], ['Δ', '\\Delta'],
+    ['λ', '\\lambda'], ['μ', '\\mu'], ['σ', '\\sigma'], ['ρ', '\\rho'], ['ω', '\\omega'], ['Ω', '\\Omega'],
+  ] },
+  { group: 'Cálculo y geometría', items: [
+    ['∞', '\\infty', 'Infinito'], ['Σ', '\\sum_{i=1}^{n}', 'Sumatoria'], ['∫', '\\int_{a}^{b}', 'Integral'],
+    ['lim', '\\lim_{x \\to 0}', 'Límite'], ['f′', "f'(x)", 'Derivada'], ['v⃗', '\\vec{v}', 'Vector'],
+    ['∠', '\\angle', 'Ángulo'], ['△', '\\triangle', 'Triángulo'], ['⊥', '\\perp', 'Perpendicular'], ['∥', '\\parallel', 'Paralelo'],
+    ['sin', '\\sin', 'Seno'], ['cos', '\\cos', 'Coseno'], ['log', '\\log', 'Logaritmo'],
+  ] },
+  { group: 'Química y física', items: [
+    ['H₂O', '\\mathrm{H_2O}', 'Fórmula química (subíndices)'], ['→', '\\rightarrow', 'Reacción'], ['⇌', '\\rightleftharpoons', 'Equilibrio'],
+    ['↑', '\\uparrow', 'Gas que se libera'], ['↓', '\\downarrow', 'Precipitado'], ['⁺', '^{+}', 'Carga positiva'], ['⁻', '^{-}', 'Carga negativa'],
+    ['m/s', '\\,\\mathrm{m/s}', 'Unidades'], ['×10ⁿ', '\\times 10^{3}', 'Notación científica'],
+  ] },
+];
+
+const FormulaPanel = ({ initial, initialDisplay, onInsert, onCancel }) => {
+  const [tex, setTex] = React.useState(initial || '');
+  const [display, setDisplay] = React.useState(!!initialDisplay);
+  const [group, setGroup] = React.useState(0);
+  const taRef = React.useRef(null);
+  React.useEffect(() => { taRef.current?.focus(); }, []);
+
+  const insertSnippet = (snip) => {
+    const el = taRef.current;
+    const s = el?.selectionStart ?? tex.length, e = el?.selectionEnd ?? s;
+    const next = tex.slice(0, s) + snip + tex.slice(e);
+    setTex(next);
+    requestAnimationFrame(() => { const el2 = taRef.current; if (!el2) return; el2.focus(); el2.selectionStart = el2.selectionEnd = s + snip.length; });
+  };
+
+  const tab = (on) => ({ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 11, fontWeight: 700,
+    background: on ? 'var(--purple)' : 'transparent', color: on ? '#fff' : 'var(--muted)' });
+
+  return (
+    <div style={{ padding: 10, borderBottom: '1px solid var(--border)', background: 'var(--bg-alt)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {FORMULA_PALETTE.map((g, i) => <button key={g.group} type="button" onClick={() => setGroup(i)} style={tab(group === i)}>{g.group}</button>)}
+      </div>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {FORMULA_PALETTE[group].items.map(([label, snip, title]) => (
+          <button key={label} type="button" title={title || snip} onClick={() => insertSnippet(snip)}
+            style={{ minWidth: 30, height: 28, padding: '0 7px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--white)',
+              cursor: 'pointer', fontSize: 13, color: 'var(--dark)', fontFamily: 'var(--font)' }}>{label}</button>
+        ))}
+      </div>
+      <textarea ref={taRef} value={tex} onChange={e => setTex(e.target.value)} rows={2}
+        placeholder="Escribe la fórmula o usa los botones. Ej.: x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}"
+        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', outline: 'none',
+          fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 13, resize: 'vertical', background: 'var(--white)', color: 'var(--dark)' }} />
+      <div style={{ minHeight: 40, padding: '8px 10px', borderRadius: 8, background: 'var(--white)', border: '1px dashed var(--border)', color: 'var(--dark)', fontSize: 16 }}>
+        {tex.trim() ? <MathTeX tex={tex.trim()} display={display} /> : <span style={{ fontSize: 12, color: 'var(--subtle)' }}>Aquí se ve cómo quedará la fórmula</span>}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-sec)', cursor: 'pointer', flex: 1 }}>
+          <input type="checkbox" checked={display} onChange={e => setDisplay(e.target.checked)} />
+          Centrada en su propia línea (fórmulas grandes)
+        </label>
+        <button type="button" onClick={onCancel}
+          style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--white)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>Cancelar</button>
+        <button type="button" disabled={!tex.trim()} onClick={() => onInsert(tex.trim(), display)}
+          style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: 'var(--purple)', color: '#fff', cursor: tex.trim() ? 'pointer' : 'not-allowed',
+            opacity: tex.trim() ? 1 : .5, fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700 }}>Insertar fórmula</button>
+      </div>
+    </div>
+  );
+};
+
+const RICH_PREVIEW_RE = /\\\(|\\\[|!\[[^\]\n]*\]\(/;
+
 const RichInput = ({ value, onChange, multiline = false, rows = 2, placeholder, style, autoFocus }) => {
   const ref = React.useRef(null);
+  const fileRef = React.useRef(null);
+  const selRef = React.useRef({ s: 0, e: 0 });
   const [focused, setFocused] = React.useState(false);
+  const [formula, setFormula] = React.useState(null); // { tex, display } mientras el panel está abierto
+  const [uploading, setUploading] = React.useState(false);
+  const [imgErr, setImgErr] = React.useState('');
+
+  const saveSel = () => {
+    const el = ref.current; const len = (value || '').length;
+    selRef.current = { s: el?.selectionStart ?? len, e: el?.selectionEnd ?? len };
+  };
+  // Reemplaza la selección guardada por `text` y deja el cursor al final.
+  const insertAtSel = (text) => {
+    const v = value || ''; const { s, e } = selRef.current;
+    onChange(v.slice(0, s) + text + v.slice(e));
+    requestAnimationFrame(() => {
+      const el = ref.current; if (!el) return;
+      el.focus(); el.selectionStart = el.selectionEnd = s + text.length;
+    });
+  };
+
+  const openFormula = () => {
+    saveSel();
+    // Si la selección ya es una fórmula, se abre para editarla.
+    const sel = (value || '').slice(selRef.current.s, selRef.current.e).trim();
+    const m = sel.match(/^\\\(([\s\S]*)\\\)$/) || sel.match(/^\\\[([\s\S]*)\\\]$/);
+    setFormula({ tex: m ? m[1].trim() : '', display: !!m && sel.startsWith('\\[') });
+  };
+  const insertFormula = (tex, display) => {
+    setFormula(null);
+    insertAtSel(display ? `\\[ ${tex} \\]` : `\\( ${tex} \\)`);
+  };
+
+  const pickImage = () => { saveSel(); setImgErr(''); fileRef.current?.click(); };
+  const handleImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadImageFile(file);
+      const v = value || ''; const { s } = selRef.current;
+      // En un campo de varias líneas la imagen va en su propia línea.
+      const pre = multiline && s > 0 && v[s - 1] !== '\n' ? '\n' : '';
+      const post = multiline && v[selRef.current.e] !== undefined && v[selRef.current.e] !== '\n' ? '\n' : '';
+      insertAtSel(`${pre}![imagen](${url})${post}`);
+    } catch (err) {
+      setImgErr(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const wrap = (before, after) => {
     const el = ref.current; if (!el) return;
@@ -545,9 +731,14 @@ const RichInput = ({ value, onChange, multiline = false, rows = 2, placeholder, 
     background: bg, padding: 0, flexShrink: 0,
   });
 
+  const toolBtn = { height: 22, padding: '0 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'var(--white)', cursor: 'pointer',
+    fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700, color: 'var(--dark)', whiteSpace: 'nowrap' };
+  const showPreview = RICH_PREVIEW_RE.test(value || '');
+
   return (
     <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--white)', overflow: 'hidden', ...style }}>
-      {focused && (
+      <input ref={fileRef} type="file" accept="image/*" onChange={handleImage} style={{ display: 'none' }} />
+      {(focused || formula || uploading) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderBottom: '1px solid var(--border)', background: 'var(--bg-alt)', flexWrap: 'wrap' }}>
           <button type="button" onMouseDown={e => { e.preventDefault(); wrap('**', '**'); }} title="Negrilla"
             style={{ width: 24, height: 22, borderRadius: 5, border: '1px solid var(--border)', background: 'var(--white)', cursor: 'pointer', fontWeight: 800, fontSize: 13, color: 'var(--dark)' }}>B</button>
@@ -555,8 +746,16 @@ const RichInput = ({ value, onChange, multiline = false, rows = 2, placeholder, 
           {RICH_COLORS.map(c => (
             <button key={c} type="button" onMouseDown={e => { e.preventDefault(); wrap(`{{${c}|`, '}}'); }} title={`Color ${c}`} style={swatchBtn(c)} />
           ))}
+          <span style={{ width: 1, height: 16, background: 'var(--border)' }} />
+          <button type="button" onMouseDown={e => { e.preventDefault(); openFormula(); }} title="Insertar fórmula o ecuación" style={toolBtn}>∑ Fórmula</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); pickImage(); }} disabled={uploading} title="Insertar imagen donde está el cursor"
+            style={{ ...toolBtn, opacity: uploading ? .6 : 1, cursor: uploading ? 'wait' : 'pointer' }}>{uploading ? '⏳ Subiendo…' : '🖼️ Imagen'}</button>
           <span style={{ fontSize: 10, color: 'var(--subtle)', marginLeft: 2 }}>selecciona texto y aplica</span>
         </div>
+      )}
+      {formula && (
+        <FormulaPanel initial={formula.tex} initialDisplay={formula.display}
+          onInsert={insertFormula} onCancel={() => { setFormula(null); ref.current?.focus(); }} />
       )}
       <Tag ref={ref} value={value || ''} placeholder={placeholder} autoFocus={autoFocus}
         {...(multiline ? { rows } : {})}
@@ -564,6 +763,13 @@ const RichInput = ({ value, onChange, multiline = false, rows = 2, placeholder, 
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         style={fieldStyle} />
+      {imgErr && <div style={{ padding: '0 10px 6px', fontSize: 12, color: 'var(--error)' }}>{imgErr}</div>}
+      {showPreview && (
+        <div style={{ padding: '8px 10px', borderTop: '1px dashed var(--border)', background: 'var(--bg-alt)' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--subtle)', textTransform: 'uppercase', letterSpacing: .6, marginBottom: 4 }}>Así lo verá el estudiante</div>
+          <QuestionText style={{ fontSize: 14, color: 'var(--dark)', lineHeight: 1.5 }}>{value}</QuestionText>
+        </div>
+      )}
     </div>
   );
 };
