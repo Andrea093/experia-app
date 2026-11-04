@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, nav, doLogout, AREAS, ALL_AREAS, isCloneUser } from '../store/store.jsx'
+import { useStore, nav, doLogout, AREAS, ALL_AREAS, isCloneUser, openRoomLobby, selectHasManyRooms } from '../store/store.jsx'
 import {
   useMobile, LogoImg, MapIc, GameIc, FileIc, UserIc, BookIc,
   SchoolIc, BarIc, ClockIc, UsersIc, LogOutIc, XIc, MsgIc, ChevRIc, TargetIc, CheckIc
@@ -12,6 +12,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   const isLoggedIn = useStore(s => s.isLoggedIn);
   const user = useStore(s => s.user);
   const selectedArea = useStore(s => s.selectedArea);
+  const hasManyRooms = useStore(selectHasManyRooms);
   const isMobile = useMobile();
   const [collapsed, setCollapsed] = React.useState(() => {
     try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; }
@@ -31,6 +32,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
 
   const studentItems = [
     { key: 'map', label: 'Mi formación', icon: <MapIc s={19} />, active: ['map','lesson','challenge','grid'] },
+    ...(hasManyRooms ? [{ key: 'salas', label: 'Cambiar de sala', icon: <span aria-hidden="true" style={{ width: 19, textAlign: 'center', fontSize: 16 }}>🚪</span>, active: [] }] : []),
     { key: 'games', label: 'Juegos', icon: <GameIc s={19} />, active: ['games'] },
     { key: 'forum', label: 'Comunidad', icon: <MsgIc s={19} />, active: ['forum'] },
     { key: 'profile', label: 'Perfil', icon: <UserIc s={19} />, active: ['profile'] },
@@ -81,7 +83,8 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
     // Allow Ctrl/Cmd+click and middle-click to open in new tab naturally
     if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) return;
     e.preventDefault();
-    nav(key);
+    if (key === 'salas') openRoomLobby();
+    else nav(key);
     if (isMobile && onMobileClose) onMobileClose();
   };
 

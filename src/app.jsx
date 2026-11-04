@@ -1,6 +1,6 @@
 import React from 'react'
 import { useStore, nav, doLogout } from './store/store.jsx'
-import { selectActiveCourseTheme, selectRequiresLiveToStart, CLONE_PAGES } from './store/store.jsx'
+import { selectActiveCourseTheme, selectRequiresLiveToStart, selectHasManyRooms, wasRoomChosen, CLONE_PAGES } from './store/store.jsx'
 import { startIdleWatch } from './lib/idleTimeout.js'
 import { applySavedTheme, applyLightOnly } from './lib/theme.js'
 import { useGuidedSession, hasCompletedLiveSession } from './lib/liveClient.js'
@@ -87,6 +87,7 @@ const InstructorStudentView = React.lazy(() => import('./pages/InstructorStudent
 // Nuevas páginas extraídas
 const AreaSelection         = React.lazy(() => import('./pages/AreaSelection.jsx'))
 const CourseSelection       = React.lazy(() => import('./pages/CourseSelection.jsx'))
+const RoomLobby             = React.lazy(() => import('./components/RoomLobby.jsx'))
 const GamesPage             = React.lazy(() => import('./pages/games.jsx'))
 const InstructorStatsPage   = React.lazy(() => import('./pages/InstructorStats.jsx'))
 const ItemAnalysisPage      = React.lazy(() => import('./pages/InstructorItemAnalysis.jsx'))
@@ -140,6 +141,9 @@ const App = () => {
   // (GuidedClassView se quedaba sin `currentMod` y mostraba la pantalla de espera genérica).
   const effectiveCourseId = useStore(s => s.effectiveCourseId);
   const coursesLoaded  = useStore(s => s.coursesLoaded);
+  const hasManyRooms   = useStore(selectHasManyRooms);
+  const roomChosen     = useStore(s => s.roomChosen);
+  const roomLobbyOpen  = useStore(s => s.roomLobbyOpen);
   const courseTheme    = useStore(selectActiveCourseTheme);
   const activeTheme    = isLoggedIn ? courseTheme : null;
   const guided         = useGuidedSession(isLoggedIn && user?.role === 'student' ? (effectiveCourseId || enrolledCourse) : null);
@@ -258,6 +262,13 @@ const App = () => {
   // completamente controlada por el profesor — sin sidebar ni navegación libre.
   if (role === 'student' && guided.isJoined) {
     return <React.Suspense fallback={<PageSpinner />}><GuidedClassView guided={guided} /></React.Suspense>;
+  }
+
+  // Sala de entrada: quien tiene varios cursos elige al ingresar. Solo desde el
+  // mapa, para no interrumpir un enlace directo a una lección.
+  if (role === 'student' && coursesLoaded && hasManyRooms && enrolledCourse && !isClonePage
+      && (roomLobbyOpen || (page === 'map' && !roomChosen && !wasRoomChosen()))) {
+    return <React.Suspense fallback={<PageSpinner />}><RoomLobby /></React.Suspense>;
   }
 
   const fullPages = ['lesson', 'challenge'];
