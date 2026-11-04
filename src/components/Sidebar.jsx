@@ -12,6 +12,7 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   const isLoggedIn = useStore(s => s.isLoggedIn);
   const user = useStore(s => s.user);
   const selectedArea = useStore(s => s.selectedArea);
+  const hasManyRooms = useStore(selectHasManyRooms);
   const isMobile = useMobile();
   const [collapsed, setCollapsed] = React.useState(() => {
     try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; }
@@ -29,7 +30,6 @@ const Sidebar = React.memo(({ mobileOpen, onMobileClose }) => {
   const role = user.role;
   const area = ALL_AREAS.find(a => a.id === selectedArea);
 
-  const hasManyRooms = useStore(selectHasManyRooms);
   const studentItems = [
     { key: 'map', label: 'Mi formación', icon: <MapIc s={19} />, active: ['map','lesson','challenge','grid'] },
     ...(hasManyRooms ? [{ key: 'salas', label: 'Cambiar de sala', icon: <span aria-hidden="true" style={{ width: 19, textAlign: 'center', fontSize: 16 }}>🚪</span>, active: [] }] : []),
