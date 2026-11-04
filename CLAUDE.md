@@ -718,7 +718,10 @@ módulos son rondas de preguntas que la Clase en Vivo muestra **una a una**
     `scripts/banco-preguntas/guia_mapeo.py` y es **criterio editorial, a revisar
     por el equipo académico**. Una pregunta propia del tutor debe elegir evidencia;
     a una del banco no se le puede cambiar (si no, reetiquetar "cuadraría" el reparto).
-  - Se exige en 4 puntos: guardar la ronda (`QuizCreatorModal`, con tablero en vivo),
+  - Mientras arma la ronda, el tutor ve una barra fija (`RoundBar`) con lo que falta o
+    sobra por competencia, medido contra la ronda de 10 (`ROUND_TARGET`) o su tamaño
+    si es mayor; los filtros del banco repiten esa cuenta.
+  - Se exige en 4 puntos: guardar la ronda (`QuizCreatorModal`),
     publicar la ruta (`auditRounds`), iniciar la clase (`LiveHost`) y en el servidor
     (`0084`: `saber_round_problem` + trigger en `live_sessions`, que rechaza entrar a
     una ronda que no cumpla). El **borrador** sí puede guardarse sin cumplir.

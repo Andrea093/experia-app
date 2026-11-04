@@ -145,7 +145,7 @@ const QuestionBankPicker = ({ area, selectedIds, usedElsewhere = {}, onToggle, o
           const row = balance?.rows.find(r => r.id === c.id)
           return (
             <button key={c.id} style={pill(comp === c.id)} onClick={() => setComp(comp === c.id ? '' : c.id)} title={c.label}>
-              {c.short}{row ? ` ${row.actual}/${row.required}${row.ok ? ' ✓' : ''}` : ''}
+              {c.short}{row ? ` ${row.actual}/${row.goal}${row.need === 0 ? ' ✓' : row.need > 0 ? ` · ${row.need === 1 ? 'falta' : 'faltan'} ${row.need}` : ` · ${row.need === -1 ? 'sobra' : 'sobran'} ${-row.need}`}` : ''}
             </button>
           )
         })}

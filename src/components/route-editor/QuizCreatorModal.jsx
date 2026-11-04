@@ -52,33 +52,32 @@ const EvidenceSelect = ({ area, question, onChange }) => {
   )
 }
 
-// Tablero de la regla: cuántas preguntas pide la guía por competencia y cuántas hay.
-const RoundBalance = ({ check }) => (
-  <div style={{ padding: 14, borderRadius: 12, background: check.ok ? 'var(--white)' : '#FEF2F2',
-    border: `1.5px solid ${check.ok ? 'var(--success)' : 'var(--error)'}` }}>
-    <div style={{ fontSize: 13, fontWeight: 800, color: check.ok ? 'var(--success)' : '#B91C1C', marginBottom: 8 }}>
-      {check.ok ? '✓ Cumple la distribución de competencias de la Guía Saber 11' : '⚖️ Falta equilibrar las competencias: así no se puede guardar'}
+// Barra fija de la regla: siempre a la vista mientras el tutor arma la ronda.
+// Dice qué le falta en palabras y cuánto lleva de cada competencia.
+const RoundBar = ({ check, isMobile }) => (
+  <div role="status" aria-live="polite" style={{ flexShrink: 0, padding: isMobile ? '8px 14px' : '10px 24px',
+    background: check.ok ? '#ECFDF5' : '#FEF2F2', borderBottom: `2px solid ${check.ok ? '#15803D' : '#B91C1C'}`,
+    display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16, flexWrap: 'wrap' }}>
+    <div style={{ flex: '1 1 260px', minWidth: 0, fontSize: 13, fontWeight: 800, lineHeight: 1.35, color: check.ok ? '#166534' : '#991B1B' }}>
+      {check.ok
+        ? `⚖️ En equilibrio: ${check.n} preguntas cumplen la distribución de la Guía Saber 11.`
+        : `⚖️ ${check.guidance}`}
     </div>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      {check.rows.map(r => (
-        <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: check.ok ? 'var(--text-sec)' : '#1F2937' }}>
-          <span style={{ fontWeight: 800, color: r.ok ? 'var(--success)' : '#B91C1C', width: 14 }}>{r.ok ? '✓' : '✗'}</span>
-          <span style={{ flex: 1, minWidth: 0 }}>{r.label} <span style={{ opacity: .7 }}>({r.pct} %)</span></span>
-          <b style={{ whiteSpace: 'nowrap' }}>{r.actual} de {r.required}</b>
-        </div>
-      ))}
-    </div>
-    {!check.ok && (
-      <div style={{ marginTop: 8, fontSize: 11.5, color: '#B91C1C', lineHeight: 1.45 }}>{check.problems.join(' ')}</div>
-    )}
-    <div style={{ marginTop: 6, fontSize: 11, color: check.ok ? 'var(--subtle)' : '#6B7280' }}>
-      Con {check.n} preguntas, los porcentajes de la guía dan ese reparto (redondeo por mayor residuo).
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      {check.rows.map(r => {
+        const done = r.need === 0
+        return (
+          <span key={r.id} title={`${r.label}: ${r.pct} % de la prueba`}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 9px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+              whiteSpace: 'nowrap', background: '#fff', color: done ? '#166534' : '#991B1B', border: `1.5px solid ${done ? '#15803D' : '#B91C1C'}` }}>
+            {done ? '✓' : r.need > 0 ? `${r.need === 1 ? 'falta' : 'faltan'} ${r.need}` : `${r.need === -1 ? 'sobra' : 'sobran'} ${-r.need}`} · {r.short} <b>{r.actual}/{r.goal}</b>
+          </span>
+        )
+      })}
     </div>
   </div>
 )
 
-// `usedElsewhere`: { idPregunta: título del otro módulo } — para avisar en el
-// banco cuáles ya están en otra ronda de la misma ruta.
 const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', usedElsewhere = {} }) => {
   const isPoll = variant === 'poll'
   const [title, setTitle]   = React.useState('')
@@ -244,7 +243,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
     // Una opción es válida si tiene texto O una imagen (opciones visuales).
     const incomplete = questions.find(q => !q.question.trim() || q.options.some((o, i) => !o.trim() && !(q.optionImages?.[i])))
     if (incomplete) { setErr('Completa todas las preguntas y opciones (texto o imagen en cada opción)'); return }
-    if (roundCheck && !roundCheck.ok) { setErr('No cumple la distribución de competencias: ' + roundCheck.problems.join(' ')); return }
+    if (roundCheck && !roundCheck.ok) { setErr('Aún no se puede guardar. ' + roundCheck.guidance); return }
     onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100, questions: cleanQuestions(), passage: buildPassage(), type: 'challenge', ctype: isPoll ? 'poll' : 'quiz',
       bank: (!isPoll && bankArea) || null, bankRound: (!isPoll && bankArea && bankRound) || null,
       ...(isPoll ? {} : {
@@ -322,6 +321,8 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
         <Btn variant="gradient" size="sm" onClick={handleSave}>{initial ? '💾 Guardar cambios' : 'Crear reto'}</Btn>
       </div>
 
+      {roundCheck && <RoundBar check={roundCheck} isMobile={isMobile} />}
+
       {isMobile && showBank && (
         <div style={{ display: 'flex', background: 'var(--white)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <button style={tabBtn(tab === 'round')} onClick={() => setTab('round')}>📝 Preguntas del módulo ({realCount})</button>
@@ -333,7 +334,6 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
       {showLeft && (
       <div style={{ flex: showBank ? '1 1 55%' : 1, minWidth: 0, overflowY: 'auto', padding: isMobile ? '16px 14px 40px' : '22px 26px 60px' }}>
       <div style={{ maxWidth: showBank ? 'none' : 820, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {roundCheck && <RoundBalance check={roundCheck} />}
         {/* ── Banco de preguntas: lo primero que ve el tutor en una ronda ── */}
         {!isPoll && (
           <div style={{ padding: 14, borderRadius: 12, background: 'var(--orange-bg)', border: '1.5px solid var(--orange)' }}>

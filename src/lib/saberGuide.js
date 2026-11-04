@@ -190,6 +190,24 @@ export const SABER_GUIDES = {
 
 // Una ronda más corta dejaría competencias sin ninguna pregunta.
 export const MIN_ROUND_QUESTIONS = 5
+// Tamaño al que se guía al tutor mientras la ronda no cumple. No es obligatorio:
+// una ronda de 7 que cumpla su reparto también vale.
+export const ROUND_TARGET = 10
+
+const joinList = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}`)
+
+// Qué le falta a la ronda, en palabras del tutor. Si ya cumple, nada.
+const buildGuidance = (rows, untagged, target) => {
+  const add = rows.filter(r => r.need > 0).map(r => `${r.need} de ${r.short}`)
+  const remove = rows.filter(r => r.need < 0).map(r => `${-r.need} de ${r.short}`)
+  const parts = []
+  // Sin evidencia primero: esas preguntas aún pueden cubrir lo que falta, así que
+  // decir "agrega" llevaría a pasarse de la meta.
+  if (untagged) parts.push(`asigna la evidencia a ${untagged === 1 ? '1 pregunta' : `${untagged} preguntas`}`)
+  if (add.length) parts.push(`${untagged ? 'todavía se necesitan' : 'agrega'} ${joinList(add)}`)
+  if (remove.length) parts.push(`quita ${joinList(remove)}`)
+  return parts.length ? `Para equilibrar ${target} preguntas: ${parts.join('; ')}.` : ''
+}
 
 export const evidenceInfo = (area, code) => {
   for (const competencia of SABER_GUIDES[area]?.competencias || []) {
@@ -220,7 +238,7 @@ export const requiredDistribution = (area, n) => {
 // que se le muestran al tutor; vacía = cumple.
 export const checkRound = (area, questions = []) => {
   const guide = SABER_GUIDES[area]
-  if (!guide) return { ok: true, n: questions.length, rows: [], untagged: [], problems: [] }
+  if (!guide) return { ok: true, n: questions.length, target: questions.length, rows: [], untagged: [], problems: [], guidance: '' }
   const n = questions.length
   const required = requiredDistribution(area, n)
   const actual = Object.fromEntries(guide.competencias.map(c => [c.id, 0]))
@@ -230,9 +248,16 @@ export const checkRound = (area, questions = []) => {
     if (info) actual[info.competencia.id]++
     else untagged.push(i)
   })
+  // Si no cumple, la meta se mide contra la ronda completa: a 9 preguntas el
+  // reparto de 9 diría "te sobra una" justo cuando basta con agregar la que falta.
+  const cumple = n >= MIN_ROUND_QUESTIONS && !untagged.length
+    && guide.competencias.every(c => required[c.id] === actual[c.id])
+  const target = cumple ? n : Math.max(ROUND_TARGET, n)
+  const goal = requiredDistribution(area, target)
   const rows = guide.competencias.map(c => ({
     id: c.id, label: c.label, short: c.short, pct: c.pct,
     required: required[c.id], actual: actual[c.id], ok: required[c.id] === actual[c.id],
+    goal: goal[c.id], need: goal[c.id] - actual[c.id],
   }))
   const problems = []
   if (n < MIN_ROUND_QUESTIONS) problems.push(`La ronda necesita al menos ${MIN_ROUND_QUESTIONS} preguntas para cubrir todas las competencias (tiene ${n}).`)
@@ -241,7 +266,7 @@ export const checkRound = (area, questions = []) => {
     const d = r.required - r.actual
     problems.push(`${r.short}: ${d > 0 ? `faltan ${d}` : `sobran ${-d}`} (debe tener ${r.required} de ${n}, tiene ${r.actual}).`)
   })
-  return { ok: problems.length === 0, n, rows, untagged, problems }
+  return { ok: problems.length === 0, n, target, rows, untagged, problems, guidance: buildGuidance(rows, untagged.length, target) }
 }
 
 // Una ronda viene con dos formas según quién la lea: `mod.questions` en el
@@ -267,7 +292,7 @@ export const auditRounds = (moduleList, bank) => {
     if (!isRound(m)) return m
     const questions = tagWithBank(roundQs(m), index)
     const check = checkRound(roundArea(m), questions)
-    if (!check.ok) problems.push({ title: m.title, problems: check.problems })
+    if (!check.ok) problems.push({ title: m.title, problems: [check.guidance] })
     return m.questions
       ? { ...m, questions }
       : { ...m, challenge_data: { ...m.challenge_data, questions } }
