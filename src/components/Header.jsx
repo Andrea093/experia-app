@@ -1,11 +1,12 @@
 import React from 'react'
-import { useStore, nav, calcLevel, doLogout, dismissStudentMessage, selectActiveCourseTheme } from '../store/store.jsx'
+import { useStore, nav, calcLevel, doLogout, dismissStudentMessage, selectActiveCourseTheme, isBaseCourse } from '../store/store.jsx'
 import { useTheme, useContrast } from '../lib/theme.js'
 import { useMobile, LogoImg, MenuIc, BellIc, SunIc, MoonIc, CheckIc, ClockIc, LogOutIc } from './ui.jsx'
 
 // El kit de avatares (DiceBear, ~250 KB) va aparte y solo se descarga si hay un
 // curso temático activo y la persona ya creó su avatar.
 const AvatarChip = React.lazy(() => import('./AvatarChip.jsx'))
+const CourseSwitcher = React.lazy(() => import('./CourseSwitcher.jsx'))
 
 const Header = React.memo(({ onMenuClick }) => {
   const user = useStore(s => s.user);
@@ -17,6 +18,10 @@ const Header = React.memo(({ onMenuClick }) => {
   const { theme, toggle } = useTheme();
   const { contrast, toggle: toggleContrast } = useContrast();
   const courseTheme = useStore(selectActiveCourseTheme);
+  // Booleano (no array nuevo): con useSyncExternalStore evita el bucle infinito.
+  const hasManyCourses = useStore(s => !!s.enrolledCourseId && (s.courses || [])
+    .filter(c => isBaseCourse(c) && (s.userCourses || []).some(uc => uc.user_id === s.user?.id && uc.is_active && uc.course_id === c.id))
+    .length > 1);
   React.useEffect(() => {
     if (!showNotifs) return;
     const onKey = (e) => { if (e.key === 'Escape') setShowNotifs(false); };
@@ -42,7 +47,7 @@ const Header = React.memo(({ onMenuClick }) => {
       borderBottom: '1px solid var(--border)', flexShrink: 0,
       background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)',
       WebkitBackdropFilter: 'var(--glass-blur)', zIndex: 50 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         {isMobile && (
           <button onClick={onMenuClick} aria-label="Abrir menú" style={{
             background: 'var(--bg-alt)', border: 'none', cursor: 'pointer',
@@ -52,15 +57,21 @@ const Header = React.memo(({ onMenuClick }) => {
             <MenuIc s={20} c="var(--text)" />
           </button>
         )}
-        {isMobile && <LogoImg h={28} />}
+        {isMobile && !hasManyCourses && <LogoImg h={28} />}
+        {user.role === 'student' && (
+          <React.Suspense fallback={null}>
+            <CourseSwitcher />
+          </React.Suspense>
+        )}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
-        <div style={{ textAlign: 'right' }}>
+        {/* En celular, con selector de sala no caben también el nombre y los puntos. */}
+        {!(isMobile && hasManyCourses) && <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 600, color: 'var(--dark)' }}>{user.name}</div>
           <div style={{ fontSize: 11, color: 'var(--muted)' }}>
             {user.role === 'instructor' ? 'Instructor' : `Nivel ${level} · ${xp} pts`}
           </div>
-        </div>
+        </div>}
 
         {/* Avatar del curso temático (con su rango). Fuera de esos cursos no existe. */}
         {courseTheme && user.avatarConfig && (

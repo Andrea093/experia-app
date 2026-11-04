@@ -2391,6 +2391,9 @@ const switchCourse = async (courseId) => {
   const courseModules = dbRowsToCourseModules(modulesData, selectedArea);
   const { data: cp } = await supabase.from('course_progress')
     .select('*').eq('user_id', user.id).eq('course_id', courseId).maybeSingle();
+  // Recordar la sala para el próximo ingreso (0085). No frena el cambio si falla.
+  supabase.from('profiles').update({ last_course_id: courseId }).eq('id', user.id)
+    .then(({ error }) => { if (error) console.warn('switchCourse last_course_id:', error.message); });
   XS.set({
     enrolledCourseId: courseId,
     effectiveCourseId,

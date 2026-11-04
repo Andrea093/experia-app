@@ -185,6 +185,8 @@ A student seeing/entering a course depends on three separate tables. Mismatches 
 - `course_enrollments` (**matrícula**) — drives the multi-course switcher in `map.jsx` (`allEnrollments`) and `enrolledCourseId` (via `loadStudentSession`). Also gates `CourseSelection` vs `map` in `app.jsx`.
 - `course_progress` — XP/completed/badges per enrollment.
 
+**Selector de sala (nov 2026):** `CourseSwitcher.jsx` en la cabecera muestra al estudiante con más de un curso "Estás en …" y lo deja cambiar desde cualquier página; con un solo curso no se pinta. `switchCourse` guarda `profiles.last_course_id` (`0085`) y `loadStudentSession` entra a esa sala si sigue teniendo matrícula y acceso; si no, a la primera matrícula por `enrolled_at`.
+
 ⚠️ **Access and enrollment must go together.** The store keeps them synced per action: `enrollInCourse`, `setUserCourseAccess`/`Bulk`, and `autoEnrollInstitutionStudents` all upsert *both* `user_courses` **and** `course_enrollments` (+ empty `course_progress`, never resetting existing). `switchCourse` creates a missing enrollment on the fly. The map switcher shows the **union** of enrollments + active access (`switchableCourseIds`) so a lagging table self-heals. Granting access never resets progress; revoking access removes nothing.
 - ⚠️ Creating a course (seed or AdminCourses) grants **no** access — assign it per institution (Admin → Cursos, runs `autoEnroll`) or per user (AdminUsers) afterwards, or it appears to nobody.
 
@@ -1022,6 +1024,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...
    - Aplicada `0079` (la sección de resultados Saber va siempre en el módulo 3; 0077 la dejó en el 7 de Sociales, §15).
    - Aplicada `0083` (Clase en Vivo: el puntaje usa el tiempo por pregunta que fijó el profesor, §8). Probada con `scripts/test-migraciones/run-live-tiempo.mjs`.
    - Aplicada `0084` (distribución por competencias de la Guía Saber 11, §14). Probada con `scripts/test-migraciones/run-equilibrio.mjs`.
+   - **Sin aplicar:** `0085` (`profiles.last_course_id`, recuerda la última sala del estudiante; sin ella la app funciona pero no la recuerda).
    - **Sin aplicar:** `0082` (biblioteca de versiones de ruta: `courses.version_note`, `courses.is_template` + RLS de plantillas, §16). Probada con `scripts/test-migraciones/run-versiones-ruta.mjs`. Sin ella la página carga, pero guardar notas o plantillas avisa que falta la migración.
    - Aplicada `0081` (llena los módulos que aún dicen "Pendiente" —apertura 1, estructura Saber 2, pausa activa 5— copiando, dentro de cada familia de curso y por título, el módulo ya lleno de otra copia). Causa: 0064–0067 y 0069 solo llenaron UNA copia por colegio de cada asignatura; la **ruta base** (la que ve un colegio sin versión propia, p. ej. CEINFES) quedó con "Pendiente". Probada con `scripts/test-migraciones/run-pendientes-base.mjs`.
    - Aplicada `0080` (oct 2026: Matemáticas, las rondas de los módulos 4 y 6 pasan al banco nuevo de 50 preguntas, §14; además el snapshot en vivo lleva `optionImages`, §5). Probada con `scripts/test-migraciones/run-rondas-matematicas.mjs`.

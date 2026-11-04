@@ -21,12 +21,15 @@ export async function loadStudentSession(userId, area, institutionId) {
   // Si la migración 0028 aún no está aplicada, no bloquear el login.
   try { await supabase.rpc('sync_my_institution_courses') } catch (_) { /* noop */ }
 
-  const [{ data: enrollmentsData }, { data: legacyProgress }, { data: accessData }, { data: unlocksData }, { data: quizAttemptsData }] = await Promise.all([
-    supabase.from('course_enrollments').select('course_id').eq('student_id', userId),
+  const [{ data: enrollmentsData }, { data: legacyProgress }, { data: accessData }, { data: unlocksData }, { data: quizAttemptsData }, { data: profileData }] = await Promise.all([
+    // Con orden: sin él, quien tiene varios cursos caía en uno distinto según la consulta.
+    supabase.from('course_enrollments').select('course_id').eq('student_id', userId).order('enrolled_at'),
     supabase.from('progress').select('xp,completed,badges').eq('user_id', userId).maybeSingle(),
     supabase.from('user_courses').select('course_id').eq('user_id', userId).eq('is_active', true),
     supabase.from('presence_unlocks').select('module_id').eq('user_id', userId),
     supabase.from('quiz_attempts').select('module_id, attempts, passed').eq('user_id', userId),
+    // Última sala elegida (0085). Sin la columna, data llega null y no se recuerda.
+    supabase.from('profiles').select('last_course_id').eq('id', userId).maybeSingle(),
   ])
   const unlockedPresenceModules = (unlocksData || []).map(u => u.module_id)
   const quizAttempts = quizAttemptsData || []
@@ -39,7 +42,11 @@ export async function loadStudentSession(userId, area, institutionId) {
   // en course_enrollments (revocar acceso no borra la matrícula, ver CLAUDE.md).
   // Si no tiene NINGUNA fila en user_courses (acceso aún no gestionado para
   // este usuario), se conserva el comportamiento legacy de usar la primera matrícula.
+  const lastCourseId = profileData?.last_course_id
+  const canResumeLast = lastCourseId && allEnrollments.includes(lastCourseId)
+    && (allowedIds.size === 0 || allowedIds.has(lastCourseId))
   const enrolledCourseId =
+    (canResumeLast ? lastCourseId : null) ??
     allEnrollments.find(id => allowedIds.has(id)) ??
     (allowedIds.size === 0 ? (allEnrollments[0] || null) : null)
 
