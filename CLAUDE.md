@@ -185,6 +185,8 @@ A student seeing/entering a course depends on three separate tables. Mismatches 
 - `course_enrollments` (**matrícula**) — drives the multi-course switcher in `map.jsx` (`allEnrollments`) and `enrolledCourseId` (via `loadStudentSession`). Also gates `CourseSelection` vs `map` in `app.jsx`.
 - `course_progress` — XP/completed/badges per enrollment.
 
+**Sala de entrada (nov 2026):** el estudiante con más de un curso ve `RoomLobby.jsx` al ingresar (solo si llega al mapa; un enlace directo no se interrumpe). Se recuerda por sesión del navegador (`sessionStorage`), así que recargar no la repite y cerrar sesión sí. Con un curso no aparece. Las salas con clase en vivo salen de primeras, porque el banner solo mira la sala actual. Se reabre desde "Cambiar de sala" en el menú.
+
 **Selector de sala (nov 2026):** `CourseSwitcher.jsx` en la cabecera muestra al estudiante con más de un curso "Estás en …" y lo deja cambiar desde cualquier página; con un solo curso no se pinta. `switchCourse` guarda `profiles.last_course_id` (`0085`) y `loadStudentSession` entra a esa sala si sigue teniendo matrícula y acceso; si no, a la primera matrícula por `enrolled_at`.
 
 ⚠️ **Access and enrollment must go together.** The store keeps them synced per action: `enrollInCourse`, `setUserCourseAccess`/`Bulk`, and `autoEnrollInstitutionStudents` all upsert *both* `user_courses` **and** `course_enrollments` (+ empty `course_progress`, never resetting existing). `switchCourse` creates a missing enrollment on the fly. The map switcher shows the **union** of enrollments + active access (`switchableCourseIds`) so a lagging table self-heals. Granting access never resets progress; revoking access removes nothing.

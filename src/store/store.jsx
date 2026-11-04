@@ -483,6 +483,8 @@ const DEF = {
   enrolledCourseId: null,   // id del curso activo del estudiante (matrícula/course_progress)
   effectiveCourseId: null,  // id del curso que realmente se ve (el fork del colegio si existe; si no, igual a enrolledCourseId)
   allEnrollments: [],       // todos los cursos en los que está inscrito el estudiante
+  roomChosen: false,        // ya pasó por la sala de entrada en esta sesión (RoomLobby)
+  roomLobbyOpen: false,     // volvió a abrirla a propósito desde el menú
   unlockedPresenceModules: [], // ids de módulos con requires_presence_code que este estudiante ya desbloqueó
   quizAttempts: [],         // [{ module_id, attempts, passed }] intentos de retos quiz del estudiante actual
   coursesLoaded: false,     // true cuando courses + userCourses ya se cargaron (evita parpadeo en el guard de selección de curso)
@@ -557,14 +559,31 @@ if (initialRoute && PUBLIC_PAGES.includes(initialRoute.page)) {
   XS.set({ page: initialRoute.page, nodeId: initialRoute.nodeId });
 }
 
+// Sala de entrada (RoomLobby). En sessionStorage para que recargar no la repita;
+// se vuelve a preguntar al cerrar sesión o abrir el navegador de nuevo.
+const ROOM_CHOSEN_KEY = 'experia:room-chosen';
+const wasRoomChosen = () => {
+  try { return !!sessionStorage.getItem(ROOM_CHOSEN_KEY); } catch (_) { return false; }
+};
+const markRoomChosen = () => {
+  try { sessionStorage.setItem(ROOM_CHOSEN_KEY, '1'); } catch (_) {}
+  XS.set({ roomChosen: true, roomLobbyOpen: false });
+};
+const openRoomLobby = () => XS.set({ roomLobbyOpen: true });
+const closeRoomLobby = () => XS.set({ roomLobbyOpen: false });
+// Booleano, no array: con useSyncExternalStore un array nuevo haría bucle infinito.
+const selectHasManyRooms = (s) => (s.courses || []).filter(c => isBaseCourse(c)
+  && (s.userCourses || []).some(uc => uc.user_id === s.user?.id && uc.is_active && uc.course_id === c.id)).length > 1;
+
 const doLogout = () => {
   const wasLoggedIn = XS.get().isLoggedIn;
   XS.set({
     isLoggedIn: false, user: null, page: 'landing', nodeId: null,
     xp: 0, completed: [], badges: [], notifications: [], selectedArea: null,
     enrolledCourseId: null, allEnrollments: [], courseModules: [], coursesLoaded: false,
-    unlockedPresenceModules: [],
+    unlockedPresenceModules: [], roomChosen: false, roomLobbyOpen: false,
   });
+  try { sessionStorage.removeItem(ROOM_CHOSEN_KEY); } catch (_) {}
   // Limpia el hash sin crear entrada de historial (evita deep links huérfanos)
   history.replaceState(null, '', window.location.pathname + window.location.search);
   clearIdleActivity();
@@ -2579,6 +2598,7 @@ const reactCharacter = (context, line, hold) => {
 };
 
 export {
+  markRoomChosen, wasRoomChosen, openRoomLobby, closeRoomLobby, selectHasManyRooms,
   useStore, AREAS, ALL_AREAS, BADGES, LEVELS, RUBRIC_CRITERIA, ALL_MODULES, AREA_CONTENT,
   INITIAL_INSTITUTIONS,
   getStudentModules, getTransversalModules, getAreaOnlyModules, getScopeModules, TRANSVERSAL_AREA, findModule,

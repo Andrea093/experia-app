@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, nav, calcLevel, doLogout, dismissStudentMessage, selectActiveCourseTheme, isBaseCourse } from '../store/store.jsx'
+import { useStore, nav, calcLevel, doLogout, dismissStudentMessage, selectActiveCourseTheme, selectHasManyRooms } from '../store/store.jsx'
 import { useTheme, useContrast } from '../lib/theme.js'
 import { useMobile, LogoImg, MenuIc, BellIc, SunIc, MoonIc, CheckIc, ClockIc, LogOutIc } from './ui.jsx'
 
@@ -18,10 +18,7 @@ const Header = React.memo(({ onMenuClick }) => {
   const { theme, toggle } = useTheme();
   const { contrast, toggle: toggleContrast } = useContrast();
   const courseTheme = useStore(selectActiveCourseTheme);
-  // Booleano (no array nuevo): con useSyncExternalStore evita el bucle infinito.
-  const hasManyCourses = useStore(s => !!s.enrolledCourseId && (s.courses || [])
-    .filter(c => isBaseCourse(c) && (s.userCourses || []).some(uc => uc.user_id === s.user?.id && uc.is_active && uc.course_id === c.id))
-    .length > 1);
+  const hasManyCourses = useStore(s => !!s.enrolledCourseId && selectHasManyRooms(s));
   React.useEffect(() => {
     if (!showNotifs) return;
     const onKey = (e) => { if (e.key === 'Escape') setShowNotifs(false); };
