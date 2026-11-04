@@ -6,6 +6,10 @@ import json, os, re, sys, random
 from PIL import Image, ImageDraw, ImageFont
 
 S, REPO = sys.argv[1], sys.argv[2]
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from collections import Counter
+from guia_mapeo import EVIDENCIAS
+from ampliacion import AMP_FIX, AMP_EXPLAIN, AMP_HINTS, AMP_DROP_IMAGES, AMP_IMG_OPS
 d = json.load(open(os.path.join(S, 'draft.json'), encoding='utf-8'))
 
 AREAS = {
@@ -644,6 +648,10 @@ FIX = {
                          'options': ['La Violencia política.', 'El Frente Nacional.', 'La Patria Boba.', 'El gobierno de Rojas Pinilla.']},
 }
 
+FIX.update(AMP_FIX)
+HINTS.update(AMP_HINTS)
+EXPLAIN.update(AMP_EXPLAIN)
+
 # ── Ids estables por asignatura ──────────────────────────────────────────────
 AREA_OF = {'mat': 'matematicas', 'lec': 'lectura', 'bio': 'biologia', 'qui': 'quimica', 'fis': 'fisica', 'soc': 'sociales'}
 # Matemáticas cambió de documento (oct 2026): sus ids van con otro prefijo
@@ -712,7 +720,34 @@ for p in d.get('mpassages', []):
     pass_out[f"mp-{p['id'] + 1:02d}"] = pas
 
 
+# Ampliación: las imágenes se publican por pregunta o texto, sin catálogo a mano.
+AMP_FOLDER = {'matematicas': 'matematicas', 'lectura': 'lectura', 'sociales': 'sociales',
+              'biologia': 'ciencias', 'quimica': 'ciencias', 'fisica': 'ciencias'}
+
+
+def amp_pub(code, img, folder, name):
+    im = load_rgb(code, img)
+    op = AMP_IMG_OPS.get((code, img))
+    save_jpg(op(im) if op else im, f'{folder}/{name}')
+    return f'/preguntas/{folder}/{name}.jpg'
+
+
+for pid, p in d.get('apassages', {}).items():
+    p = dict(p)
+    if p.get('images'):
+        p['images'] = [{'url': amp_pub(code, im, 'lectura', pid)} for code, im in p['images']]
+    else:
+        p.pop('images', None)
+    pass_out[pid] = p
+
+
 def time_limit(q, area, passage):
+    if q.get('amp'):
+        # Nivel alto y muy alto: según lo que hay que leer, con o sin texto de apoyo.
+        chars = sum(len(x) for x in q['stem']) + sum(len(o) for o in q['options'])
+        chars += sum(len(x) for x in (passage or {}).get('paragraphs', []))
+        t = 45 + chars / 12 + (20 if q.get('images') or (passage or {}).get('images') else 0)
+        return int(min(180, max(60, round(t / 15) * 15)))
     if area == 'matematicas':
         # Enunciados tipo Saber (tablas, procedimientos): según lo que hay que leer.
         chars = sum(len(x) for x in q['stem']) + sum(len(o) for o in q['options'])
@@ -743,6 +778,7 @@ DIFFS = ['facil', 'media', 'dificil']
 for _ in range(20):
     rng.choice(DIFFS)
 rng_mat = random.Random('matematicas-2026')
+AMP_IDS = set()
 questions = []
 for it in out_q:
     area = AREA_OF[it['src']]
@@ -751,10 +787,15 @@ for it in out_q:
     passage_id = f"lp-{it['passage'] + 1:02d}" if it.get('passage') is not None else None
     if it.get('mpassage') is not None:
         passage_id = f"mp-{it['mpassage'] + 1:02d}"
+    if it.get('ampPassage'):
+        passage_id = it['ampPassage']
     q = {'id': it['id'], 'area': area, 'question': '\n'.join(stem), 'options': opts, 'correct': it['correct']}
     opt_imgs = OPTION_IMAGES.get(it['id'], [])
     imgs = [pub(it['src'] if it['src'] in ('mat', 'lec', 'soc') else 'cie', im) for im in it.get('images', []) if im not in opt_imgs]
     imgs = [x for x in imgs if x]
+    if it.get('amp'):
+        imgs = [] if it['id'] in AMP_DROP_IMAGES else [
+            amp_pub(it['imgdir'], im, AMP_FOLDER[area], it['id']) for im in it.get('images', [])]
     if it['id'] in COMPOSITES:
         imgs = [compose(it['id'])]
     if it['id'] in EXTRA_IMGS:
@@ -766,9 +807,9 @@ for it in out_q:
         q['image'] = imgs[0]
     # EXPLAIN primero: en las preguntas corregidas reemplaza la justificación del Word.
     exp = EXPLAIN.get(it['id']) or it.get('explanation') or ''
-    if area == 'lectura' and it.get('topic'):
+    if area == 'lectura' and it.get('topic') and not it.get('amp'):
         exp = f"Competencia que evalúa: {it['topic'][0].lower() + it['topic'][1:]}"
-    if area == 'sociales':
+    if area == 'sociales' and not it.get('amp'):
         exp = f"Competencia: {it['topic']}. Afirmación: {tidy(it['afirmacion']).rstrip('.')}."
     if exp:
         q['explanation'] = chem(exp) if area in ('quimica', 'fisica') else exp
@@ -776,29 +817,94 @@ for it in out_q:
     # Sociales trae la dificultad REAL en el documento. Las demás asignaturas,
     # al azar con semilla fija; Sociales no consume el generador, así que
     # agregarla no cambia la dificultad ya asignada a las otras.
-    if area == 'sociales':
+    if it.get('amp'):
+        # Todos estos documentos son de nivel alto o muy alto (el detalle va en topic).
+        q['difficulty'] = 'dificil'
+    elif area == 'sociales':
         q['difficulty'] = {'baja': 'facil', 'media': 'media', 'alta': 'dificil'}[it['dificultad'].strip().lower()]
     elif area == 'matematicas':
         q['difficulty'] = rng_mat.choice(DIFFS)
     else:
         q['difficulty'] = rng.choice(DIFFS)
-    if it.get('topic') and area != 'lectura':
+    if it.get('amp'):
+        q['topic'] = it['topic']
+    elif it.get('topic') and area != 'lectura':
         q['topic'] = it['topic'].split(' - ', 1)[-1]
-    if area == 'lectura' and it.get('topic'):
+    elif area == 'lectura' and it.get('topic'):
         q['topic'] = it['topic'].rstrip('.')
     if passage_id:
         q['passageId'] = passage_id
     q['timeLimit'] = time_limit(it, area, pass_out.get(passage_id))
     if it['id'] in REVIEW:
         q['review'] = REVIEW[it['id']]
-    q['source'] = {'mat': 'Prueba de Matemáticas', 'lec': f"Lectura crítica — parte {it['set']}",
+    q['source'] = it.get('sourceLabel') or {'mat': 'Prueba de Matemáticas', 'lec': f"Lectura crítica — parte {it['set']}",
                    'soc': 'Sociales y competencias ciudadanas'}.get(it['src'], f"Ciencias Naturales — parte {it['set']}")
+    # Evidencia de la Guía Saber 11 (de ahí salen afirmación y competencia).
+    q['evidencia'] = EVIDENCIAS[q['id']]
+    if it.get('amp'):
+        AMP_IDS.add(q['id'])
     questions.append(q)
 
 missing = [q['id'] for q in questions if not q.get('hint')]
 assert not missing, missing
 
 # ── Rondas predeterminadas (10 por ronda; sin preguntas "a revisar") ─────────
+# ⚠️ Regla de la Guía Saber 11: cada ronda de 10 cumple el reparto por competencia
+# (mayor residuo; misma cuenta que requiredDistribution en src/lib/saberGuide.js).
+_MATE = {1: 'i', 2: 'f', 3: 'a'}
+_LEC = {1: 'l', 2: 'g', 3: 'r'}
+_SOC = {1: 's', 2: 's', 3: 'p', 4: 'p', 5: 'r', 6: 'r'}
+_CIE = {1: 'e', 2: 'e', 3: 'e', 4: 'u', 5: 'u', 6: 'q', 7: 'q', 8: 'q', 9: 'q'}
+_CIE_Q = {'e': 3, 'u': 3, 'q': 4}
+REPARTO = {
+    'matematicas': (_MATE, {'i': 4, 'f': 4, 'a': 2}),
+    'lectura': (_LEC, {'l': 3, 'g': 4, 'r': 3}),
+    'sociales': (_SOC, {'s': 3, 'p': 4, 'r': 3}),
+    'biologia': (_CIE, _CIE_Q), 'quimica': (_CIE, _CIE_Q), 'fisica': (_CIE, _CIE_Q),
+}
+
+
+def equilibrar(area, ok, r1, r2):
+    """Conserva lo que ya estaba en cada ronda mientras quepa en su cupo y completa
+    con preguntas libres: primero del mismo texto de lectura, luego las del banco
+    original, sin partir un texto entre las dos rondas."""
+    mapa, cupo = REPARTO[area]
+    comp = lambda q: mapa[int(q['evidencia'].split('.')[0])]
+    por_id = {q['id']: q for q in ok}
+    orden = {q['id']: i for i, q in enumerate(ok)}
+
+    def recortar(ids):
+        n, out = Counter(), []
+        for i in ids:
+            c = comp(por_id[i])
+            if n[c] < cupo[c]:
+                n[c] += 1
+                out.append(i)
+        return out
+
+    rondas = [recortar(r1), recortar(r2)]
+    usadas = set(rondas[0]) | set(rondas[1])
+    for k, ronda in enumerate(rondas):
+        otra = rondas[1 - k]
+        for c, total in cupo.items():
+            while sum(comp(por_id[i]) == c for i in ronda) < total:
+                mias = {por_id[i].get('passageId') for i in ronda} - {None}
+                suyas = {por_id[i].get('passageId') for i in otra} - {None}
+                libres = [q for q in ok if q['id'] not in usadas and comp(q) == c
+                          and q.get('passageId') not in suyas]
+                dificultad = {0: ('facil', 'media'), 1: ('dificil',)}[k] if area == 'sociales' else None
+                q = min(libres, key=lambda q: (
+                    0 if q.get('passageId') in mias else 1,
+                    0 if dificultad is None or q['difficulty'] in dificultad else 1,
+                    1 if q['id'] in AMP_IDS else 0,
+                    1 if q.get('passageId') else 0,
+                    orden[q['id']]))
+                ronda.append(q['id'])
+                usadas.add(q['id'])
+        ronda.sort(key=orden.get)
+    return {'r1': rondas[0], 'r2': rondas[1]}
+
+
 byarea = {}
 for q in questions:
     byarea.setdefault(q['area'], []).append(q)
@@ -831,7 +937,7 @@ for area, qs in byarea.items():
         r2 = [q['id'] for q in second[:10]]
         r1 = [q['id'] for q in first[:10]]
         r1 += [q['id'] for q in second[10:]][:10 - len(r1)]
-    defaults[area] = {'r1': r1, 'r2': r2}
+    defaults[area] = equilibrar(area, ok, r1, r2)
 
 bank = {
     '_generado': 'NO EDITAR A MANO — lo genera scripts/banco-preguntas/build.py (ver CLAUDE.md §14).',
@@ -844,7 +950,6 @@ bank = {
 export_images()
 dst = os.path.join(REPO, 'src', 'lib', 'questionBank.json')
 json.dump(bank, open(dst, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-from collections import Counter
 print('preguntas', len(questions), Counter(q['area'] for q in questions))
 print('dificultad', Counter(q['difficulty'] for q in questions))
 for a, v in defaults.items():

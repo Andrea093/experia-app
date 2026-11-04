@@ -49,6 +49,7 @@ export const bankToModuleQuestion = (q, bank) => {
   const out = {
     id: q.id, question: q.question, options: [...q.options], correct: q.correct,
     hint: q.hint, difficulty: q.difficulty, timeLimit: q.timeLimit,
+    evidencia: q.evidencia,
   }
   if (q.image) out.image = q.image
   if (q.optionImages) out.optionImages = [...q.optionImages]

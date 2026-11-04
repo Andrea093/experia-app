@@ -7,7 +7,8 @@ import { ActivityPicker } from '../components/ActivityCard.jsx'
 import { LiveSequence, LiveRanking } from '../components/LiveSequence.jsx'
 import { resolveActivity, normalizeCustom, CUSTOM_ID, ACTIVITY_BANKS } from '../lib/activityBank.js'
 import { CustomActivityForm } from '../components/CustomActivityForm.jsx'
-import { isQuestionRound, BANK_AREAS, ROUND_LABELS } from '../lib/questionBankMeta.js'
+import { isQuestionRound, BANK_AREAS, ROUND_LABELS, loadQuestionBank } from '../lib/questionBankMeta.js'
+import { auditRounds, describeRoundProblems } from '../lib/saberGuide.js'
 import { LivePassage, hintDelayMs, OptionImage, optionsLayout, Countdown } from '../components/LiveQuestionView.jsx'
 import { LivePresentation, Podium } from '../components/LivePresentation.jsx'
 import {
@@ -344,6 +345,16 @@ const Launcher = ({ onStarted }) => {
     primeAudio() // desbloquea el audio dentro del gesto de clic
     setBusy(true); setErr('')
     try {
+      // ⚠️ Regla de la Guía Saber 11: se avisa aquí para no descubrirlo a mitad
+      // de la clase (el servidor también lo impide al entrar a la ronda, 0084).
+      if (moduleList.some(isQuestionRound)) {
+        const { problems } = auditRounds(moduleList, await loadQuestionBank())
+        if (problems.length) {
+          setErr('No se puede iniciar: una ronda no cumple la distribución de competencias de la Guía Saber 11. Corrígela en el editor de ruta. ' + describeRoundProblems(problems))
+          setBusy(false)
+          return
+        }
+      }
       const courseName = myCourses.find(c => c.id === courseId)?.name || null
       // effectiveId (el fork), no courseId crudo — es el mismo id que usa el
       // estudiante para ver su ruta (ver useGuidedSession en app.jsx), así la

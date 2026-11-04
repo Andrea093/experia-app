@@ -18,6 +18,9 @@ DOCS = {  # docx → (texto volcado, carpeta de imágenes)
     'ciencias-naturales.docx': ('ciencias.txt', 'cie'),
     'sociales.docx': ('sociales.txt', 'soc'),
 }
+sys.path.insert(0, HERE)
+from ampliacion import DOCS as AMP_DOCS
+DOCS.update(AMP_DOCS)
 
 work = tempfile.mkdtemp(prefix='banco-preguntas-')
 for docx, (txt, folder) in DOCS.items():
@@ -26,7 +29,8 @@ for docx, (txt, folder) in DOCS.items():
     z = zipfile.ZipFile(path)
     os.makedirs(os.path.join(work, 'img', folder), exist_ok=True)
     for n in z.namelist():
-        if n.startswith('word/media/'):
+        # Un documento guarda una imagen en media/ en vez de word/media/.
+        if (n.startswith('word/media/') or n.startswith('media/')) and os.path.basename(n):
             open(os.path.join(work, 'img', folder, os.path.basename(n)), 'wb').write(z.read(n))
 
 subprocess.run([sys.executable, os.path.join(HERE, 'parse.py'), work], check=True)

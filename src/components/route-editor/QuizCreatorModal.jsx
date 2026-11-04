@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { PlusIc, XIc, CheckIc, ChevRIc, Btn, ImageUploader, RichInput, RichText, useMobile } from '../ui.jsx'
 import { BANK_AREAS, ROUND_LABELS, DIFFICULTY, loadQuestionBank, bankToModuleQuestion } from '../../lib/questionBankMeta.js'
 import QuestionBankPicker from './QuestionBankPicker.jsx'
+import { SABER_GUIDES, checkRound, evidenceInfo, evidenceIndex, tagWithBank } from '../../lib/saberGuide.js'
 
 const newQuestionId = () => `q_${crypto.randomUUID().slice(0, 8)}`
 const newQuestion = (isPoll) => ({ id: newQuestionId(), question: '', options: ['', '', '', ''], ...(isPoll ? {} : { correct: 0 }) })
@@ -10,6 +11,71 @@ const normalizeQuestion = (question, isPoll) => ({ ...question, id: question.id 
 // Una pregunta "vacía" (la que trae un quiz recién creado) se reemplaza al
 // agregar la primera del banco, en vez de quedar como pregunta en blanco.
 const isBlank = (q) => !q.question?.trim() && (q.options || []).every(o => !o?.trim())
+
+// Pregunta copiada del banco: su evidencia la fija el banco, no se puede cambiar
+// (si no, bastaría con reetiquetar para "cuadrar" el reparto de competencias).
+const isBankQuestionId = (id) => /^(mate|bio|qui|fis|lec|soc)-\d+$/.test(id || '')
+
+// Evidencia de la Guía Saber 11 de una pregunta (obligatoria en una ronda).
+const EvidenceSelect = ({ area, question, onChange }) => {
+  const guide = SABER_GUIDES[area]
+  if (!guide) return null
+  const info = evidenceInfo(area, question.evidencia)
+  const locked = isBankQuestionId(question.id) && !!info
+  return (
+    <div style={{ marginTop: 10, padding: 10, borderRadius: 10, background: 'var(--white)',
+      border: `1.5px solid ${info ? 'var(--border)' : 'var(--error)'}` }}>
+      <label style={{ fontSize: 10, fontWeight: 700, color: info ? 'var(--muted)' : 'var(--error)', textTransform: 'uppercase', letterSpacing: .8, display: 'block', marginBottom: 4 }}>
+        Evidencia de la Guía Saber 11 {locked ? '(del banco)' : '— obligatoria'}
+      </label>
+      {!locked && (
+        <select value={question.evidencia || ''} onChange={e => onChange(e.target.value)}
+          style={{ width: '100%', padding: '7px 8px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 12.5, background: 'var(--white)', marginBottom: info ? 6 : 0 }}>
+          <option value="">— Elige la evidencia que evalúa esta pregunta —</option>
+          {guide.competencias.map(c => (
+            <optgroup key={c.id} label={c.label}>
+              {c.afirmaciones.flatMap(a => Object.entries(a.evidencias)).map(([code, text]) => (
+                <option key={code} value={code}>{code} — {text.length > 90 ? text.slice(0, 88) + '…' : text}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      )}
+      {info && (
+        <div style={{ fontSize: 11.5, color: 'var(--text-sec)', lineHeight: 1.45 }}>
+          <b style={{ color: 'var(--purple)' }}>{info.competencia.label}</b><br />
+          <b>Afirmación {info.afirmacion.n}.</b> {info.afirmacion.text}<br />
+          <b>Evidencia {info.code}.</b> {info.evidencia}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Tablero de la regla: cuántas preguntas pide la guía por competencia y cuántas hay.
+const RoundBalance = ({ check }) => (
+  <div style={{ padding: 14, borderRadius: 12, background: check.ok ? 'var(--white)' : '#FEF2F2',
+    border: `1.5px solid ${check.ok ? 'var(--success)' : 'var(--error)'}` }}>
+    <div style={{ fontSize: 13, fontWeight: 800, color: check.ok ? 'var(--success)' : '#B91C1C', marginBottom: 8 }}>
+      {check.ok ? '✓ Cumple la distribución de competencias de la Guía Saber 11' : '⚖️ Falta equilibrar las competencias: así no se puede guardar'}
+    </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {check.rows.map(r => (
+        <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: check.ok ? 'var(--text-sec)' : '#1F2937' }}>
+          <span style={{ fontWeight: 800, color: r.ok ? 'var(--success)' : '#B91C1C', width: 14 }}>{r.ok ? '✓' : '✗'}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>{r.label} <span style={{ opacity: .7 }}>({r.pct} %)</span></span>
+          <b style={{ whiteSpace: 'nowrap' }}>{r.actual} de {r.required}</b>
+        </div>
+      ))}
+    </div>
+    {!check.ok && (
+      <div style={{ marginTop: 8, fontSize: 11.5, color: '#B91C1C', lineHeight: 1.45 }}>{check.problems.join(' ')}</div>
+    )}
+    <div style={{ marginTop: 6, fontSize: 11, color: check.ok ? 'var(--subtle)' : '#6B7280' }}>
+      Con {check.n} preguntas, los porcentajes de la guía dan ese reparto (redondeo por mayor residuo).
+    </div>
+  </div>
+)
 
 // `usedElsewhere`: { idPregunta: título del otro módulo } — para avisar en el
 // banco cuáles ya están en otra ronda de la misma ruta.
@@ -83,6 +149,19 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
     }
   }, [open, initial])
 
+  // Rondas guardadas antes de la asociación con la guía: las preguntas del
+  // banco toman su evidencia del banco al abrir el editor.
+  React.useEffect(() => {
+    if (!open || !bankArea) return
+    let alive = true
+    loadQuestionBank().then(bank => {
+      if (!alive) return
+      const index = evidenceIndex(bank)
+      setQs(list => tagWithBank(list, index))
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [open, bankArea])
+
   const addImg = (url) => setPImgs(l => [...l, { url, caption: '', width: 340, height: 420 }])
   const updImg = (i, k, v) => setPImgs(l => l.map((im, idx) => idx === i ? { ...im, [k]: v } : im))
   const rmImg  = (i) => setPImgs(l => l.filter((_, idx) => idx !== i))
@@ -127,6 +206,8 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
     if (ids.length) setQs(ids.map(id => bankToModuleQuestion(byId[id], bank)))
   }
   const diffCounts = Object.keys(DIFFICULTY).map(k => [k, questions.filter(q => q.difficulty === k).length]).filter(([, n]) => n)
+  // ⚠️ Regla de la Guía Saber 11: una ronda que no la cumpla no se guarda.
+  const roundCheck = !isPoll && bankArea ? checkRound(bankArea, questions.filter(q => !isBlank(q))) : null
 
   const addQ = () => {
     const nq = newQuestion(isPoll)
@@ -163,6 +244,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
     // Una opción es válida si tiene texto O una imagen (opciones visuales).
     const incomplete = questions.find(q => !q.question.trim() || q.options.some((o, i) => !o.trim() && !(q.optionImages?.[i])))
     if (incomplete) { setErr('Completa todas las preguntas y opciones (texto o imagen en cada opción)'); return }
+    if (roundCheck && !roundCheck.ok) { setErr('No cumple la distribución de competencias: ' + roundCheck.problems.join(' ')); return }
     onSave({ title: title.trim(), desc: desc.trim(), task: task.trim(), xp: Number(xp) || 100, questions: cleanQuestions(), passage: buildPassage(), type: 'challenge', ctype: isPoll ? 'poll' : 'quiz',
       bank: (!isPoll && bankArea) || null, bankRound: (!isPoll && bankArea && bankRound) || null,
       ...(isPoll ? {} : {
@@ -193,6 +275,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
     if (!isPoll && q.points) out.points = Number(q.points)
     if (!isPoll && q.weight !== '' && q.weight != null && Number(q.weight) >= 0) out.weight = Number(q.weight)
     if (q.difficulty) out.difficulty = q.difficulty
+    if (!isPoll && q.evidencia) out.evidencia = q.evidencia
     // Rondas del banco: el texto de lectura viaja con su pregunta y la pista la
     // dice el tutor en la clase en vivo (snapshot de 0075).
     if (q.passage) out.passage = q.passage
@@ -250,6 +333,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
       {showLeft && (
       <div style={{ flex: showBank ? '1 1 55%' : 1, minWidth: 0, overflowY: 'auto', padding: isMobile ? '16px 14px 40px' : '22px 26px 60px' }}>
       <div style={{ maxWidth: showBank ? 'none' : 820, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {roundCheck && <RoundBalance check={roundCheck} />}
         {/* ── Banco de preguntas: lo primero que ve el tutor en una ronda ── */}
         {!isPoll && (
           <div style={{ padding: 14, borderRadius: 12, background: 'var(--orange-bg)', border: '1.5px solid var(--orange)' }}>
@@ -257,7 +341,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
               <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--orange)' }}>📚 Banco de preguntas</span>
               <select value={bankArea} onChange={e => setBankArea(e.target.value)}
                 style={{ padding: '5px 8px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 12.5, background: 'var(--white)' }}>
-                <option value="">— Sin banco —</option>
+                {!bankRound && <option value="">— Sin banco —</option>}
                 {Object.entries(BANK_AREAS).map(([k, a]) => <option key={k} value={k}>{a.icon} {a.label}</option>)}
               </select>
               {bankArea && (
@@ -497,6 +581,8 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
                 </div>
                 {!isPoll && <p style={{ fontSize: 11, color: 'var(--subtle)', marginTop: 8 }}>Haz clic en el círculo para marcar la opción correcta. Cada opción puede llevar texto, imagen, o ambos.</p>}
 
+                {!isPoll && bankArea && <EvidenceSelect area={bankArea} question={q} onChange={v => updateQ(q.id, 'evidencia', v)} />}
+
                 {/* ── Opciones avanzadas por pregunta ── */}
                 <button onClick={() => toggleAdv(q.id)}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, padding: '6px 0', border: 'none',
@@ -645,7 +731,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
       {showRight && (
         <div style={{ flex: '1 1 45%', minWidth: 0, overflowY: 'auto', padding: isMobile ? '16px 14px 40px' : '22px 26px 60px',
           background: 'var(--bg-alt)', borderLeft: isMobile ? 'none' : '1px solid var(--border)' }}>
-          <QuestionBankPicker embedded area={bankArea} selectedIds={new Set(questions.map(q => q.id))}
+          <QuestionBankPicker embedded area={bankArea} selectedIds={new Set(questions.map(q => q.id))} balance={roundCheck}
             usedElsewhere={usedElsewhere} onToggle={toggleBankQ} />
         </div>
       )}

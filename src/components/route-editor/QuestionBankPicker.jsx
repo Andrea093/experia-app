@@ -1,6 +1,7 @@
 import React from 'react'
 import { RichText, QuestionText } from '../ui.jsx'
 import { BANK_AREAS, DIFFICULTY, loadQuestionBank } from '../../lib/questionBankMeta.js'
+import { SABER_GUIDES, evidenceInfo } from '../../lib/saberGuide.js'
 
 // =============================================
 // Selector del banco de preguntas (rondas en vivo, módulos 4 y 6).
@@ -18,6 +19,7 @@ const DiffChip = ({ d }) => DIFFICULTY[d]
 
 const BankCard = ({ q, n, passage, inModule, usedIn, onToggle }) => {
   const [open, setOpen] = React.useState(false)
+  const info = evidenceInfo(q.area, q.evidencia)
   return (
     <div style={{ padding: '10px 12px', borderRadius: 12, background: inModule ? 'var(--orange-bg)' : 'var(--white)',
       border: `1.5px solid ${inModule ? 'var(--orange)' : 'var(--border)'}`, transition: 'all .15s' }}>
@@ -32,6 +34,7 @@ const BankCard = ({ q, n, passage, inModule, usedIn, onToggle }) => {
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted)' }}>#{n}</span>
             <DiffChip d={q.difficulty} />
+            {info && <span style={chip('var(--purple-bg)', 'var(--purple)')} title={`Afirmación ${info.afirmacion.n}. ${info.afirmacion.text}`}>{info.competencia.short} · {info.code}</span>}
             {q.topic && <span style={chip('var(--bg-alt)', 'var(--muted)')}>{q.topic.length > 48 ? q.topic.slice(0, 46) + '…' : q.topic}</span>}
             {q.image && <span style={chip('#DBEAFE', '#1D4ED8')}>🖼️ Imagen</span>}
             {usedIn && <span style={chip('var(--purple-bg)', 'var(--purple)')} title="Ya está en otro módulo de esta ruta">También en: {usedIn}</span>}
@@ -60,6 +63,11 @@ const BankCard = ({ q, n, passage, inModule, usedIn, onToggle }) => {
                 </div>
               ))}
               <div style={{ fontSize: 12, color: 'var(--orange)', marginTop: 4 }}>💡 <b>Pista:</b> {q.hint}</div>
+              {info && (
+                <div style={{ fontSize: 11.5, color: 'var(--text-sec)', lineHeight: 1.45, marginTop: 2 }}>
+                  <b>{info.competencia.label}.</b> <b>Afirmación {info.afirmacion.n}:</b> {info.afirmacion.text} <b>Evidencia {info.code}:</b> {info.evidencia}
+                </div>
+              )}
               {q.review && <div style={{ fontSize: 12, color: '#B91C1C', marginTop: 2 }}>⚠️ <b>Para revisar:</b> {q.review}</div>}
               <div style={{ fontSize: 11, color: 'var(--subtle)' }}>⏱️ {q.timeLimit} s · {q.source}</div>
             </div>
@@ -77,12 +85,13 @@ const BankCard = ({ q, n, passage, inModule, usedIn, onToggle }) => {
 
 // `embedded`: va fijo en la columna derecha del editor a pantalla completa —
 // sin botones de "Volver"/"Listo", porque no hay otra vista a la que volver.
-const QuestionBankPicker = ({ area, selectedIds, usedElsewhere = {}, onToggle, onClose, embedded = false }) => {
+const QuestionBankPicker = ({ area, selectedIds, usedElsewhere = {}, onToggle, onClose, embedded = false, balance = null }) => {
   const [bank, setBank]     = React.useState(null)
   const [err, setErr]       = React.useState('')
   const [diff, setDiff]     = React.useState('')
   const [onlyMine, setOnly] = React.useState(false)
   const [search, setSearch] = React.useState('')
+  const [comp, setComp]     = React.useState('')
 
   React.useEffect(() => {
     loadQuestionBank().then(setBank).catch(e => setErr('No se pudo cargar el banco: ' + (e?.message || e)))
@@ -92,6 +101,7 @@ const QuestionBankPicker = ({ area, selectedIds, usedElsewhere = {}, onToggle, o
   const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
   const list = all.filter(q =>
     (!diff || q.difficulty === diff)
+    && (!comp || evidenceInfo(area, q.evidencia)?.competencia.id === comp)
     && (!onlyMine || selectedIds.has(q.id))
     && (!search.trim() || norm(q.question + ' ' + (q.topic || '') + ' ' + (bank.passages[q.passageId]?.title || '')).includes(norm(search.trim()))))
   const count = (d) => all.filter(q => q.difficulty === d).length
@@ -128,6 +138,17 @@ const QuestionBankPicker = ({ area, selectedIds, usedElsewhere = {}, onToggle, o
           <button key={k} style={pill(diff === k)} onClick={() => setDiff(diff === k ? '' : k)}>{d.label} ({count(k)})</button>
         ))}
         <button style={pill(onlyMine)} onClick={() => setOnly(o => !o)}>✓ Solo las del módulo</button>
+      </div>
+      {/* Competencias: el filtro también dice cuántas lleva la ronda y cuántas pide la guía. */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        {(SABER_GUIDES[area]?.competencias || []).map(c => {
+          const row = balance?.rows.find(r => r.id === c.id)
+          return (
+            <button key={c.id} style={pill(comp === c.id)} onClick={() => setComp(comp === c.id ? '' : c.id)} title={c.label}>
+              {c.short}{row ? ` ${row.actual}/${row.required}${row.ok ? ' ✓' : ''}` : ''}
+            </button>
+          )
+        })}
       </div>
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por palabra, tema o título del texto…"
         style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontFamily: 'var(--font)', fontSize: 13, outline: 'none' }} />

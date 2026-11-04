@@ -326,7 +326,13 @@ for p in mpassages:
     body = [clean(IMG.sub('', raw)) for raw in p['lines']]
     mpjson.append(dict(id=p['id'], head=p['head'], body=[t for t in body if t], images=imgs))
 
-json.dump(dict(items=items, passages=pjson, mpassages=mpjson), open(os.path.join(S, 'draft.json'), 'w', encoding='utf-8'),
+# Ampliación (nov 2026): se agrega AL FINAL, para no cambiar ningún id existente.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ampliacion import parse_all
+amp = parse_all(S)
+items += amp['items']
+
+json.dump(dict(items=items, passages=pjson, mpassages=mpjson, apassages=amp['passages']), open(os.path.join(S, 'draft.json'), 'w', encoding='utf-8'),
           ensure_ascii=False, indent=1)
 from collections import Counter
 print(Counter((i['src'], i['set']) for i in items))

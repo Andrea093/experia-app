@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { bankToModuleQuestion } from '../src/lib/questionBankMeta.js'
+import { SABER_GUIDES, MIN_ROUND_QUESTIONS, checkRound } from '../src/lib/saberGuide.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const bank = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/lib/questionBank.json'), 'utf8'))
@@ -438,3 +439,182 @@ end $$;
 select estado, curso, detalle from _0080_estado order by estado, curso;
 `
 writeMigration('0080_rondas_matematicas_nuevo_banco.sql', sql80)
+
+// ── 0084: distribución por competencias de la Guía Saber 11 (regla inviolable) ──
+// Los catálogos salen de src/lib/saberGuide.js, así que SQL y frontend no pueden
+// discrepar sobre qué evidencia pertenece a qué competencia.
+const guiaSql = (area) => {
+  const comps = SABER_GUIDES[area].competencias
+  const ev = {}
+  comps.forEach((c, i) => c.afirmaciones.forEach(a => Object.keys(a.evidencias).forEach(code => { ev[code] = i + 1 })))
+  return { pct: comps.map(c => c.pct), names: comps.map(c => c.short), ev }
+}
+const guiasSql = JSON.stringify(Object.fromEntries(Object.keys(SABER_GUIDES).map(a => [a, guiaSql(a)])))
+const evidencias = Object.fromEntries(bank.questions.map(q => [q.id, q.evidencia]))
+const rondasNuevas = Object.fromEntries(Object.keys(bank.defaults).map(a => [a, {
+  1: bank.defaults[a].r1.map(id => bankToModuleQuestion(byId[id], bank)),
+  2: bank.defaults[a].r2.map(id => bankToModuleQuestion(byId[id], bank)),
+}]))
+for (const [a, r] of Object.entries(rondasNuevas)) for (const n of [1, 2]) {
+  const c = checkRound(a, r[n])
+  if (!c.ok) throw new Error(`Ronda predeterminada ${a} ${n} no cumple la guía: ${c.problems.join(' ')}`)
+}
+const reparto = Object.entries(bank.defaults).map(([a, d]) =>
+  `--   ${a.padEnd(12)} primera: ${d.r1.join(' ')}\n--   ${' '.repeat(12)} final:   ${d.r2.join(' ')}`).join('\n')
+
+const sql84 = `-- ============================================================
+-- 0084_equilibrio_competencias_saber.sql
+-- GENERADO por scripts/build-rondas.mjs — no editar a mano.
+--
+-- REGLA QUE NO SE PUEDE ROMPER: toda ronda de preguntas de una sesión cumple la
+-- distribución por competencias de la Guía de orientación Saber 11.° 2026-1:
+--   Matemáticas        Interpretación 34 · Formulación 43 · Argumentación 23
+--   Lectura crítica    Contenidos locales 25 · Articulación 42 · Reflexión 33
+--   Sociales           Pensamiento social 30 · Perspectivas 40 · Reflexivo 30
+--   Ciencias           Uso comprensivo 30 · Explicación 30 · Indagación 40
+-- Los porcentajes se llevan a preguntas enteras por mayor residuo (10 preguntas
+-- = Matemáticas 4/4/2, Lectura 3/4/3, Sociales 3/4/3, Ciencias 3/3/4).
+--
+-- Qué hace:
+--   1. saber_round_problem(): dice por qué una ronda no cumple (NULL = cumple).
+--   2. Trigger en live_sessions: el servidor no deja entrar en una clase en vivo
+--      a una ronda que no cumpla, venga de donde venga la petición.
+--   3. A cada pregunta del banco que ya está en un módulo le pone su evidencia y,
+--      en cada ronda de cualquier curso (base, copias y plantillas):
+--        - si ya cumple → EQUILIBRADA: se conservan sus preguntas;
+--        - si no cumple y todas son del banco → REEMPLAZADA por las predeterminadas;
+--        - si no cumple y tiene preguntas propias del tutor → NO TOCADO: no se le
+--          borra nada, y queda BLOQUEADA en vivo hasta que el tutor la equilibre.
+--      Solo cambia challenge_data.questions: título, orden, XP y progreso se conservan.
+--
+-- Rondas predeterminadas:
+${reparto}
+--
+-- Idempotente. EJECUTAR en Supabase SQL Editor ANTES de desplegar el frontend:
+-- el frontend ya exige la regla al iniciar una clase.
+-- ============================================================
+
+-- ── 1. ¿Por qué no cumple esta ronda? ───────────────────────────────────
+create or replace function public.saber_round_problem(p_cd jsonb)
+returns text
+language plpgsql immutable set search_path = public as $$
+declare
+  v_guias constant jsonb := $guia$${guiasSql}$guia$::jsonb;
+  v_guia jsonb := v_guias -> (p_cd->>'bank');
+  v_qs jsonb := coalesce(p_cd->'questions', '[]'::jsonb);
+  v_n int := jsonb_array_length(coalesce(p_cd->'questions', '[]'::jsonb));
+  v_k int; v_left int; v_comp int; v_sin int := 0;
+  v_actual int[]; v_req int[]; v_problem text := '';
+  q jsonb; r record;
+begin
+  if v_guia is null then return null; end if;
+  v_k := jsonb_array_length(v_guia->'pct');
+  if v_n < ${MIN_ROUND_QUESTIONS} then
+    return format('necesita al menos ${MIN_ROUND_QUESTIONS} preguntas (tiene %s)', v_n);
+  end if;
+
+  v_actual := array_fill(0, array[v_k]);
+  for q in select value from jsonb_array_elements(v_qs) loop
+    v_comp := (v_guia->'ev'->>(q->>'evidencia'))::int;
+    if v_comp is null then v_sin := v_sin + 1;
+    else v_actual[v_comp] := v_actual[v_comp] + 1; end if;
+  end loop;
+  if v_sin > 0 then return format('%s pregunta(s) sin evidencia de la guía', v_sin); end if;
+
+  -- Mayor residuo; empate: la primera de la guía (igual que requiredDistribution).
+  v_req := array_fill(0, array[v_k]);
+  v_left := v_n;
+  for r in select i, (v_guia->'pct'->>(i - 1))::int * v_n as p from generate_series(1, v_k) as i loop
+    v_req[r.i] := r.p / 100;
+    v_left := v_left - r.p / 100;
+  end loop;
+  for r in select i from generate_series(1, v_k) as i
+            order by ((v_guia->'pct'->>(i - 1))::int * v_n) % 100 desc, i limit v_left loop
+    v_req[r.i] := v_req[r.i] + 1;
+  end loop;
+
+  for r in select i from generate_series(1, v_k) as i loop
+    if v_actual[r.i] <> v_req[r.i] then
+      v_problem := v_problem || format('%s: debe tener %s y tiene %s. ', v_guia->'names'->>(r.i - 1), v_req[r.i], v_actual[r.i]);
+    end if;
+  end loop;
+  return nullif(trim(v_problem), '');
+end; $$;
+grant execute on function public.saber_round_problem(jsonb) to authenticated;
+
+-- ── 2. El servidor no deja entrar a una ronda que no cumpla ─────────────
+create or replace function public.guard_live_round_balance()
+returns trigger
+language plpgsql security definer set search_path = public as $$
+declare m record; v_problem text;
+begin
+  if new.module_id is null then return new; end if;
+  if tg_op = 'UPDATE' and new.module_id is not distinct from old.module_id then return new; end if;
+  select title, type, challenge_type, challenge_data into m from public.course_modules where id = new.module_id;
+  if m.type = 'challenge' and m.challenge_type = 'quiz' and m.challenge_data ? 'bank' then
+    v_problem := public.saber_round_problem(m.challenge_data);
+    if v_problem is not null then
+      raise exception 'La ronda «%» no cumple la distribución de competencias de la Guía Saber 11 (%). Corrígela en el editor de ruta.', m.title, v_problem
+        using errcode = 'check_violation';
+    end if;
+  end if;
+  return new;
+end; $$;
+drop trigger if exists live_round_balance on public.live_sessions;
+create trigger live_round_balance
+  before insert or update of module_id on public.live_sessions
+  for each row execute function public.guard_live_round_balance();
+
+-- ── 3. Evidencias y rondas equilibradas ─────────────────────────────────
+drop table if exists _0084_estado;
+create temp table _0084_estado (estado text, curso text, detalle text);
+
+do $$
+declare
+  v_ev constant jsonb := $ev$${JSON.stringify(evidencias)}$ev$::jsonb;
+  v_rondas constant jsonb := $ronda84$${JSON.stringify(rondasNuevas)}$ronda84$::jsonb;
+  m record; v_tagged jsonb; v_cd jsonb; v_new jsonb; v_todas_banco boolean; v_problem text;
+begin
+  for m in
+    select cm.id, cm.title, cm.challenge_data, c.name
+      from public.course_modules cm join public.courses c on c.id = cm.course_id
+     where cm.type = 'challenge' and cm.challenge_data ? 'bank'
+     order by c.name, cm."order"
+  loop
+    select coalesce(jsonb_agg(case when v_ev ? (e->>'id')
+                                   then e || jsonb_build_object('evidencia', v_ev->>(e->>'id'))
+                                   else e end order by i), '[]'::jsonb),
+           coalesce(bool_and(v_ev ? (e->>'id')), false)
+      into v_tagged, v_todas_banco
+      from jsonb_array_elements(coalesce(m.challenge_data->'questions', '[]'::jsonb)) with ordinality as t(e, i);
+    v_cd := jsonb_set(m.challenge_data, '{questions}', v_tagged);
+    v_problem := public.saber_round_problem(v_cd);
+    v_new := v_rondas -> (m.challenge_data->>'bank') -> (m.challenge_data->>'bankRound');
+
+    if v_problem is null then
+      if v_cd is distinct from m.challenge_data then
+        update public.course_modules set challenge_data = v_cd, updated_at = now() where id = m.id;
+      end if;
+      insert into _0084_estado values ('EQUILIBRADA', m.name, m.title);
+    elsif v_todas_banco and v_new is not null then
+      update public.course_modules
+         set challenge_data = jsonb_set(m.challenge_data, '{questions}', v_new), updated_at = now()
+       where id = m.id;
+      insert into _0084_estado values ('REEMPLAZADA', m.name, format('%s: ahora tiene las predeterminadas equilibradas.', m.title));
+    else
+      if v_cd is distinct from m.challenge_data then
+        update public.course_modules set challenge_data = v_cd, updated_at = now() where id = m.id;
+      end if;
+      insert into _0084_estado values ('NO TOCADO — BLOQUEADA EN VIVO', m.name,
+        format('%s: tiene preguntas propias y no cumple (%s). El tutor debe equilibrarla en el editor de ruta.', m.title, v_problem));
+    end if;
+  end loop;
+
+  insert into _0084_estado
+    select 'BORRADOR PENDIENTE', name, 'Tiene un borrador sin publicar: el editor le exigirá la distribución antes de publicarlo.'
+      from public.courses where draft_modules::text like '%"bank"%';
+end $$;
+
+select estado, curso, detalle from _0084_estado order by estado, curso, detalle;
+`
+writeMigration('0084_equilibrio_competencias_saber.sql', sql84)

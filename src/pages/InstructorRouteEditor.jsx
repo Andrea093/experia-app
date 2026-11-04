@@ -5,6 +5,8 @@ import {
   saveCourseDraft, discardCourseDraft, publishCourseModules,
   getCourseDisplayName, generatePresenceCode,
 } from '../store/store.jsx'
+import { loadQuestionBank } from '../lib/questionBankMeta.js'
+import { auditRounds, describeRoundProblems } from '../lib/saberGuide.js'
 import { useMobile, PlusIc, TrashIc, EditIc, GripIc, LockIc, Btn, Modal } from '../components/ui.jsx'
 import { resolveActivity, ACTIVITY_BANKS } from '../lib/activityBank.js'
 import { isQuestionRound, displayType } from '../lib/questionBankMeta.js'
@@ -438,7 +440,22 @@ const CourseEditor = ({ courseId, courseName: initialName, expiresAt, institutio
 
   const handlePublish = async () => {
     setPublishing(true); setSavedMsg('')
-    const result = await publishCourseModules(courseId, moduleList, courseName, certConfig)
+    // ⚠️ Regla de la Guía Saber 11: ninguna ronda se publica sin el reparto de
+    // competencias. El borrador sí se puede guardar a medio camino.
+    let audited
+    try {
+      audited = auditRounds(moduleList, await loadQuestionBank())
+    } catch (e) {
+      setPublishing(false)
+      setSavedMsg('⚠️ No se pudo revisar la distribución de competencias: ' + (e?.message || e))
+      return
+    }
+    if (audited.problems.length) {
+      setPublishing(false)
+      setSavedMsg('⚠️ No se publicó, no cumple la distribución de competencias — ' + describeRoundProblems(audited.problems))
+      return
+    }
+    const result = await publishCourseModules(courseId, audited.modules, courseName, certConfig)
     setPublishing(false)
     if (result.error) { setSavedMsg('⚠️ ' + result.error); return }
     // Recarga para obtener los UUIDs reales de los módulos nuevos
