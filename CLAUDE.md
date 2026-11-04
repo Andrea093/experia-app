@@ -691,9 +691,11 @@ módulos son rondas de preguntas que la Clase en Vivo muestra **una a una**
   preguntas". La marca es `challenge_data.bank` (+ `bankRound` 1|2) y el helper
   `isQuestionRound`/`displayType` de `src/lib/questionBankMeta.js`.
   `passingScore: 0`: una ronda nunca frena la ruta.
-- **Banco** (`src/lib/questionBank.json`, ~300 KB, chunk lazy fuera del
-  precaché): 249 preguntas — Matemáticas 50, Lectura crítica 75, Biología 25,
-  Química 25, Física 25 y Ciencias Sociales 49. Las rondas de Sociales las carga
+- **Banco** (`src/lib/questionBank.json`, ~670 KB, chunk lazy fuera del
+  precaché): 544 preguntas — Matemáticas 100, Lectura crítica 160, Biología 55,
+  Química 55, Física 55 y Ciencias Sociales 119 (295 llegaron en nov 2026, en
+  `scripts/data/banco-preguntas/ampliacion-2026/`, `ampliacion.py`; sin dificultad
+  fina: todas "Difícil", y Alto/Muy alto va en `topic`). Las rondas de Sociales las carga
   `0078_rondas_sociales.sql` (recorre la familia completa del curso, copias de
   copias incluidas). GENERADO desde los Word por `scripts/banco-preguntas/build.py` — ver su
   README. No editar a mano.
@@ -706,6 +708,28 @@ módulos son rondas de preguntas que la Clase en Vivo muestra **una a una**
   vienen del banco anterior; con preguntas propias del tutor no toca nada.
   ⚠️ `build-rondas.mjs` ya **no reescribe** migraciones existentes (0075/0078
   están aplicadas): un cambio del banco después va en una migración nueva.
+- ⚠️ **REGLA QUE NO SE PUEDE ROMPER (nov 2026): cada ronda cumple la distribución
+  por competencias de la Guía Saber 11.° 2026-1** (`src/lib/saberGuide.js`:
+  catálogo de competencias → afirmaciones → evidencias + `checkRound`). Porcentajes
+  llevados a enteros por mayor residuo: en 10 preguntas, Matemáticas 4/4/2,
+  Lectura 3/4/3, Sociales 3/4/3, Ciencias 3/3/4; mínimo 5 preguntas.
+  - Cada pregunta guarda solo `evidencia` ('2.3'); de ahí salen afirmación y
+    competencia. La asociación del banco está en
+    `scripts/banco-preguntas/guia_mapeo.py` y es **criterio editorial, a revisar
+    por el equipo académico**. Una pregunta propia del tutor debe elegir evidencia;
+    a una del banco no se le puede cambiar (si no, reetiquetar "cuadraría" el reparto).
+  - Mientras arma la ronda, el tutor ve una barra fija (`RoundBar`) con lo que falta o
+    sobra por competencia, medido contra la ronda de 10 (`ROUND_TARGET`) o su tamaño
+    si es mayor; los filtros del banco repiten esa cuenta.
+  - Se exige en 4 puntos: guardar la ronda (`QuizCreatorModal`),
+    publicar la ruta (`auditRounds`), iniciar la clase (`LiveHost`) y en el servidor
+    (`0084`: `saber_round_problem` + trigger en `live_sessions`, que rechaza entrar a
+    una ronda que no cumpla). El **borrador** sí puede guardarse sin cumplir.
+  - Si cambian los porcentajes o evidencias: `saberGuide.js` y una migración nueva
+    que reemplace `saber_round_problem` (la genera `build-rondas.mjs` desde el
+    catálogo); probar con `scripts/test-migraciones/run-equilibrio.mjs`, que cruza el
+    veredicto de SQL y frontend.
+  - ⚠️ Es regla de RONDA (`challenge_data.bank`): un quiz normal, sin banco, no la lleva.
 - **El tutor elige del banco** en el editor de ruta: ✏️ en la ronda (o el chip
   "🎮 Primera ronda · N preguntas") → "📚 Elegir del banco" (`QuestionBankPicker`):
   filtros por dificultad, búsqueda, aviso si la pregunta ya está en la otra
@@ -818,6 +842,7 @@ src/
 ├── styles.css               # Design system
 ├── store/store.jsx          # Reactive store + modules
 ├── lib/
+│   ├── saberGuide.js        # Guía Saber 11: competencias, afirmaciones, evidencias + regla de distribución de las rondas (PURO)
 │   ├── effectiveness.js     # Motor PURO de la Tabla de Efectividad (P.E.P., VALOR, efectividad de sesión)
 │   ├── tareasRecomendaciones.js # PURO: reparte las preguntas en recomendaciones (bajo el umbral) y tareas (sobre él)
 │   ├── rejillaTareas.json   # Rejilla académica GENERADA (scripts/build-rejilla.mjs) — no editar a mano
@@ -996,6 +1021,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...
    - Aplicada `0078` (rondas de Ciencias Sociales en los módulos 4 y 6, §14).
    - Aplicada `0079` (la sección de resultados Saber va siempre en el módulo 3; 0077 la dejó en el 7 de Sociales, §15).
    - Aplicada `0083` (Clase en Vivo: el puntaje usa el tiempo por pregunta que fijó el profesor, §8). Probada con `scripts/test-migraciones/run-live-tiempo.mjs`.
+   - Aplicada `0084` (distribución por competencias de la Guía Saber 11, §14). Probada con `scripts/test-migraciones/run-equilibrio.mjs`.
    - **Sin aplicar:** `0082` (biblioteca de versiones de ruta: `courses.version_note`, `courses.is_template` + RLS de plantillas, §16). Probada con `scripts/test-migraciones/run-versiones-ruta.mjs`. Sin ella la página carga, pero guardar notas o plantillas avisa que falta la migración.
    - Aplicada `0081` (llena los módulos que aún dicen "Pendiente" —apertura 1, estructura Saber 2, pausa activa 5— copiando, dentro de cada familia de curso y por título, el módulo ya lleno de otra copia). Causa: 0064–0067 y 0069 solo llenaron UNA copia por colegio de cada asignatura; la **ruta base** (la que ve un colegio sin versión propia, p. ej. CEINFES) quedó con "Pendiente". Probada con `scripts/test-migraciones/run-pendientes-base.mjs`.
    - Aplicada `0080` (oct 2026: Matemáticas, las rondas de los módulos 4 y 6 pasan al banco nuevo de 50 preguntas, §14; además el snapshot en vivo lleva `optionImages`, §5). Probada con `scripts/test-migraciones/run-rondas-matematicas.mjs`.

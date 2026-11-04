@@ -17,6 +17,16 @@ node scripts/test-migraciones/run-rondas-matematicas.mjs   # 0080
 `ciencias-naturales.docx` (biología, química y física en un solo documento, en
 dos partes). Las claves salen de las tablas de respuestas de cada documento.
 
+## Ampliación 2026 y Guía Saber 11
+
+`scripts/data/banco-preguntas/ampliacion-2026/` trae 11 documentos más (295
+preguntas), parseados y corregidos en `ampliacion.py`. `guia_mapeo.py` asocia
+cada una de las 544 preguntas con una evidencia de la Guía de orientación Saber
+11.° 2026-1 (criterio editorial, a revisar por el equipo académico). Las rondas
+predeterminadas cumplen la distribución por competencias (`equilibrar` en
+`curate.py`; ver `src/lib/saberGuide.js` y CLAUDE.md §14). Una pregunta nueva sin
+evidencia hace fallar el script a propósito.
+
 ## Qué hace cada paso
 
 | Script | Qué hace |
