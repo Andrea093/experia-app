@@ -1024,7 +1024,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...
    - Aplicada `0079` (la sección de resultados Saber va siempre en el módulo 3; 0077 la dejó en el 7 de Sociales, §15).
    - Aplicada `0083` (Clase en Vivo: el puntaje usa el tiempo por pregunta que fijó el profesor, §8). Probada con `scripts/test-migraciones/run-live-tiempo.mjs`.
    - Aplicada `0084` (distribución por competencias de la Guía Saber 11, §14). Probada con `scripts/test-migraciones/run-equilibrio.mjs`.
-   - **Sin aplicar:** `0085` (`profiles.last_course_id`, recuerda la última sala del estudiante; sin ella la app funciona pero no la recuerda).
+   - Aplicada `0085` (`profiles.last_course_id`, recuerda la última sala del estudiante).
    - **Sin aplicar:** `0082` (biblioteca de versiones de ruta: `courses.version_note`, `courses.is_template` + RLS de plantillas, §16). Probada con `scripts/test-migraciones/run-versiones-ruta.mjs`. Sin ella la página carga, pero guardar notas o plantillas avisa que falta la migración.
    - Aplicada `0081` (llena los módulos que aún dicen "Pendiente" —apertura 1, estructura Saber 2, pausa activa 5— copiando, dentro de cada familia de curso y por título, el módulo ya lleno de otra copia). Causa: 0064–0067 y 0069 solo llenaron UNA copia por colegio de cada asignatura; la **ruta base** (la que ve un colegio sin versión propia, p. ej. CEINFES) quedó con "Pendiente". Probada con `scripts/test-migraciones/run-pendientes-base.mjs`.
    - Aplicada `0080` (oct 2026: Matemáticas, las rondas de los módulos 4 y 6 pasan al banco nuevo de 50 preguntas, §14; además el snapshot en vivo lleva `optionImages`, §5). Probada con `scripts/test-migraciones/run-rondas-matematicas.mjs`.
