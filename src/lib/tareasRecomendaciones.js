@@ -44,6 +44,19 @@ export function unidadDe(unitLabel, fallback = null) {
   return Number.isFinite(n) && n > 0 ? n : (fallback || null)
 }
 
+// ⚠️ La rejilla es SOLO de Química (libro Saberes, "Código Materia" 6). Un
+// grupo de otra materia (p. ej. "Décimo A - Sociales - ZCS") no puede cruzarse
+// con ella: le saldrían componentes y textos de Química. `clone_groups` no
+// tiene columna de materia, así que se lee del NOMBRE del grupo: si nombra otra
+// materia, la rejilla no aplica. Sin materia en el nombre ("ONCE", "Décimo A -
+// JM") se asume Química, que es como nació el piloto.
+const OTRAS_MATERIAS = /sociales|ciudadan|matem|lectura|lenguaje|ingl[eé]s|biolog|f[ií]sica|filosof|historia|geograf/i
+export function rejillaAplicaAGrupo(groupName) {
+  const s = String(groupName || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+  if (/quimica/i.test(s)) return true
+  return !OTRAS_MATERIAS.test(s)
+}
+
 // Filas de la rejilla de una unidad, indexadas por `momento|n` para el cruce.
 function indexar(rejilla, unidad) {
   const map = new Map()

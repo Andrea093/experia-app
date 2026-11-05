@@ -572,6 +572,11 @@ termine.
     `recomendaciones` / `ejes` / `componentes`. Al agregar una columna de ese
     tipo, seguir el mismo patrón. Un `0` suelto en una celda de la rejilla es
     una casilla sin diligenciar, no un valor: el script lo guarda vacío.
+  - ⚠️ **La rejilla es SOLO de Química.** `rejillaAplicaAGrupo(group.name)`
+    la apaga si el nombre del grupo nombra otra materia ("Décimo A - Sociales -
+    ZCS"); sin materia en el nombre ("ONCE", "Décimo A - JM") se asume Química.
+    `clone_groups` no tiene columna de materia: al crear grupos de otra materia,
+    **ponerla en el nombre**, o el informe les mostrará componentes de Química.
   - ⚠️ **La unidad se cruza por NÚMERO, no por texto**: el título del plan es
     libre ("Unidad 3. Estequiometría") y nunca coincide letra a letra con el de
     la rejilla ("UNIDAD 3"). Si el tutor no numeró el título, se cae a la

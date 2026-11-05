@@ -11,7 +11,10 @@ Thumbs.db
 # Datos de alumnos (menores): nombres y documentos. NO versionar.
 scripts/data/grupos_jm.mjs
 scripts/grupos_jm.sql
+scripts/data/grupos_zcs.mjs
+scripts/grupos_zcs.sql
 scripts/out/
 scripts/docentes_reales_jm.sql
 Insumos/
 scripts/crear_instructores_ceinfes.sql
+scripts/crear_tutor_zcs.sql

@@ -14,7 +14,7 @@ import {
   buildSummary, normalizeSections, fmtPct, colorEfectividad,
 } from '../lib/effectiveness.js'
 import {
-  loadRejilla, unidadDe, buildRecomendacionesYTareas,
+  loadRejilla, unidadDe, buildRecomendacionesYTareas, rejillaAplicaAGrupo,
 } from '../lib/tareasRecomendaciones.js'
 
 // ── Tabla de efectividad — MODO CLON (piloto temporal, 0051) ────────────────
@@ -201,9 +201,11 @@ const CloneEffectivenessPage = () => {
     return unidadDe(unitLabel, i >= 0 ? i + 1 : null)
   }, [unitLabel, planUnits])
 
+  // La rejilla es de Química: a un grupo de otra materia no se le cruza.
+  const rejillaAplica = rejillaAplicaAGrupo(group?.name)
   const informe = React.useMemo(
-    () => buildRecomendacionesYTareas(rejilla, result, unidad),
-    [rejilla, result, unidad])
+    () => buildRecomendacionesYTareas(rejillaAplica ? rejilla : null, result, unidad),
+    [rejillaAplica, rejilla, result, unidad])
 
   // ── Edición ──────────────────────────────────────────────────────────────
   const patchSection = (key, patch) =>
@@ -923,7 +925,9 @@ const CloneEffectivenessPage = () => {
           <>
             {!informe.hayRejilla && (
               <p style={{ fontSize: 11, color: '#B45309', lineHeight: 1.55, marginBottom: 14 }}>
-                ⚠️ {unidad
+                ⚠️ {!rejillaAplica
+                  ? 'Los textos de recomendaciones y tareas por pregunta solo están disponibles para Química; para esta materia aún no se han cargado.'
+                  : unidad
                   ? `La rejilla del libro no tiene preguntas cargadas para la unidad ${unidad}.`
                   : 'Elige la unidad del libro trabajada para que el informe traiga los textos de recomendaciones y tareas.'}
                 {' '}Las preguntas se listan igual, clasificadas por su desempeño.
