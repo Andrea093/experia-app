@@ -1,6 +1,14 @@
 import React from 'react'
-import { useStore, nav, enrollInCourse, isBaseCourse } from '../store/store.jsx'
+import { useStore, nav, doLogout, enrollInCourse, isBaseCourse } from '../store/store.jsx'
 import { useMobile, LogoImg, Btn } from '../components/ui.jsx'
+
+// Esta pantalla no tiene menú lateral: sin esto no habría cómo salir.
+const LogoutButton = () => (
+  <button onClick={doLogout}
+    style={{ minHeight: 40, padding: '8px 14px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--white)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'var(--muted)' }}>
+    Cerrar sesión
+  </button>
+);
 
 const CourseSelection = () => {
   const courses            = useStore(s => s.courses || []);
@@ -36,14 +44,20 @@ const CourseSelection = () => {
         <p style={{ fontSize: 14, color: 'var(--muted)', textAlign: 'center', maxWidth: 360 }}>
           Tu institución aún no tiene cursos habilitados. Contacta a tu instructor o administrador.
         </p>
+        <LogoutButton />
       </div>
     );
   }
 
   return (
+    // Centrado con margin:auto, no justifyContent: con muchos cursos, justifyContent
+    // deja la parte de arriba fuera del área de scroll, sin forma de llegar a ella.
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', padding: isMobile ? 20 : 48, background: 'var(--bg)', overflow: 'auto' }}>
-      <div style={{ maxWidth: 720, width: '100%' }}>
+      padding: isMobile ? 20 : 48, background: 'var(--bg)', overflow: 'auto' }}>
+      <div style={{ maxWidth: 720, width: '100%', margin: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <LogoutButton />
+        </div>
         <div style={{ textAlign: 'center', marginBottom: isMobile ? 28 : 40 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
             <LogoImg h={32} />

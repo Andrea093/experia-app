@@ -78,11 +78,14 @@ const CertPage = () => {
   const signatoryRole = cert.signatory_role || 'CEINFES · Experia'
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg, #F9FAFB)', padding: isMobile ? '24px 16px 48px' : '40px 24px 60px' }}>
+    // Alto fijo con scroll propio: html/body/#root tienen overflow:hidden. Al imprimir
+    // se libera (.cert-scroll) para que el certificado no salga cortado.
+    <div className="cert-scroll" style={{ height: '100%', boxSizing: 'border-box', overflowY: 'auto', background: 'var(--bg, #F9FAFB)', padding: isMobile ? '24px 16px 48px' : '40px 24px 60px' }}>
       <style dangerouslySetInnerHTML={{ __html: `
         @page { size: A4 landscape; margin: 0; }
         @media print {
           html, body { height: auto !important; overflow: visible !important; }
+          .cert-scroll { height: auto !important; overflow: visible !important; }
           .cert-no-print { display: none !important; }
           #cert-public { box-shadow: none !important; }
         }
