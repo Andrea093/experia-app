@@ -486,10 +486,10 @@ const Control = ({ session: initial, moduleList, onExit }) => {
   React.useEffect(() => {
     if (!(phase === 'question' || phase === 'reveal')) return
     let alive = true
-    const load = () => fetchAnswerCounts(session.id, idx, options.length || 4).then(c => { if (alive) setCounts(c) })
+    const load = () => fetchAnswerCounts(session.id, idx, options.length || 4, session.module_id).then(c => { if (alive) setCounts(c) })
     load(); const id = setInterval(load, 1500)
     return () => { alive = false; clearInterval(id) }
-  }, [session.id, idx, phase, options.length])
+  }, [session.id, session.module_id, idx, phase, options.length])
 
   const answeredCount = counts.reduce((a, b) => a + b, 0)
 

@@ -95,15 +95,15 @@ const GuidedClassViewInner = ({ guided }) => {
       <LiveScoreBar parts={parts} meId={participant.id} phase={session.phase} progress={progress} />
     </>
   )
-  return <SequenceCtx.Provider value={sequence}>{renderStep(session, participant, currentMod, avatar, tutor, parts)}</SequenceCtx.Provider>
+  return <SequenceCtx.Provider value={sequence}>{renderStep(session, participant, currentMod, avatar, tutor, parts, guided.leave)}</SequenceCtx.Provider>
 }
 
-const renderStep = (session, participant, currentMod, avatar, tutor, parts) => {
+const renderStep = (session, participant, currentMod, avatar, tutor, parts, leave) => {
 
-  // Sesión finalizada: LiveQuestionView muestra el podio con confeti; app.jsx
-  // detecta status==='ended' y saca al estudiante de vuelta al mapa normal.
+  // Sesión finalizada: LiveQuestionView muestra el podio con confeti y los
+  // resultados del estudiante, que vuelve a su ruta cuando termina de leerlos.
   if (session.status === 'ended') {
-    return <LiveQuestionView participant={participant} Wrap={Shell} avatar={avatar} parts={parts} scoreBar={false} />
+    return <LiveQuestionView participant={participant} Wrap={Shell} avatar={avatar} parts={parts} scoreBar={false} onExit={leave} />
   }
 
   // Módulo interactivo (quiz o encuesta en vivo): reusa el ciclo ya construido.
