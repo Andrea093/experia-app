@@ -14,6 +14,7 @@ const LiveAvatar = React.lazy(() => import('./LiveAvatar.jsx'))
 const MyAvatar = ({ cfg, size, expression }) => (cfg
   ? <React.Suspense fallback={null}><LiveAvatar cfg={cfg} size={size} expression={expression} /></React.Suspense>
   : null)
+const LiveResults = React.lazy(() => import('./LiveResults.jsx'))
 // =============================================
 // EXPERIA — Modo Aula en Vivo: ciclo de pregunta/revelado/explicación,
 // repetido pregunta por pregunta, y podio al final. El ranking parcial va
@@ -210,14 +211,14 @@ const HintCard = ({ hint }) => (
 )
 
 // Barras de distribución en vivo (encuestas, sin respuesta correcta).
-const PollBars = ({ sessionId, index, options, myAns }) => {
+const PollBars = ({ sessionId, moduleId, index, options, myAns }) => {
   const [counts, setCounts] = React.useState(null)
   React.useEffect(() => {
     let cancel = false
-    const load = () => fetchAnswerCounts(sessionId, index, options.length).then(c => { if (!cancel) setCounts(c) })
+    const load = () => fetchAnswerCounts(sessionId, index, options.length, moduleId).then(c => { if (!cancel) setCounts(c) })
     load(); const id = setInterval(load, 2000)
     return () => { cancel = true; clearInterval(id) }
-  }, [sessionId, index, options.length])
+  }, [sessionId, moduleId, index, options.length])
   const total = (counts || []).reduce((a, c) => a + c, 0) || 1
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -245,9 +246,9 @@ const PollBars = ({ sessionId, index, options, myAns }) => {
 // Vivo Guiada (ahí hay sesión iniciada); en la página pública llega undefined y
 // todo se ve exactamente como antes.
 // `onEnded`: se dispara UNA sola vez cuando la sesión pasa a 'ended'. Solo la
-// usa la página pública del PIN, para devolver al participante a Experia — el
-// estudiante logueado ya sale solo (app.jsx llama a `guided.leave` a los 5 s y
-// la pantalla vuelve a su ruta).
+// usa la página pública del PIN, para devolver al participante a Experia.
+// `onExit`: botón "Volver a mi ruta" bajo los resultados. Solo la Clase en Vivo
+// Guiada: el estudiante sale cuando termina de leerlos.
 // `moduleQuestions`: preguntas del módulo tal como las tiene el estudiante en su
 // ruta (solo la Clase en Vivo Guiada lo pasa). Si el snapshot de la sesión no
 // trae el texto de lectura o la pista (sesión creada antes de 0075, o snapshot
@@ -257,7 +258,7 @@ const PollBars = ({ sessionId, index, options, myAns }) => {
 // componente se suscribe por su cuenta — es el caso de la página del PIN.
 // `scoreBar`: pinta aquí la barra de puntos/puesto. La vista guiada la apaga
 // porque la pone ella misma sobre todas sus pantallas (lecciones incluidas).
-export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = null, moduleQuestions = null, tutor = null, parts: partsProp = null, scoreBar = true }) => {
+export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = null, moduleQuestions = null, tutor = null, parts: partsProp = null, scoreBar = true, onExit = null }) => {
   const Center = Wrap || (({ children }) => <div style={{ maxWidth: 520, margin: '0 auto' }}>{children}</div>)
   const isMobile = useMobile()
   const card = isMobile ? cardMobile : cardStyle
@@ -283,6 +284,9 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
   }, [participant.session_id, ownsParts])
 
   React.useEffect(() => { setFeedback(null) }, [session?.current_index, session?.phase === 'question'])
+  // Las respuestas van por número de pregunta y cada módulo numera desde 0: sin
+  // esto, dos rondas seguidas darían por respondidas las de la segunda.
+  React.useEffect(() => { setMy({}) }, [session?.module_id])
 
   // Pista del tutor (rondas del banco): llega sola a un tercio del tiempo. El
   // tutor del curso la dice en su globo y queda escrita en la tarjeta. Se
@@ -408,7 +412,21 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
           <span style={{ fontSize: 13, color: 'var(--muted)' }}>Tu posición: </span>
           <b style={{ color: 'var(--orange)' }}>#{myRank} · {me?.score || 0} pts</b>
         </div>
-      </div></Center>
+      </div>
+      <React.Suspense fallback={null}>
+        <LiveResults sessionId={session.id} participant={participant} cardStyle={card} />
+      </React.Suspense>
+      {onExit && (
+        <div style={{ textAlign: 'center', marginTop: 16 }}>
+          <button onClick={onExit} style={{ minHeight: 44, padding: '10px 22px', borderRadius: 12, border: 'none', background: 'var(--orange)',
+            color: '#fff', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 14, fontWeight: 700 }}>
+            Volver a mi ruta →
+          </button>
+        </div>
+      )}
+      {/* En la página del PIN, la barra fija de salida no debe tapar el final. */}
+      {onEnded && <div style={{ height: 72 }} />}
+      </Center>
     )
   }
 
@@ -421,7 +439,7 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Pregunta {idx + 1}</div>
         <QuestionText as="h3" style={{ fontSize: 16, fontWeight: 700, color: 'var(--dark)', marginBottom: 14, lineHeight: 1.4 }}>{q.question}</QuestionText>
         {isPoll ? (
-          <PollBars sessionId={session.id} index={idx} options={options} myAns={myAns} />
+          <PollBars sessionId={session.id} moduleId={session.module_id} index={idx} options={options} myAns={myAns} />
         ) : (
           <div style={optionsLayout(q.optionImages, 8)}>
             {options.map((opt, i) => {

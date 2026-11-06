@@ -157,8 +157,10 @@ const App = () => {
   const requiresLiveToStart = useStore(selectRequiresLiveToStart);
   const [hasLiveHistory, setHasLiveHistory] = React.useState(null); // null = aún sin resolver
 
-  // Al terminar la Clase en Vivo Guiada, el estudiante ve el podio unos
-  // segundos y luego vuelve solo a su mapa/ruta normal. Ese "terminar" YA
+  // Al terminar la Clase en Vivo Guiada, el estudiante ve el podio y sus
+  // resultados, y vuelve a su ruta con el botón de esa pantalla (GuidedClassView
+  // → `guided.leave`). No hay salida automática: a los 5 s que había antes no
+  // alcanzaba a leerlos. Ese "terminar" YA
   // cumple el candado de más abajo para siempre — se marca aquí mismo, en el
   // momento en que termina, en vez de esperar a que el efecto de la RPC se
   // reevalúe (sus dependencias son curso/rol, nunca cambian a media clase, así
@@ -169,10 +171,8 @@ const App = () => {
   React.useEffect(() => {
     if (guided.isJoined && guided.session?.status === 'ended') {
       setHasLiveHistory(true);
-      const t = setTimeout(guided.leave, 5000);
-      return () => clearTimeout(t);
     }
-  }, [guided.isJoined, guided.session?.status, guided.leave]);
+  }, [guided.isJoined, guided.session?.status]);
 
   React.useEffect(() => {
     if (!(isLoggedIn && user?.role === 'student' && requiresLiveToStart && liveGateCourseId)) {

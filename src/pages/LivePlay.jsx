@@ -105,8 +105,9 @@ const MuteFab = () => {
 }
 
 // Segundos de podio antes de devolver al participante a Experia. Suficiente
-// para leer los resultados finales sin dejarlo varado en una clase terminada.
-const SEGUNDOS_PARA_SALIR = 15
+// para leer los resultados finales (ranking y aciertos por competencia) sin
+// dejarlo varado en una clase terminada.
+const SEGUNDOS_PARA_SALIR = 60
 
 const LivePlay = () => {
   const [participant, setParticipant] = React.useState(null)

@@ -143,12 +143,24 @@ export const hasCompletedLiveSession = async (courseId) => {
   if (error) throw error
   return !!data
 }
-export const fetchAnswerCounts = async (sessionId, index, numOptions) => {
-  const { data } = await supabase.from('live_answers').select('answer_index')
+// `moduleId`: el número de pregunta se repite entre las rondas de una misma clase
+// (0086), así que sin filtrar se mezclarían las respuestas de ambas.
+export const fetchAnswerCounts = async (sessionId, index, numOptions, moduleId) => {
+  let query = supabase.from('live_answers').select('answer_index')
     .eq('session_id', sessionId).eq('question_index', index)
+  if (moduleId) query = query.eq('module_id', moduleId)
+  const { data } = await query
   const counts = Array(numOptions).fill(0)
   ;(data || []).forEach(r => { if (r.answer_index >= 0 && r.answer_index < numOptions) counts[r.answer_index]++ })
   return counts
+}
+// Lo que respondió este participante, para el cierre de la clase (0086).
+export const fetchMyLiveResults = async ({ session, participant, token }) => {
+  const { data, error } = await supabase.rpc('live_my_results', {
+    p_session: session, p_participant: participant, p_token: token ?? null,
+  })
+  if (error) throw error
+  return data?.items || []
 }
 
 // --- Realtime ---

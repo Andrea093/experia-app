@@ -302,3 +302,32 @@ export const auditRounds = (moduleList, bank) => {
 
 export const describeRoundProblems = (problems) =>
   problems.map(p => `«${p.title}»: ${p.problems.join(' ')}`).join(' — ')
+
+// Resultados de un estudiante en la Clase en Vivo (RPC live_my_results) agrupados
+// por competencia, en el orden de la guía. Una pregunta sin evidencia reconocida
+// (quiz que no es del banco, módulo ya editado) va a `other`, para que las filas
+// siempre sumen el total.
+export const summarizeLiveResults = (items = []) => {
+  const byArea = {}
+  const other = { correct: 0, total: 0 }
+  for (const it of items) {
+    const info = evidenceInfo(it.bank, it.evidencia)
+    const slot = info ? ((byArea[it.bank] ||= {})[info.competencia.id] ||= { correct: 0, total: 0 }) : other
+    slot.total++
+    if (it.correct) slot.correct++
+  }
+  const groups = Object.keys(byArea).map(area => ({
+    area,
+    label: SABER_GUIDES[area].label,
+    rows: SABER_GUIDES[area].competencias
+      .filter(c => byArea[area][c.id])
+      .map(c => ({ id: c.id, label: c.label, short: c.short, ...byArea[area][c.id] })),
+  }))
+  return {
+    total: items.length,
+    answered: items.filter(i => i.answered).length,
+    correct: items.filter(i => i.correct).length,
+    groups,
+    other: other.total ? other : null,
+  }
+}
