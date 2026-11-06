@@ -543,7 +543,19 @@ const Control = ({ session: initial, moduleList, onExit }) => {
     return isLastModule ? finishSession() : gotoModuleIdx(currentIdx + 1)
   }
 
+  // Cierra SOLO la ronda, aunque falten preguntas: los estudiantes ven el ranking y
+  // sus resultados, y la clase sigue con el siguiente paso de la secuencia.
+  const endRound = () => {
+    if (!window.confirm(
+      '¿Terminar esta ronda?\n\n'
+      + 'Se cierran las preguntas que faltan. Los estudiantes verán el ranking y sus resultados, '
+      + 'y luego podrás seguir con el siguiente paso de la clase.'
+    )) return
+    return run(liveSetPhase(session.id, 'round_end'))
+  }
+
   const Big = ({ children, ...p }) => <Btn variant="gradient" size="lg" {...p}>{children}</Btn>
+  const EndRoundBtn = () => (isPoll ? null : <Btn variant="secondary" size="lg" disabled={busy} onClick={endRound}>🏁 Terminar ronda</Btn>)
 
   // ----- Controles según fase del módulo actual -----
   const Controls = () => {
@@ -554,7 +566,15 @@ const Control = ({ session: initial, moduleList, onExit }) => {
         : <Big disabled={busy} onClick={() => gotoModuleIdx(currentIdx + 1)}>Siguiente módulo →</Big>
     }
     if (phase === 'lobby') return <Big disabled={total === 0} onClick={() => run(liveGoto(session.id, 0))}>Comenzar {isPoll ? 'encuesta' : isQuestionRound(currentModule) ? 'ronda' : 'quiz'} ▶</Big>
-    if (phase === 'question') return <Big onClick={() => run(liveSetPhase(session.id, 'reveal'))}>Mostrar resultados ({answeredCount}/{parts.length})</Big>
+    if (phase === 'question') return (
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <Big onClick={() => run(liveSetPhase(session.id, 'reveal'))}>Mostrar resultados ({answeredCount}/{parts.length})</Big>
+        <EndRoundBtn />
+      </div>
+    )
+    if (phase === 'round_end') return isLastModule
+      ? <Big disabled={busy} onClick={finishSession}>Finalizar clase en vivo 🏁</Big>
+      : <Big disabled={busy} onClick={() => gotoModuleIdx(currentIdx + 1)}>Siguiente módulo →</Big>
     // Sin fase de tabla de posiciones (el ranking va debajo, siempre visible):
     // de revelado/explicación se avanza directo a la siguiente pregunta o,
     // si era la última, al siguiente módulo / fin de clase.
@@ -564,6 +584,7 @@ const Control = ({ session: initial, moduleList, onExit }) => {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {phase === 'reveal' && hasExplanation && <Big onClick={() => run(liveSetPhase(session.id, 'explanation'))}>Ver explicación 💡</Big>}
           <Btn variant="primary" size="lg" disabled={busy} onClick={advanceQuestionOrModule}>{label} →</Btn>
+          <EndRoundBtn />
         </div>
       )
     }
@@ -601,6 +622,7 @@ const Control = ({ session: initial, moduleList, onExit }) => {
     reveal: () => run(liveSetPhase(session.id, 'reveal')),
     explain: () => run(liveSetPhase(session.id, 'explanation')),
     advance: advanceQuestionOrModule,
+    endRound,
     finish: finishSession,
   }
   const hasActivity = currentModule?.type === 'lesson' && (currentModule.content || []).some(s => s.type === 'activity')
@@ -696,6 +718,13 @@ const Control = ({ session: initial, moduleList, onExit }) => {
               <p style={{ fontSize: 14, color: 'var(--muted)' }}>Este reto no es sincrónico — tus estudiantes lo resuelven por su cuenta cuando quieran. Avanza al siguiente módulo cuando quieras.</p>
             </div>
           )
+        )}
+
+        {!showPodium && isInteractive && phase === 'round_end' && (
+          <div style={{ padding: '20px 24px', borderRadius: 18, background: 'var(--white)', border: '1px solid var(--border)', marginBottom: 20, textAlign: 'center' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--dark)', margin: '0 0 4px' }}>🏁 Ronda terminada</h2>
+            <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0 }}>Se llegó hasta la pregunta {idx + 1} de {total}. Tus estudiantes ven el ranking y sus resultados.</p>
+          </div>
         )}
 
         {!showPodium && isInteractive && phase === 'lobby' && isQuestionRound(currentModule) && <RoundIntro module={currentModule} seconds={qSeconds} />}

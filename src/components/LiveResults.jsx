@@ -19,7 +19,8 @@ const CompetenciaRow = ({ label, correct, total }) => (
   </div>
 )
 
-const LiveResults = ({ sessionId, participant, cardStyle }) => {
+// `moduleId`: solo esa ronda (el profesor la cerró y la clase sigue). Sin él, toda la clase.
+const LiveResults = ({ sessionId, participant, cardStyle, moduleId = null }) => {
   const [items, setItems] = React.useState(null)
   const [error, setError] = React.useState(false)
 
@@ -45,21 +46,23 @@ const LiveResults = ({ sessionId, participant, cardStyle }) => {
   )
   if (!items) return null
 
-  const { total, answered, correct, groups, other } = summarizeLiveResults(items)
+  const scope = moduleId ? 'esta ronda' : 'esta clase'
+  const title = moduleId ? '🎯 Tus resultados en esta ronda' : '🎯 Tus resultados'
+  const { total, answered, correct, groups, other } = summarizeLiveResults(moduleId ? items.filter(i => i.module_id === moduleId) : items)
   if (!total) return (
     <div style={{ ...card, textAlign: 'center' }}>
-      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>🎯 Tus resultados</div>
-      <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0 }}>En esta clase no se alcanzaron a responder preguntas.</p>
+      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>{title}</div>
+      <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0 }}>En {scope} no se alcanzaron a responder preguntas.</p>
     </div>
   )
 
   return (
     <div style={card}>
-      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--dark)', marginBottom: 10 }}>🎯 Tus resultados</div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--dark)', marginBottom: 10 }}>{title}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--dark)', lineHeight: 1.2 }}>
         {correct} de {total} <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--muted)' }}>{total === 1 ? 'pregunta correcta' : 'preguntas correctas'}</span>
       </div>
-      <p style={{ fontSize: 13, color: 'var(--muted)', margin: '4px 0 0' }}>Solo cuentan las preguntas que se alcanzaron a hacer en esta clase.</p>
+      <p style={{ fontSize: 13, color: 'var(--muted)', margin: '4px 0 0' }}>Solo cuentan las preguntas que se alcanzaron a hacer en {scope}.</p>
       {answered < total && (
         <p style={{ fontSize: 13, color: 'var(--muted)', margin: '4px 0 0' }}>
           {total - answered === 1 ? 'Una pregunta quedó sin responder.' : `${total - answered} preguntas quedaron sin responder.`}

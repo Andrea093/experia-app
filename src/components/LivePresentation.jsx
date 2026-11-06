@@ -170,7 +170,7 @@ export const LivePresentation = ({
     try { await fn() } finally { setPending(false) }
   }
   const finish = () => {
-    if (window.confirm('¿Finalizar la clase en vivo?\n\nLos estudiantes verán el podio final y sus resultados, contando solo las preguntas que se alcanzaron a hacer.')) fire(actions.finish)
+    if (window.confirm('¿Finalizar TODA la clase en vivo?\n\nTermina la sesión completa, no solo esta ronda. Los estudiantes verán el podio final y volverán a su ruta.')) fire(actions.finish)
   }
   const nextModule = () => (isLastModule ? finish() : fire(() => actions.gotoModule(currentIdx + 1)))
 
@@ -185,6 +185,7 @@ export const LivePresentation = ({
       if (!total) return { label: isLastModule ? 'Finalizar clase 🏁' : 'Siguiente módulo', run: nextModule }
       return { label: `Comenzar ${isPoll ? 'encuesta' : isQuestionRound(currentModule) ? 'ronda' : 'quiz'}`, run: () => fire(actions.start) }
     }
+    if (phase === 'round_end') return { label: isLastModule ? 'Finalizar clase 🏁' : 'Siguiente módulo', run: nextModule }
     if (phase === 'question') return { label: `Mostrar resultados (${answered}/${parts.length})`, run: () => fire(actions.reveal) }
     if (phase === 'reveal' && hasExplanation) return { label: 'Ver explicación 💡', run: () => fire(actions.explain) }
     const lastQ = idx >= total - 1
@@ -393,13 +394,24 @@ export const LivePresentation = ({
     </div>
   )
 
+  const renderRoundEnd = () => (
+    <div style={{ width: '100%', maxWidth: 900, textAlign: 'center', overflowY: 'auto', maxHeight: '100%' }}>
+      <h1 style={{ fontSize: 'clamp(28px, 3.6vw, 56px)', fontWeight: 900, margin: '0 0 8px' }}>🏁 Ronda terminada</h1>
+      <p style={{ fontSize: 'clamp(15px, 1.5vw, 22px)', opacity: .8, margin: '0 0 20px' }}>Se llegó hasta la pregunta {idx + 1} de {total}</p>
+      <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}><DarkRanking parts={parts} limit={10} /></div>
+    </div>
+  )
+
   const stage = ended ? renderEnded()
     : isLesson ? renderLesson()
-    : isInteractive ? (phase === 'lobby' ? renderLobby() : renderQuestion())
+    : isInteractive ? (phase === 'lobby' ? renderLobby() : phase === 'round_end' ? renderRoundEnd() : renderQuestion())
     : renderOther()
+
+  const canEndRound = !ended && isInteractive && !isPoll && ['question', 'reveal', 'explanation'].includes(phase)
 
   const counter = ended ? null
     : isLesson ? `Diapositiva ${slide + 1} de ${slides.length}`
+    : isInteractive && phase === 'round_end' ? `Paso ${currentIdx + 1} de ${moduleList.length}`
     : isInteractive && phase !== 'lobby' ? `Pregunta ${idx + 1} de ${total}`
     : `Paso ${currentIdx + 1} de ${moduleList.length}`
 
@@ -438,9 +450,10 @@ export const LivePresentation = ({
         <button style={{ ...BAR_BTN, background: showRanking ? 'rgba(236,103,26,.4)' : BAR_BTN.background }} onClick={() => setShowRanking(v => !v)} title="Ranking (R)">🏆 Ranking</button>
         <button style={BAR_BTN} onClick={onToggleMute} title={muted ? 'Activar sonido' : 'Silenciar'}>{muted ? '🔇' : '🔊'}</button>
         <button style={BAR_BTN} onClick={toggleFullscreen} title="Pantalla completa">{fullscreen ? '🗗' : '⛶'}</button>
-        {/* Siempre disponible: si no se alcanzan todas las preguntas, sin esto la
-            clase no se podía cerrar desde aquí y el estudiante no veía sus resultados. */}
-        {!ended && <button style={BAR_BTN} onClick={finish} disabled={pending || busy} title="Terminar la clase ahora">🏁 Finalizar</button>}
+        {/* Terminar ronda cierra solo las preguntas y la clase sigue. Finalizar clase
+            cierra toda la sesión; siempre disponible, para no dejarla abierta. */}
+        {canEndRound && <button style={{ ...BAR_BTN, background: 'rgba(236,103,26,.4)' }} onClick={() => fire(actions.endRound)} disabled={pending || busy} title="Cerrar las preguntas que faltan y seguir con la clase">🏁 Terminar ronda</button>}
+        {!ended && <button style={BAR_BTN} onClick={finish} disabled={pending || busy} title="Terminar toda la clase en vivo">⏹ Finalizar clase</button>}
         <button style={BAR_BTN} onClick={onClose} title="Volver al panel de control">✕ Panel</button>
       </div>
 
