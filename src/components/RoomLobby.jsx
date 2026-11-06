@@ -1,5 +1,5 @@
 import React from 'react'
-import { useStore, nav, switchCourse, isBaseCourse, closeRoomLobby, markRoomChosen } from '../store/store.jsx'
+import { useStore, nav, doLogout, switchCourse, isBaseCourse, closeRoomLobby, markRoomChosen } from '../store/store.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { GUIDED_MAX_AGE_HOURS } from '../lib/liveClient.js'
 import { useMobile, LogoImg } from './ui.jsx'
@@ -79,8 +79,17 @@ const RoomLobby = () => {
   const firstName = (user?.name || '').split(' ')[0];
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', overflowY: 'auto', padding: isMobile ? '24px 16px' : '48px 24px' }}>
+    // Alto fijo, no minHeight: html/body/#root tienen overflow:hidden, así que este
+    // contenedor es el único que puede hacer scroll y no debe crecer con la lista.
+    <div style={{ height: '100%', boxSizing: 'border-box', background: 'var(--bg)', overflowY: 'auto', padding: isMobile ? '24px 16px' : '48px 24px' }}>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        {/* Esta pantalla no tiene menú lateral: sin esto no habría cómo salir. */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <button onClick={doLogout}
+            style={{ minHeight: 40, padding: '8px 14px', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--white)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'var(--muted)' }}>
+            Cerrar sesión
+          </button>
+        </div>
         <div style={{ textAlign: 'center', marginBottom: isMobile ? 22 : 32 }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><LogoImg h={32} /></div>
           <h1 style={{ fontSize: isMobile ? 23 : 30, fontWeight: 800, color: 'var(--dark)', margin: '0 0 8px' }}>
