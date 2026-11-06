@@ -45,6 +45,8 @@ await db.exec(`
 
 try { await db.exec(fs.readFileSync(MIG, 'utf8')); ok('0086 aplica'); } catch (e) { bad('0086 falló: ' + e.message); process.exit(1); }
 try { await db.exec(fs.readFileSync(MIG, 'utf8')); ok('0086 es idempotente'); } catch (e) { bad('segunda corrida: ' + e.message); }
+const MIG87 = path.resolve(HERE, '..', '..', 'supabase', 'migrations', '0087_live_resultados_al_terminar_ronda.sql');
+try { await db.exec(fs.readFileSync(MIG87, 'utf8')); await db.exec(fs.readFileSync(MIG87, 'utf8')); ok('0087 aplica y es idempotente'); } catch (e) { bad('0087 falló: ' + e.message); process.exit(1); }
 
 const responder = async (part, idx, ans, token = null) =>
   (await db.query(`select public.submit_live_answer('${S}', '${part}', ${idx}, ${ans}, ${token ? `'${token}'` : 'null'}) as r`)).rows[0].r;
@@ -67,7 +69,14 @@ esperar('doble respuesta en la misma ronda', r.already, true);
 await responder(BETO, 0, 0);
 await falla('resultados antes de terminar', () => resultados(ANA, TOKEN), 'aún no termina');
 
+// El profesor cierra la ronda antes de tiempo: ya hay resultados y la clase sigue.
+await db.exec(`update public.live_sessions set phase = 'round_end' where id = '${S}'`);
+esperar('terminar ronda: resultados de lo hecho hasta ahora', (await resultados(ANA, TOKEN)).items.length, 1);
+await falla('terminar ronda: ya no se puede responder', () => responder(ANA, 1, 1, TOKEN), 'no está abierta');
+await falla('terminar ronda: token ajeno', () => resultados(ANA, BETO), 'No autorizado');
+
 await abrir(R1, 1);
+await falla('pregunta abierta: resultados vuelven a cerrarse', () => resultados(ANA, TOKEN), 'aún no termina');
 await responder(ANA, 1, 1, TOKEN);   // Ana falla la 1. Beto no responde.
 
 // Segunda ronda: repite los números de pregunta. Es el bug que corrige 0086.

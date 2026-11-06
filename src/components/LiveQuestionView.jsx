@@ -414,7 +414,7 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
         </div>
       </div>
       <React.Suspense fallback={null}>
-        <LiveResults sessionId={session.id} participant={participant} cardStyle={card} />
+        <LiveResults key="clase" sessionId={session.id} participant={participant} cardStyle={card} />
       </React.Suspense>
       {onExit && (
         <div style={{ textAlign: 'center', marginTop: 16 }}>
@@ -429,6 +429,24 @@ export const LiveQuestionView = ({ participant, Wrap, avatar = null, onEnded = n
       </Center>
     )
   }
+
+  // El profesor cerró la ronda (a veces sin hacer todas las preguntas). La clase
+  // sigue: aquí se espera a que él pase al siguiente paso de la secuencia.
+  if (session.phase === 'round_end') return (
+    <Center>{bar}<div style={card}>
+      <h2 style={{ textAlign: 'center', fontSize: 20, fontWeight: 800, color: 'var(--dark)', margin: '0 0 4px' }}>🏁 Ronda terminada</h2>
+      <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)', margin: '0 0 16px' }}>Tu profesor continuará con la clase en un momento.</p>
+      <Ranking list={parts.slice(0, 5)} meId={participant.id} />
+      <div style={{ marginTop: 16, textAlign: 'center', padding: '12px', borderRadius: 12, background: 'var(--orange-bg)' }}>
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>Tu posición: </span>
+        <b style={{ color: 'var(--orange)' }}>#{myRank} · {me?.score || 0} pts</b>
+      </div>
+    </div>
+    <React.Suspense fallback={null}>
+      <LiveResults key={session.module_id} sessionId={session.id} participant={participant} cardStyle={card} moduleId={session.module_id} />
+    </React.Suspense>
+    </Center>
+  )
 
   if (session.phase === 'reveal' || session.phase === 'explanation') {
     const correct = session.current_reveal?.correct
