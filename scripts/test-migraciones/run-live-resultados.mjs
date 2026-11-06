@@ -102,5 +102,27 @@ esperar('Beto: aciertos', resBeto.filter(i => i.correct).length, 0);
 await falla('token ajeno', () => resultados(ANA, BETO), 'No autorizado');
 await falla('sin token', () => resultados(ANA), 'No autorizado');
 
+// El profesor finaliza antes de tiempo: la ronda tiene 2 preguntas y solo se hizo
+// la primera. El total debe ser 1, no 2.
+const S2 = '55555555-5555-5555-5555-555555555555';
+const CARLA = '66666666-6666-6666-6666-666666666666';
+await db.exec(`
+  insert into public.live_sessions values ('${S2}', '${R1}', 'active', 'question', 0, now(), 120, '[{"time_limit_s":120},{"time_limit_s":120}]');
+  insert into public.live_session_keys values ('${S2}', '[{"correct":1,"points":1000},{"correct":0,"points":1000}]');
+  insert into public.live_participants (id, session_id) values ('${CARLA}', '${S2}');`);
+const resultados2 = async () => (await db.query(`select public.live_my_results('${S2}', '${CARLA}') as r`)).rows[0].r.items;
+const terminar2 = () => db.exec(`update public.live_sessions set status = 'ended', phase = 'podium' where id = '${S2}'`);
+
+await terminar2();
+esperar('clase terminada sin ninguna respuesta', await resultados2(), []);
+
+await db.exec(`update public.live_sessions set status = 'active', phase = 'question' where id = '${S2}'`);
+await db.query(`select public.submit_live_answer('${S2}', '${CARLA}', 0, 1)`);
+await terminar2();
+const parcial = await resultados2();
+esperar('finalizar antes de tiempo: solo la pregunta que se hizo', parcial.length, 1);
+esperar('finalizar antes de tiempo: su evidencia', parcial[0].evidencia, '1.1');
+esperar('finalizar antes de tiempo: acierto', parcial[0].correct, true);
+
 console.log(fallos ? `\n${fallos} fallo(s)` : '\nTodo OK');
 process.exit(fallos ? 1 : 0);

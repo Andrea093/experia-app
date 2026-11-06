@@ -170,7 +170,7 @@ export const LivePresentation = ({
     try { await fn() } finally { setPending(false) }
   }
   const finish = () => {
-    if (window.confirm('¿Finalizar la clase en vivo? Los estudiantes verán el podio final.')) fire(actions.finish)
+    if (window.confirm('¿Finalizar la clase en vivo?\n\nLos estudiantes verán el podio final y sus resultados, contando solo las preguntas que se alcanzaron a hacer.')) fire(actions.finish)
   }
   const nextModule = () => (isLastModule ? finish() : fire(() => actions.gotoModule(currentIdx + 1)))
 
@@ -438,6 +438,9 @@ export const LivePresentation = ({
         <button style={{ ...BAR_BTN, background: showRanking ? 'rgba(236,103,26,.4)' : BAR_BTN.background }} onClick={() => setShowRanking(v => !v)} title="Ranking (R)">🏆 Ranking</button>
         <button style={BAR_BTN} onClick={onToggleMute} title={muted ? 'Activar sonido' : 'Silenciar'}>{muted ? '🔇' : '🔊'}</button>
         <button style={BAR_BTN} onClick={toggleFullscreen} title="Pantalla completa">{fullscreen ? '🗗' : '⛶'}</button>
+        {/* Siempre disponible: si no se alcanzan todas las preguntas, sin esto la
+            clase no se podía cerrar desde aquí y el estudiante no veía sus resultados. */}
+        {!ended && <button style={BAR_BTN} onClick={finish} disabled={pending || busy} title="Terminar la clase ahora">🏁 Finalizar</button>}
         <button style={BAR_BTN} onClick={onClose} title="Volver al panel de control">✕ Panel</button>
       </div>
 
