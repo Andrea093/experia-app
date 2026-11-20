@@ -2,7 +2,7 @@ import React from 'react'
 import {
   useStore, saveAvatarConfig, selectAvatarConfig, selectThemedCourses, calcLevel, reactCharacter,
 } from '../store/store.jsx'
-import { Btn } from '../components/ui.jsx'
+import { Btn, useMobile } from '../components/ui.jsx'
 import {
   Avatar, SKIN_COLORS, HAIRS, HAIR_COLORS, EYES, MOUTHS, ACCESSORIES, BODY_COLORS, FRAMES,
   RANKS, rankFromLevel, randomAvatar, normalizeAvatar, avatarDisplayName, labelOf, AVATAR_CREDIT,
@@ -20,16 +20,34 @@ import { AvatarBody } from '../lib/avatarBody.jsx'
 // una sola pieza cambiada, no un ícono abstracto. Las miniaturas se pintan con
 // el valor DIFERIDO de la configuración (useDeferredValue): el retrato grande
 // responde al instante y la parrilla se pone al día un pelo después.
+//
+// Celular (nov 2026): en el testeo las opciones se veían "repetidas muchas
+// veces" — cada botón es la misma cara con una pieza cambiada y, una sección
+// debajo de otra, eran ~40 caras casi iguales. En pantallas angostas las
+// opciones van por pestañas (una categoría a la vez) y el retrato queda arriba,
+// pequeño, para ver el cambio sin bajar.
 // =============================================================================
 
-const Section = ({ title, hint, children }) => (
+const MOBILE_TABS = [
+  { id: 'name', label: 'Nombre' }, { id: 'skin', label: 'Piel' }, { id: 'hair', label: 'Cabello' },
+  { id: 'eyes', label: 'Ojos' }, { id: 'mouth', label: 'Boca' }, { id: 'body', label: 'Equipo' },
+  { id: 'accessory', label: 'Accesorio' }, { id: 'frame', label: 'Marco' },
+]
+
+// En celular solo se pinta la sección de la pestaña activa.
+const TabCtx = React.createContext(null)
+const Section = ({ title, hint, children, tab }) => {
+  const active = React.useContext(TabCtx)
+  if (active && tab && active !== tab) return null
+  return (
   <div style={{ marginBottom: 24 }}>
     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sec)', textTransform: 'uppercase',
       letterSpacing: .6, marginBottom: hint ? 2 : 10 }}>{title}</div>
     {hint && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>{hint}</div>}
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>{children}</div>
   </div>
-)
+  )
+}
 
 const PieceBtn = React.memo(({ cfg, patch, active, label, onClick }) => (
   <button onClick={onClick} title={label} aria-pressed={active} aria-label={label}
@@ -57,6 +75,8 @@ const ColorBtn = ({ color, ring, active, label, onClick }) => (
 )
 
 const AvatarStudio = () => {
+  const isMobile = useMobile(720)
+  const [mTab, setMTab] = React.useState('hair')
   const user = useStore(s => s.user)
   const saved = useStore(selectAvatarConfig)
   // selectThemedCourses arma un array nuevo en cada llamada: se deriva con
@@ -132,7 +152,10 @@ const AvatarStudio = () => {
     <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
       {/* ---- Panel del retrato (pegajoso en desktop) ---- */}
-      <div style={{
+      <div style={isMobile ? {
+        flex: '1 1 100%', padding: '14px 14px 12px', borderRadius: 18, background: 'var(--white)',
+        border: '1px solid var(--border)', boxShadow: 'var(--sh-sm)', textAlign: 'center',
+      } : {
         flex: '1 1 260px', minWidth: 260, maxWidth: 340, position: 'sticky', top: 0,
         padding: '24px 20px', borderRadius: 18, background: 'var(--white)',
         border: '1px solid var(--border)', boxShadow: 'var(--sh-sm)', textAlign: 'center',
@@ -155,7 +178,7 @@ const AvatarStudio = () => {
             <AvatarBody cfg={draft} rank={shownRank} size={168} expression={expression} showRankName />
           </div>
         ) : (
-          <Avatar cfg={draft} size={190} expression={expression} rank={shownRank}
+          <Avatar cfg={draft} size={isMobile ? 130 : 190} expression={expression} rank={shownRank}
             style={{ margin: '0 auto 14px' }} />
         )}
 
@@ -241,10 +264,25 @@ const AvatarStudio = () => {
 
       {/* ---- Panel de opciones ---- */}
       <div style={{
-        flex: '2 1 440px', minWidth: 300, padding: '24px', borderRadius: 18,
+        flex: '2 1 440px', minWidth: isMobile ? 0 : 300, padding: isMobile ? '14px' : '24px', borderRadius: 18,
         background: 'var(--white)', border: '1px solid var(--border)',
+        ...(isMobile ? { width: '100%' } : {}),
       }}>
-        <Section title="Cómo te llama el tutor"
+        <TabCtx.Provider value={isMobile ? mTab : null}>
+        {isMobile && (
+          <div role="tablist" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 10, marginBottom: 12,
+            borderBottom: '1px solid var(--border)', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+            {MOBILE_TABS.map(t => (
+              <button key={t.id} role="tab" aria-selected={mTab === t.id} onClick={() => setMTab(t.id)}
+                style={{ flexShrink: 0, padding: '7px 13px', borderRadius: 20, cursor: 'pointer', fontFamily: 'var(--font)',
+                  fontSize: 12.5, fontWeight: 700, border: mTab === t.id ? 'none' : '1px solid var(--border)',
+                  background: mTab === t.id ? 'var(--orange)' : 'var(--bg)', color: mTab === t.id ? '#fff' : 'var(--muted)' }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+        <Section tab="name" title="Cómo te llama el tutor"
           hint="Opcional. Si lo dejas vacío usaremos tu primer nombre.">
           <input
             value={draft.alias || ''}
@@ -258,48 +296,49 @@ const AvatarStudio = () => {
             }} />
         </Section>
 
-        <Section title="Tono de piel">
+        <Section tab="skin" title="Tono de piel">
           {SKIN_COLORS.map(s => (
             <ColorBtn key={s.id} color={'#' + s.hex} label={s.name}
               active={draft.skin === s.id} onClick={() => set({ skin: s.id })} />
           ))}
         </Section>
 
-        <Section title="Cabello">{row('hair', HAIRS)}</Section>
+        <Section tab="hair" title="Cabello">{row('hair', HAIRS)}</Section>
 
-        <Section title="Color de cabello">
+        <Section tab="hair" title="Color de cabello">
           {HAIR_COLORS.map(c => (
             <ColorBtn key={c.id} color={'#' + c.hex} label={c.name}
               active={draft.hairColor === c.id} onClick={() => set({ hairColor: c.id })} />
           ))}
         </Section>
 
-        <Section title="Ojos" hint="Es tu gesto de base; en la conversación con el tutor cambia solo.">
+        <Section tab="eyes" title="Ojos" hint="Es tu gesto de base; en la conversación con el tutor cambia solo.">
           {row('eyes', EYES)}
         </Section>
 
-        <Section title="Boca">{row('mouth', MOUTHS)}</Section>
+        <Section tab="mouth" title="Boca">{row('mouth', MOUTHS)}</Section>
 
-        <Section title="Color del equipo" hint="La ropa y la armadura que se ve en el cuerpo entero.">
+        <Section tab="body" title="Color del equipo" hint="La ropa y la armadura que se ve en el cuerpo entero.">
           {BODY_COLORS.map(c => (
             <ColorBtn key={c.id} color={'#' + c.hex} label={c.name}
               active={draft.bodyColor === c.id} onClick={() => set({ bodyColor: c.id })} />
           ))}
         </Section>
 
-        <Section title="Accesorio">
+        <Section tab="accessory" title="Accesorio">
           <PieceBtn cfg={gridCfg} patch={{ accessory: null }} label="Ninguno"
             active={!draft.accessory} onClick={() => set({ accessory: null })} />
           {row('accessory', ACCESSORIES)}
         </Section>
 
-        <Section title="Marco">
+        <Section tab="frame" title="Marco">
           {FRAMES.map(f => (
             <ColorBtn key={f.id} color={f.bg} ring={f.ring} label={f.name}
               active={draft.frame === f.id} onClick={() => set({ frame: f.id })} />
           ))}
         </Section>
 
+        </TabCtx.Provider>
         <div style={{ fontSize: 11, color: 'var(--subtle)', lineHeight: 1.6, paddingTop: 4 }}>
           Tu avatar es el mismo en todos tus cursos y lo puedes cambiar cuando quieras.
           No reemplaza tu foto de perfil: la foto es para la plataforma, el avatar para el mundo del curso.

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { PlusIc, XIc, CheckIc, ChevRIc, Btn, ImageUploader, RichInput, RichText, useMobile } from '../ui.jsx'
 import { BANK_AREAS, ROUND_LABELS, DIFFICULTY, loadQuestionBank, bankToModuleQuestion } from '../../lib/questionBankMeta.js'
 import QuestionBankPicker from './QuestionBankPicker.jsx'
+import { useStore } from '../../store/store.jsx'
 import { SABER_GUIDES, checkRound, evidenceInfo, evidenceIndex, tagWithBank } from '../../lib/saberGuide.js'
 
 const newQuestionId = () => `q_${crypto.randomUUID().slice(0, 8)}`
@@ -107,6 +108,7 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
   const [settingsOpen, setSettingsOpen] = React.useState(true)
   const [openQ, setOpenQ]         = React.useState(() => new Set()) // preguntas desplegadas para editar
   const isMobile = useMobile(900)
+  const role = useStore(s => s.user?.role)
   const toggleOpenQ = (id) => setOpenQ(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   // Escape cierra la pantalla, como cerraba el modal.
@@ -292,6 +294,10 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
     : (initial ? 'Editar reto Quiz' : 'Crear reto Quiz')
   const showBank = !isPoll && !!bankArea
   const realCount = questions.filter(q => !isBlank(q)).length
+  // Rondas del banco (nov 2026): el PROFESOR solo elige preguntas del banco —
+  // no crea ni duplica preguntas sueltas. El admin conserva ambas opciones
+  // para casos especiales. Un quiz sin banco no cambia.
+  const bankOnly = !!bankArea && !isPoll && role !== 'admin'
   const showLeft  = !isMobile || !showBank || tab === 'round'
   const showRight = showBank && (!isMobile || tab === 'bank')
   const tabBtn = (active) => ({ flex: 1, padding: '10px', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 800,
@@ -508,6 +514,12 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
                       background: q.difficulty === 'dificil' ? '#FEE2E2' : q.difficulty === 'facil' ? '#DCFCE7' : '#FEF3C7',
                       color: q.difficulty === 'dificil' ? 'var(--error)' : q.difficulty === 'facil' ? 'var(--success)' : '#B45309' }}>
                       {q.difficulty === 'dificil' ? 'Difícil' : q.difficulty === 'facil' ? 'Fácil' : 'Media'}</span>}
+                    {!isPoll && bankArea && evidenceInfo(bankArea, q.evidencia) && (
+                      <span title={`Afirmación ${evidenceInfo(bankArea, q.evidencia).afirmacion.n}: ${evidenceInfo(bankArea, q.evidencia).afirmacion.text}`}
+                        style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'var(--purple-bg)', color: 'var(--purple)' }}>
+                        🎯 {evidenceInfo(bankArea, q.evidencia).competencia.label}
+                      </span>
+                    )}
                     {q.passage && <span title={q.passage.intro} style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                       background: 'var(--purple-bg)', color: 'var(--purple)' }}>📖 {q.passage.title || 'Texto de lectura'}</span>}
                   </span>
@@ -523,11 +535,11 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
                         style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--white)',
                           fontSize: 14, fontWeight: 700, color: 'var(--muted)', opacity: (dir < 0 ? qi === 0 : qi === questions.length - 1) ? .3 : 1 }}>{sym}</button>
                     ))}
-                    <button onClick={() => dupQ(q.id)} title="Duplicar"
+                    {!bankOnly && <button onClick={() => dupQ(q.id)} title="Duplicar"
                       style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--white)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <PlusIc s={13} c="var(--muted)" />
-                    </button>
+                    </button>}
                     <button onClick={() => removeQ(q.id)} disabled={questions.length <= 1} title="Eliminar"
                       style={{ width: 26, height: 26, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#FEE2E2',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: questions.length <= 1 ? .3 : 1 }}>
@@ -715,12 +727,18 @@ const QuizCreatorModal = ({ open, initial, onClose, onSave, variant = 'quiz', us
               )
             })}
           </div>
+          {bankOnly ? (
+            <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '12px 0 0', lineHeight: 1.5 }}>
+              📚 Las preguntas de esta ronda se eligen del banco{isMobile ? ' (pestaña 📚 Banco)' : ' (columna derecha)'}. Así cada pregunta conserva su competencia, su pista y su explicación.
+            </p>
+          ) : (
           <button onClick={addQ}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 10, marginTop: 12,
               border: '1.5px dashed var(--purple)', background: 'var(--purple-bg)', color: 'var(--purple)',
               cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 600 }}>
             <PlusIc s={14} c="var(--purple)" /> Agregar pregunta
           </button>
+          )}
         </div>
 
         {err && <p style={{ fontSize: 12, color: 'var(--error)', margin: 0 }}>{err}</p>}

@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   useStore, INITIAL_INSTITUTIONS, AREAS, ALL_AREAS,
-  createInstitution, updateInstitution, deleteInstitution, setInstitutionActive,
+  createInstitution, updateInstitution, deleteInstitution, setInstitutionActive, setInstitutionCalendar,
   toggleCourseForInstitution, setInstitutionCourseExpiry,
   assignInstructorInstitution, removeInstructorInstitution, loadInstructorInstitutions,
   setAccountActive, isBaseCourse
@@ -316,6 +316,31 @@ const InstructorsTab = ({ inst }) => {
   )
 }
 
+// ── Calendario escolar (0088) ─────────────────────────────────
+// Define hasta cuándo los estudiantes del colegio pueden repasar sus clases en
+// vivo: antes de su Prueba Saber. Calendario B → hasta el 31 de marzo;
+// calendario A → hasta el 30 de junio (siguientes a la clase).
+const CALENDARS = [
+  { id: 'A', label: 'Calendario A', hint: 'Repaso de clases en vivo hasta el 30 de junio' },
+  { id: 'B', label: 'Calendario B', hint: 'Repaso de clases en vivo hasta el 31 de marzo' },
+]
+const CalendarPicker = ({ value, onChange, error = false }) => (
+  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    {CALENDARS.map(c => {
+      const on = value === c.id
+      return (
+        <button key={c.id} type="button" onClick={() => onChange(c.id)} aria-pressed={on}
+          style={{ flex: '1 1 160px', textAlign: 'left', padding: '10px 12px', borderRadius: 12, cursor: 'pointer', fontFamily: 'var(--font)',
+            border: on ? '2px solid var(--orange)' : `1.5px solid ${error ? 'var(--error)' : 'var(--border)'}`,
+            background: on ? 'var(--orange-bg)' : 'var(--white)' }}>
+          <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--dark)' }}>{on ? '● ' : '○ '}{c.label}</div>
+          <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>{c.hint}</div>
+        </button>
+      )
+    })}
+  </div>
+)
+
 // ── Pestaña AJUSTES: renombrar, suspender, eliminar ──────────
 const SettingsTab = ({ inst, studentCount, onDeleted }) => {
   const [name, setName] = React.useState(inst.name)
@@ -343,6 +368,13 @@ const SettingsTab = ({ inst, studentCount, onDeleted }) => {
             {saved ? '✅' : 'Guardar'}
           </Btn>
         </div>
+      </div>
+
+      <div>
+        <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>
+          Calendario escolar {!inst.calendar && <span style={{ color: 'var(--error)', textTransform: 'none', letterSpacing: 0 }}>· sin asignar</span>}
+        </label>
+        <CalendarPicker value={inst.calendar || null} onChange={(c) => setInstitutionCalendar(inst.id, c)} error={!inst.calendar} />
       </div>
 
       <div style={{ padding: '14px 16px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg)' }}>
@@ -397,6 +429,8 @@ const SchoolsAdminPage = () => {
   const [search, setSearch] = React.useState('')
   const [showCreate, setShowCreate] = React.useState(false)
   const [newName, setNewName] = React.useState('')
+  const [newCalendar, setNewCalendar] = React.useState(null)
+  const [calError, setCalError] = React.useState(false)
   const [nameError, setNameError] = React.useState('')
   const [openId, setOpenId] = React.useState(null)
   const [tab, setTab] = React.useState('courses')
@@ -438,8 +472,9 @@ const SchoolsAdminPage = () => {
     if (institutions.some(i => i.name.toLowerCase() === trimmed.toLowerCase())) {
       setNameError('Ya existe una institución con ese nombre'); return
     }
-    createInstitution(trimmed)
-    setNewName(''); setNameError(''); setShowCreate(false)
+    if (!newCalendar) { setCalError(true); return }
+    createInstitution(trimmed, newCalendar)
+    setNewName(''); setNameError(''); setNewCalendar(null); setCalError(false); setShowCreate(false)
   }
 
   const openDrawer = (inst, initialTab = 'courses') => {
@@ -492,6 +527,7 @@ const SchoolsAdminPage = () => {
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inst.name}</div>
                     <div style={{ marginTop: 3, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                       {!isActive && <Pill tone="error">Suspendido</Pill>}
+                      {inst.calendar ? <Pill>Calendario {inst.calendar}</Pill> : <Pill tone="warn">Sin calendario</Pill>}
                       {st.expiring > 0 && <Pill tone="warn">⏳ {st.expiring} curso{st.expiring !== 1 ? 's' : ''} por vencer</Pill>}
                     </div>
                   </div>
@@ -550,6 +586,13 @@ const SchoolsAdminPage = () => {
               placeholder="Ej: IED San Francisco" style={inputStyle(!!nameError)}
               onKeyDown={e => e.key === 'Enter' && handleCreate()} autoFocus />
             {nameError && <p style={{ fontSize: 11, color: 'var(--error)', marginTop: 4 }}>{nameError}</p>}
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--dark)', display: 'block', marginBottom: 6 }}>
+              Calendario escolar *
+            </label>
+            <CalendarPicker value={newCalendar} onChange={(c) => { setNewCalendar(c); setCalError(false) }} error={calError} />
+            {calError && <p style={{ fontSize: 11, color: 'var(--error)', marginTop: 4 }}>Elige el calendario del colegio</p>}
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
             <Btn variant="secondary" full onClick={() => { setShowCreate(false); setNewName(''); setNameError('') }}>Cancelar</Btn>

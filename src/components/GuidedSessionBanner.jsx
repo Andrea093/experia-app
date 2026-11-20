@@ -1,4 +1,5 @@
 import React from 'react'
+import { nav } from '../store/store.jsx'
 
 // Aviso a estudiantes cuando el profesor lanzó una Clase en Vivo Guiada para
 // su curso. Unirse es decisión del estudiante — no se auto-une.
@@ -40,7 +41,34 @@ const GuidedSessionBanner = ({ session, onJoin }) => {
 // wrapper que la renderiza) pero no se puede interactuar con ella hasta
 // unirse. app.jsx es quien aplica el desenfoque/pointer-events al contenido;
 // este componente es solo la tarjeta de aviso encima.
-export const RouteLockOverlay = ({ session, onJoin }) => {
+// Primer paso si el estudiante aún no tiene avatar (cursos con tema): crearlo
+// ANTES de unirse — una vez unido, la clase ocupa toda la pantalla y ya no
+// podría hacerlo hasta que termine. La pestaña del perfil queda fuera del
+// candado (app.jsx), así que el botón lleva directo al estudio del avatar.
+const AvatarFirst = ({ onSkip }) => (
+  <>
+    <div style={{ fontSize: 34, marginBottom: 10 }}>🧑‍🎨</div>
+    <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>Primero, crea tu avatar</h3>
+    <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 18, lineHeight: 1.5 }}>
+      Tu personaje te acompaña en la clase en vivo y reacciona a tus respuestas. Toma menos de un minuto; después te unes a la clase.
+    </p>
+    <button onClick={() => nav('profile', 'avatar')}
+      style={{ padding: '11px 24px', borderRadius: 10, border: 'none', background: 'var(--gradient-orange)', color: '#fff',
+        fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'var(--font)', width: '100%' }}>
+      Crear mi avatar
+    </button>
+    {onSkip && (
+      <button onClick={onSkip}
+        style={{ marginTop: 10, padding: '8px', border: 'none', background: 'none', color: 'var(--muted)', fontSize: 12.5,
+          fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font)', width: '100%' }}>
+        Unirme sin avatar por ahora
+      </button>
+    )}
+  </>
+)
+
+export const RouteLockOverlay = ({ session, onJoin, needsAvatar = false }) => {
+  const [skipAvatar, setSkipAvatar] = React.useState(false)
   const [joining, setJoining] = React.useState(false)
 
   const handleJoin = async () => {
@@ -54,6 +82,7 @@ export const RouteLockOverlay = ({ session, onJoin }) => {
       justifyContent: 'center', background: 'rgba(15,15,20,.45)', padding: 20 }}>
       <div style={{ maxWidth: 360, width: '100%', background: 'var(--white)', borderRadius: 18,
         padding: '28px 26px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+        {needsAvatar && !skipAvatar ? <AvatarFirst onSkip={() => setSkipAvatar(true)} /> : <>
         <div style={{ fontSize: 34, marginBottom: 10, animation: 'glow 2s ease infinite' }}>🔴</div>
         <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>
           Tu profesor inició una clase en vivo{session?.title ? `: ${session.title}` : ''}
@@ -67,6 +96,7 @@ export const RouteLockOverlay = ({ session, onJoin }) => {
             fontFamily: 'var(--font)', width: '100%' }}>
           {joining ? 'Uniendo…' : 'Unirme a la clase'}
         </button>
+        </>}
       </div>
     </div>
   )
@@ -79,7 +109,7 @@ export const RouteLockOverlay = ({ session, onJoin }) => {
 // clase en curso: es "todavía no has ido a tu primera clase en vivo", y no
 // tiene botón de unirse porque puede que hoy no haya ninguna sesión abierta.
 // Deja de mostrarse en cuanto `hasCompletedLiveSession` da true (ver app.jsx).
-export const WaitingFirstLiveOverlay = () => (
+export const WaitingFirstLiveOverlay = ({ needsAvatar = false }) => (
   <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center',
     justifyContent: 'center', background: 'rgba(15,15,20,.45)', padding: 20 }}>
     <div style={{ maxWidth: 360, width: '100%', background: 'var(--white)', borderRadius: 18,
@@ -91,6 +121,13 @@ export const WaitingFirstLiveOverlay = () => (
       <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>
         Esta ruta se recorre en clase. Espera a que tu profesor inicie la sesión en vivo para empezar — en cuanto participes en una, quedará disponible para que avances por tu cuenta cuando quieras.
       </p>
+      {needsAvatar && (
+        <button onClick={() => nav('profile', 'avatar')}
+          style={{ marginTop: 16, padding: '11px 24px', borderRadius: 10, border: 'none', background: 'var(--gradient-orange)', color: '#fff',
+            fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'var(--font)', width: '100%' }}>
+          🧑‍🎨 Mientras tanto, crea tu avatar
+        </button>
+      )}
     </div>
   </div>
 )

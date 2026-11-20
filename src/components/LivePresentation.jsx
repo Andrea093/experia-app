@@ -1,10 +1,13 @@
 import React from 'react'
 import { dbModToAppMod } from '../store/store.jsx'
-import { RichText, QuestionText, useMobile } from './ui.jsx'
+import { RichText, QuestionText, useMobile, ZoomImg } from './ui.jsx'
 import { LessonSection, isTutorOnlySection } from '../pages/lesson.jsx'
 import { LivePassage, OptionImage, OPT_COLORS } from './LiveQuestionView.jsx'
 import { LIVE_TIME_OPTIONS } from '../lib/liveClient.js'
 import { isQuestionRound, BANK_AREAS, ROUND_LABELS } from '../lib/questionBankMeta.js'
+import { QuestionMetaChips, StrategyTip } from './LiveQuestionMeta.jsx'
+import { optionOrder, liveSeed } from '../lib/liveShuffle.js'
+import { sBell } from '../lib/sound.js'
 
 // =============================================
 // EXPERIA — Clase en Vivo · Modo presentación del profesor
@@ -16,6 +19,10 @@ import { isQuestionRound, BANK_AREAS, ROUND_LABELS } from '../lib/questionBankMe
 //   El estudiante sigue viendo la lección completa en su dispositivo.
 // - Ronda/quiz: ▶ hace el paso que toca — comenzar, mostrar resultados, ver
 //   explicación, siguiente pregunta — y al final pasa al siguiente módulo.
+// Nov 2026: competencia/tema/dificultad sobre la pregunta, tip de estrategia
+// al revelar (tecla T), opciones en el mismo orden barajado que ven los
+// estudiantes (lib/liveShuffle.js), campana a los 10 s, imágenes ampliables,
+// redoble antes del podio y ranking completo.
 // Los colores del escenario son literales (no variables): es una proyección y
 // no debe cambiar con el modo oscuro ni el acento. Las diapositivas de lección
 // sí usan las variables, porque reusan LessonSection tal cual.
@@ -99,12 +106,42 @@ export const Podium = ({ top, dark = false }) => {
   )
 }
 
-const DarkRanking = ({ parts, limit = 10 }) => (
+// Quiénes salieron de la pestaña con la pregunta actual abierta (broadcast,
+// liveClient.subscribeFocus). `list`: [{pid, name, count, ms, out}].
+export const AwayIndicator = ({ list, dark = false, style }) => {
+  const [open, setOpen] = React.useState(false)
+  if (!list?.length) return null
+  const outNow = list.filter(a => a.out).length
+  const fg = dark ? '#FDE68A' : '#92400E'
+  return (
+    <div style={{ marginTop: 8, ...style }}>
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 20, cursor: 'pointer',
+          border: `1.5px solid ${dark ? 'rgba(253,230,138,.5)' : '#F59E0B'}`, background: dark ? 'rgba(245,158,11,.15)' : '#FEF3C7',
+          color: fg, fontFamily: 'var(--font)', fontSize: 13, fontWeight: 800 }}>
+        👀 {list.length} {list.length === 1 ? 'salió' : 'salieron'} de la pestaña{outNow ? ` · ${outNow} fuera ahora` : ''} {open ? '▴' : '▾'}
+      </button>
+      {open && (
+        <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {list.map(a => (
+            <span key={a.pid} style={{ fontSize: 12.5, fontWeight: 600, padding: '3px 10px', borderRadius: 12,
+              background: dark ? 'rgba(255,255,255,.08)' : 'var(--bg)', color: dark ? '#fff' : 'var(--dark)',
+              border: `1px solid ${a.out ? '#F59E0B' : (dark ? 'rgba(255,255,255,.15)' : 'var(--border)')}` }}>
+              {a.name} · {a.out ? 'fuera ahora' : `${a.count} ${a.count === 1 ? 'vez' : 'veces'}, ${Math.max(1, Math.round(a.ms / 1000))} s`}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const DarkRanking = ({ parts, limit = Infinity, offset = 0 }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
     {parts.slice(0, limit).map((p, i) => (
       <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12,
-        background: i < 3 ? 'rgba(236,103,26,.18)' : 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }}>
-        <span style={{ fontSize: 18, fontWeight: 800, minWidth: 34 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
+        background: i + offset < 3 ? 'rgba(236,103,26,.18)' : 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }}>
+        <span style={{ fontSize: 18, fontWeight: 800, minWidth: 34 }}>{i + offset === 0 ? '🥇' : i + offset === 1 ? '🥈' : i + offset === 2 ? '🥉' : `${i + offset + 1}.`}</span>
         <span style={{ flex: 1, minWidth: 0, fontSize: 16, fontWeight: 600, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
           {p.nombre} {p.apellido || ''}
         </span>
@@ -128,7 +165,7 @@ const Paper = ({ children, scale = 1, center = false }) => (
 
 export const LivePresentation = ({
   session, moduleList, parts, counts, busy, view, actions,
-  qSeconds, onTimeChange, muted, onToggleMute, activityChooser, onClose,
+  qSeconds, onTimeChange, muted, onToggleMute, activityChooser, onClose, suspense = false, away = [],
 }) => {
   const { currentIdx, currentModule, isInteractive, isPoll, isLastModule, phase, idx, total,
     question, options, optionImages, correct, hasExplanation, explanation } = view
@@ -141,6 +178,7 @@ export const LivePresentation = ({
   const [showRanking, setShowRanking] = React.useState(false)
   const [showNotes, setShowNotes] = React.useState(false)
   const [showActivity, setShowActivity] = React.useState(false)
+  const [showTip, setShowTip] = React.useState(true)
   const [pending, setPending] = React.useState(false)
   const toLast = React.useRef(false)
 
@@ -164,6 +202,11 @@ export const LivePresentation = ({
   const answered = counts.reduce((a, b) => a + b, 0)
   const limit = question?.time_limit_s || qSeconds
   const left = useSecondsLeft(session.question_started_at, limit, phase === 'question' && isInteractive)
+  const prevLeft = React.useRef(null)
+  React.useEffect(() => {
+    if (phase === 'question' && isInteractive && limit > 10 && left === 10 && prevLeft.current === 11) sBell()
+    prevLeft.current = left
+  }, [left]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fire = async (fn) => {
     if (pending || busy) return
@@ -216,6 +259,7 @@ export const LivePresentation = ({
       } else if (k === 'ArrowLeft' || k === 'PageUp') {
         e.preventDefault(); keyRef.current.prev()
       } else if (k === 'r' || k === 'R') setShowRanking(v => !v)
+      else if (k === 't' || k === 'T') setShowTip(v => !v)
       else if ((k === 'n' || k === 'N') && keyRef.current.notes.length) setShowNotes(v => !v)
       else if (k === 'Escape' && !document.fullscreenElement) onClose()
     }
@@ -295,10 +339,13 @@ export const LivePresentation = ({
   const renderQuestion = () => {
     const reveal = phase !== 'question'
     const passage = question?.passage
+    const area = currentModule?.challenge_data?.bank || null
+    const order = optionOrder(liveSeed(session, idx), options)
     const optionTiles = (
       <div style={{ display: 'grid', gridTemplateColumns: !isMobile && options.length === 4 ? 'repeat(2, minmax(0, 1fr))' : options.length > 2 || (optionImages || []).some(Boolean) ? 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))' : '1fr',
         gap: 'clamp(8px, 1vw, 16px)' }}>
-        {options.map((opt, i) => {
+        {order.map((i, pos) => {
+          const opt = options[i]
           const isCorrect = correct === i
           const n = counts[i] || 0
           const pct = answered > 0 ? Math.round((n / answered) * 100) : 0
@@ -306,14 +353,14 @@ export const LivePresentation = ({
           return (
             <div key={i} style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 14,
               padding: phase === 'explanation' ? '10px 16px' : 'clamp(12px, 1.4vw, 22px) clamp(14px, 1.6vw, 24px)', borderRadius: 16,
-              background: OPT_COLORS[i % OPT_COLORS.length], color: '#fff', opacity: dim ? .38 : 1,
+              background: OPT_COLORS[pos % OPT_COLORS.length], color: '#fff', opacity: dim ? .38 : 1,
               outline: reveal && isCorrect ? '4px solid #fff' : 'none', outlineOffset: -4,
               boxShadow: reveal && isCorrect ? '0 0 0 4px #10B981, 0 12px 30px rgba(16,185,129,.35)' : '0 8px 24px rgba(0,0,0,.3)',
               transition: 'opacity .4s, box-shadow .4s' }}>
               {reveal && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct + '%', background: 'rgba(0,0,0,.18)', transition: 'width .5s' }} />}
               <span style={{ position: 'relative', width: 'clamp(30px, 2.6vw, 44px)', height: 'clamp(30px, 2.6vw, 44px)', borderRadius: 10,
                 background: 'rgba(255,255,255,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                fontWeight: 900, fontSize: 'clamp(15px, 1.4vw, 22px)' }}>{String.fromCharCode(65 + i)}</span>
+                fontWeight: 900, fontSize: 'clamp(15px, 1.4vw, 22px)' }}>{String.fromCharCode(65 + pos)}</span>
               <span style={{ position: 'relative', flex: 1, minWidth: 0, fontSize: phase === 'explanation' ? 'clamp(14px, 1.2vw, 18px)' : 'clamp(16px, 1.6vw, 26px)',
                 fontWeight: 700, lineHeight: 1.3, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <OptionImage src={optionImages?.[i]} maxHeight={phase === 'explanation' ? 90 : 170} />
@@ -339,6 +386,8 @@ export const LivePresentation = ({
             <div style={{ height: '100%', width: `${parts.length ? Math.min(100, (answered / parts.length) * 100) : 0}%`, background: '#10B981', transition: 'width .4s' }} />
           </div>
           <div style={{ fontSize: 13, opacity: .75, marginTop: 4 }}>{answered} de {parts.length} respondieron</div>
+          <QuestionMetaChips area={area} question={question} dark style={{ marginTop: 8, marginBottom: 0 }} />
+          {phase === 'question' && <AwayIndicator list={away} dark />}
         </div>
         {phase === 'question' && <TimerRing left={left} limit={limit} size={isMobile ? 62 : scale > 1 ? 104 : 86} />}
       </div>
@@ -348,8 +397,10 @@ export const LivePresentation = ({
         marginBottom: 'clamp(10px, 1.4vw, 20px)', boxShadow: '0 20px 50px rgba(0,0,0,.35)',
         display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: isMobile ? 12 : 24 }}>
         {question?.image && (
-          <img src={question.image} alt="" style={{ display: 'block', flexShrink: 0, maxWidth: isMobile ? '100%' : '36%',
-            maxHeight: isMobile ? '22vh' : phase === 'question' ? '24vh' : '18vh', objectFit: 'contain', borderRadius: 10 }} />
+          <div style={{ flexShrink: 0, maxWidth: isMobile ? '100%' : '40%' }}>
+            <ZoomImg src={question.image} style={{ display: 'block', maxWidth: '100%',
+              maxHeight: isMobile ? '24vh' : phase === 'question' ? '30vh' : '20vh', objectFit: 'contain', borderRadius: 10 }} />
+          </div>
         )}
         <div style={{ flex: 1, minWidth: 0, alignSelf: isMobile ? 'stretch' : 'center' }}>
           <QuestionText as="h2" style={{ fontSize: phase === 'question' ? 'clamp(19px, 1.8vw, 32px)' : 'clamp(17px, 1.5vw, 26px)', fontWeight: 800, lineHeight: 1.3, margin: 0 }}>
@@ -368,6 +419,13 @@ export const LivePresentation = ({
         <RichText as="p" style={{ fontSize: 'clamp(15px, 1.5vw, 24px)', lineHeight: 1.6, margin: 0 }}>{explanation}</RichText>
       </div>
     )
+    const tipCard = reveal && !isPoll && showTip && (
+      <div style={{ position: 'relative' }}>
+        <StrategyTip area={area} question={question} dark />
+        <button onClick={() => setShowTip(false)} title="Ocultar tip (T)"
+          style={{ position: 'absolute', top: 22, right: 10, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 16, color: '#9A3412' }}>✕</button>
+      </div>
+    )
     return (
       <div style={{ width: '100%', maxWidth: 1500, height: '100%', overflowY: 'auto', animation: 'fadeIn .3s ease' }}>
         {header}
@@ -376,9 +434,9 @@ export const LivePresentation = ({
             <div style={{ flex: '1 1 380px', minWidth: 0, background: '#fff', color: '#1A1A2E', borderRadius: 18, padding: 4 }}>
               <LivePassage passage={passage} maxHeight="62vh" />
             </div>
-            <div style={{ flex: '1.3 1 460px', minWidth: 0 }}>{questionCard}{optionTiles}{explanationCard}</div>
+            <div style={{ flex: '1.3 1 460px', minWidth: 0 }}>{questionCard}{optionTiles}{explanationCard}{tipCard}</div>
           </div>
-        ) : <>{questionCard}{optionTiles}{explanationCard}</>}
+        ) : <>{questionCard}{optionTiles}{explanationCard}{tipCard}</>}
       </div>
     )
   }
@@ -393,19 +451,25 @@ export const LivePresentation = ({
     </div>
   )
 
-  const renderEnded = () => (
+  const renderSuspense = () => (
+    <div style={{ textAlign: 'center', animation: 'fadeIn .3s ease' }}>
+      <div style={{ fontSize: 'clamp(80px, 12vw, 180px)', animation: 'clockPulse .35s ease infinite' }} aria-hidden="true">🥁</div>
+      <h1 style={{ fontSize: 'clamp(30px, 4.4vw, 70px)', fontWeight: 900, margin: '10px 0 0' }}>Y los resultados son…</h1>
+    </div>
+  )
+  const renderEnded = () => suspense ? renderSuspense() : (
     <div style={{ width: '100%', maxWidth: 900, textAlign: 'center', overflowY: 'auto', maxHeight: '100%' }}>
       <h1 style={{ fontSize: 'clamp(28px, 3.6vw, 56px)', fontWeight: 900, margin: '0 0 10px' }}>🏆 ¡Clase finalizada!</h1>
       {parts.length > 0 && <Podium top={parts.slice(0, 3)} dark />}
-      <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}><DarkRanking parts={parts.slice(3)} limit={7} /></div>
+      <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}><DarkRanking parts={parts.slice(3)} offset={3} /></div>
     </div>
   )
 
-  const renderRoundEnd = () => (
+  const renderRoundEnd = () => suspense ? renderSuspense() : (
     <div style={{ width: '100%', maxWidth: 900, textAlign: 'center', overflowY: 'auto', maxHeight: '100%' }}>
       <h1 style={{ fontSize: 'clamp(28px, 3.6vw, 56px)', fontWeight: 900, margin: '0 0 8px' }}>🏁 Ronda terminada</h1>
       <p style={{ fontSize: 'clamp(15px, 1.5vw, 22px)', opacity: .8, margin: '0 0 20px' }}>Se llegó hasta la pregunta {idx + 1} de {total}</p>
-      <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}><DarkRanking parts={parts} limit={10} /></div>
+      <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'left' }}><DarkRanking parts={parts} /></div>
     </div>
   )
 
@@ -458,6 +522,9 @@ export const LivePresentation = ({
           <button style={{ ...BAR_BTN, order: 1, background: showNotes ? 'rgba(236,103,26,.4)' : BAR_BTN.background }} onClick={() => setShowNotes(v => !v)} title="Guía del docente (N)">📝 Notas</button>
         )}
         <button style={{ ...BAR_BTN, order: 1, background: showRanking ? 'rgba(236,103,26,.4)' : BAR_BTN.background }} onClick={() => setShowRanking(v => !v)} title="Ranking (R)">🏆 Ranking</button>
+        {isInteractive && !isPoll && !ended && (
+          <button style={{ ...BAR_BTN, order: 1, background: showTip ? 'rgba(236,103,26,.4)' : BAR_BTN.background }} onClick={() => setShowTip(v => !v)} title="Tip para el profesor al revelar (T)">🧭 Tip</button>
+        )}
         <button style={{ ...BAR_BTN, order: 1 }} onClick={onToggleMute} title={muted ? 'Activar sonido' : 'Silenciar'}>{muted ? '🔇' : '🔊'}</button>
         <button style={{ ...BAR_BTN, order: 1 }} onClick={toggleFullscreen} title="Pantalla completa">{fullscreen ? '🗗' : '⛶'}</button>
         {/* Terminar ronda cierra solo las preguntas y la clase sigue. Finalizar clase
@@ -536,7 +603,7 @@ export const LivePresentation = ({
               })}
             </div>
             <div style={{ fontSize: 12, opacity: .65, fontWeight: 600 }}>
-              {counter}{!isMobile && <>{counter ? ' · ' : ''}← → para avanzar · R ranking{notes.length ? ' · N notas' : ''}</>}
+              {counter}{!isMobile && <>{counter ? ' · ' : ''}← → para avanzar · R ranking{isInteractive && !isPoll ? ' · T tip' : ''}{notes.length ? ' · N notas' : ''}</>}
             </div>
           </div>
 

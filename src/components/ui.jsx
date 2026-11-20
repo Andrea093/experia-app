@@ -437,6 +437,110 @@ const ImageUploader = ({ value, onUploaded, label = 'Subir imagen', bucket = 'at
 // El renderizador respeta espacios y saltos de línea (whiteSpace: pre-wrap).
 const RICH_COLORS = ['#E8732C', '#DC2626', '#2563EB', '#059669', '#7C3AED', '#111827'];
 
+// --- Ampliar imágenes y tablas sin salir de la plataforma (nov 2026) ---
+// Antes las imágenes de las preguntas eran enlaces con target="_blank": en el
+// celular, tocar una gráfica abría otra pestaña y el estudiante "se salía" de
+// la clase en vivo. Ahora se amplían en una capa encima (Escape o ✕ cierra),
+// con lupa para verlas a su tamaño real: varias gráficas se veían borrosas
+// porque se mostraban reducidas. zIndex 6000: sobre los modales (5000) y el
+// tutor (150). El clic NO se propaga: dentro de un botón de opción, ampliar
+// la imagen no cuenta como responder.
+const ZOOM_STEPS = [1, 1.6, 2.4, 3.5];
+const ZoomOverlay = ({ onClose, children, label }) => {
+  const [step, setStep] = React.useState(0);
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+  const scale = ZOOM_STEPS[step];
+  const btn = { minWidth: 44, height: 44, borderRadius: 12, border: 'none', cursor: 'pointer', fontFamily: 'var(--font)',
+    fontSize: 16, fontWeight: 800, background: 'rgba(255,255,255,.16)', color: '#fff' };
+  const stop = (e) => e.stopPropagation();
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label={label || 'Vista ampliada'} onClick={(e) => { e.stopPropagation(); onClose(); }}
+      style={{ position: 'fixed', inset: 0, zIndex: 6000, background: 'rgba(8,8,14,.92)', display: 'flex', flexDirection: 'column' }}>
+      <div onClick={stop} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '10px 12px', flexShrink: 0 }}>
+        <span style={{ flex: 1, color: 'rgba(255,255,255,.75)', fontSize: 13, fontWeight: 600 }}>
+          {scale > 1 ? 'Desliza para recorrer' : 'Usa la lupa para ver más de cerca'}
+        </span>
+        <button type="button" style={{ ...btn, opacity: step === 0 ? .4 : 1 }} disabled={step === 0}
+          onClick={() => setStep(s => Math.max(0, s - 1))} aria-label="Alejar">−</button>
+        <button type="button" style={{ ...btn, opacity: step === ZOOM_STEPS.length - 1 ? .4 : 1 }} disabled={step === ZOOM_STEPS.length - 1}
+          onClick={() => setStep(s => Math.min(ZOOM_STEPS.length - 1, s + 1))} aria-label="Acercar">🔍+</button>
+        <button type="button" style={{ ...btn, background: 'var(--orange)' }} onClick={onClose} aria-label="Cerrar">✕</button>
+      </div>
+      <div onClick={stop} style={{ flex: 1, minHeight: 0, overflow: 'auto', WebkitOverflowScrolling: 'touch', padding: 12, display: 'flex' }}>
+        <div style={{ margin: 'auto', width: `${scale * 100}%`, maxWidth: scale > 1 ? 'none' : '100%', flexShrink: 0 }}>
+          {children(scale)}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+// Imagen que se amplía al tocarla. `style` es el de la miniatura.
+// Muchas gráficas del banco son pequeñas (algunas de ~200 px, recortadas de los
+// Word): a ancho completo se estiraban hasta 4 veces y se veían borrosas. Si el
+// estilo pide width:'100%', no se agranda más de 1,6× su tamaño real.
+const MAX_UPSCALE = 1.6;
+const ZoomImg = ({ src, alt = '', style, hint = true }) => {
+  const [open, setOpen] = React.useState(false);
+  const [natW, setNatW] = React.useState(0);
+  const close = React.useCallback(() => setOpen(false), []);
+  if (!src) return null;
+  const openIt = (e) => { e.preventDefault(); e.stopPropagation(); setOpen(true); };
+  const capped = natW && style?.width === '100%'
+    ? { width: `min(100%, ${Math.round(natW * MAX_UPSCALE)}px)`, marginLeft: 'auto', marginRight: 'auto' } : null;
+  return (
+    <>
+      <span role="button" tabIndex={0} title="Toca para ampliar" onClick={openIt}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openIt(e); }}
+        style={{ position: 'relative', display: 'block', cursor: 'zoom-in', lineHeight: 0 }}>
+        <img src={src} alt={alt} loading="lazy" onLoad={(e) => setNatW(e.currentTarget.naturalWidth)}
+          style={{ ...style, ...capped, display: 'block' }} />
+        {hint && (
+          <span aria-hidden="true" style={{ position: 'absolute', right: 6, bottom: 6, padding: '3px 7px', borderRadius: 8, lineHeight: 1.2,
+            background: 'rgba(17,17,30,.72)', color: '#fff', fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}>🔍 Ampliar</span>
+        )}
+      </span>
+      {open && (
+        <ZoomOverlay onClose={close} label={alt || 'Imagen ampliada'}>
+          {() => <img src={src} alt={alt} style={{ display: 'block', width: '100%', height: 'auto', background: '#fff', borderRadius: 8 }} />}
+        </ZoomOverlay>
+      )}
+    </>
+  );
+};
+
+// Bloque (una tabla) que se puede abrir en grande: en la capa ampliada se
+// vuelve a pintar con letra más grande según la lupa, sobre blanco fijo.
+const ZoomBox = ({ children, label = 'Tabla' }) => {
+  const [open, setOpen] = React.useState(false);
+  const close = React.useCallback(() => setOpen(false), []);
+  return (
+    <div>
+      {children}
+      <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(true); }}
+        style={{ marginTop: 4, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--white)',
+          color: 'var(--dark)', cursor: 'zoom-in', fontFamily: 'var(--font)', fontSize: 12, fontWeight: 700 }}>
+        🔍 Ampliar {label.toLowerCase()}
+      </button>
+      {open && (
+        <ZoomOverlay onClose={close} label={label}>
+          {(scale) => (
+            <div style={{ background: '#fff', color: '#1A1A2E', borderRadius: 12, padding: 16, overflowX: 'auto',
+              fontSize: Math.round(18 * scale), '--white': '#fff', '--dark': '#1A1A2E', '--border': '#D4D4DC', '--text': '#1A1A2E' }}>
+              {children}
+            </div>
+          )}
+        </ZoomOverlay>
+      )}
+    </div>
+  );
+};
+
 // KaTeX (+ su CSS y fuentes) se descarga solo la primera vez que se pinta una
 // fórmula: quien nunca ve una no paga el peso (~280 KB). Excluido del precaché.
 let katexPromise = null;
@@ -477,7 +581,7 @@ const parseRich = (text) => {
     else {
       const [alt, w] = m[6].split('|');
       const width = parseInt(w, 10);
-      out.push(<img key={key++} src={m[7]} alt={alt || ''} loading="lazy"
+      out.push(<ZoomImg key={key++} src={m[7]} alt={alt || ''}
         style={{ display: 'block', maxWidth: '100%', width: width > 0 ? width : undefined, maxHeight: width > 0 ? undefined : 320,
           objectFit: 'contain', borderRadius: 8, margin: '8px 0' }} />);
     }
@@ -534,8 +638,8 @@ const QuestionText = ({ children, as = 'div', style, ...rest }) => {
   return (
     <div {...rest} style={{ marginBottom: style?.marginBottom }}>
       {blocks.map((b, i) => b.rows ? (
-        <div key={i} style={{ overflowX: 'auto', margin: '10px 0 12px' }}>
-          <table style={{ borderCollapse: 'collapse', minWidth: 0, fontSize: 14, color: 'var(--dark)', background: 'var(--white)' }}>
+        <div key={i} style={{ margin: '10px 0 12px', fontSize: 14 }}><ZoomBox label="Tabla"><div style={{ overflowX: 'auto' }}>
+          <table style={{ borderCollapse: 'collapse', minWidth: 0, fontSize: '1em', color: 'var(--dark)', background: 'var(--white)' }}>
             <thead>
               <tr>{b.rows[0].cells.map((c, j) => (
                 // Tinte translúcido (no var(--bg-alt)): en los temas oscuros
@@ -551,7 +655,7 @@ const QuestionText = ({ children, as = 'div', style, ...rest }) => {
               ))}
             </tbody>
           </table>
-        </div>
+        </div></ZoomBox></div>
       ) : (
         <RichText key={i} as={as === 'div' ? 'div' : as} style={{ ...style, marginBottom: 0 }}>{b.text}</RichText>
       ))}
@@ -884,7 +988,7 @@ const PresenceGate = ({ mod, nodeId }) => {
 };
 
 export {
-  useMobile, LogoImg, ChecklistDropdown, ImageUploader, FileUploader, RichText, QuestionText, RichInput,
+  useMobile, LogoImg, ChecklistDropdown, ImageUploader, FileUploader, RichText, QuestionText, RichInput, ZoomImg, ZoomBox,
   HomeIc, BookIc, GameIc, FileIc, UserIc, LockIc, CheckIc, PlayIc, ArrowRIc, ArrowLIc,
   ChevRIc, StarIc, TrophyIc, ZapIc, AwardIc, BellIc, LogOutIc, ClockIc, XIc, PlusIc,
   TrashIc, EditIc, MenuIc, TargetIc, SettingsIc, BarIc, UsersIc, GripIc, MapIc,

@@ -200,6 +200,30 @@ export const subscribeCourseSessions = (courseId, cb) =>
     .subscribe()
 export const unsubscribe = (ch) => { if (ch) supabase.removeChannel(ch) }
 
+// --- Salidas de la pestaña durante una pregunta (nov 2026) ---
+// Canal de broadcast de Realtime: el estudiante avisa cuando deja la pestaña
+// (o la app en el celular) con una pregunta abierta y cuando vuelve; el
+// profesor escucha. No pasa por tablas ni RLS (sin migración) y no se guarda:
+// solo lo ve el profesor que tiene el panel abierto en ese momento.
+const focusTopic = (sessionId) => 'live-focus-' + sessionId
+export const subscribeFocus = (sessionId, cb) =>
+  freshChannel(focusTopic(sessionId))
+    .on('broadcast', { event: 'focus' }, ({ payload }) => payload && cb(payload))
+    .subscribe()
+export const openFocusReporter = (sessionId) => {
+  const ch = freshChannel(focusTopic(sessionId))
+  let ready = false
+  const queue = []
+  const push = (payload) => ch.send({ type: 'broadcast', event: 'focus', payload }).catch(() => {})
+  ch.subscribe(status => {
+    if (status === 'SUBSCRIBED') { ready = true; queue.splice(0).forEach(push) }
+  })
+  return {
+    send: (payload) => { if (ready) push(payload); else queue.push(payload) },
+    close: () => supabase.removeChannel(ch),
+  }
+}
+
 // --- Hook: participantes de una sesión (ranking) ---
 // Fuente única para la vista guiada del estudiante: la barra de puntaje y la
 // vista de preguntas leen la misma lista (un solo canal realtime por sesión;
@@ -291,4 +315,13 @@ export const useGuidedSession = (courseId) => {
   const leave = React.useCallback(() => { setParticipant(null); setSession(null) }, [])
 
   return { session, isJoined: !!participant, participant, join, leave }
+}
+
+// Clases en vivo terminadas del estudiante, para repasarlas (0088): cada
+// pregunta con lo que respondió, si acertó y la pregunta completa. Solo las
+// vigentes según el calendario de su colegio (B → 31 mar, A → 30 jun).
+export const fetchMyLiveHistory = async () => {
+  const { data, error } = await supabase.rpc('live_my_history')
+  if (error) throw error
+  return data || []
 }

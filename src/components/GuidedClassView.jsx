@@ -109,7 +109,7 @@ const renderStep = (session, participant, currentMod, avatar, tutor, parts, leav
   // Módulo interactivo (quiz o encuesta en vivo): reusa el ciclo ya construido.
   if (currentMod?.type === 'challenge' && (currentMod.ctype === 'quiz' || currentMod.ctype === 'poll')) {
     return <LiveQuestionView participant={participant} Wrap={Shell} avatar={avatar} moduleQuestions={currentMod.questions} tutor={tutor}
-      parts={parts} scoreBar={false} />
+      bankArea={currentMod.bank || null} parts={parts} scoreBar={false} />
   }
 
   // Lección de lectura: mismo contenido que ve el profesor, en modo solo-lectura.

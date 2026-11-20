@@ -262,6 +262,12 @@ h1,h2,h3{letter-spacing:-.02em}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 @keyframes nodePing{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.8);opacity:0}}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
+/* Clase en vivo: reacción del avatar al acierto (salto) y al error (sacudida) */
+@keyframes avatarJump{0%{transform:translateY(0) scale(1)}25%{transform:translateY(-22px) scale(1.08) rotate(-4deg)}45%{transform:translateY(0) scale(.96,1.04)}60%{transform:translateY(-10px) scale(1.03) rotate(3deg)}80%,100%{transform:translateY(0) scale(1)}}
+@keyframes avatarShake{0%,100%{transform:translateX(0) rotate(0)}15%,45%{transform:translateX(-9px) rotate(-5deg)}30%,60%{transform:translateX(9px) rotate(5deg)}75%{transform:translateX(-3px)}}
+@keyframes sparkleOut{0%{opacity:0;transform:translate(0,0) scale(.4)}20%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.2)}}
+@keyframes clockPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@media (prefers-reduced-motion: reduce){.xp-react{animation:none!important}}
 @keyframes drawPath{from{stroke-dashoffset:500}to{stroke-dashoffset:0}}
 @keyframes badgePop{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.15) rotate(5deg);opacity:1}100%{transform:scale(1) rotate(0)}}
 @keyframes progressFill{from{width:0}to{width:var(--target-w,100%)}}

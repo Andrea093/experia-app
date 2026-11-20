@@ -7,6 +7,8 @@ import { useMobile, LogoImg, MenuIc, BellIc, SunIc, MoonIc, CheckIc, ClockIc, Lo
 // curso temático activo y la persona ya creó su avatar.
 const AvatarChip = React.lazy(() => import('./AvatarChip.jsx'))
 const CourseSwitcher = React.lazy(() => import('./CourseSwitcher.jsx'))
+// "Ayúdanos a mejorar" (0088): solo instructores; lazy para que nadie más lo descargue.
+const FeedbackButton = React.lazy(() => import('./FeedbackButton.jsx'))
 
 const Header = React.memo(({ onMenuClick }) => {
   const user = useStore(s => s.user);
@@ -69,6 +71,12 @@ const Header = React.memo(({ onMenuClick }) => {
             {user.role === 'instructor' ? 'Instructor' : `Nivel ${level} · ${xp} pts`}
           </div>
         </div>}
+
+        {user.role === 'instructor' && (
+          <React.Suspense fallback={null}>
+            <FeedbackButton />
+          </React.Suspense>
+        )}
 
         {/* Avatar del curso temático (con su rango). Fuera de esos cursos no existe. */}
         {courseTheme && user.avatarConfig && (

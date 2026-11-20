@@ -13,6 +13,7 @@ import {
   SettingsIc, BarIc, UsersIc, GripIc, MapIc, SchoolIc, UploadIc,
   Btn, ProgressRing, ProgressBar, AnimNum, Confetti, NotifManager,
   Modal, BadgeCard, StatChip, Stagger, PresenceGate, RichText, QuestionText,
+  ZoomImg,
 } from '../components/ui.jsx'
 // =============================================
 // EXPERIA — Interactive Challenges (v2 — area-aware + attempt tracking)
@@ -604,7 +605,7 @@ const QuizPassage = ({ passage }) => {
           flexWrap: 'wrap', gap: 16, justifyContent: 'center', alignItems: 'flex-start', margin: '18px 0 4px' }}>
           {images.map((img, i) => (
             <figure key={i} style={{ margin: 0, maxWidth: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <img src={img.url} alt={img.caption || title || `Imagen ${i + 1}`} style={imgStyle(img)} />
+              <ZoomImg src={img.url} alt={img.caption || title || `Imagen ${i + 1}`} style={imgStyle(img)} />
               {img.caption && (
                 <figcaption style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, textAlign: 'center', fontStyle: 'italic' }}>{img.caption}</figcaption>
               )}
@@ -628,8 +629,10 @@ const QuestionImage = ({ q, slot }) => {
   if (pos !== slot) return null;
   const margin = slot === 'after' ? { marginTop: 16 } : { marginBottom: 16 };
   return (
-    <img src={q.image} alt="" style={{ width: '100%', maxHeight: q.imageHeight || 320, objectFit: 'contain',
-      borderRadius: 12, display: 'block', border: '1px solid var(--border)', ...margin }} />
+    <div style={margin}>
+      <ZoomImg src={q.image} style={{ width: '100%', maxHeight: q.imageHeight || 320, objectFit: 'contain',
+        borderRadius: 12, display: 'block', border: '1px solid var(--border)' }} />
+    </div>
   );
 };
 
@@ -637,7 +640,7 @@ const QuestionImage = ({ q, slot }) => {
 // El texto respeta espacios/saltos y el markup de negrilla/color (RichText).
 const OptionContent = ({ opt, img }) => (
   <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: img && opt ? 8 : 0, minWidth: 0 }}>
-    {img && <img src={img} alt="" style={{ maxWidth: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 8, display: 'block' }} />}
+    {img && <ZoomImg src={img} style={{ maxWidth: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 8, display: 'block' }} />}
     {opt && <RichText style={{ fontSize: 14, color: 'var(--dark)', fontWeight: 500, lineHeight: 1.5 }}>{opt}</RichText>}
   </span>
 );
