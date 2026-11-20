@@ -1619,10 +1619,12 @@ const bulkCreateAccounts = (users) => {
     });
 };
 
-const createInstitution = (name) => {
+// `calendar` ('A' | 'B', 0088): define hasta cuándo sus estudiantes pueden
+// repasar las clases en vivo (B → 31 de marzo, A → 30 de junio).
+const createInstitution = (name, calendar = null) => {
   const tempId = 'inst_' + Date.now();
-  XS.set(s => ({ institutions: [...(s.institutions || INITIAL_INSTITUTIONS), { id: tempId, name, logo: null, is_active: true }] }));
-  supabase.from('institutions').insert({ name }).select().single().then(({ data, error }) => {
+  XS.set(s => ({ institutions: [...(s.institutions || INITIAL_INSTITUTIONS), { id: tempId, name, logo: null, is_active: true, calendar }] }));
+  supabase.from('institutions').insert(calendar ? { name, calendar } : { name }).select().single().then(({ data, error }) => {
     if (error) { console.error('createInstitution:', error); return; }
     XS.set(s => ({ institutions: (s.institutions || []).map(i => i.id === tempId ? { ...i, id: data.id } : i) }));
   });
@@ -1638,6 +1640,12 @@ const updateInstitution = (id, name) => {
   XS.set(s => ({ institutions: (s.institutions || []).map(i => i.id === id ? { ...i, name } : i) }));
   supabase.from('institutions').update({ name }).eq('id', id).then(({ error }) => {
     if (error) console.error('updateInstitution:', error);
+  });
+};
+const setInstitutionCalendar = (id, calendar) => {
+  XS.set(s => ({ institutions: (s.institutions || []).map(i => i.id === id ? { ...i, calendar } : i) }));
+  supabase.from('institutions').update({ calendar }).eq('id', id).then(({ error }) => {
+    if (error) console.error('setInstitutionCalendar:', error);
   });
 };
 const deleteInstitution = (id) => {
@@ -2622,7 +2630,7 @@ export {
   loadInstructorInstitutions, assignInstructorInstitution, removeInstructorInstitution,
   assignRouteToInstitution,
   createAccount, deleteAccount, changeAccountArea, changeAccountInstitution, setAccountActive,
-  bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution, setInstitutionActive,
+  bulkCreateAccounts, createInstitution, updateInstitution, deleteInstitution, setInstitutionActive, setInstitutionCalendar,
   getAccessBlockReason,
   loadCourses, createCourse, updateCourse, deleteCourse, toggleCourseForInstitution, setInstitutionCourseExpiry,
   loadUserCourses, setUserCourseAccess, setUserCourseAccessBulk, allowedCourseIds,

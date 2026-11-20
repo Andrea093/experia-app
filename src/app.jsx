@@ -1,6 +1,6 @@
 import React from 'react'
 import { useStore, nav, doLogout } from './store/store.jsx'
-import { selectActiveCourseTheme, selectRequiresLiveToStart, selectHasManyRooms, wasRoomChosen, CLONE_PAGES } from './store/store.jsx'
+import { selectActiveCourseTheme, selectRequiresLiveToStart, selectHasManyRooms, selectHasThemedCourse, wasRoomChosen, CLONE_PAGES } from './store/store.jsx'
 import { startIdleWatch } from './lib/idleTimeout.js'
 import { applySavedTheme, applyLightOnly } from './lib/theme.js'
 import { useGuidedSession, hasCompletedLiveSession } from './lib/liveClient.js'
@@ -98,6 +98,8 @@ const ForumPage             = React.lazy(() => import('./pages/forum.jsx'))
 const CertPage              = React.lazy(() => import('./pages/CertPage.jsx'))
 const LivePlayPage          = React.lazy(() => import('./pages/LivePlay.jsx'))
 const LiveHostPage          = React.lazy(() => import('./pages/LiveHost.jsx'))
+const MyLiveClassesPage     = React.lazy(() => import('./pages/MyLiveClasses.jsx'))
+const AdminFeedbackPage     = React.lazy(() => import('./pages/AdminFeedback.jsx'))
 const GuidedClassView       = React.lazy(() => import('./components/GuidedClassView.jsx'))
 
 // Modo clon — piloto TEMPORAL (0051). Lazy, así que las cuentas normales nunca
@@ -145,6 +147,7 @@ const App = () => {
   const roomChosen     = useStore(s => s.roomChosen);
   const roomLobbyOpen  = useStore(s => s.roomLobbyOpen);
   const courseTheme    = useStore(selectActiveCourseTheme);
+  const hasThemedCourse = useStore(selectHasThemedCourse);
   const activeTheme    = isLoggedIn ? courseTheme : null;
   const guided         = useGuidedSession(isLoggedIn && user?.role === 'student' ? (effectiveCourseId || enrolledCourse) : null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
@@ -243,7 +246,13 @@ const App = () => {
   // (hay sesión activa esperando unirse Y nunca ha ido a una) — ahí sí hay
   // algo concreto que hacer (unirse), así que ese aviso es más útil.
   const waitingFirstLive = role === 'student' && requiresLiveToStart && hasLiveHistory === false && !isClonePage && !pendingGuided;
-  const routeLocked = pendingGuided || waitingFirstLive;
+  // El perfil (pestaña "Mi avatar") queda FUERA del candado (nov 2026): en el
+  // testeo el profesor abrió la clase antes de que entraran los estudiantes y
+  // nadie pudo crear su avatar — el candado tapaba también el perfil. Además el
+  // aviso para unirse pide crear el avatar primero si aún no lo tiene.
+  const onProfile = page === 'profile';
+  const needsAvatar = role === 'student' && hasThemedCourse && !user?.avatarConfig;
+  const routeLocked = (pendingGuided || waitingFirstLive) && !onProfile;
   // Esperar a que courses + userCourses estén cargados antes de decidir la ruta
   // del estudiante. Sin esto, el primer render ocurre con datos a medias y se ve
   // un parpadeo entre el mapa/onboarding y la selección de curso.
@@ -282,6 +291,7 @@ const App = () => {
         case 'admin-courses':    return <AdminCourses />;
         case 'admin-schools':    return <SchoolsAdminPage />;
         case 'admin-analytics':  return <AdminAnalytics />;
+        case 'admin-feedback':   return <AdminFeedbackPage />;
         case 'instructor-items': return <ItemAnalysisPage />;
         case 'route-versions':   return <RouteVersionsPage />;
         case 'closing-record':   return <ClosingRecordPage />;
@@ -320,6 +330,7 @@ const App = () => {
       case 'games':    return <GamesPage />;
       case 'grid':     return <StudentProductUpload />;
       case 'course-cert': return <CourseCertificatePage />;
+      case 'live-history': return <MyLiveClassesPage />;
       case 'closing-record': return <ClosingRecordPage />;
       // Piloto clon: solo llegan aquí las cuentas con ui_variant='clone',
       // porque son las únicas que ven el enlace en el sidebar.
@@ -354,8 +365,8 @@ const App = () => {
               {renderPage()}
             </React.Suspense>
           </div>
-          {pendingGuided && <RouteLockOverlay session={guided.session} onJoin={guided.join} />}
-          {waitingFirstLive && <WaitingFirstLiveOverlay />}
+          {pendingGuided && !onProfile && <RouteLockOverlay session={guided.session} onJoin={guided.join} needsAvatar={needsAvatar} />}
+          {waitingFirstLive && !onProfile && <WaitingFirstLiveOverlay needsAvatar={needsAvatar} />}
         </main>
       </div>
     </div>

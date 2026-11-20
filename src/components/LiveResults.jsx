@@ -5,7 +5,16 @@ import { summarizeLiveResults } from '../lib/saberGuide.js'
 // EXPERIA — Modo Aula en Vivo: lo que acertó el estudiante al terminar la clase,
 // en total y por competencia. Va en su propio chunk (lazy desde LiveQuestionView)
 // porque arrastra la guía Saber, y la página pública del PIN debe seguir liviana.
+//
+// Nov 2026: en el testeo varios estudiantes vieron "No pudimos cargar tus
+// resultados". Ahora: (1) reintenta solo, con espera creciente — la RPC puede
+// fallar justo en el cambio de fase o con la red del colegio; (2) si sigue
+// fallando, muestra los resultados que el propio dispositivo fue anotando en
+// cada revelado (`fallbackItems`, de LiveQuestionView); (3) solo si tampoco
+// hay eso, un aviso amable con "Reintentar", sin hablar de errores.
 // =============================================
+
+const RETRY_MS = [1500, 3000, 6000]
 
 const CompetenciaRow = ({ label, correct, total }) => (
   <div>
@@ -20,35 +29,48 @@ const CompetenciaRow = ({ label, correct, total }) => (
 )
 
 // `moduleId`: solo esa ronda (el profesor la cerró y la clase sigue). Sin él, toda la clase.
-const LiveResults = ({ sessionId, participant, cardStyle, moduleId = null }) => {
+const LiveResults = ({ sessionId, participant, cardStyle, moduleId = null, fallbackItems = null }) => {
   const [items, setItems] = React.useState(null)
-  const [error, setError] = React.useState(false)
+  const [failed, setFailed] = React.useState(false)
+  const [attempt, setAttempt] = React.useState(0)
 
-  const load = React.useCallback(() => {
-    setError(false)
-    return fetchMyLiveResults({ session: sessionId, participant: participant.id, token: participant.claim_token })
-      .then(setItems)
-      .catch(() => setError(true))
-  }, [sessionId, participant.id, participant.claim_token])
-
-  React.useEffect(() => { load() }, [load])
+  React.useEffect(() => {
+    let alive = true, timer = null
+    const run = (n) => fetchMyLiveResults({ session: sessionId, participant: participant.id, token: participant.claim_token })
+      .then(r => { if (alive) { setItems(r); setFailed(false) } })
+      .catch((e) => {
+        if (!alive) return
+        if (n < RETRY_MS.length) timer = setTimeout(() => run(n + 1), RETRY_MS[n])
+        else { console.warn('[live] resultados no disponibles:', e?.message || e); setFailed(true) }
+      })
+    setFailed(false)
+    run(0)
+    return () => { alive = false; clearTimeout(timer) }
+  }, [sessionId, participant.id, participant.claim_token, attempt])
 
   const card = { ...cardStyle, marginTop: 16, animation: 'fadeUp .4s ease both' }
+  const fallback = (fallbackItems || []).filter(i => !moduleId || i.module_id === moduleId)
+  const data = items || (failed && fallback.length ? fallback : null)
 
-  if (error) return (
+  if (!data && failed) return (
     <div style={{ ...card, textAlign: 'center' }}>
-      <p style={{ fontSize: 14, color: 'var(--muted)', margin: '0 0 10px' }}>No pudimos cargar tus resultados.</p>
-      <button onClick={load} style={{ minHeight: 40, padding: '8px 16px', borderRadius: 10, border: '1.5px solid var(--border)',
+      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>🎯 Tus resultados</div>
+      <p style={{ fontSize: 14, color: 'var(--muted)', margin: '0 0 12px' }}>Estamos terminando de contar tus respuestas.</p>
+      <button onClick={() => setAttempt(a => a + 1)} style={{ minHeight: 40, padding: '8px 16px', borderRadius: 10, border: '1.5px solid var(--border)',
         background: 'var(--white)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, fontWeight: 700, color: 'var(--dark)' }}>
-        Reintentar
+        Ver mis resultados
       </button>
     </div>
   )
-  if (!items) return null
+  if (!data) return (
+    <div style={{ ...card, textAlign: 'center' }}>
+      <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0 }}>Cargando tus resultados…</p>
+    </div>
+  )
 
   const scope = moduleId ? 'esta ronda' : 'esta clase'
   const title = moduleId ? '🎯 Tus resultados en esta ronda' : '🎯 Tus resultados'
-  const { total, answered, correct, groups, other } = summarizeLiveResults(moduleId ? items.filter(i => i.module_id === moduleId) : items)
+  const { total, answered, correct, groups, other } = summarizeLiveResults(moduleId ? data.filter(i => i.module_id === moduleId) : data)
   if (!total) return (
     <div style={{ ...card, textAlign: 'center' }}>
       <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--dark)', marginBottom: 6 }}>{title}</div>
@@ -81,6 +103,11 @@ const LiveResults = ({ sessionId, participant, cardStyle, moduleId = null }) => 
             {other && <CompetenciaRow label="Otras preguntas" correct={other.correct} total={other.total} />}
           </div>
         </div>
+      )}
+      {!items && (
+        <p style={{ fontSize: 11.5, color: 'var(--subtle)', margin: '12px 0 0' }}>
+          Conteo de este dispositivo. Los resultados completos quedan en «Mis clases en vivo».
+        </p>
       )}
     </div>
   )

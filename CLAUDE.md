@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Production:** https://experia-app.pages.dev  
 **Version:** v15 (July 2026) — multi-course + 4 immersive themes + **Modo Aula en Vivo** (quiz sincrónico tipo Kahoot) + **análisis de ítems** (dificultad/discriminación/distractores)
 **Oct 2026:** editor de ruta con selector de colegio (§16) + fórmulas e imágenes en el editor de preguntas (§5)
-**Nov 2026:** banco de 544 preguntas con evidencias de la Guía Saber 11 y regla de competencias por ronda (§14) + sala de entrada para estudiantes con varios cursos (Database → Course access)
+**Nov 2026:** banco de 544 preguntas con evidencias de la Guía Saber 11 y regla de competencias por ronda (§14) + sala de entrada para estudiantes con varios cursos (Database → Course access) + ajustes del testeo de la Clase en Vivo: confirmar respuesta, reloj/campana, competencia·tema·dificultad, tip del profesor, opciones barajadas, historial por calendario, comentarios de profesores (§17)
 
 ---
 
@@ -376,7 +376,7 @@ Cada persona arma **su propio personaje** para los cursos con tema inmersivo. Ba
   - ⚠️ Lienzo del cuerpo 200×280 con referencias fijas: cabeza en x 38..162 / y 0..124 (la barbilla del estilo cae ~y 108), hombros en y 122, cintura y 212. Al agregar piezas o cambiar de estilo de cabeza hay que recalibrar esos números o el cuello queda desproporcionado.
   - El disparador es el **nivel del curso activo** (`calcLevel(xp)`), así que el rango cambia al cambiar de curso — es deliberado: es "tu rango en este curso". El avatar en sí (cara, pelo, color) sí es el mismo en todos.
   - **Marca CEINFES (`CeinfesMark`):** emblema naranja (`#EC671A`, Naranja Evolución del brandbook) en el pecho izquierdo, **en la misma posición en los 5 rangos** (`x 76, y 152, size 15`) para que la marca se reconozca sin importar el nivel. Cambia solo el acabado según el material: `finish="cloth"` (parche cosido, rangos 1–2) y `finish="metal"` (chapa remachada con el aro del metal del rango, 3–5). ⚠️ El logo es un **wordmark** y a 15 px sería una mancha, así que el emblema lleva una **flecha ascendente geométrica** — se compararon el flick literal del logo y tres variantes a 96/40/22/14 px y es la única que sigue leyéndose al tamaño real. No sustituirla por un trazado fiel del logo sin volver a comprobarlo a 14 px.
-- **Expresiones:** `idle | happy | sad | wow`, en `EXPRESSION_PATCH`. Big Smile trae ojos y bocas con nombre semántico (`cheery`, `sad`, `starstruck`, `openSad`, `kawaii`…), así que las expresiones se leen con claridad. Esa constante es la única palanca para ajustarlas.
+- **Expresiones:** `idle | happy | sad | wow | proud | oops` (las dos últimas, nov 2026, para la reacción en la clase en vivo: acierto `wow`→`proud`, error `sad`→`oops`), en `EXPRESSION_PATCH`. Big Smile trae ojos y bocas con nombre semántico (`cheery`, `sad`, `starstruck`, `openSad`, `kawaii`…), así que las expresiones se leen con claridad. Esa constante es la única palanca para ajustarlas.
 - **Peso:** el chunk `AvatarStudio` pesa ~250 KB (51 KB gzip) por la definición del estilo. Va **lazy** y está excluido del precaché del service worker (`globIgnores` en `vite.config.js`), igual que las ilustraciones de los tutores: solo lo descarga quien entra a la pestaña.
 - **Descartado (jul 2026):** avatares 3D tipo Meta. Ready Player Me —la única opción gratuita con ese look— cerró el 31 de enero de 2026; los reemplazos (Avatar SDK) son comerciales, basados en selfie y exigen tratar datos biométricos. Ninguna librería JS libre produce avatares realistas.
 - **Dónde se edita:** pestaña "Mi avatar" en `profile.jsx` → `AvatarStudio.jsx` (lazy). La pestaña **solo existe** si `selectHasThemedCourse` (estudiante con acceso activo a un curso con `theme`); sin eso el perfil se renderiza exactamente como antes — por eso el curso de DCE en producción no se ve afectado.
@@ -860,6 +860,29 @@ propia versión del curso (fork: `courses.parent_course_id` + `institution_id`).
 
 ---
 
+### 17. Ajustes del testeo de la Clase en Vivo (nov 2026)
+
+Salieron del testeo con docentes. Backend: `0088_calendario_historial_comentarios.sql` (probada con `scripts/test-migraciones/run-historial-comentarios.mjs`).
+
+- **Salidas de la pestaña** (`openFocusReporter`/`subscribeFocus` en `liveClient.js`, `AwayIndicator` en `LivePresentation.jsx`): con una pregunta abierta y sin responder, si el estudiante deja la pestaña o la app (`visibilitychange`), el profesor ve "👀 N salieron de la pestaña · M fuera ahora" (clic = nombres, veces y segundos) en la presentación y el panel, y una columna "Salió de la pestaña" en el informe de cierre. Al volver, el estudiante ve un aviso. Va por **broadcast de Realtime**: sin tabla ni migración y **no se guarda** — solo lo ve el profesor con el panel abierto; si recarga, se pierde el conteo. No se vigila después de enviar la respuesta. ⚠️ Requiere que Realtime permita canales públicos (opción por defecto del proyecto); si se pasa a "solo canales privados", esto deja de llegar sin errores visibles.
+- **Confirmar la respuesta** (`LiveQuestionView`): tocar una opción solo la marca; se envía con "✓ Sí, enviar" ("¿Estás seguro de que tu respuesta es la B?", barra pegada abajo). Al cerrar el tutor, varios marcaban opciones sin querer.
+- **Reloj del estudiante** (`Countdown big`): min:seg grande y pegado arriba de la tarjeta. **Campana** (`sBell`) al quedar 10 s, solo si el reloj *pasa* por ahí (quien entra con menos tiempo no la oye). Suena también en la presentación y en el panel del profesor.
+- **Aviso de ritmo** (`PaceNotice`): al abrir la primera pregunta de cada módulo, "El avance depende del docente, tómate el tiempo de cada pregunta (2 min)". También va en el lobby.
+- **Opciones barajadas** (`lib/liveShuffle.js`): en el banco la correcta cae casi siempre en la B (Lectura 91/160). Se baraja solo el ORDEN EN PANTALLA con una semilla `sesión|módulo|pregunta`, así profesor y estudiantes ven las mismas letras; el estudiante envía el índice **original** y el servidor califica igual (sin SQL). No se baraja si una opción depende del orden ("todas las anteriores", "A y B").
+  - ⚠️ Toda vista nueva de una pregunta en vivo debe usar `optionOrder(liveSeed(session, idx), options)` o sus letras no coincidirán con la proyección. El repaso (`MyLiveClasses`) usa el orden original y marca el texto, no la letra.
+- **Competencia · tema · dificultad** (`components/LiveQuestionMeta.jsx`, lazy para el estudiante): competencia desde `evidencia` + `bank` del módulo (`bankArea`, lo pasa `GuidedClassView`); **tema** desde `src/lib/questionTopics.json`, GENERADO por `node scripts/build-temas.mjs` (limpia el `topic` del banco, que mezcla nivel y competencia; ~200 de 544 preguntas tienen tema). La página del PIN no lo muestra (no tiene la ruta).
+- **Tip del profesor** al revelar (`StrategyTip`, textos en `src/lib/strategyTips.js`: uno por competencia + uno general). ⚠️ **Borrador para revisión del equipo académico**: estrategias generales escritas para Experia, no tomadas de la guía del Icfes. En la presentación se oculta/muestra con **T**.
+- **Imágenes y tablas ampliables** (`ZoomImg`/`ZoomBox` en `ui.jsx`): antes eran enlaces `target="_blank"` y en el celular el estudiante "se salía" de la clase. Ahora se abren en una capa (zIndex 6000) con lupa; dentro de un botón de opción, ampliar no cuenta como responder. Toda imagen `![](url)` de `RichText` y toda tabla de `QuestionText` las usan.
+  - ⚠️ **Gráficas borrosas = imágenes pequeñas**: 58 de las 107 imágenes de `public/preguntas/` miden menos de 700 px (algunas ~200 px, recortadas de los Word). `ZoomImg` ya no las estira más de 1,6× cuando el estilo pide `width:'100%'`, pero la solución real es volver a exportarlas en mejor resolución.
+- **Sonidos** (`lib/sound.js`, todo sintetizado): acierto con fanfarria corta, error suave, "pop" al enviar, **redoble** (`sSuspense`, ~2,6 s) antes del podio y del ranking de una ronda terminada, y fanfarria. La pantalla "🥁 Y los resultados son…" sale en el estudiante, el panel y la presentación.
+- **Avatar que reacciona** (`AvatarReaction`): acierto → salta con destellos (`wow`→`proud`); error → se sacude (`sad`→`oops`). Respeta `prefers-reduced-motion` (`.xp-react`).
+- **Ranking completo** (`FullRanking`): top 5 + "Ver ranking completo (N)". La presentación ya no corta en 10.
+- **Resultados que no cargaban** (`LiveResults`): reintenta solo (1,5 / 3 / 6 s); si sigue fallando, muestra el conteo que el propio dispositivo anotó en cada revelado (`sessionStorage` `experia:live-local:<sesión>`). Ya no dice "No pudimos cargar".
+- **Avatar antes de la clase** (`app.jsx` + `GuidedSessionBanner`): el candado de ruta ya **no** tapa el perfil (`onProfile`), y si el estudiante de un curso con tema no tiene avatar, el aviso le ofrece crearlo primero ("Unirme sin avatar por ahora" queda como opción). En el celular, `AvatarStudio` muestra las opciones por pestañas (antes eran ~40 caras casi iguales seguidas).
+- **Solo banco en las rondas** (`QuizCreatorModal`): con `bank`, el **profesor** no ve "Agregar pregunta" ni "Duplicar"; el admin sí. Cada pregunta de la ronda muestra su competencia.
+- **"Mis clases en vivo"** (page `live-history`, `MyLiveClasses.jsx`, menú del estudiante): RPC `live_my_history()` (por `auth.uid()`, solo sesiones `ended`, sin encuestas, incluye las que no alcanzó a responder) con la pregunta completa desde `course_modules`. **Vigencia según el calendario del colegio** (`institutions.calendar`, `live_review_until`): B → 31 de marzo y A → 30 de junio siguientes a la clase; sin calendario = sin límite. El calendario es obligatorio al crear un colegio y se cambia en Admin → Colegios → Ajustes. Solo tienen historial quienes entraron con su cuenta (clase guiada); los del PIN son anónimos.
+- **"Ayúdanos a mejorar"** (`FeedbackButton.jsx`, cabecera del instructor, lazy): tabla `platform_feedback`. El autor lo completa un trigger desde el perfil; insertan instructor/admin y solo el admin lee. Se revisan en **Admin → Comentarios** (`AdminFeedback.jsx`, page `admin-feedback`), con estado nuevo/revisado/resuelto y exportación a Excel.
+
 ## File Structure
 
 ```
@@ -880,6 +903,10 @@ src/
 │   ├── idleTimeout.js       # Idle auto-logout (30 min)
 │   ├── theme.js             # Dark/light + accents
 │   ├── liveClient.js        # Modo Aula en Vivo: RPCs + suscripciones realtime
+│   ├── liveShuffle.js       # Orden barajado (con semilla) de las opciones en la clase en vivo (PURO)
+│   ├── strategyTips.js      # Tips de estrategia por competencia para el profesor (BORRADOR académico)
+│   ├── questionTopics.json  # Tema por pregunta, GENERADO por scripts/build-temas.mjs
+│   ├── feedback.js          # Ayúdanos a mejorar: enviar/leer comentarios de profesores
 │   └── sound.js             # Beeps Web Audio (sin archivos) + mute para el modo en vivo
 ├── components/
 │   ├── ui.jsx               # Reusable components
@@ -893,6 +920,8 @@ src/
 │   ├── DetectiveAmbient.jsx, EscapeRoomAmbient.jsx, LabAmbient.jsx, TimeTravelAmbient.jsx
 │   ├── ThemeCelebration.jsx, CharacterBubble.jsx  # Themed celebration + companion
 │   ├── LivePresentation.jsx # Modo Aula en Vivo — presentación del profesor (diapositivas + ◀/▶ + teclado)
+│   ├── LiveQuestionMeta.jsx # Competencia · tema · dificultad + tip del profesor (lazy para el estudiante)
+│   ├── FeedbackButton.jsx   # Ayúdanos a mejorar, en la cabecera del instructor (lazy)
 │   └── ErrorBoundary.jsx
 └── pages/
     ├── landing.jsx, login.jsx
@@ -907,6 +936,8 @@ src/
     ├── CloneUnitDashboard.jsx  # PILOTO clon: tablero de solo lectura con el orden de unidades del libro + ejes
     ├── LivePlay.jsx            # Modo Aula en Vivo — estudiante (página PÚBLICA #/live, sin login)
     ├── LiveHost.jsx            # Modo Aula en Vivo — profesor (page 'live-host': lanzador + panel)
+    ├── MyLiveClasses.jsx       # Mis clases en vivo: repaso del estudiante (page 'live-history')
+    ├── AdminFeedback.jsx       # Admin → Comentarios de profesores (page 'admin-feedback')
     ├── AvatarStudio.jsx        # Pestaña "Mi avatar" del perfil (solo con curso temático)
     ├── AdminUsers.jsx, AdminCourses.jsx, etc.
     └── InstructorStudentView.jsx, forum.jsx, etc.
@@ -1054,6 +1085,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...
    - Aplicada `0085` (`profiles.last_course_id`, recuerda la última sala del estudiante).
    - Aplicada `0086` (Clase en Vivo: respuestas por módulo y resultados por competencia, §8). Probada con `scripts/test-migraciones/run-live-resultados.mjs`.
    - Aplicada `0087` (Clase en Vivo: resultados al terminar una ronda, §8). Probada con `scripts/test-migraciones/run-live-resultados.mjs`.
+   - Aplicada `0088` (calendario del colegio, historial «Mis clases en vivo», comentarios de profesores, §17). Probada con `scripts/test-migraciones/run-historial-comentarios.mjs`.
    - Aplicada `0082` (biblioteca de versiones de ruta: `courses.version_note`, `courses.is_template` + RLS de plantillas, §16). Probada con `scripts/test-migraciones/run-versiones-ruta.mjs`.
    - Aplicada `0081` (llena los módulos que aún dicen "Pendiente" —apertura 1, estructura Saber 2, pausa activa 5— copiando, dentro de cada familia de curso y por título, el módulo ya lleno de otra copia). Causa: 0064–0067 y 0069 solo llenaron UNA copia por colegio de cada asignatura; la **ruta base** (la que ve un colegio sin versión propia, p. ej. CEINFES) quedó con "Pendiente". Probada con `scripts/test-migraciones/run-pendientes-base.mjs`.
    - Aplicada `0080` (oct 2026: Matemáticas, las rondas de los módulos 4 y 6 pasan al banco nuevo de 50 preguntas, §14; además el snapshot en vivo lleva `optionImages`, §5). Probada con `scripts/test-migraciones/run-rondas-matematicas.mjs`.

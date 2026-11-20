@@ -174,6 +174,10 @@ const EXPRESSION_PATCH = {
   happy: { eyesVariant: 'cheery',     mouthVariant: 'openedSmile' },
   sad:   { eyesVariant: 'sad',        mouthVariant: 'openSad' },
   wow:   { eyesVariant: 'starstruck', mouthVariant: 'kawaii' },
+  // Clase en vivo (nov 2026): tras el "¡wow!" de un acierto queda orgulloso;
+  // tras un error, el "uy" anima a seguir en vez de quedarse triste.
+  proud: { eyesVariant: 'winking',    mouthVariant: 'teethSmile' },
+  oops:  { eyesVariant: 'confused',   mouthVariant: 'awkwardSmile' },
 }
 
 // ─── Rangos (progresión visible) ─────────────────────────────────────────────

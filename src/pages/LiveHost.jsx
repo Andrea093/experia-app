@@ -1,7 +1,7 @@
 import React from 'react'
 import { useStore, dbModToAppMod, resolveCourseForStudent, saveActivityPref } from '../store/store.jsx'
 import { supabase } from '../lib/supabaseClient.js'
-import { Btn, Confetti, RichText, QuestionText } from '../components/ui.jsx'
+import { Btn, Confetti, RichText, QuestionText, ZoomImg } from '../components/ui.jsx'
 import { LessonBody } from './lesson.jsx'
 import { ActivityPicker } from '../components/ActivityCard.jsx'
 import { LiveSequence, LiveRanking } from '../components/LiveSequence.jsx'
@@ -10,15 +10,17 @@ import { CustomActivityForm } from '../components/CustomActivityForm.jsx'
 import { isQuestionRound, BANK_AREAS, ROUND_LABELS, loadQuestionBank } from '../lib/questionBankMeta.js'
 import { auditRounds, describeRoundProblems } from '../lib/saberGuide.js'
 import { LivePassage, hintDelayMs, OptionImage, optionsLayout, Countdown } from '../components/LiveQuestionView.jsx'
-import { LivePresentation, Podium } from '../components/LivePresentation.jsx'
+import { LivePresentation, Podium, AwayIndicator } from '../components/LivePresentation.jsx'
+import { QuestionMetaChips, StrategyTip } from '../components/LiveQuestionMeta.jsx'
+import { optionOrder, liveSeed } from '../lib/liveShuffle.js'
 import {
   createLiveSession, liveGotoModule, liveCompleteModuleForParticipants,
   liveSetPhase, liveGoto, liveEnd, saveLiveClosingNotes, saveLiveActivityChoice,
   applyLiveTimeLimit, LIVE_QUESTION_SECONDS, LIVE_TIME_OPTIONS,
   fetchSession, fetchParticipants, fetchAnswerCounts,
-  subscribeSession, subscribeParticipants, unsubscribe,
+  subscribeSession, subscribeParticipants, unsubscribe, subscribeFocus,
 } from '../lib/liveClient.js'
-import { primeAudio, isMuted, toggleMute, sStart, sReveal, sPodium } from '../lib/sound.js'
+import { primeAudio, isMuted, toggleMute, sStart, sReveal, sPodium, sSuspense, SUSPENSE_MS } from '../lib/sound.js'
 // =============================================
 // EXPERIA — Clase en Vivo Guiada · Profesor (control)
 // El profesor recorre TODA la ruta del curso (lección, encuesta, quiz) y los
@@ -108,7 +110,8 @@ const LIVE_REPORT_PRINT_CSS = `
 // final y agregar comentarios generales de la sesión. Los comentarios se
 // guardan en live_sessions.closing_notes (0061); el resto del informe se
 // arma con datos que ya existen (participantes/ranking) — no hay tabla nueva.
-const ClosingReport = ({ session, parts, onSaved }) => {
+const ClosingReport = ({ session, parts, onSaved, awayLog = {} }) => {
+  const hasAway = Object.keys(awayLog).length > 0
   const [open, setOpen]       = React.useState(false)
   const [notes, setNotes]     = React.useState(session.closing_notes || '')
   const [saving, setSaving]   = React.useState(false)
@@ -177,17 +180,20 @@ const ClosingReport = ({ session, parts, onSaved }) => {
               <th style={{ textAlign: 'left', padding: '6px 4px', width: 30 }}>#</th>
               <th style={{ textAlign: 'left', padding: '6px 4px' }}>Nombre</th>
               <th style={{ textAlign: 'left', padding: '6px 4px', width: 100 }}>Salón</th>
+              {hasAway && <th style={{ textAlign: 'right', padding: '6px 4px', width: 110 }}>Salió de la pestaña</th>}
               <th style={{ textAlign: 'right', padding: '6px 4px', width: 70 }}>Puntaje</th>
             </tr>
           </thead>
           <tbody>
             {parts.length === 0 ? (
-              <tr><td colSpan={4} style={{ padding: '12px 4px', color: '#888', fontStyle: 'italic' }}>Sin participantes.</td></tr>
+              <tr><td colSpan={hasAway ? 5 : 4} style={{ padding: '12px 4px', color: '#888', fontStyle: 'italic' }}>Sin participantes.</td></tr>
             ) : parts.map((p, i) => (
               <tr key={p.id} style={{ borderBottom: '1px solid #e5e5e5' }}>
                 <td style={{ padding: '5px 4px', color: '#888' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}</td>
                 <td style={{ padding: '5px 4px' }}>{p.nombre} {p.apellido || ''}</td>
                 <td style={{ padding: '5px 4px', color: '#555' }}>{p.salon || '—'}</td>
+                {hasAway && <td style={{ padding: '5px 4px', textAlign: 'right', color: awayLog[p.id] ? '#92400E' : '#888' }}>
+                  {awayLog[p.id] ? `${awayLog[p.id].count} ${awayLog[p.id].count === 1 ? 'vez' : 'veces'}` : '—'}</td>}
                 <td style={{ padding: '5px 4px', textAlign: 'right', fontWeight: 700 }}>{p.score}</td>
               </tr>
             ))}
@@ -455,16 +461,49 @@ const Control = ({ session: initial, moduleList, onExit }) => {
     return () => { unsubscribe(chS); unsubscribe(chP); clearInterval(poll); document.removeEventListener('visibilitychange', onVis) }
   }, [session.id])
 
+  // Salidas de la pestaña (broadcast, sin tabla): por estudiante, cuántas veces
+  // salió con una pregunta abierta en toda la clase y en cada pregunta.
+  // `awayLog[pid] = { name, count, ms, perQ: { 'módulo|índice': {count, ms, out} } }`
+  const [awayLog, setAwayLog] = React.useState({})
+  React.useEffect(() => {
+    const ch = subscribeFocus(session.id, ({ pid, name, key, state, ms }) => {
+      if (!pid || !key) return
+      setAwayLog(log => {
+        const cur = log[pid] || { name, count: 0, ms: 0, perQ: {} }
+        const q = cur.perQ[key] || { count: 0, ms: 0, out: false }
+        const back = state === 'back'
+        const nq = back ? { count: q.count + 1, ms: q.ms + (Number(ms) || 0), out: false } : { ...q, out: true }
+        return { ...log, [pid]: { name: name || cur.name, count: cur.count + (back ? 1 : 0), ms: cur.ms + (back ? Number(ms) || 0 : 0), perQ: { ...cur.perQ, [key]: nq } } }
+      })
+    })
+    return () => unsubscribe(ch)
+  }, [session.id])
+
   // Sonidos al cambiar de fase
   const prevPhase = React.useRef(session.phase)
   React.useEffect(() => {
     if (session.phase !== prevPhase.current) {
       if (session.phase === 'question') sStart()
       else if (session.phase === 'reveal') sReveal()
-      else if (session.phase === 'podium') sPodium()
       prevPhase.current = session.phase
     }
   }, [session.phase, session.current_index])
+
+  // Redoble de expectativa antes del podio (fin de clase) y del ranking de una
+  // ronda terminada; luego fanfarria. Una vez por momento. Si el profesor
+  // recarga con la clase ya terminada no vuelve a sonar (arranca "visto").
+  const endKey = (session.status === 'ended' || session.phase === 'podium') ? 'fin'
+    : session.phase === 'round_end' ? `ronda|${session.module_id}` : null
+  const suspenseDone = React.useRef(new Set(endKey ? [endKey] : []))
+  const [suspense, setSuspense] = React.useState(false)
+  React.useEffect(() => {
+    if (!endKey || suspenseDone.current.has(endKey)) return
+    suspenseDone.current.add(endKey)
+    setSuspense(true)
+    const ms = sSuspense() || SUSPENSE_MS
+    const t = setTimeout(() => { setSuspense(false); sPodium() }, ms)
+    return () => clearTimeout(t)
+  }, [endKey])
 
   const currentIdx    = moduleList.findIndex(m => m.id === session.module_id)
   const currentModule = currentIdx >= 0 ? moduleList[currentIdx] : null
@@ -492,6 +531,11 @@ const Control = ({ session: initial, moduleList, onExit }) => {
   }, [session.id, session.module_id, idx, phase, options.length])
 
   const answeredCount = counts.reduce((a, b) => a + b, 0)
+  const awayKey = `${session.module_id}|${idx}`
+  const awayNow = React.useMemo(() => Object.entries(awayLog)
+    .filter(([, a]) => a.perQ[awayKey])
+    .map(([pid, a]) => ({ pid, name: a.name, ...a.perQ[awayKey] }))
+    .sort((x, y) => (y.out - x.out) || (y.count - x.count)), [awayLog, awayKey])
 
   // Ejecuta una RPC de control y muestra el error si lo hubiera (clave para depurar)
   // Las RPC de control devuelven la sesión: se aplica de inmediato (sin esperar
@@ -634,7 +678,7 @@ const Control = ({ session: initial, moduleList, onExit }) => {
       {showPodium && <Confetti />}
       <LivePresentation session={session} moduleList={moduleList} parts={parts} counts={counts} busy={busy}
         view={view} actions={actions} qSeconds={qSeconds} onTimeChange={changeTime}
-        muted={muted} onToggleMute={flipMute} onClose={closePresentation}
+        muted={muted} onToggleMute={flipMute} onClose={closePresentation} suspense={suspense} away={awayNow}
         activityChooser={hasActivity ? <ActivityChooser key={currentModule.id} session={session} module={currentModule} onSession={setSession} /> : null} />
     </>
   )
@@ -736,8 +780,14 @@ const Control = ({ session: initial, moduleList, onExit }) => {
               Pregunta {idx + 1} de {total} {phase !== 'question' && '· Resultados'}
             </div>
             {phase === 'question' && <Countdown startedAt={session.question_started_at} limit={snapQ.time_limit_s || qSeconds} />}
+            {phase === 'question' && <AwayIndicator list={awayNow} style={{ marginBottom: 10 }} />}
+            <QuestionMetaChips area={currentModule?.challenge_data?.bank} question={view.question} />
             <LivePassage passage={localQ?.passage || snapQ.passage} maxHeight="50vh" />
-            {(localQ?.image || snapQ.image) && <img src={localQ?.image || snapQ.image} alt="" style={{ width: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 12, marginBottom: 12, background: '#fff' }} />}
+            {(localQ?.image || snapQ.image) && (
+              <div style={{ marginBottom: 12 }}>
+                <ZoomImg src={localQ?.image || snapQ.image} style={{ width: '100%', maxHeight: 360, objectFit: 'contain', borderRadius: 12, background: '#fff' }} />
+              </div>
+            )}
             <QuestionText as="h2" style={{ fontSize: 24, fontWeight: 800, color: 'var(--dark)', marginBottom: 18, lineHeight: 1.35 }}>{localQ?.question || snapQ.question}</QuestionText>
             {(localQ?.questionAfter || snapQ.questionAfter) && <RichText as="h2" style={{ fontSize: 24, fontWeight: 800, color: 'var(--dark)', marginBottom: 18, lineHeight: 1.35 }}>{localQ?.questionAfter || snapQ.questionAfter}</RichText>}
             {phase === 'question' && (
@@ -745,7 +795,8 @@ const Control = ({ session: initial, moduleList, onExit }) => {
                 limit={snapQ.time_limit_s || qSeconds} open />
             )}
             <div style={optionsLayout(optionImages, 10)}>
-              {options.map((opt, i) => {
+              {optionOrder(liveSeed(session, idx), options).map((i, pos) => {
+                const opt = options[i]
                 const isCorrect = correct === i
                 const n = counts[i] || 0
                 const pct = answeredCount > 0 ? Math.round((n / answeredCount) * 100) : 0
@@ -755,7 +806,7 @@ const Control = ({ session: initial, moduleList, onExit }) => {
                     border: `2px solid ${reveal && isCorrect ? 'var(--success)' : 'var(--border)'}`,
                     background: 'var(--white)', display: 'flex', alignItems: 'center', gap: 12 }}>
                     {reveal && <div style={{ position: 'absolute', inset: 0, width: pct + '%', background: isCorrect ? '#DCFCE7' : 'var(--bg-alt)', transition: 'width .4s', zIndex: 0 }} />}
-                    <span style={{ position: 'relative', zIndex: 1, width: 26, height: 26, borderRadius: 7, background: OPT_COLORS[i % OPT_COLORS.length], color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{String.fromCharCode(65 + i)}</span>
+                    <span style={{ position: 'relative', zIndex: 1, width: 26, height: 26, borderRadius: 7, background: OPT_COLORS[pos % OPT_COLORS.length], color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{String.fromCharCode(65 + pos)}</span>
                     <span style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0, fontSize: 17, fontWeight: 600, color: 'var(--dark)' }}>
                       <OptionImage src={optionImages?.[i]} />
                       <RichText>{opt}</RichText>{reveal && isCorrect && ' ✓'}
@@ -777,6 +828,8 @@ const Control = ({ session: initial, moduleList, onExit }) => {
                 <RichText as="p" style={{ fontSize: 14, color: 'var(--text-sec)', lineHeight: 1.7, margin: 0 }}>{localQ?.explanation || session.current_reveal?.explanation}</RichText>
               </div>
             )}
+            {/* Tip de estrategia para responder este tipo de pregunta (solo el profesor). */}
+            {phase !== 'question' && !isPoll && <StrategyTip area={currentModule?.challenge_data?.bank} question={view.question} compact />}
           </div>
         )}
 
@@ -792,10 +845,10 @@ const Control = ({ session: initial, moduleList, onExit }) => {
         {/* Podio final (fin de la clase en vivo) */}
         {showPodium && (
           <div style={{ padding: '20px 24px', borderRadius: 18, background: 'var(--white)', border: '1px solid var(--border)', marginBottom: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--dark)', marginBottom: 14, textAlign: 'center' }}>🏆 Clase finalizada</h2>
-            {parts.length > 0 && <Podium top={parts.slice(0, 3)} />}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {parts.slice(0, 10).map((p, i) => (
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--dark)', marginBottom: 14, textAlign: 'center' }}>{suspense ? '🥁 Y los resultados son…' : '🏆 Clase finalizada'}</h2>
+            {!suspense && parts.length > 0 && <Podium top={parts.slice(0, 3)} />}
+            {!suspense && <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {parts.map((p, i) => (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, background: i < 3 ? 'var(--orange-bg)' : 'var(--bg)' }}>
                   <span style={{ fontSize: 16, fontWeight: 800, minWidth: 30 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}</span>
                   <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--dark)' }}>{p.nombre} {p.apellido || ''}</span>
@@ -803,12 +856,12 @@ const Control = ({ session: initial, moduleList, onExit }) => {
                 </div>
               ))}
               {parts.length === 0 && <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>Sin participantes.</p>}
-            </div>
+            </div>}
           </div>
         )}
 
         {/* Informe de cierre: resultados + comentarios generales de la sesión */}
-        {showPodium && <ClosingReport session={session} parts={parts} onSaved={setSession} />}
+        {showPodium && <ClosingReport session={session} parts={parts} onSaved={setSession} awayLog={awayLog} />}
 
         {/* Controles del profesor */}
         {!showPodium && (
